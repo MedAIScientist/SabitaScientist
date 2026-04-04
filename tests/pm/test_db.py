@@ -40,4 +40,5 @@ def test_foreign_keys_enforced(tmp_path: Path) -> None:
             "INSERT INTO projects (id, name, created_by, created_at) VALUES (?, ?, ?, ?)",
             ("p1", "Test", "nonexistent-user-id", "2026-01-01T00:00:00"),
         )
+        conn.commit()
     conn.close()
