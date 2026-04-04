@@ -43,7 +43,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         app.mount("/assets", StaticFiles(directory=str(_FRONTEND_DIST / "assets")), name="assets")
 
         @app.get("/{full_path:path}", include_in_schema=False)
-        async def serve_spa(full_path: str):
+        async def serve_spa(_full_path: str):
             return FileResponse(str(_FRONTEND_DIST / "index.html"))
 
     return app
