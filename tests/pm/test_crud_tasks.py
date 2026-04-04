@@ -95,8 +95,8 @@ def test_delete_task(setup) -> None:
 def test_create_and_list_comments(setup) -> None:
     db, user, project = setup
     task = create_task(db, project_id=project.id, title="T", created_by=user.id)
-    c1 = create_comment(db, task_id=task.id, body="First comment", author_id=user.id)
-    c2 = create_comment(db, task_id=task.id, body="Second comment", author_id=user.id)
+    create_comment(db, task_id=task.id, body="First comment", author_id=user.id)
+    create_comment(db, task_id=task.id, body="Second comment", author_id=user.id)
 
     comments = list_comments(db, task.id)
     assert len(comments) == 2
