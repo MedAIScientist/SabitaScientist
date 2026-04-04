@@ -19,7 +19,7 @@ def _extract_token(authorization: str = Header(...)) -> str:
 
 def get_current_user(token: str = Depends(_extract_token)) -> User:
     """Resolve the current user from the Bearer token. Raises 401 if invalid."""
-    user_id = validate_token(token)
+    user_id = validate_token(token, get_db_path())
     if not user_id:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
     user = get_user_by_id(get_db_path(), user_id)

@@ -159,6 +159,7 @@ select = [
 ]
 ignore = [
     "E501", # Formatter takes care of that
+    "B008", # FastAPI uses Depends() in function default args by design
 ]
 fixable = ["ALL"]
 unfixable = []
