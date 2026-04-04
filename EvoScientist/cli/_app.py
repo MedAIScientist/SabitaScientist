@@ -1,4 +1,5 @@
 """Typer application objects — no intra-package imports to avoid circular deps."""
+from __future__ import annotations
 
 import typer  # type: ignore[import-untyped]
 
@@ -51,3 +52,28 @@ app.add_typer(mcp_app, name="mcp")
 # Channel subcommand group
 channel_app = typer.Typer(help="Channel management commands")
 app.add_typer(channel_app, name="channel")
+
+
+@app.command()
+def dashboard(
+    port: int = typer.Option(7860, "--port", help="Port to run the PM server on"),
+    host: str = typer.Option("127.0.0.1", "--host", help="Host to bind the PM server to"),
+    open: bool = typer.Option(True, "--open/--no-open", help="Open browser after starting"),
+) -> None:
+    """Start the project management dashboard."""
+    import uvicorn
+
+    from EvoScientist.pm.api.app import create_app
+
+    if open:
+        import threading
+        import time
+        import webbrowser
+
+        def _open_browser() -> None:
+            time.sleep(1)
+            webbrowser.open(f"http://{host}:{port}")
+
+        threading.Thread(target=_open_browser, daemon=True).start()
+
+    uvicorn.run(create_app(), host=host, port=port, log_level="info")
