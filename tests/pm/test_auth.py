@@ -4,8 +4,6 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-import pytest
-
 from EvoScientist.pm.auth import (
     create_token,
     hash_password,
