@@ -67,6 +67,11 @@ feishu = ["lark-oapi>=1.4.0"]
 qq = ["qq-botpy>=1.0"]
 stt = ["faster-whisper>=1.0"]
 oauth = ["ccproxy-api>=0.2.7"]
+pm = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "bcrypt>=4.0",
+]
 all-channels = [
     "python-telegram-bot>=21.0",
     "discord.py>=2.3",
@@ -96,7 +101,7 @@ build-backend = "setuptools.build_meta"
 include = ["EvoScientist*"]
 
 [tool.setuptools.package-data]
-EvoScientist = ["subagent.yaml", "skills/**/*"]
+EvoScientist = ["subagent.yaml", "skills/**/*", "pm/frontend/dist/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
