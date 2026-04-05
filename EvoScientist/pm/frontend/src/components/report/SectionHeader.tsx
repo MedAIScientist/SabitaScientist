@@ -23,7 +23,7 @@ export function SectionHeader({ title, accent = '#ff8015', count }: SectionHeade
         {title}
       </span>
       {count !== undefined && (
-        <span style={{
+        <span data-testid="count-badge" style={{
           fontSize: 10,
           fontFamily: 'var(--font-mono)',
           color: accent,

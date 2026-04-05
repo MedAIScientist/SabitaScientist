@@ -15,8 +15,8 @@ describe('SectionHeader', () => {
   })
 
   it('does not render badge when count is undefined', () => {
-    const { container } = render(<SectionHeader title="Tasks" />)
-    expect(container.querySelectorAll('span').length).toBe(1)
+    render(<SectionHeader title="Tasks" />)
+    expect(screen.queryByTestId('count-badge')).not.toBeInTheDocument()
   })
 })
 
