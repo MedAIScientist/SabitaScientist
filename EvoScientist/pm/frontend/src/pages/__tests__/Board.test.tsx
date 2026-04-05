@@ -109,10 +109,11 @@ beforeEach(() => {
   vi.clearAllMocks()
 
   const mockedUseQuery = vi.mocked(useQuery)
-  // First call → project, second call → tasks
+  // First call → project, second call → tasks, third call → experiments
   mockedUseQuery
     .mockReturnValueOnce({ data: MOCK_PROJECT } as any)
     .mockReturnValueOnce({ data: TASKS } as any)
+    .mockReturnValueOnce({ data: [] } as any)
 
   vi.mocked(useMutation).mockReturnValue({
     mutate: mockMutate,
@@ -189,6 +190,7 @@ describe('Board', () => {
     vi.mocked(useQuery)
       .mockReturnValueOnce({ data: ownerProject } as any)
       .mockReturnValueOnce({ data: TASKS } as any)
+      .mockReturnValueOnce({ data: [] } as any)
 
     renderBoard()
     expect(screen.getByText(/⚙ SETTINGS/i)).toBeInTheDocument()
@@ -205,6 +207,7 @@ describe('Board', () => {
     vi.mocked(useQuery)
       .mockReturnValueOnce({ data: viewerProject } as any)
       .mockReturnValueOnce({ data: TASKS } as any)
+      .mockReturnValueOnce({ data: [] } as any)
 
     renderBoard()
     expect(screen.queryByText(/⚙ SETTINGS/i)).not.toBeInTheDocument()
