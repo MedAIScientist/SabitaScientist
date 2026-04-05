@@ -69,11 +69,13 @@ def search_users(db_path: Path, q: str, limit: int = 20) -> list[User]:
     """Return users whose username contains q (case-insensitive), up to limit."""
     if not q:
         return []
+    q = q[:64]
+    escaped = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
     with get_db(db_path) as conn:
         rows = conn.execute(
             """SELECT id, username, email, password_hash, is_admin, created_at
-               FROM users WHERE username LIKE ? ORDER BY username LIMIT ?""",
-            (f"%{q}%", limit),
+               FROM users WHERE username LIKE ? ESCAPE '\\' ORDER BY username LIMIT ?""",
+            (f"%{escaped}%", limit),
         ).fetchall()
     return [_row_to_user(r) for r in rows]
 

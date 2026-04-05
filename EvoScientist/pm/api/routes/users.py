@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from ...auth import hash_password
 from ...crud.users import (
@@ -74,8 +74,8 @@ def update_me(
 
 @router.get("/search", response_model=list[UserSearchResult])
 def search_users_endpoint(
-    q: str = "",
-    current_user: User = Depends(get_current_user),
+    q: str = Query(default="", max_length=64),
+    _current_user: User = Depends(get_current_user),
 ):
     """Search users by username substring. Accessible to any authenticated user."""
     if len(q) < 1:
