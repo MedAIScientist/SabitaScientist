@@ -61,6 +61,13 @@ export const api = {
     request<Comment[]>('GET', `/projects/${projectId}/tasks/${taskId}/comments`),
   addComment: (projectId: string, taskId: string, body: string) =>
     request<Comment>('POST', `/projects/${projectId}/tasks/${taskId}/comments`, { body }),
+  createRun: (projectId: string, taskId: string, data: { agent_type: string; prompt: string }) =>
+    request<Run>('POST', `/projects/${projectId}/tasks/${taskId}/runs`, data),
+  listRuns: (projectId: string, taskId: string) =>
+    request<Run[]>('GET', `/projects/${projectId}/tasks/${taskId}/runs`),
+  cancelRun: (runId: string) =>
+    request<void>('DELETE', `/runs/${runId}`),
+  streamRunUrl: (runId: string): string => `/api/v1/runs/${runId}/stream`,
 }
 
 export interface Project {
@@ -76,3 +83,17 @@ export interface Task {
   session_id: string | null; created_by: string; created_at: string; updated_at: string
 }
 export interface Comment { id: string; task_id: string; author_id: string | null; body: string; created_at: string }
+export interface Run {
+  id: string
+  task_id: string
+  project_id: string
+  agent_type: 'research' | 'code' | 'data_analysis' | 'writing'
+  prompt: string
+  status: 'pending' | 'running' | 'done' | 'failed' | 'cancelled'
+  output: string | null
+  error: string | null
+  started_at: string | null
+  finished_at: string | null
+  created_by: string
+  created_at: string
+}
