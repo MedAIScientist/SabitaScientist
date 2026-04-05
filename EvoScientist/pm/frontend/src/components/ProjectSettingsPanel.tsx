@@ -265,6 +265,17 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
                 <span style={{ flex: 1, fontSize: 11, color: '#e2e8f0', fontFamily: 'var(--font-mono)' }}>
                   {m.username}
                 </span>
+                <span style={{
+                  fontSize: 9, fontWeight: 700,
+                  fontFamily: 'var(--font-mono)',
+                  color: ROLE_COLORS[m.role] ?? '#64748b',
+                  letterSpacing: '0.08em',
+                  padding: '1px 4px',
+                  border: `1px solid ${ROLE_COLORS[m.role] ?? '#64748b'}40`,
+                  borderRadius: 3,
+                }}>
+                  {m.role.toUpperCase()}
+                </span>
                 <select
                   value={m.role}
                   disabled={isSelf}
