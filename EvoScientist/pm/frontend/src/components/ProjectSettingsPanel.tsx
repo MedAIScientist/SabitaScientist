@@ -64,11 +64,21 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
 
+  // Mounted flag to prevent state updates after unmount
+  const mountedRef = useRef(true)
+
   // Cleanup timers on unmount
   useEffect(() => () => {
+    mountedRef.current = false
     if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current)
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current)
   }, [])
+
+  // Sync local state when project prop changes (e.g. after a successful save)
+  useEffect(() => {
+    setEditName(project.name)
+    setEditDesc(project.description ?? '')
+  }, [project.name, project.description])
 
   // Escape key closes panel
   useEffect(() => {
@@ -127,7 +137,7 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
   const handleSave = useCallback(() => {
     setSaveError(null)
     updateProject.mutate({
-      name: editName.trim() || project.name,
+      name: editName.trim(),
       description: editDesc || undefined,
     })
   }, [editName, editDesc, project.name, updateProject])
@@ -150,7 +160,7 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
       searchTimerRef.current = setTimeout(async () => {
         try {
           const results = await api.searchUsers(value)
-          setSearchResults(results.slice(0, 5))
+          if (mountedRef.current) setSearchResults(results.slice(0, 5))
         } catch {
           setSearchResults([])
         }
@@ -256,7 +266,7 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
           {project.members.map((m: Member) => {
-            const isSelf = m.username === username
+            const isSelf = !!username && m.username === username
             return (
               <div key={m.user_id} style={{
                 display: 'flex', alignItems: 'center', gap: 8,
