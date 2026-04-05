@@ -12,10 +12,13 @@ interface CardEditPopoverProps {
 export function CardEditPopover({ task, projectId, anchorRect, onClose }: CardEditPopoverProps) {
   const queryClient = useQueryClient()
   const panelRef = useRef<HTMLDivElement>(null)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose  // always up to date, no re-render
 
   const [title, setTitle] = useState(task.title)
   const [priority, setPriority] = useState<Task['priority']>(task.priority)
   const [deadline, setDeadline] = useState(task.deadline ?? '')
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   // Position: right of card with 8px gap, flip left if no room
   const width = 240
@@ -29,28 +32,41 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose }: CardEd
     mutationFn: (data: Partial<Task>) => api.updateTask(projectId, task.id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks', projectId] })
-      onClose()
+      onCloseRef.current()
     },
+    onError: () => setSaveError('Save failed — please retry.'),
   })
 
-  // Click-outside handler
+  // Click-outside handler — stable, no re-attachment on onClose change
   useEffect(() => {
     function handleMouseDown(e: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        onClose()
+      if (panelRef.current && e.target instanceof Node && !panelRef.current.contains(e.target)) {
+        onCloseRef.current()
       }
     }
     document.addEventListener('mousedown', handleMouseDown)
     return () => document.removeEventListener('mousedown', handleMouseDown)
-  }, [onClose])
+  }, [])
+
+  // Close on scroll or resize (popover position becomes stale)
+  useEffect(() => {
+    const close = () => onCloseRef.current()
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
+  }, [])
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
     if (e.key === 'Escape') {
-      onClose()
+      onCloseRef.current()
     }
   }
 
   function handleSave() {
+    setSaveError(null)
     updateMutation.mutate({
       title,
       priority,
@@ -146,6 +162,11 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose }: CardEd
       >
         {updateMutation.isPending ? 'saving…' : 'SAVE'}
       </button>
+      {saveError && (
+        <div style={{ marginTop: 6, fontSize: 9, color: '#f43f5e', fontFamily: 'var(--font-mono)' }}>
+          {saveError}
+        </div>
+      )}
     </div>
   )
 }
