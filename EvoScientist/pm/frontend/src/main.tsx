@@ -8,6 +8,7 @@ import { api } from './api'
 import { Login } from './pages/Login'
 import { Projects } from './pages/Projects'
 import { Board } from './pages/Board'
+import { ExperimentsPage } from './pages/ExperimentsPage'
 import { Setup } from './pages/Setup'
 
 const queryClient = new QueryClient()
@@ -33,6 +34,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/projects" element={<PrivateRoute><Projects /></PrivateRoute>} />
         <Route path="/projects/:id" element={<PrivateRoute><Board /></PrivateRoute>} />
+        <Route path="/projects/:id/experiments" element={<PrivateRoute><ExperimentsPage /></PrivateRoute>} />
         {!needsSetup && <Route path="*" element={<Navigate to="/projects" replace />} />}
       </Routes>
     </BrowserRouter>

@@ -451,6 +451,24 @@ export function Board() {
         </div>
 
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button
+            onClick={() => navigate(`/projects/${projectId}/experiments`)}
+            style={{
+              background: 'rgba(16,185,129,0.08)',
+              border: '1px solid rgba(16,185,129,0.18)',
+              color: '#64748b',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 11,
+              padding: '4px 10px',
+              borderRadius: 4,
+              cursor: 'pointer',
+              letterSpacing: '0.08em',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#10b981'; e.currentTarget.style.borderColor = 'rgba(16,185,129,0.35)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(16,185,129,0.18)' }}
+          >
+            ⚗ EXPERIMENTS
+          </button>
           {isOwner && (
             <button
               onClick={() => setSettingsPanelOpen(true)}
