@@ -1,0 +1,68 @@
+const BASE = '/api/v1'
+
+function getToken(): string | null {
+  return sessionStorage.getItem('pm_token')
+}
+
+function authHeaders(): HeadersInit {
+  const token = getToken()
+  return token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }
+}
+
+async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const resp = await fetch(`${BASE}${path}`, {
+    method,
+    headers: authHeaders(),
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
+  if (resp.status === 401) {
+    sessionStorage.removeItem('pm_token')
+    window.location.href = '/login'
+  }
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ detail: resp.statusText }))
+    throw new Error(err.detail ?? resp.statusText)
+  }
+  if (resp.status === 204) return undefined as T
+  return resp.json() as Promise<T>
+}
+
+export const api = {
+  login: (username: string, password: string) =>
+    request<{ token: string; user_id: string; username: string; is_admin: boolean }>(
+      'POST', '/auth/login', { username, password }
+    ),
+  me: () => request<{ id: string; username: string; is_admin: boolean }>('GET', '/users/me'),
+  setupStatus: () => request<{ needs_setup: boolean }>('GET', '/users/setup/status'),
+  createAdmin: (username: string, password: string, email?: string) =>
+    request<{ id: string; username: string }>('POST', '/users/setup/admin', { username, password, email }),
+  listProjects: () => request<Project[]>('GET', '/projects'),
+  createProject: (name: string, description?: string) => request<Project>('POST', '/projects', { name, description }),
+  getProject: (id: string) => request<Project>('GET', `/projects/${id}`),
+  addMember: (projectId: string, userId: string, role: string) =>
+    request('POST', `/projects/${projectId}/members`, { user_id: userId, role }),
+  listTasks: (projectId: string) => request<Task[]>('GET', `/projects/${projectId}/tasks`),
+  createTask: (projectId: string, data: Partial<Task>) => request<Task>('POST', `/projects/${projectId}/tasks`, data),
+  updateTask: (projectId: string, taskId: string, data: Partial<Task>) =>
+    request<Task>('PUT', `/projects/${projectId}/tasks/${taskId}`, data),
+  deleteTask: (projectId: string, taskId: string) =>
+    request<void>('DELETE', `/projects/${projectId}/tasks/${taskId}`),
+  listComments: (projectId: string, taskId: string) =>
+    request<Comment[]>('GET', `/projects/${projectId}/tasks/${taskId}/comments`),
+  addComment: (projectId: string, taskId: string, body: string) =>
+    request<Comment>('POST', `/projects/${projectId}/tasks/${taskId}/comments`, { body }),
+}
+
+export interface Project {
+  id: string; name: string; description: string | null
+  created_by: string; created_at: string; archived_at: string | null
+  members: Member[]
+}
+export interface Member { user_id: string; username: string; role: string; added_at: string }
+export interface Task {
+  id: string; project_id: string; title: string; description: string | null
+  assignee_id: string | null; status: 'todo' | 'in_progress' | 'done'
+  priority: 'high' | 'medium' | 'low'; deadline: string | null
+  session_id: string | null; created_by: string; created_at: string; updated_at: string
+}
+export interface Comment { id: string; task_id: string; author_id: string | null; body: string; created_at: string }
