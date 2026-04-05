@@ -77,3 +77,46 @@ describe('DonutChart', () => {
     expect(screen.getByText('BIG')).toBeInTheDocument()
   })
 })
+import { BarChart } from '../BarChart'
+
+describe('BarChart', () => {
+  const simpleRows = [
+    { label: 'Project Alpha', value: 3, max: 10, color: '#10b981' },
+    { label: 'Project Beta',  value: 7, max: 10, color: '#f59e0b' },
+  ]
+
+  it('renders an SVG element', () => {
+    const { container } = render(<BarChart rows={simpleRows} />)
+    expect(container.querySelector('svg')).toBeInTheDocument()
+  })
+
+  it('renders a label for each row', () => {
+    render(<BarChart rows={simpleRows} />)
+    expect(screen.getByText('Project Alpha')).toBeInTheDocument()
+    expect(screen.getByText('Project Beta')).toBeInTheDocument()
+  })
+
+  it('truncates long labels', () => {
+    render(<BarChart rows={[{ label: 'A Very Long Project Name Indeed Here', value: 1, max: 10, color: '#ff8015' }]} />)
+    expect(screen.getByText(/A Very Long Project Name/)).toBeInTheDocument()
+  })
+
+  it('renders sublabel when provided', () => {
+    render(<BarChart rows={[{ label: 'X', value: 5, max: 10, color: '#ff8015', sublabel: '50%' }]} />)
+    expect(screen.getByText('50%')).toBeInTheDocument()
+  })
+
+  it('renders stacked bars when segments provided', () => {
+    const stackedRows = [{
+      label: 'Project X', value: 6, max: 6, color: '#ff8015',
+      segments: [
+        { value: 2, color: '#f59e0b' },
+        { value: 3, color: '#ff8015' },
+        { value: 1, color: '#10b981' },
+      ],
+    }]
+    const { container } = render(<BarChart rows={stackedRows} />)
+    // 1 background rect + 3 segment rects
+    expect(container.querySelectorAll('rect').length).toBeGreaterThanOrEqual(4)
+  })
+})
