@@ -107,7 +107,7 @@ describe('CardEditPopover', () => {
     vi.mocked(useMutation).mockImplementationOnce((config: any) => ({
       mutate: () => config.onError(new Error('network error')),
       isPending: false,
-    }))
+    } as any))
     renderPopover(false, vi.fn())
     fireEvent.click(screen.getByRole('button', { name: /save/i }))
     expect(await screen.findByText(/save failed/i)).toBeInTheDocument()
