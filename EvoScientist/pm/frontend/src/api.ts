@@ -41,6 +41,16 @@ export const api = {
   getProject: (id: string) => request<Project>('GET', `/projects/${id}`),
   addMember: (projectId: string, userId: string, role: string) =>
     request('POST', `/projects/${projectId}/members`, { user_id: userId, role }),
+  searchUsers: (q: string) =>
+    request<{ id: string; username: string }[]>('GET', `/users/search?q=${encodeURIComponent(q)}`),
+  updateProject: (id: string, data: { name?: string; description?: string }) =>
+    request<Project>('PUT', `/projects/${id}`, data),
+  deleteProject: (id: string) =>
+    request<void>('DELETE', `/projects/${id}`),
+  removeMember: (projectId: string, userId: string) =>
+    request<void>('DELETE', `/projects/${projectId}/members/${userId}`),
+  updateMemberRole: (projectId: string, userId: string, role: string) =>
+    request<Member>('PUT', `/projects/${projectId}/members/${userId}`, { role }),
   listTasks: (projectId: string) => request<Task[]>('GET', `/projects/${projectId}/tasks`),
   createTask: (projectId: string, data: Partial<Task>) => request<Task>('POST', `/projects/${projectId}/tasks`, data),
   updateTask: (projectId: string, taskId: string, data: Partial<Task>) =>
