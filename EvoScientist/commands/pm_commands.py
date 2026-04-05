@@ -189,7 +189,7 @@ class TaskCommand(Command):
 
         # Validate active project and args BEFORE making any auth/HTTP calls
         # so tests that patch only _ensure_server can exercise error paths.
-        if sub not in ("help",):
+        if sub != "help":
             if not _active_project_id:
                 ctx.ui.append_system("No active project. Use /project switch <name>")
                 return
