@@ -1,4 +1,5 @@
 """Project and member management routes."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -41,13 +42,22 @@ def _project_to_response(project, db_path) -> ProjectResponse:
             (project.id,),
         ).fetchall()
     members = [
-        MemberResponse(user_id=r["user_id"], username=r["username"], role=r["role"], added_at=r["added_at"])
+        MemberResponse(
+            user_id=r["user_id"],
+            username=r["username"],
+            role=r["role"],
+            added_at=r["added_at"],
+        )
         for r in rows
     ]
     return ProjectResponse(
-        id=project.id, name=project.name, description=project.description,
-        created_by=project.created_by, created_at=project.created_at,
-        archived_at=project.archived_at, members=members,
+        id=project.id,
+        name=project.name,
+        description=project.description,
+        created_by=project.created_by,
+        created_at=project.created_at,
+        archived_at=project.archived_at,
+        members=members,
     )
 
 
@@ -55,14 +65,20 @@ def _project_to_response(project, db_path) -> ProjectResponse:
 def list_my_projects(current_user: User = Depends(get_current_user)):
     """List projects the current user is a member of."""
     db = get_db_path()
-    return [_project_to_response(p, db) for p in list_projects_for_user(db, current_user.id)]
+    return [
+        _project_to_response(p, db) for p in list_projects_for_user(db, current_user.id)
+    ]
 
 
 @router.post("", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
-def create_new_project(body: ProjectCreate, current_user: User = Depends(get_current_user)):
+def create_new_project(
+    body: ProjectCreate, current_user: User = Depends(get_current_user)
+):
     """Create a new project (creator becomes owner)."""
     db = get_db_path()
-    project = create_project(db, name=body.name, description=body.description, created_by=current_user.id)
+    project = create_project(
+        db, name=body.name, description=body.description, created_by=current_user.id
+    )
     return _project_to_response(project, db)
 
 
@@ -88,7 +104,13 @@ def update_existing_project(
     """Update project name/description/archive (owner only)."""
     db = get_db_path()
     archived_at = datetime.now(UTC).isoformat() if body.archive else None
-    project = update_project(db, project_id, name=body.name, description=body.description, archived_at=archived_at)
+    project = update_project(
+        db,
+        project_id,
+        name=body.name,
+        description=body.description,
+        archived_at=archived_at,
+    )
     return _project_to_response(project, db)
 
 
@@ -101,7 +123,11 @@ def delete_existing_project(
     delete_project(get_db_path(), project_id)
 
 
-@router.post("/{project_id}/members", response_model=MemberResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{project_id}/members",
+    response_model=MemberResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 def add_project_member(
     project_id: str,
     body: AddMemberRequest,
@@ -113,7 +139,12 @@ def add_project_member(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     member = add_member(db, project_id=project_id, user_id=body.user_id, role=body.role)
-    return MemberResponse(user_id=member.user_id, username=user.username, role=member.role, added_at=member.added_at)
+    return MemberResponse(
+        user_id=member.user_id,
+        username=user.username,
+        role=member.role,
+        added_at=member.added_at,
+    )
 
 
 @router.put("/{project_id}/members/{user_id}", response_model=MemberResponse)
@@ -140,7 +171,9 @@ def change_member_role(
     )
 
 
-@router.delete("/{project_id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{project_id}/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT
+)
 def remove_project_member(
     project_id: str,
     user_id: str,

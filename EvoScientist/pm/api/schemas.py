@@ -1,10 +1,11 @@
 """Pydantic request/response models for the PM API."""
+
 from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-
 # ── Auth ──────────────────────────────────────────────────────────────────────
+
 
 class LoginRequest(BaseModel):
     username: str
@@ -19,6 +20,7 @@ class TokenResponse(BaseModel):
 
 
 # ── Users ─────────────────────────────────────────────────────────────────────
+
 
 class UserCreate(BaseModel):
     username: str = Field(min_length=1, max_length=64)
@@ -39,6 +41,7 @@ class UpdatePasswordRequest(BaseModel):
 
 
 # ── Projects ──────────────────────────────────────────────────────────────────
+
 
 class ProjectCreate(BaseModel):
     name: str = Field(min_length=1, max_length=128)
@@ -79,12 +82,13 @@ class UpdateMemberRoleRequest(BaseModel):
 
 # ── Tasks ─────────────────────────────────────────────────────────────────────
 
+
 class TaskCreate(BaseModel):
     title: str = Field(min_length=1, max_length=256)
     description: str | None = None
     assignee_id: str | None = None
     priority: str = Field(default="medium", pattern="^(high|medium|low)$")
-    deadline: str | None = None    # ISO date YYYY-MM-DD
+    deadline: str | None = None  # ISO date YYYY-MM-DD
     session_id: str | None = None
 
 
@@ -126,6 +130,7 @@ class CommentResponse(BaseModel):
 
 
 # ── Errors ────────────────────────────────────────────────────────────────────
+
 
 class ErrorResponse(BaseModel):
     detail: str

@@ -1,4 +1,5 @@
 """Slash commands for project management: /project, /task, /user."""
+
 from __future__ import annotations
 
 import getpass
@@ -15,9 +16,11 @@ _active_project_id: str | None = None
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _ensure_server() -> None:
     """Start the PM server if not running."""
     from EvoScientist.pm.server import start_server_background
+
     start_server_background()
 
 
@@ -85,6 +88,7 @@ def _maybe_login(ctx: CommandContext) -> bool:
 
 # ── /project command ──────────────────────────────────────────────────────────
 
+
 class ProjectCommand(Command):
     name = "/project"
     description = "Manage projects: list, create, switch, info, invite"
@@ -104,7 +108,9 @@ class ProjectCommand(Command):
                 return
             projects = resp.json()
             if not projects:
-                ctx.ui.append_system("No projects. Create one with /project create <name>")
+                ctx.ui.append_system(
+                    "No projects. Create one with /project create <name>"
+                )
                 return
             lines = ["Projects:"]
             for p in projects:
@@ -121,9 +127,13 @@ class ProjectCommand(Command):
             if resp.status_code == 201:
                 p = resp.json()
                 _active_project_id = p["id"]
-                ctx.ui.append_system(f"Created project '{p['name']}' [{p['id'][:8]}] (now active)")
+                ctx.ui.append_system(
+                    f"Created project '{p['name']}' [{p['id'][:8]}] (now active)"
+                )
             else:
-                ctx.ui.append_system(f"Error: {resp.json().get('detail', resp.status_code)}")
+                ctx.ui.append_system(
+                    f"Error: {resp.json().get('detail', resp.status_code)}"
+                )
 
         elif sub == "switch":
             if len(args) < 2:
@@ -131,12 +141,18 @@ class ProjectCommand(Command):
                 return
             query = args[1]
             resp = _get("/projects")
-            matches = [p for p in resp.json() if p["id"].startswith(query) or query.lower() in p["name"].lower()]
+            matches = [
+                p
+                for p in resp.json()
+                if p["id"].startswith(query) or query.lower() in p["name"].lower()
+            ]
             if not matches:
                 ctx.ui.append_system(f"No project matching '{query}'")
                 return
             _active_project_id = matches[0]["id"]
-            ctx.ui.append_system(f"Active project: {matches[0]['name']} [{matches[0]['id'][:8]}]")
+            ctx.ui.append_system(
+                f"Active project: {matches[0]['name']} [{matches[0]['id'][:8]}]"
+            )
 
         elif sub == "info":
             if not _active_project_id:
@@ -147,12 +163,18 @@ class ProjectCommand(Command):
                 ctx.ui.append_system(f"Error: {resp.status_code}")
                 return
             p = resp.json()
-            members = ", ".join(f"{m['username']}({m['role']})" for m in p.get("members", []))
-            ctx.ui.append_system(f"Project: {p['name']}\nDescription: {p.get('description') or '-'}\nMembers: {members}")
+            members = ", ".join(
+                f"{m['username']}({m['role']})" for m in p.get("members", [])
+            )
+            ctx.ui.append_system(
+                f"Project: {p['name']}\nDescription: {p.get('description') or '-'}\nMembers: {members}"
+            )
 
         elif sub == "invite":
             if len(args) < 2:
-                ctx.ui.append_system("Usage: /project invite <username> [--role editor|viewer]")
+                ctx.ui.append_system(
+                    "Usage: /project invite <username> [--role editor|viewer]"
+                )
                 return
             if not _active_project_id:
                 ctx.ui.append_system("No active project.")
@@ -163,20 +185,28 @@ class ProjectCommand(Command):
                 idx = args.index("--role")
                 role = args[idx + 1] if idx + 1 < len(args) else "editor"
             users_resp = _get("/users")
-            user = next((u for u in users_resp.json() if u["username"] == username), None)
+            user = next(
+                (u for u in users_resp.json() if u["username"] == username), None
+            )
             if not user:
                 ctx.ui.append_system(f"User '{username}' not found.")
                 return
-            resp = _post(f"/projects/{_active_project_id}/members", {"user_id": user["id"], "role": role})
+            resp = _post(
+                f"/projects/{_active_project_id}/members",
+                {"user_id": user["id"], "role": role},
+            )
             if resp.status_code == 201:
                 ctx.ui.append_system(f"Invited {username} as {role}.")
             else:
-                ctx.ui.append_system(f"Error: {resp.json().get('detail', resp.status_code)}")
+                ctx.ui.append_system(
+                    f"Error: {resp.json().get('detail', resp.status_code)}"
+                )
         else:
             ctx.ui.append_system("Subcommands: list, create, switch, info, invite")
 
 
 # ── /task command ─────────────────────────────────────────────────────────────
+
 
 class TaskCommand(Command):
     name = "/task"
@@ -217,8 +247,12 @@ class TaskCommand(Command):
                 if items:
                     lines.append(f"{status.upper()}:")
                     for t in items:
-                        deadline = f" [due {t['deadline']}]" if t.get("deadline") else ""
-                        lines.append(f"  [{t['id'][:8]}] {t['title']} ({t['priority']}){deadline}")
+                        deadline = (
+                            f" [due {t['deadline']}]" if t.get("deadline") else ""
+                        )
+                        lines.append(
+                            f"  [{t['id'][:8]}] {t['title']} ({t['priority']}){deadline}"
+                        )
             ctx.ui.append_system("\n".join(lines))
 
         elif sub == "add":
@@ -239,7 +273,9 @@ class TaskCommand(Command):
                     uname = remaining[i + 1]
                     i += 2
                     users_resp = _get("/users")
-                    user = next((u for u in users_resp.json() if u["username"] == uname), None)
+                    user = next(
+                        (u for u in users_resp.json() if u["username"] == uname), None
+                    )
                     assignee_id = user["id"] if user else None
                 else:
                     title_parts.append(remaining[i])
@@ -248,15 +284,22 @@ class TaskCommand(Command):
             if not title:
                 ctx.ui.append_system("Task title is required.")
                 return
-            resp = _post(f"/projects/{_active_project_id}/tasks", {
-                "title": title, "priority": priority,
-                "deadline": deadline, "assignee_id": assignee_id,
-            })
+            resp = _post(
+                f"/projects/{_active_project_id}/tasks",
+                {
+                    "title": title,
+                    "priority": priority,
+                    "deadline": deadline,
+                    "assignee_id": assignee_id,
+                },
+            )
             if resp.status_code == 201:
                 t = resp.json()
                 ctx.ui.append_system(f"Created task [{t['id'][:8]}]: {t['title']}")
             else:
-                ctx.ui.append_system(f"Error: {resp.json().get('detail', resp.status_code)}")
+                ctx.ui.append_system(
+                    f"Error: {resp.json().get('detail', resp.status_code)}"
+                )
 
         elif sub == "done":
             if len(args) < 2:
@@ -264,11 +307,15 @@ class TaskCommand(Command):
                 return
             task_id_prefix = args[1]
             resp = _get(f"/projects/{_active_project_id}/tasks")
-            task = next((t for t in resp.json() if t["id"].startswith(task_id_prefix)), None)
+            task = next(
+                (t for t in resp.json() if t["id"].startswith(task_id_prefix)), None
+            )
             if not task:
                 ctx.ui.append_system(f"Task '{task_id_prefix}' not found.")
                 return
-            _put(f"/projects/{_active_project_id}/tasks/{task['id']}", {"status": "done"})
+            _put(
+                f"/projects/{_active_project_id}/tasks/{task['id']}", {"status": "done"}
+            )
             ctx.ui.append_system(f"Marked '{task['title']}' as done.")
 
         elif sub == "show":
@@ -277,7 +324,10 @@ class TaskCommand(Command):
                 return
             task_id_prefix = args[1]
             tasks_resp = _get(f"/projects/{_active_project_id}/tasks")
-            task = next((t for t in tasks_resp.json() if t["id"].startswith(task_id_prefix)), None)
+            task = next(
+                (t for t in tasks_resp.json() if t["id"].startswith(task_id_prefix)),
+                None,
+            )
             if not task:
                 ctx.ui.append_system(f"Task '{task_id_prefix}' not found.")
                 return
@@ -289,7 +339,9 @@ class TaskCommand(Command):
                 f"Session:  {task.get('session_id') or '-'}",
                 f"Desc:     {task.get('description') or '-'}",
             ]
-            comments_resp = _get(f"/projects/{_active_project_id}/tasks/{task['id']}/comments")
+            comments_resp = _get(
+                f"/projects/{_active_project_id}/tasks/{task['id']}/comments"
+            )
             if comments_resp.status_code == 200 and comments_resp.json():
                 lines.append("Comments:")
                 for c in comments_resp.json():
@@ -300,6 +352,7 @@ class TaskCommand(Command):
 
 
 # ── /user command (admin only) ────────────────────────────────────────────────
+
 
 class UserCommand(Command):
     name = "/user"
@@ -334,6 +387,8 @@ class UserCommand(Command):
             if resp.status_code == 201:
                 ctx.ui.append_system(f"Created user '{username}'.")
             else:
-                ctx.ui.append_system(f"Error: {resp.json().get('detail', resp.status_code)}")
+                ctx.ui.append_system(
+                    f"Error: {resp.json().get('detail', resp.status_code)}"
+                )
         else:
             ctx.ui.append_system("Subcommands: list, create")

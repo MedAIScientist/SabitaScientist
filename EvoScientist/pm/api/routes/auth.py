@@ -1,4 +1,5 @@
 """Auth routes: login and logout."""
+
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
@@ -20,7 +21,9 @@ def login(body: LoginRequest):
     """Authenticate user and return session token."""
     user = get_user_by_username(get_db_path(), body.username)
     if not user or not verify_password(body.password, user.password_hash):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
+        )
     token = create_token()
     expires_at = (datetime.now(UTC) + timedelta(hours=_TOKEN_TTL_HOURS)).isoformat()
     with get_db(get_db_path()) as conn:
@@ -28,7 +31,9 @@ def login(body: LoginRequest):
             "INSERT INTO auth_tokens (token, user_id, expires_at) VALUES (?, ?, ?)",
             (token, user.id, expires_at),
         )
-    return TokenResponse(token=token, user_id=user.id, username=user.username, is_admin=user.is_admin)
+    return TokenResponse(
+        token=token, user_id=user.id, username=user.username, is_admin=user.is_admin
+    )
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)

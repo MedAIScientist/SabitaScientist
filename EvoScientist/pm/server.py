@@ -1,4 +1,5 @@
 """Helpers to start and stop the PM server as a background subprocess."""
+
 from __future__ import annotations
 
 import os
@@ -15,6 +16,7 @@ _PID_FILE = Path.home() / ".config" / "evoscientist" / "pm.pid"
 def is_server_running() -> bool:
     """Return True if the PM server is reachable on localhost:{_PORT}."""
     import socket
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.settimeout(0.5)
         return s.connect_ex(("127.0.0.1", _PORT)) == 0

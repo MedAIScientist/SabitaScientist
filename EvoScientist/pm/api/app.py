@@ -1,4 +1,5 @@
 """FastAPI application factory for the PM API."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -40,7 +41,11 @@ def create_app(db_path: Path | None = None) -> FastAPI:
 
     # Serve React SPA — only if the dist folder exists (i.e., frontend has been built)
     if _FRONTEND_DIST.exists():
-        app.mount("/assets", StaticFiles(directory=str(_FRONTEND_DIST / "assets")), name="assets")
+        app.mount(
+            "/assets",
+            StaticFiles(directory=str(_FRONTEND_DIST / "assets")),
+            name="assets",
+        )
 
         @app.get("/{full_path:path}", include_in_schema=False)
         async def serve_spa(_full_path: str):

@@ -1,4 +1,5 @@
 """Authentication utilities: password hashing and opaque session tokens."""
+
 from __future__ import annotations
 
 import secrets

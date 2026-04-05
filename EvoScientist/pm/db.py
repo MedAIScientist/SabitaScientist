@@ -1,10 +1,10 @@
 """SQLite connection and schema management for the PM module."""
+
 from __future__ import annotations
 
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
-
 
 _SCHEMA = """
 PRAGMA foreign_keys = ON;

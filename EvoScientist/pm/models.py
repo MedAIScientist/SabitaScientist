@@ -1,7 +1,8 @@
 """Dataclasses representing PM domain entities."""
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass
@@ -28,7 +29,7 @@ class Project:
 class Member:
     project_id: str
     user_id: str
-    role: str          # 'owner' | 'editor' | 'viewer'
+    role: str  # 'owner' | 'editor' | 'viewer'
     added_at: str
 
 
@@ -42,9 +43,9 @@ class Task:
     updated_at: str
     description: str | None = None
     assignee_id: str | None = None
-    status: str = "todo"           # 'todo' | 'in_progress' | 'done'
-    priority: str = "medium"       # 'high' | 'medium' | 'low'
-    deadline: str | None = None    # ISO date string
+    status: str = "todo"  # 'todo' | 'in_progress' | 'done'
+    priority: str = "medium"  # 'high' | 'medium' | 'low'
+    deadline: str | None = None  # ISO date string
     session_id: str | None = None  # optional link to sessions.db thread_id
 
 

@@ -1,4 +1,5 @@
 """CRUD operations for Task and Comment entities."""
+
 from __future__ import annotations
 
 import uuid
@@ -29,8 +30,19 @@ def create_task(
                (id, project_id, title, description, assignee_id, status, priority,
                 deadline, session_id, created_by, created_at, updated_at)
                VALUES (?, ?, ?, ?, ?, 'todo', ?, ?, ?, ?, ?, ?)""",
-            (task_id, project_id, title, description, assignee_id, priority,
-             deadline, session_id, created_by, now, now),
+            (
+                task_id,
+                project_id,
+                title,
+                description,
+                assignee_id,
+                priority,
+                deadline,
+                session_id,
+                created_by,
+                now,
+                now,
+            ),
         )
     return Task(
         id=task_id,
@@ -114,8 +126,17 @@ def update_task(
         conn.execute(
             """UPDATE tasks SET title=?, description=?, assignee_id=?, status=?,
                priority=?, deadline=?, session_id=?, updated_at=? WHERE id=?""",
-            (new.title, new.description, new.assignee_id, new.status,
-             new.priority, new.deadline, new.session_id, now, task_id),
+            (
+                new.title,
+                new.description,
+                new.assignee_id,
+                new.status,
+                new.priority,
+                new.deadline,
+                new.session_id,
+                now,
+                task_id,
+            ),
         )
     return new
 
@@ -138,7 +159,9 @@ def create_comment(
             "INSERT INTO task_comments (id, task_id, author_id, body, created_at) VALUES (?, ?, ?, ?, ?)",
             (comment_id, task_id, author_id, body, now),
         )
-    return Comment(id=comment_id, task_id=task_id, author_id=author_id, body=body, created_at=now)
+    return Comment(
+        id=comment_id, task_id=task_id, author_id=author_id, body=body, created_at=now
+    )
 
 
 def list_comments(db_path: Path, task_id: str) -> list[Comment]:
@@ -148,7 +171,16 @@ def list_comments(db_path: Path, task_id: str) -> list[Comment]:
             "SELECT id, task_id, author_id, body, created_at FROM task_comments WHERE task_id = ? ORDER BY created_at ASC",
             (task_id,),
         ).fetchall()
-    return [Comment(id=r["id"], task_id=r["task_id"], author_id=r["author_id"], body=r["body"], created_at=r["created_at"]) for r in rows]
+    return [
+        Comment(
+            id=r["id"],
+            task_id=r["task_id"],
+            author_id=r["author_id"],
+            body=r["body"],
+            created_at=r["created_at"],
+        )
+        for r in rows
+    ]
 
 
 def delete_comment(db_path: Path, comment_id: str) -> bool:

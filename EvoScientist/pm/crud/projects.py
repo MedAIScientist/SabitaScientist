@@ -1,4 +1,5 @@
 """CRUD operations for Project and Member entities."""
+
 from __future__ import annotations
 
 import uuid
