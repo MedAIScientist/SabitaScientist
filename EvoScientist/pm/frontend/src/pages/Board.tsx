@@ -9,7 +9,9 @@ import { api, Task } from '../api'
 import { TaskDetail } from './TaskDetail'
 import { FilterToolbar } from '../components/FilterToolbar'
 import { CardEditPopover } from '../components/CardEditPopover'
+import { ProjectSettingsPanel } from '../components/ProjectSettingsPanel'
 import { useTaskFilters } from '../hooks/useTaskFilters'
+import { useAuth } from '../auth'
 
 // ── Column definitions (lab context) ─────────────────────────────────────────
 const COLUMNS: { key: Task['status']; label: string; accent: string; glow: string }[] = [
@@ -313,6 +315,7 @@ export function Board() {
   const { id: projectId } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { username } = useAuth()
 
   const [selectedTask, setSelectedTask]   = useState<Task | null>(null)
   const [newTaskTitle, setNewTaskTitle]   = useState('')
@@ -321,12 +324,15 @@ export function Board() {
   const [overColumnId, setOverColumnId]   = useState<string | null>(null)
   const [editingTask,  setEditingTask]    = useState<Task | null>(null)
   const [editAnchorRect, setEditAnchorRect] = useState<DOMRect | null>(null)
+  const [settingsPanelOpen, setSettingsPanelOpen] = useState(false)
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
     queryFn: () => api.getProject(projectId!),
     enabled: Boolean(projectId),
   })
+
+  const isOwner = project?.members.some(m => m.username === username && m.role === 'owner') ?? false
 
   const { data: tasks = [] } = useQuery({
     queryKey: ['tasks', projectId],
@@ -444,23 +450,43 @@ export function Board() {
           </h1>
         </div>
 
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 5 }}>
-          {project?.members.map((m, i) => (
-            <span
-              key={m.user_id}
-              title={`${m.username} (${m.role})`}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          {isOwner && (
+            <button
+              onClick={() => setSettingsPanelOpen(true)}
               style={{
-                width: 26, height: 26, borderRadius: '50%',
-                background: AVATAR_COLORS[i % AVATAR_COLORS.length],
-                color: '#fff', display: 'flex', alignItems: 'center',
-                justifyContent: 'center', fontSize: 10, fontWeight: 700,
-                border: '2px solid rgba(7,11,18,0.9)',
+                background: 'rgba(100,140,200,0.08)',
+                border: '1px solid rgba(100,140,200,0.18)',
+                color: '#64748b',
                 fontFamily: 'var(--font-mono)',
-                cursor: 'default',
-              }}>
-              {m.username[0].toUpperCase()}
-            </span>
-          ))}
+                fontSize: 11,
+                padding: '4px 10px',
+                borderRadius: 4,
+                cursor: 'pointer',
+                letterSpacing: '0.08em',
+              }}
+            >
+              ⚙ SETTINGS
+            </button>
+          )}
+          <div style={{ display: 'flex', gap: 5 }}>
+            {project?.members.map((m, i) => (
+              <span
+                key={m.user_id}
+                title={`${m.username} (${m.role})`}
+                style={{
+                  width: 26, height: 26, borderRadius: '50%',
+                  background: AVATAR_COLORS[i % AVATAR_COLORS.length],
+                  color: '#fff', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', fontSize: 10, fontWeight: 700,
+                  border: '2px solid rgba(7,11,18,0.9)',
+                  fontFamily: 'var(--font-mono)',
+                  cursor: 'default',
+                }}>
+                {m.username[0].toUpperCase()}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -537,6 +563,14 @@ export function Board() {
           projectId={projectId!}
           anchorRect={editAnchorRect}
           onClose={() => setEditingTask(null)}
+        />
+      )}
+
+      {settingsPanelOpen && project && (
+        <ProjectSettingsPanel
+          project={project}
+          projectId={projectId!}
+          onClose={() => setSettingsPanelOpen(false)}
         />
       )}
     </div>

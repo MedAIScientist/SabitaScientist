@@ -25,6 +25,16 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: vi.fn(() => ({ invalidateQueries: mockInvalidateQueries })),
 }))
 
+// ── Auth mock ─────────────────────────────────────────────────────────────────
+vi.mock('../../auth', () => ({
+  useAuth: vi.fn(() => ({ username: 'alice' })),
+}))
+
+// ── ProjectSettingsPanel mock ─────────────────────────────────────────────────
+vi.mock('../../components/ProjectSettingsPanel', () => ({
+  ProjectSettingsPanel: () => <div data-testid="settings-panel" />,
+}))
+
 // ── API mock ──────────────────────────────────────────────────────────────────
 vi.mock('../../api', () => ({
   api: {
@@ -37,6 +47,7 @@ vi.mock('../../api', () => ({
 
 import React from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
+import { useAuth } from '../../auth'
 import { Task, Member, Project } from '../../api'
 import { Board } from '../Board'
 
@@ -165,5 +176,37 @@ describe('Board', () => {
     // After hover: edit button should appear
     const editBtn = card.querySelector('button[title="Edit"]')
     expect(editBtn).not.toBeNull()
+  })
+
+  test('⚙ SETTINGS button is visible for project owner', () => {
+    const ownerMembers: Member[] = [
+      { user_id: 'u1', username: 'owner_user', role: 'owner', added_at: '2026-01-01' },
+    ]
+    const ownerProject: Project = { ...MOCK_PROJECT, members: ownerMembers }
+
+    vi.mocked(useAuth).mockReturnValue({ username: 'owner_user' } as any)
+    vi.mocked(useQuery).mockReset()
+    vi.mocked(useQuery)
+      .mockReturnValueOnce({ data: ownerProject } as any)
+      .mockReturnValueOnce({ data: TASKS } as any)
+
+    renderBoard()
+    expect(screen.getByText(/⚙ SETTINGS/i)).toBeInTheDocument()
+  })
+
+  test('⚙ SETTINGS button is hidden for non-owner members', () => {
+    const viewerMembers: Member[] = [
+      { user_id: 'u2', username: 'viewer_user', role: 'viewer', added_at: '2026-01-01' },
+    ]
+    const viewerProject: Project = { ...MOCK_PROJECT, members: viewerMembers }
+
+    vi.mocked(useAuth).mockReturnValue({ username: 'viewer_user' } as any)
+    vi.mocked(useQuery).mockReset()
+    vi.mocked(useQuery)
+      .mockReturnValueOnce({ data: viewerProject } as any)
+      .mockReturnValueOnce({ data: TASKS } as any)
+
+    renderBoard()
+    expect(screen.queryByText(/⚙ SETTINGS/i)).not.toBeInTheDocument()
   })
 })
