@@ -526,6 +526,7 @@ export function Board() {
           task={selectedTask}
           projectId={projectId!}
           onClose={() => setSelectedTask(null)}
+          members={project?.members ?? []}
         />
       )}
 
