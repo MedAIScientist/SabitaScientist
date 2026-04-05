@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
@@ -95,7 +95,8 @@ function DraggableCard({ task, col, idx, activeTaskId, onCardClick, onEditClick 
           onPointerDown={e => e.stopPropagation()}
           onClick={e => {
             e.stopPropagation()
-            const card = e.currentTarget.closest('[data-card]') as HTMLElement
+            const card = e.currentTarget.closest<HTMLElement>('[data-card]')
+            if (!card) return
             onEditClick(task, card.getBoundingClientRect())
           }}
           style={{
@@ -324,12 +325,14 @@ export function Board() {
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
     queryFn: () => api.getProject(projectId!),
+    enabled: Boolean(projectId),
   })
 
   const { data: tasks = [] } = useQuery({
     queryKey: ['tasks', projectId],
     queryFn: () => api.listTasks(projectId!),
     refetchInterval: 15_000,
+    enabled: Boolean(projectId),
   })
 
   // ── Filter / sort ──
@@ -343,8 +346,8 @@ export function Board() {
 
   // ── Create task mutation ──
   const createTask = useMutation({
-    mutationFn: (title: string) =>
-      api.createTask(projectId!, { title, status: addingToCol ?? 'todo' }),
+    mutationFn: ({ title, status }: { title: string; status: Task['status'] }) =>
+      api.createTask(projectId!, { title, status }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks', projectId] })
       setNewTaskTitle('')
@@ -365,15 +368,15 @@ export function Board() {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   )
 
-  function handleDragStart(event: DragStartEvent) {
+  const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveTaskId(String(event.active.id))
-  }
+  }, [])
 
-  function handleDragOver(event: DragOverEvent) {
+  const handleDragOver = useCallback((event: DragOverEvent) => {
     setOverColumnId(event.over ? String(event.over.id) : null)
-  }
+  }, [])
 
-  function handleDragEnd(event: DragEndEvent) {
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
     const taskId  = String(event.active.id)
     const colKey  = event.over ? String(event.over.id) : null
     if (colKey && COLUMNS.some(c => c.key === colKey)) {
@@ -384,7 +387,20 @@ export function Board() {
     }
     setActiveTaskId(null)
     setOverColumnId(null)
-  }
+  }, [tasks, patchStatus])
+
+  const handleAddSubmit = useCallback((colKey: Task['status']) => (title: string) => {
+    createTask.mutate({ title, status: colKey })
+  }, [createTask])
+
+  const handleAddCancel = useCallback(() => setAddingToCol(null), [])
+
+  const handleCardClick = useCallback((task: Task) => setSelectedTask(task), [])
+
+  const handleEditClick = useCallback((task: Task, rect: DOMRect) => {
+    setEditingTask(task)
+    setEditAnchorRect(rect)
+  }, [])
 
   return (
     <div style={{ background: 'var(--bg)', height: '100vh', display: 'flex', flexDirection: 'column', color: 'var(--text)' }}>
@@ -495,13 +511,10 @@ export function Board() {
                 newTaskTitle={newTaskTitle}
                 onNewTaskTitleChange={setNewTaskTitle}
                 onAddStart={setAddingToCol}
-                onAddCancel={() => setAddingToCol(null)}
-                onAddSubmit={title => createTask.mutate(title)}
-                onCardClick={task => setSelectedTask(task)}
-                onEditClick={(task, rect) => {
-                  setEditingTask(task)
-                  setEditAnchorRect(rect)
-                }}
+                onAddCancel={handleAddCancel}
+                onAddSubmit={handleAddSubmit(col.key)}
+                onCardClick={handleCardClick}
+                onEditClick={handleEditClick}
               />
             )
           })}
