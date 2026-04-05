@@ -68,6 +68,39 @@ export const api = {
   cancelRun: (runId: string) =>
     request<void>('DELETE', `/runs/${runId}`),
   streamRunUrl: (runId: string): string => `/api/v1/runs/${runId}/stream`,
+  // ── Experiments ──────────────────────────────────────────────────────────
+  listExperiments: (projectId: string) =>
+    request<Experiment[]>('GET', `/projects/${projectId}/experiments`),
+  createExperiment: (projectId: string, data: {
+    name: string; hypothesis?: string | null; protocol?: string | null;
+    status?: string; tags?: string[]; deadline?: string | null
+  }) => request<Experiment>('POST', `/projects/${projectId}/experiments`, data),
+  getExperiment: (projectId: string, expId: string) =>
+    request<Experiment>('GET', `/projects/${projectId}/experiments/${expId}`),
+  updateExperiment: (projectId: string, expId: string, data: {
+    name?: string; hypothesis?: string | null; protocol?: string | null;
+    status?: string; tags?: string[]; deadline?: string | null
+  }) => request<Experiment>('PATCH', `/projects/${projectId}/experiments/${expId}`, data),
+  deleteExperiment: (projectId: string, expId: string) =>
+    request<void>('DELETE', `/projects/${projectId}/experiments/${expId}`),
+  linkTask: (projectId: string, expId: string, taskId: string) =>
+    request<{ experiment_id: string; task_id: string }>(
+      'POST', `/projects/${projectId}/experiments/${expId}/tasks`, { task_id: taskId }
+    ),
+  unlinkTask: (projectId: string, expId: string, taskId: string) =>
+    request<void>('DELETE', `/projects/${projectId}/experiments/${expId}/tasks/${taskId}`),
+  listLinkedTasks: (projectId: string, expId: string) =>
+    request<Task[]>('GET', `/projects/${projectId}/experiments/${expId}/tasks`),
+  listEntries: (projectId: string, expId: string, type?: 'note' | 'result') =>
+    request<ExperimentEntry[]>(
+      'GET', `/projects/${projectId}/experiments/${expId}/entries${type ? `?type=${type}` : ''}`
+    ),
+  createEntry: (projectId: string, expId: string, data: { type: 'note' | 'result'; title: string; body?: string }) =>
+    request<ExperimentEntry>('POST', `/projects/${projectId}/experiments/${expId}/entries`, data),
+  updateEntry: (projectId: string, expId: string, entryId: string, data: { title?: string; body?: string }) =>
+    request<ExperimentEntry>('PATCH', `/projects/${projectId}/experiments/${expId}/entries/${entryId}`, data),
+  deleteEntry: (projectId: string, expId: string, entryId: string) =>
+    request<void>('DELETE', `/projects/${projectId}/experiments/${expId}/entries/${entryId}`),
 }
 
 export interface Project {
@@ -96,4 +129,29 @@ export interface Run {
   finished_at: string | null
   created_by: string
   created_at: string
+}
+
+export interface Experiment {
+  id: string
+  project_id: string
+  name: string
+  hypothesis: string | null
+  protocol: string | null
+  status: 'planned' | 'running' | 'completed'
+  tags: string[]
+  deadline: string | null
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ExperimentEntry {
+  id: string
+  experiment_id: string
+  type: 'note' | 'result'
+  title: string
+  body: string
+  author_id: string | null
+  created_at: string
+  updated_at: string
 }
