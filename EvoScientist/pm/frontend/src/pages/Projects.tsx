@@ -261,26 +261,46 @@ export function Projects() {
           <span style={{ color: 'var(--text-dim)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>/</span>
           <span style={{ color: '#ff8015', fontSize: 14, fontFamily: 'var(--font-mono)' }}>projects</span>
         </div>
-        <button
-          onClick={() => navigate('/profile')}
-          title={username ?? 'Profile'}
-          style={{
-            width: 30, height: 30, borderRadius: '50%', border: 'none',
-            background: theme === 'dark'
-              ? 'linear-gradient(135deg, rgba(255,128,21,0.25), rgba(139,92,246,0.25))'
-              : 'linear-gradient(135deg, rgba(255,128,21,0.4), rgba(139,92,246,0.4))',
-            color: '#ff8015',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 13, fontWeight: 700, cursor: 'pointer',
-            fontFamily: 'var(--font-mono)',
-            outline: '1px solid rgba(255,128,21,0.25)',
-            transition: 'outline-color 0.15s, box-shadow 0.15s',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.outlineColor = 'rgba(255,128,21,0.6)'; e.currentTarget.style.boxShadow = '0 0 10px rgba(255,128,21,0.2)' }}
-          onMouseLeave={e => { e.currentTarget.style.outlineColor = 'rgba(255,128,21,0.25)'; e.currentTarget.style.boxShadow = '' }}
-        >
-          {username?.[0]?.toUpperCase() ?? '?'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            onClick={() => navigate('/reports')}
+            style={{
+              background: 'rgba(255,128,21,0.08)',
+              border: '1px solid rgba(255,128,21,0.18)',
+              color: '#64748b',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 11,
+              padding: '5px 12px',
+              borderRadius: 4,
+              cursor: 'pointer',
+              letterSpacing: '0.08em',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#ff8015'; e.currentTarget.style.borderColor = 'rgba(255,128,21,0.35)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(255,128,21,0.18)' }}
+          >
+            📊 REPORTS
+          </button>
+          <button
+            onClick={() => navigate('/profile')}
+            title={username ?? 'Profile'}
+            style={{
+              width: 30, height: 30, borderRadius: '50%', border: 'none',
+              background: theme === 'dark'
+                ? 'linear-gradient(135deg, rgba(255,128,21,0.25), rgba(139,92,246,0.25))'
+                : 'linear-gradient(135deg, rgba(255,128,21,0.4), rgba(139,92,246,0.4))',
+              color: '#ff8015',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              fontFamily: 'var(--font-mono)',
+              outline: '1px solid rgba(255,128,21,0.25)',
+              transition: 'outline-color 0.15s, box-shadow 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.outlineColor = 'rgba(255,128,21,0.6)'; e.currentTarget.style.boxShadow = '0 0 10px rgba(255,128,21,0.2)' }}
+            onMouseLeave={e => { e.currentTarget.style.outlineColor = 'rgba(255,128,21,0.25)'; e.currentTarget.style.boxShadow = '' }}
+          >
+            {username?.[0]?.toUpperCase() ?? '?'}
+          </button>
+        </div>
       </div>
 
       {/* ── Content ── */}
