@@ -10,6 +10,9 @@ from pathlib import Path
 from ..db import get_db
 from ..models import Experiment, Task
 
+VALID_STATUSES = frozenset({"planned", "running", "completed"})
+_UNSET = object()
+
 
 def create_experiment(
     db_path: Path,
@@ -72,27 +75,29 @@ def list_experiments(db_path: Path, project_id: str) -> list[Experiment]:
 def update_experiment(
     db_path: Path,
     exp_id: str,
-    name: str | None = None,
-    hypothesis: str | None = None,
-    protocol: str | None = None,
-    status: str | None = None,
-    tags: list[str] | None = None,
-    deadline: str | None = None,
+    name: object = _UNSET,
+    hypothesis: object = _UNSET,
+    protocol: object = _UNSET,
+    status: object = _UNSET,
+    tags: object = _UNSET,
+    deadline: object = _UNSET,
 ) -> Experiment:
-    """Update experiment fields. Omitted kwargs are unchanged."""
+    """Update experiment fields. Omitted kwargs are unchanged; pass None to clear optional fields."""
     exp = get_experiment(db_path, exp_id)
     if exp is None:
         raise ValueError(f"Experiment {exp_id!r} not found")
+    if status is not _UNSET and status is not None and status not in VALID_STATUSES:
+        raise ValueError(f"Invalid status {status!r}")
     now = datetime.now(UTC).isoformat()
     new = Experiment(
         id=exp.id,
         project_id=exp.project_id,
-        name=name if name is not None else exp.name,
-        hypothesis=hypothesis if hypothesis is not None else exp.hypothesis,
-        protocol=protocol if protocol is not None else exp.protocol,
-        status=status if status is not None else exp.status,
-        tags=tags if tags is not None else exp.tags,
-        deadline=deadline if deadline is not None else exp.deadline,
+        name=name if name is not _UNSET else exp.name,
+        hypothesis=hypothesis if hypothesis is not _UNSET else exp.hypothesis,
+        protocol=protocol if protocol is not _UNSET else exp.protocol,
+        status=status if status is not _UNSET else exp.status,
+        tags=tags if tags is not _UNSET else exp.tags,
+        deadline=deadline if deadline is not _UNSET else exp.deadline,
         created_by=exp.created_by,
         created_at=exp.created_at,
         updated_at=now,
@@ -102,7 +107,7 @@ def update_experiment(
             """UPDATE experiments SET name=?, hypothesis=?, protocol=?, status=?,
                tags=?, deadline=?, updated_at=? WHERE id=?""",
             (new.name, new.hypothesis, new.protocol, new.status,
-             json.dumps(new.tags), new.deadline, now, exp_id),
+             json.dumps(new.tags) if new.tags is not None else "[]", new.deadline, now, exp_id),
         )
     return new
 
@@ -156,7 +161,7 @@ def list_linked_tasks(db_path: Path, exp_id: str) -> list[Task]:
 def _row_to_experiment(row: sqlite3.Row) -> Experiment:
     try:
         tags = json.loads(row["tags"])
-    except Exception:
+    except (json.JSONDecodeError, TypeError):
         tags = []
     return Experiment(
         id=row["id"],
