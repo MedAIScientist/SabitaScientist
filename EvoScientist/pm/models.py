@@ -56,3 +56,19 @@ class Comment:
     body: str
     created_at: str
     author_id: str | None = None
+
+
+@dataclass
+class Run:
+    id: str
+    task_id: str
+    project_id: str
+    agent_type: str       # 'research' | 'code' | 'data_analysis' | 'writing'
+    prompt: str
+    status: str           # 'pending' | 'running' | 'done' | 'failed' | 'cancelled'
+    created_by: str
+    created_at: str
+    output: str | None = None
+    error: str | None = None
+    started_at: str | None = None
+    finished_at: str | None = None

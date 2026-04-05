@@ -65,6 +65,23 @@ CREATE TABLE IF NOT EXISTS auth_tokens (
     user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     expires_at    TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS runs (
+    id           TEXT PRIMARY KEY,
+    task_id      TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    project_id   TEXT NOT NULL,
+    agent_type   TEXT NOT NULL
+                 CHECK(agent_type IN ('research', 'code', 'data_analysis', 'writing')),
+    prompt       TEXT NOT NULL,
+    status       TEXT NOT NULL DEFAULT 'pending'
+                 CHECK(status IN ('pending', 'running', 'done', 'failed', 'cancelled')),
+    output       TEXT,
+    error        TEXT,
+    started_at   TEXT,
+    finished_at  TEXT,
+    created_by   TEXT NOT NULL,
+    created_at   TEXT NOT NULL
+);
 """
 
 
