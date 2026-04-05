@@ -134,6 +134,29 @@ class CommentResponse(BaseModel):
     created_at: str
 
 
+# ── Runs ──────────────────────────────────────────────────────────────────────
+
+
+class RunCreate(BaseModel):
+    agent_type: str = Field(pattern="^(research|code|data_analysis|writing)$")
+    prompt: str = Field(min_length=1, max_length=4096)
+
+
+class RunResponse(BaseModel):
+    id: str
+    task_id: str
+    project_id: str
+    agent_type: str
+    prompt: str
+    status: str
+    output: str | None
+    error: str | None
+    started_at: str | None
+    finished_at: str | None
+    created_by: str
+    created_at: str
+
+
 # ── Errors ────────────────────────────────────────────────────────────────────
 
 
