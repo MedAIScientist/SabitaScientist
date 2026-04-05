@@ -10,12 +10,13 @@ from ...crud.users import (
     delete_user,
     get_user_by_id,
     list_users,
+    search_users,
     update_user_password,
 )
 from ...db import get_db_path
 from ...models import User
 from ..deps import get_current_user, require_admin
-from ..schemas import UpdatePasswordRequest, UserCreate, UserResponse
+from ..schemas import UpdatePasswordRequest, UserCreate, UserResponse, UserSearchResult
 
 router = APIRouter()
 
@@ -69,6 +70,20 @@ def update_me(
     )
     updated = get_user_by_id(get_db_path(), current_user.id)
     return _to_response(updated)
+
+
+@router.get("/search", response_model=list[UserSearchResult])
+def search_users_endpoint(
+    q: str = "",
+    current_user: User = Depends(get_current_user),
+):
+    """Search users by username substring. Accessible to any authenticated user."""
+    if len(q) < 1:
+        return []
+    return [
+        UserSearchResult(id=u.id, username=u.username)
+        for u in search_users(get_db_path(), q)
+    ]
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)

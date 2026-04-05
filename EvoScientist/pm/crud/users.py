@@ -65,6 +65,19 @@ def list_users(db_path: Path) -> list[User]:
     return [_row_to_user(r) for r in rows]
 
 
+def search_users(db_path: Path, q: str, limit: int = 20) -> list[User]:
+    """Return users whose username contains q (case-insensitive), up to limit."""
+    if not q:
+        return []
+    with get_db(db_path) as conn:
+        rows = conn.execute(
+            """SELECT id, username, email, password_hash, is_admin, created_at
+               FROM users WHERE username LIKE ? ORDER BY username LIMIT ?""",
+            (f"%{q}%", limit),
+        ).fetchall()
+    return [_row_to_user(r) for r in rows]
+
+
 def delete_user(db_path: Path, user_id: str) -> bool:
     """Delete a user by id. Returns True if a row was deleted."""
     with get_db(db_path) as conn:

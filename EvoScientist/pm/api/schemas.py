@@ -40,6 +40,11 @@ class UpdatePasswordRequest(BaseModel):
     new_password: str = Field(min_length=6)
 
 
+class UserSearchResult(BaseModel):
+    id: str
+    username: str
+
+
 # ── Projects ──────────────────────────────────────────────────────────────────
 
 

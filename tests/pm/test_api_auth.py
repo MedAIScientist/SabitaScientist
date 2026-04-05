@@ -25,7 +25,7 @@ def test_login_unknown_user(client) -> None:
 
 def test_protected_route_without_token(client) -> None:
     resp = client.get("/api/v1/users/me")
-    assert resp.status_code == 422  # missing header
+    assert resp.status_code == 401  # missing header
 
 
 def test_protected_route_invalid_token(client) -> None:

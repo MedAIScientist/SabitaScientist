@@ -11,8 +11,13 @@ from ..db import get_db_path
 from ..models import User
 
 
-def _extract_token(authorization: str = Header(...)) -> str:
+def _extract_token(authorization: str | None = Header(default=None)) -> str:
     """Parse Bearer token from Authorization header."""
+    if not authorization:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing authorization header",
+        )
     if not authorization.startswith("Bearer "):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
