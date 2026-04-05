@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, Task, Member } from '../api'
 
@@ -74,6 +74,7 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
   // ── Delete confirmation state ──
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // ── Comments query ──
   const { data: comments = [] } = useQuery({
@@ -108,10 +109,11 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
     },
   })
 
-  // Clean up delete timer on unmount
+  // Clean up timers on unmount
   useEffect(() => {
     return () => {
       if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current)
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current)
     }
   }, [])
 
@@ -119,10 +121,16 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
   const priority = PRIORITY_META[task.priority] ?? PRIORITY_META.low
   const overdue  = isOverdue(task.deadline)
 
-  function copySessionId() {
-    navigator.clipboard.writeText(task.session_id!)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  async function copySessionId() {
+    if (!task.session_id) return
+    try {
+      await navigator.clipboard.writeText(task.session_id)
+      setCopied(true)
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current)
+      copyTimerRef.current = setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // clipboard unavailable (non-https context) — silent fail is acceptable
+    }
   }
 
   function enterEditMode() {

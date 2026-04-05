@@ -523,6 +523,7 @@ export function Board() {
 
       {selectedTask && (
         <TaskDetail
+          key={selectedTask.id}
           task={selectedTask}
           projectId={projectId!}
           onClose={() => setSelectedTask(null)}
