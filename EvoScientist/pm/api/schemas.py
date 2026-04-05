@@ -157,6 +157,63 @@ class RunResponse(BaseModel):
     created_at: str
 
 
+# ── Experiments ───────────────────────────────────────────────────────────────
+
+
+class ExperimentCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    hypothesis: str | None = None
+    protocol: str | None = None
+    status: str = Field(default="planned", pattern="^(planned|running|completed)$")
+    tags: list[str] = []
+    deadline: str | None = None
+
+
+class ExperimentUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    hypothesis: str | None = None
+    protocol: str | None = None
+    status: str | None = Field(default=None, pattern="^(planned|running|completed)$")
+    tags: list[str] | None = None
+    deadline: str | None = None
+
+
+class ExperimentResponse(BaseModel):
+    id: str
+    project_id: str
+    name: str
+    hypothesis: str | None
+    protocol: str | None
+    status: str
+    tags: list[str]
+    deadline: str | None
+    created_by: str
+    created_at: str
+    updated_at: str
+
+
+class ExperimentEntryCreate(BaseModel):
+    type: str = Field(pattern="^(note|result)$")
+    title: str = Field(min_length=1, max_length=200)
+    body: str = ""
+
+
+class ExperimentEntryUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    body: str | None = None
+
+
+class ExperimentEntryResponse(BaseModel):
+    id: str
+    experiment_id: str
+    type: str
+    title: str
+    body: str
+    author_id: str | None
+    created_at: str
+    updated_at: str
+
+
 # ── Errors ────────────────────────────────────────────────────────────────────
 
 
