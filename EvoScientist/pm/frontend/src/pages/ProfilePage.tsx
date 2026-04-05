@@ -32,19 +32,13 @@ export function ProfilePage() {
               padding: '3px 9px', fontSize: 15, lineHeight: 1,
               transition: 'color 0.15s, border-color 0.15s',
             }}
-            onMouseEnter={e => { e.currentTarget.style.color = '#22d3ee'; e.currentTarget.style.borderColor = 'rgba(34,211,238,0.3)' }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#ff8015'; e.currentTarget.style.borderColor = 'rgba(255,128,21,0.3)' }}
             onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
           >←</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <span style={{
-              width: 6, height: 6, borderRadius: '50%',
-              background: '#22d3ee', boxShadow: '0 0 7px #22d3ee',
-            }} />
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600, letterSpacing: '0.04em', color: 'var(--text-heading)' }}>
-              EvoScientist
-            </span>
-            <span style={{ color: 'var(--text-dim)', fontSize: 11, fontFamily: 'var(--font-mono)' }}>/</span>
-            <span style={{ color: '#22d3ee', fontSize: 12, fontFamily: 'var(--font-mono)' }}>profile</span>
+            <img src="/sabita.jpg" alt="SABITA" style={{ height: 26, borderRadius: 4, display: 'block' }} />
+            <span style={{ color: 'var(--text-dim)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>/</span>
+            <span style={{ color: '#ff8015', fontSize: 14, fontFamily: 'var(--font-mono)' }}>profile</span>
           </div>
         </div>
       </div>
@@ -56,19 +50,19 @@ export function ProfilePage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginBottom: 36 }}>
           <div style={{
             width: 56, height: 56, borderRadius: '50%',
-            background: 'linear-gradient(135deg, #22d3ee, #8b5cf6)',
+            background: 'linear-gradient(135deg, #ff8015, #8b5cf6)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 22, fontWeight: 700, color: '#fff',
+            fontSize: 25, fontWeight: 700, color: '#fff',
             fontFamily: 'var(--font-mono)',
-            boxShadow: '0 0 20px rgba(34,211,238,0.25)',
+            boxShadow: '0 0 20px rgba(255,128,21,0.25)',
           }}>
             {username?.[0]?.toUpperCase() ?? '?'}
           </div>
           <div>
-            <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)' }}>
+            <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)' }}>
               {username}
             </div>
-            <div style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: 2, letterSpacing: '0.06em' }}>
+            <div style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: 2, letterSpacing: '0.06em' }}>
               RESEARCHER
             </div>
           </div>
@@ -89,10 +83,10 @@ export function ProfilePage() {
             borderBottom: '1px solid var(--border-subtle)',
           }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-heading)', marginBottom: 2 }}>
+              <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-heading)', marginBottom: 2 }}>
                 Appearance
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+              <div style={{ fontSize: 13, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
                 {isDark ? 'DARK MODE' : 'LIGHT MODE'}
               </div>
             </div>
@@ -102,22 +96,22 @@ export function ProfilePage() {
               style={{
                 width: 52, height: 28, borderRadius: 14,
                 border: 'none', cursor: 'pointer',
-                background: isDark ? 'rgba(34,211,238,0.15)' : 'rgba(34,211,238,0.25)',
+                background: isDark ? 'rgba(255,128,21,0.15)' : 'rgba(255,128,21,0.25)',
                 position: 'relative',
                 transition: 'background 0.2s',
                 flexShrink: 0,
-                outline: '1px solid rgba(34,211,238,0.3)',
+                outline: '1px solid rgba(255,128,21,0.3)',
               }}
               aria-pressed={!isDark}
             >
               {/* Track label */}
               <span style={{
                 position: 'absolute', top: '50%', transform: 'translateY(-50%)',
-                fontSize: 9, fontFamily: 'var(--font-mono)', fontWeight: 700,
+                fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: 700,
                 letterSpacing: '0.04em',
                 left: isDark ? 'auto' : 8,
                 right: isDark ? 8 : 'auto',
-                color: '#22d3ee',
+                color: '#ff8015',
                 opacity: 0.8,
               }}>
                 {isDark ? '🌙' : '☀'}
@@ -127,8 +121,8 @@ export function ProfilePage() {
                 position: 'absolute', top: 4,
                 left: isDark ? 4 : 24,
                 width: 20, height: 20, borderRadius: '50%',
-                background: isDark ? '#22d3ee' : '#f59e0b',
-                boxShadow: isDark ? '0 0 8px rgba(34,211,238,0.5)' : '0 0 8px rgba(245,158,11,0.5)',
+                background: isDark ? '#ff8015' : '#f59e0b',
+                boxShadow: isDark ? '0 0 8px rgba(255,128,21,0.5)' : '0 0 8px rgba(245,158,11,0.5)',
                 transition: 'left 0.2s, background 0.2s, box-shadow 0.2s',
               }} />
             </button>
@@ -140,15 +134,15 @@ export function ProfilePage() {
             padding: '16px 20px',
           }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-heading)', marginBottom: 2 }}>
+              <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-heading)', marginBottom: 2 }}>
                 Username
               </div>
-              <div style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+              <div style={{ fontSize: 13, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
                 {username}
               </div>
             </div>
             <span style={{
-              fontSize: 9, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)',
+              fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)',
               letterSpacing: '0.06em',
             }}>READ-ONLY</span>
           </div>
@@ -162,7 +156,7 @@ export function ProfilePage() {
             background: 'rgba(244,63,94,0.07)',
             border: '1px solid rgba(244,63,94,0.18)',
             borderRadius: 8, color: '#f43f5e',
-            fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
+            fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
             transition: 'background 0.14s',
             fontFamily: 'var(--font-mono)',
           }}

@@ -3,24 +3,31 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #070b12;
-  --surface: #0d1526;
-  --surface-2: #111e35;
-  --surface-header: rgba(13, 21, 38, 0.92);
-  --surface-card: #111e35;
-  --surface-card-hover: #162238;
-  --surface-input: #070b12;
-  --surface-panel: #0d1526;
-  --surface-comment: rgba(17, 30, 53, 0.55);
-  --overlay-bg: rgba(7, 11, 18, 0.72);
-  --border: rgba(100, 140, 200, 0.14);
-  --border-subtle: rgba(100, 140, 200, 0.09);
+  /* Medipol navy-tinted dark surfaces */
+  --bg: #06091a;
+  --surface: #0b1230;
+  --surface-2: #101838;
+  --surface-header: rgba(11, 18, 48, 0.92);
+  --surface-card: #101838;
+  --surface-card-hover: #16203f;
+  --surface-input: #06091a;
+  --surface-panel: #0b1230;
+  --surface-comment: rgba(16, 24, 56, 0.55);
+  --overlay-bg: rgba(6, 9, 26, 0.72);
+  --border: rgba(13, 31, 97, 0.35);
+  --border-subtle: rgba(13, 31, 97, 0.2);
   --text: #e2e8f0;
   --text-heading: #f1f5f9;
   --text-2: #94a3b8;
   --text-3: #475569;
   --text-dim: #3d4e64;
   --text-muted: #64748b;
+  /* Medipol brand colors */
+  --accent: #ff8015;
+  --accent-rgb: 255, 128, 21;
+  --brand-navy: #0d1f61;
+  --brand-navy-rgb: 13, 31, 97;
+  /* Semantic status colors */
   --cyan: #22d3ee;
   --amber: #f59e0b;
   --emerald: #10b981;
@@ -48,6 +55,8 @@
   --text-3: #64748b;
   --text-dim: #64748b;
   --text-muted: #94a3b8;
+  --accent: #d4680a;
+  --accent-rgb: 212, 104, 10;
 }
 
 html, body, #root {
@@ -58,7 +67,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
@@ -66,8 +75,8 @@ body {
 /* Thin scrollbars */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(100, 140, 200, 0.18); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: rgba(100, 140, 200, 0.32); }
+::-webkit-scrollbar-thumb { background: rgba(13, 31, 97, 0.3); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 128, 21, 0.4); }
 
 /* Keyframes */
 @keyframes fadeInUp {

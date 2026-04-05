@@ -12,7 +12,7 @@ interface Props {
 }
 
 const STATUS_META: Record<string, { color: string; bg: string; label: string }> = {
-  todo:        { color: '#22d3ee', bg: 'rgba(34,211,238,0.08)',  label: 'PLANNED'     },
+  todo:        { color: '#ff8015', bg: 'rgba(255,128,21,0.08)',  label: 'PLANNED'     },
   in_progress: { color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', label: 'IN PROGRESS' },
   done:        { color: '#10b981', bg: 'rgba(16,185,129,0.08)', label: 'COMPLETE'    },
 }
@@ -35,7 +35,7 @@ const inputStyle: React.CSSProperties = {
   border: '1px solid var(--border)',
   borderRadius: 6,
   color: 'var(--text)',
-  fontSize: 13,
+  fontSize: 15,
   outline: 'none',
   boxSizing: 'border-box',
   fontFamily: 'inherit',
@@ -47,7 +47,7 @@ const selectStyle: React.CSSProperties = {
 }
 
 const labelStyle: React.CSSProperties = {
-  fontSize: 9,
+  fontSize: 10,
   fontWeight: 700,
   color: 'var(--text-dim)',
   letterSpacing: '0.12em',
@@ -182,14 +182,14 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
         padding: '3px 10px', borderRadius: 4,
         background: 'rgba(244,63,94,0.12)',
         border: '1px solid rgba(244,63,94,0.28)',
-        color: '#f43f5e', fontSize: 9, fontWeight: 700,
+        color: '#f43f5e', fontSize: 10, fontWeight: 700,
         fontFamily: 'var(--font-mono)',
       }
     : {
         padding: '3px 10px', borderRadius: 4,
         background: 'var(--border-subtle)',
         border: '1px solid var(--border)',
-        color: '#94a3b8', fontSize: 9, fontWeight: 500,
+        color: '#94a3b8', fontSize: 10, fontWeight: 500,
         fontFamily: 'var(--font-mono)',
       }
 
@@ -233,17 +233,17 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
               onClick={enterEditMode}
               style={{
                 flexShrink: 0, cursor: 'pointer',
-                background: 'rgba(34,211,238,0.08)',
-                border: '1px solid rgba(34,211,238,0.22)',
-                borderRadius: 6, color: '#22d3ee',
-                padding: '4px 10px', fontSize: 10, fontWeight: 700,
+                background: 'rgba(255,128,21,0.08)',
+                border: '1px solid rgba(255,128,21,0.22)',
+                borderRadius: 6, color: '#ff8015',
+                padding: '4px 10px', fontSize: 11, fontWeight: 700,
                 letterSpacing: '0.08em',
                 fontFamily: 'var(--font-mono)',
                 lineHeight: 1,
                 transition: 'background 0.14s',
               }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(34,211,238,0.18)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(34,211,238,0.08)' }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,128,21,0.18)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,128,21,0.08)' }}
             >EDIT</button>
           )}
           <button
@@ -268,10 +268,10 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
             <button
               onClick={() => setActiveTab('details')}
               style={{
-                padding: '4px 10px', fontSize: 9, fontFamily: 'var(--font-mono)',
-                color: activeTab === 'details' ? '#22d3ee' : 'var(--text-3)',
+                padding: '4px 10px', fontSize: 10, fontFamily: 'var(--font-mono)',
+                color: activeTab === 'details' ? '#ff8015' : 'var(--text-3)',
                 background: 'none', border: 'none', borderBottomStyle: 'solid',
-                borderBottomWidth: 2, borderBottomColor: activeTab === 'details' ? '#22d3ee' : 'transparent',
+                borderBottomWidth: 2, borderBottomColor: activeTab === 'details' ? '#ff8015' : 'transparent',
                 cursor: 'pointer', fontWeight: activeTab === 'details' ? 700 : 400,
               }}
             >
@@ -280,10 +280,10 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
             <button
               onClick={() => setActiveTab('ai')}
               style={{
-                padding: '4px 10px', fontSize: 9, fontFamily: 'var(--font-mono)',
-                color: activeTab === 'ai' ? '#22d3ee' : 'var(--text-3)',
+                padding: '4px 10px', fontSize: 10, fontFamily: 'var(--font-mono)',
+                color: activeTab === 'ai' ? '#ff8015' : 'var(--text-3)',
                 background: 'none', border: 'none', borderBottomStyle: 'solid',
-                borderBottomWidth: 2, borderBottomColor: activeTab === 'ai' ? '#22d3ee' : 'transparent',
+                borderBottomWidth: 2, borderBottomColor: activeTab === 'ai' ? '#ff8015' : 'transparent',
                 cursor: 'pointer', fontWeight: activeTab === 'ai' ? 700 : 400,
               }}
             >
@@ -302,13 +302,13 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
               <span style={{
                 padding: '3px 10px', borderRadius: 4,
                 background: status.bg, border: `1px solid ${status.color}28`,
-                color: status.color, fontSize: 9, fontWeight: 700,
+                color: status.color, fontSize: 10, fontWeight: 700,
                 letterSpacing: '0.12em', fontFamily: 'var(--font-mono)',
               }}>{status.label}</span>
               <span style={{
                 padding: '3px 10px', borderRadius: 4,
                 background: priority.bg, border: `1px solid ${priority.color}28`,
-                color: priority.color, fontSize: 9, fontWeight: 700,
+                color: priority.color, fontSize: 10, fontWeight: 700,
                 letterSpacing: '0.12em', fontFamily: 'var(--font-mono)',
               }}>{priority.label}</span>
               {task.deadline && (
@@ -320,7 +320,7 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
 
             {/* Description */}
             {task.description && (
-              <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 13, lineHeight: 1.65 }}>
+              <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 15, lineHeight: 1.65 }}>
                 {task.description}
               </p>
             )}
@@ -338,23 +338,23 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
             {/* Linked session */}
             {task.session_id && (
               <div style={{
-                background: 'rgba(34,211,238,0.04)',
-                border: '1px solid rgba(34,211,238,0.14)',
+                background: 'rgba(255,128,21,0.04)',
+                border: '1px solid rgba(255,128,21,0.14)',
                 borderRadius: 8, padding: '12px 14px',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 9 }}>
                   <span style={{
                     width: 5, height: 5, borderRadius: '50%',
-                    background: '#22d3ee', boxShadow: '0 0 5px #22d3ee',
+                    background: '#ff8015', boxShadow: '0 0 5px #ff8015',
                   }} />
                   <span style={{
-                    fontSize: 9, fontWeight: 700, color: '#22d3ee',
+                    fontSize: 10, fontWeight: 700, color: '#ff8015',
                     letterSpacing: '0.12em', fontFamily: 'var(--font-mono)',
                   }}>LINKED SESSION</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <code style={{
-                    flex: 1, fontSize: 11, color: 'var(--text-2)',
+                    flex: 1, fontSize: 13, color: 'var(--text-2)',
                     fontFamily: 'var(--font-mono)',
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   }}>
@@ -363,16 +363,16 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
                   <button
                     onClick={copySessionId}
                     style={{
-                      flexShrink: 0, padding: '3px 10px', fontSize: 10, cursor: 'pointer',
-                      background: copied ? 'rgba(16,185,129,0.12)' : 'rgba(34,211,238,0.08)',
-                      border: `1px solid ${copied ? 'rgba(16,185,129,0.28)' : 'rgba(34,211,238,0.22)'}`,
-                      borderRadius: 5, color: copied ? '#10b981' : '#22d3ee',
+                      flexShrink: 0, padding: '3px 10px', fontSize: 11, cursor: 'pointer',
+                      background: copied ? 'rgba(16,185,129,0.12)' : 'rgba(255,128,21,0.08)',
+                      border: `1px solid ${copied ? 'rgba(16,185,129,0.28)' : 'rgba(255,128,21,0.22)'}`,
+                      borderRadius: 5, color: copied ? '#10b981' : '#ff8015',
                       fontFamily: 'var(--font-mono)', transition: 'all 0.2s',
                     }}
                   >{copied ? '✓ Copied' : 'Copy'}</button>
                 </div>
                 <p style={{
-                  margin: '7px 0 0', fontSize: 10, color: 'var(--text-dim)',
+                  margin: '7px 0 0', fontSize: 11, color: 'var(--text-dim)',
                   fontFamily: 'var(--font-mono)',
                 }}>
                   EvoSci --resume {task.session_id}
@@ -384,13 +384,13 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{
-                  fontSize: 9, fontWeight: 700, color: 'var(--text-dim)',
+                  fontSize: 10, fontWeight: 700, color: 'var(--text-dim)',
                   letterSpacing: '0.12em', textTransform: 'uppercase',
                   fontFamily: 'var(--font-mono)',
                 }}>Lab Notes</span>
                 <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
                 <span style={{
-                  fontSize: 9, color: 'var(--text-dim)',
+                  fontSize: 10, color: 'var(--text-dim)',
                   background: 'var(--border-subtle)',
                   border: '1px solid var(--border-subtle)',
                   borderRadius: 9, padding: '1px 7px',
@@ -406,14 +406,14 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
                     borderRadius: 7, padding: '10px 12px',
                     animation: 'fadeInUp 0.18s ease',
                   }}>
-                    <p style={{ margin: '0 0 5px', fontSize: 13, color: 'var(--text)', lineHeight: 1.55 }}>{c.body}</p>
-                    <p style={{ margin: 0, fontSize: 9, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+                    <p style={{ margin: '0 0 5px', fontSize: 15, color: 'var(--text)', lineHeight: 1.55 }}>{c.body}</p>
+                    <p style={{ margin: 0, fontSize: 10, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
                       {c.created_at.slice(0, 10)}
                     </p>
                   </div>
                 ))}
                 {comments.length === 0 && (
-                  <p style={{ color: 'var(--text-muted)', fontSize: 12, fontStyle: 'italic', padding: '4px 0' }}>
+                  <p style={{ color: 'var(--text-muted)', fontSize: 14, fontStyle: 'italic', padding: '4px 0' }}>
                     No lab notes yet.
                   </p>
                 )}
@@ -433,25 +433,25 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
                     background: 'var(--surface-input)',
                     border: '1px solid var(--border)',
                     borderRadius: 7, color: 'var(--text)',
-                    fontSize: 12, outline: 'none',
+                    fontSize: 14, outline: 'none',
                     transition: 'border-color 0.14s',
                   }}
-                  onFocus={e => { e.currentTarget.style.borderColor = 'rgba(34,211,238,0.3)' }}
+                  onFocus={e => { e.currentTarget.style.borderColor = 'rgba(255,128,21,0.3)' }}
                   onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
                 />
                 <button
                   type="submit"
                   disabled={addComment.isPending}
                   style={{
-                    padding: '9px 16px', fontSize: 11, cursor: 'pointer',
-                    background: 'rgba(34,211,238,0.1)',
-                    border: '1px solid rgba(34,211,238,0.25)',
-                    borderRadius: 7, color: '#22d3ee', fontWeight: 700,
+                    padding: '9px 16px', fontSize: 13, cursor: 'pointer',
+                    background: 'rgba(255,128,21,0.1)',
+                    border: '1px solid rgba(255,128,21,0.25)',
+                    borderRadius: 7, color: '#ff8015', fontWeight: 700,
                     letterSpacing: '0.05em', transition: 'background 0.14s',
                     fontFamily: 'var(--font-mono)',
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(34,211,238,0.2)' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(34,211,238,0.1)' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,128,21,0.2)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,128,21,0.1)' }}
                 >POST</button>
               </form>
             </div>
@@ -471,7 +471,7 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
                 value={editTitle}
                 onChange={e => setEditTitle(e.target.value)}
                 style={inputStyle}
-                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(34,211,238,0.3)' }}
+                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(255,128,21,0.3)' }}
                 onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
               />
             </div>
@@ -526,7 +526,7 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
                   resize: 'vertical',
                   lineHeight: 1.55,
                 }}
-                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(34,211,238,0.3)' }}
+                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(255,128,21,0.3)' }}
                 onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
               />
             </div>
@@ -552,22 +552,22 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
                 onClick={handleSave}
                 disabled={updateTask.isPending}
                 style={{
-                  flex: 1, padding: '9px 0', fontSize: 11, cursor: 'pointer',
-                  background: 'rgba(34,211,238,0.1)',
-                  border: '1px solid rgba(34,211,238,0.28)',
-                  borderRadius: 7, color: '#22d3ee', fontWeight: 700,
+                  flex: 1, padding: '9px 0', fontSize: 13, cursor: 'pointer',
+                  background: 'rgba(255,128,21,0.1)',
+                  border: '1px solid rgba(255,128,21,0.28)',
+                  borderRadius: 7, color: '#ff8015', fontWeight: 700,
                   letterSpacing: '0.08em', fontFamily: 'var(--font-mono)',
                   transition: 'background 0.14s',
                   opacity: updateTask.isPending ? 0.6 : 1,
                 }}
-                onMouseEnter={e => { if (!updateTask.isPending) e.currentTarget.style.background = 'rgba(34,211,238,0.2)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(34,211,238,0.1)' }}
+                onMouseEnter={e => { if (!updateTask.isPending) e.currentTarget.style.background = 'rgba(255,128,21,0.2)' }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,128,21,0.1)' }}
               >{updateTask.isPending ? 'saving…' : 'SAVE'}</button>
 
               <button
                 onClick={cancelEdit}
                 style={{
-                  padding: '9px 16px', fontSize: 11, cursor: 'pointer',
+                  padding: '9px 16px', fontSize: 13, cursor: 'pointer',
                   background: 'var(--border-subtle)',
                   border: '1px solid var(--border)',
                   borderRadius: 7, color: '#64748b', fontWeight: 700,
@@ -581,7 +581,7 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
               onClick={handleDeleteClick}
               disabled={deleteTask.isPending}
               style={{
-                width: '100%', padding: '8px 0', fontSize: 11, cursor: 'pointer',
+                width: '100%', padding: '8px 0', fontSize: 13, cursor: 'pointer',
                 background: deleteConfirm ? 'rgba(244,63,94,0.15)' : 'rgba(244,63,94,0.07)',
                 border: `1px solid ${deleteConfirm ? 'rgba(244,63,94,0.4)' : 'rgba(244,63,94,0.2)'}`,
                 borderRadius: 7, color: '#f43f5e', fontWeight: 700,

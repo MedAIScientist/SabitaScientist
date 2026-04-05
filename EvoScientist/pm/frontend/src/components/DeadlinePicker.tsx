@@ -51,21 +51,21 @@ export function DeadlinePicker({ value, onChange, inputStyle }: Props) {
               onClick={() => onChange(active ? '' : preset)}
               style={{
                 padding: '3px 9px',
-                fontSize: 9,
+                fontSize: 10,
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 700,
                 letterSpacing: '0.06em',
                 borderRadius: 4,
                 cursor: 'pointer',
                 border: active
-                  ? '1px solid rgba(34,211,238,0.5)'
+                  ? '1px solid rgba(255,128,21,0.5)'
                   : '1px solid var(--border)',
                 background: active
-                  ? 'rgba(34,211,238,0.12)'
+                  ? 'rgba(255,128,21,0.12)'
                   : isHovered
-                  ? 'rgba(34,211,238,0.06)'
+                  ? 'rgba(255,128,21,0.06)'
                   : 'var(--surface-input)',
-                color: active ? '#22d3ee' : 'var(--text-2)',
+                color: active ? '#ff8015' : 'var(--text-2)',
                 transition: 'background 0.12s, border-color 0.12s, color 0.12s',
               }}
             >
@@ -81,7 +81,7 @@ export function DeadlinePicker({ value, onChange, inputStyle }: Props) {
             onClick={() => onChange('')}
             style={{
               padding: '3px 9px',
-              fontSize: 9,
+              fontSize: 10,
               fontFamily: 'var(--font-mono)',
               fontWeight: 700,
               letterSpacing: '0.06em',
@@ -105,10 +105,10 @@ export function DeadlinePicker({ value, onChange, inputStyle }: Props) {
         onChange={e => onChange(e.target.value)}
         style={{
           ...inputStyle,
-          fontSize: 11,
+          fontSize: 13,
           colorScheme: 'dark',
         }}
-        onFocus={e => { e.currentTarget.style.borderColor = 'rgba(34,211,238,0.3)' }}
+        onFocus={e => { e.currentTarget.style.borderColor = 'rgba(255,128,21,0.3)' }}
         onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
       />
     </div>

@@ -5,7 +5,7 @@ import { api, Experiment } from '../api'
 import { ExperimentDetail } from '../components/ExperimentDetail'
 
 const STATUS_COLORS: Record<string, string> = {
-  planned: '#f59e0b', running: '#22d3ee', completed: '#10b981',
+  planned: '#f59e0b', running: '#ff8015', completed: '#10b981',
 }
 
 type ModalType = 'experiment' | 'task' | null
@@ -71,7 +71,7 @@ export function ExperimentsPage() {
   }
 
   const isExperiment = modal === 'experiment'
-  const accent = isExperiment ? '#10b981' : '#22d3ee'
+  const accent = isExperiment ? '#10b981' : '#ff8015'
   const accentRgb = isExperiment ? '16,185,129' : '34,211,238'
   const isPending = isExperiment ? createExperimentMutation.isPending : createTaskMutation.isPending
 
@@ -100,7 +100,7 @@ export function ExperimentsPage() {
             color: 'var(--text-muted)', padding: '3px 9px', fontSize: 15, lineHeight: 1,
             transition: 'color 0.15s, border-color 0.15s',
           }}
-          onMouseEnter={e => { e.currentTarget.style.color = '#22d3ee'; e.currentTarget.style.borderColor = 'rgba(34,211,238,0.3)' }}
+          onMouseEnter={e => { e.currentTarget.style.color = '#ff8015'; e.currentTarget.style.borderColor = 'rgba(255,128,21,0.3)' }}
           onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
         >←</button>
 
@@ -116,14 +116,14 @@ export function ExperimentsPage() {
           <button
             onClick={() => setShowDropdown(v => !v)}
             style={{
-              background: 'rgba(34,211,238,0.08)', border: '1px solid rgba(34,211,238,0.22)',
-              borderRadius: 4, padding: '5px 14px', color: '#22d3ee',
-              fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)',
+              background: 'rgba(255,128,21,0.08)', border: '1px solid rgba(255,128,21,0.22)',
+              borderRadius: 4, padding: '5px 14px', color: '#ff8015',
+              fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)',
               letterSpacing: '0.08em', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
               transition: 'background 0.14s',
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(34,211,238,0.15)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(34,211,238,0.08)' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,128,21,0.15)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,128,21,0.08)' }}
           >
             + NEW
             <span style={{ fontSize: 8, opacity: 0.7, marginLeft: 2 }}>▾</span>
@@ -151,7 +151,7 @@ export function ExperimentsPage() {
                 icon="✦"
                 label="TASK"
                 sub="Kanban task added to Planned column"
-                color="#22d3ee"
+                color="#ff8015"
                 onClick={() => openModal('task')}
               />
             </div>
@@ -173,7 +173,7 @@ export function ExperimentsPage() {
             borderRadius: 10, padding: 24, width: 360,
             animation: 'fadeInUp 0.15s ease',
           }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: accent, fontFamily: 'var(--font-mono)', marginBottom: 14, letterSpacing: '0.1em' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: accent, fontFamily: 'var(--font-mono)', marginBottom: 14, letterSpacing: '0.1em' }}>
               {isExperiment ? '⚗ NEW EXPERIMENT' : '✦ NEW TASK'}
             </div>
             <input
@@ -186,12 +186,12 @@ export function ExperimentsPage() {
                 width: '100%', boxSizing: 'border-box',
                 background: 'var(--surface-input)',
                 border: `1px solid rgba(${accentRgb},0.2)`,
-                borderRadius: 5, color: 'var(--text)', fontSize: 13, padding: '8px 10px',
+                borderRadius: 5, color: 'var(--text)', fontSize: 15, padding: '8px 10px',
                 fontFamily: 'inherit', outline: 'none', marginBottom: 14,
               }}
             />
             {!isExperiment && (
-              <p style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginBottom: 14, marginTop: -8 }}>
+              <p style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginBottom: 14, marginTop: -8 }}>
                 Task will appear in the PLANNED column on the board.
               </p>
             )}
@@ -201,7 +201,7 @@ export function ExperimentsPage() {
                 style={{
                   background: 'var(--surface-input)', border: '1px solid var(--border-subtle)',
                   borderRadius: 4, padding: '6px 14px', color: 'var(--text-muted)',
-                  fontSize: 10, cursor: 'pointer', fontFamily: 'var(--font-mono)',
+                  fontSize: 11, cursor: 'pointer', fontFamily: 'var(--font-mono)',
                 }}
               >CANCEL</button>
               <button
@@ -210,7 +210,7 @@ export function ExperimentsPage() {
                 style={{
                   background: `rgba(${accentRgb},0.1)`, border: `1px solid rgba(${accentRgb},0.28)`,
                   borderRadius: 4, padding: '6px 14px', color: accent,
-                  fontSize: 10, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-mono)',
+                  fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-mono)',
                   opacity: !newName.trim() ? 0.4 : 1,
                 }}
               >CREATE</button>
@@ -222,7 +222,7 @@ export function ExperimentsPage() {
       {/* Experiment grid */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
         {experiments.length === 0 ? (
-          <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontSize: 11, marginTop: 60 }}>
+          <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontSize: 13, marginTop: 60 }}>
             NO EXPERIMENTS YET
           </div>
         ) : (
@@ -266,10 +266,10 @@ function DropdownItem({
     >
       <span style={{ fontSize: 14, flexShrink: 0, marginTop: 1 }}>{icon}</span>
       <div>
-        <div style={{ fontSize: 10, fontWeight: 700, color, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em' }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em' }}>
           {label}
         </div>
-        <div style={{ fontSize: 9, color: 'var(--text-dim)', marginTop: 1, lineHeight: 1.4 }}>
+        <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 1, lineHeight: 1.4 }}>
           {sub}
         </div>
       </div>
@@ -291,7 +291,7 @@ function ExperimentCard({ exp, onClick }: { exp: Experiment; onClick: () => void
       onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-subtle)')}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-heading)', lineHeight: 1.3 }}>{exp.name}</div>
+        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-heading)', lineHeight: 1.3 }}>{exp.name}</div>
         <span style={{
           fontSize: 7, fontWeight: 700, fontFamily: 'var(--font-mono)',
           color, background: `${color}18`, border: `1px solid ${color}33`,
@@ -301,7 +301,7 @@ function ExperimentCard({ exp, onClick }: { exp: Experiment; onClick: () => void
         </span>
       </div>
       {exp.hypothesis && (
-        <p style={{ fontSize: 10, color: 'var(--text-2)', margin: '0 0 8px', lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+        <p style={{ fontSize: 11, color: 'var(--text-2)', margin: '0 0 8px', lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
           {exp.hypothesis}
         </p>
       )}
@@ -315,7 +315,7 @@ function ExperimentCard({ exp, onClick }: { exp: Experiment; onClick: () => void
         </div>
       )}
       {exp.deadline && (
-        <div style={{ fontSize: 9, color: 'var(--text-dim)', marginTop: 8, fontFamily: 'var(--font-mono)' }}>
+        <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 8, fontFamily: 'var(--font-mono)' }}>
           DEADLINE: {exp.deadline}
         </div>
       )}

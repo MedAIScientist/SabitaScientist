@@ -33,8 +33,8 @@ export function Login() {
       <div style={{
         position: 'fixed', inset: 0, pointerEvents: 'none',
         backgroundImage:
-          'linear-gradient(rgba(34,211,238,0.025) 1px, transparent 1px),' +
-          'linear-gradient(90deg, rgba(34,211,238,0.025) 1px, transparent 1px)',
+          'linear-gradient(rgba(255,128,21,0.025) 1px, transparent 1px),' +
+          'linear-gradient(90deg, rgba(255,128,21,0.025) 1px, transparent 1px)',
         backgroundSize: '44px 44px',
       }} />
 
@@ -51,21 +51,14 @@ export function Login() {
         }}
       >
         {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-          <div style={{
-            width: 30, height: 30, borderRadius: 7,
-            background: 'rgba(34,211,238,0.09)',
-            border: '1px solid rgba(34,211,238,0.22)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 13, color: '#22d3ee',
-          }}>⬡</div>
-          <div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: 'var(--text-heading)', letterSpacing: '0.02em' }}>
-              EvoScientist
-            </div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-dim)', letterSpacing: '0.1em' }}>
-              RESEARCH · PM
-            </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
+          <img
+            src="/sabita.jpg"
+            alt="SABITA"
+            style={{ height: 38, borderRadius: 6, display: 'block' }}
+          />
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-dim)', letterSpacing: '0.1em', lineHeight: 1.5 }}>
+            RESEARCH · PM
           </div>
         </div>
 
@@ -77,14 +70,14 @@ export function Login() {
             background: 'rgba(244,63,94,0.08)',
             border: '1px solid rgba(244,63,94,0.2)',
             borderRadius: 6, color: '#f43f5e',
-            fontSize: 11, fontFamily: 'var(--font-mono)',
+            fontSize: 13, fontFamily: 'var(--font-mono)',
           }}>{error}</div>
         )}
 
         {(['USERNAME', 'PASSWORD'] as const).map((label, i) => (
           <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
             <label style={{
-              fontSize: 9, fontWeight: 700, color: 'var(--text-dim)',
+              fontSize: 10, fontWeight: 700, color: 'var(--text-dim)',
               letterSpacing: '0.12em', fontFamily: 'var(--font-mono)',
             }}>{label}</label>
             <input
@@ -98,10 +91,10 @@ export function Login() {
                 background: 'var(--surface-input)',
                 border: '1px solid var(--border)',
                 borderRadius: 7, color: 'var(--text)',
-                fontSize: 13, outline: 'none',
+                fontSize: 15, outline: 'none',
                 transition: 'border-color 0.14s',
               }}
-              onFocus={e => { e.currentTarget.style.borderColor = 'rgba(34,211,238,0.32)' }}
+              onFocus={e => { e.currentTarget.style.borderColor = 'rgba(255,128,21,0.32)' }}
               onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
             />
           </div>
@@ -111,17 +104,17 @@ export function Login() {
           type="submit"
           disabled={loading}
           style={{
-            marginTop: 4, padding: '10px', fontSize: 10,
+            marginTop: 4, padding: '10px', fontSize: 11,
             cursor: loading ? 'default' : 'pointer',
-            background: loading ? 'rgba(34,211,238,0.07)' : 'rgba(34,211,238,0.12)',
-            border: '1px solid rgba(34,211,238,0.28)',
-            borderRadius: 7, color: '#22d3ee',
+            background: loading ? 'rgba(255,128,21,0.07)' : 'rgba(255,128,21,0.12)',
+            border: '1px solid rgba(255,128,21,0.28)',
+            borderRadius: 7, color: '#ff8015',
             fontWeight: 700, letterSpacing: '0.1em',
             transition: 'background 0.14s',
             fontFamily: 'var(--font-mono)',
           }}
-          onMouseEnter={e => { if (!loading) e.currentTarget.style.background = 'rgba(34,211,238,0.22)' }}
-          onMouseLeave={e => { e.currentTarget.style.background = loading ? 'rgba(34,211,238,0.07)' : 'rgba(34,211,238,0.12)' }}
+          onMouseEnter={e => { if (!loading) e.currentTarget.style.background = 'rgba(255,128,21,0.22)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = loading ? 'rgba(255,128,21,0.07)' : 'rgba(255,128,21,0.12)' }}
         >
           {loading ? 'AUTHENTICATING…' : 'SIGN IN'}
         </button>

@@ -11,13 +11,13 @@ interface ProjectSettingsPanelProps {
 }
 
 const ROLE_COLORS: Record<string, string> = {
-  owner: '#22d3ee',
+  owner: '#ff8015',
   editor: '#f59e0b',
   viewer: '#64748b',
 }
 
 const labelStyle: React.CSSProperties = {
-  fontSize: 9,
+  fontSize: 10,
   color: 'var(--text-dim)',
   fontFamily: 'var(--font-mono)',
   letterSpacing: '0.1em',
@@ -34,7 +34,7 @@ const inputStyle: React.CSSProperties = {
   borderRadius: 4,
   color: 'var(--text)',
   padding: '5px 8px',
-  fontSize: 11,
+  fontSize: 13,
   fontFamily: 'var(--font-mono)',
   boxSizing: 'border-box' as const,
   outline: 'none',
@@ -202,7 +202,7 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         flexShrink: 0,
       }}>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700, color: '#22d3ee', letterSpacing: '0.08em' }}>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: '#ff8015', letterSpacing: '0.08em' }}>
           PROJECT SETTINGS
         </span>
         <button
@@ -215,7 +215,7 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
 
         {/* Section 1: Project Details */}
         <div style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: 16, marginBottom: 16 }}>
-          <div style={{ marginTop: 14, fontSize: 10, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', fontWeight: 700 }}>
+          <div style={{ marginTop: 14, fontSize: 11, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', fontWeight: 700 }}>
             PROJECT DETAILS
           </div>
 
@@ -235,10 +235,10 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
             disabled={updateProject.isPending || !editName.trim()}
             style={{
               marginTop: 10, width: '100%',
-              background: 'rgba(34,211,238,0.12)',
-              border: '1px solid rgba(34,211,238,0.28)',
+              background: 'rgba(255,128,21,0.12)',
+              border: '1px solid rgba(255,128,21,0.28)',
               borderRadius: 4, padding: '6px 0',
-              color: '#22d3ee', fontSize: 10, fontWeight: 700,
+              color: '#ff8015', fontSize: 11, fontWeight: 700,
               fontFamily: 'var(--font-mono)', cursor: 'pointer',
               opacity: updateProject.isPending ? 0.5 : 1,
             }}
@@ -246,7 +246,7 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
             {updateProject.isPending ? 'saving…' : 'SAVE'}
           </button>
           {saveError && (
-            <div style={{ marginTop: 5, fontSize: 9, color: '#f43f5e', fontFamily: 'var(--font-mono)' }}>{saveError}</div>
+            <div style={{ marginTop: 5, fontSize: 10, color: '#f43f5e', fontFamily: 'var(--font-mono)' }}>{saveError}</div>
           )}
 
           <button
@@ -256,19 +256,19 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
               background: deleteConfirm ? 'rgba(244,63,94,0.15)' : 'rgba(244,63,94,0.06)',
               border: `1px solid ${deleteConfirm ? 'rgba(244,63,94,0.45)' : 'rgba(244,63,94,0.2)'}`,
               borderRadius: 4, padding: '5px 0',
-              color: '#f43f5e', fontSize: 10, fontWeight: 700,
+              color: '#f43f5e', fontSize: 11, fontWeight: 700,
               fontFamily: 'var(--font-mono)', cursor: 'pointer',
             }}
           >
             {deleteConfirm ? 'CONFIRM DELETE ?' : 'DELETE PROJECT'}
           </button>
           {deleteError && (
-            <div style={{ color: '#f43f5e', fontSize: 11, marginTop: 4 }}>{deleteError}</div>
+            <div style={{ color: '#f43f5e', fontSize: 13, marginTop: 4 }}>{deleteError}</div>
           )}
         </div>
 
         {/* Section 2: Team Members */}
-        <div style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 10 }}>
+        <div style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 10 }}>
           TEAM MEMBERS · {project.members.length}
         </div>
 
@@ -280,11 +280,11 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
                 display: 'flex', alignItems: 'center', gap: 8,
                 background: 'var(--surface-comment)', borderRadius: 5, padding: '7px 10px',
               }}>
-                <span style={{ flex: 1, fontSize: 11, color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>
+                <span style={{ flex: 1, fontSize: 13, color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>
                   {m.username}
                 </span>
                 <span style={{
-                  fontSize: 9, fontWeight: 700,
+                  fontSize: 10, fontWeight: 700,
                   fontFamily: 'var(--font-mono)',
                   color: ROLE_COLORS[m.role] ?? '#64748b',
                   letterSpacing: '0.08em',
@@ -303,7 +303,7 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
                     border: '1px solid var(--border-subtle)',
                     borderRadius: 3,
                     color: ROLE_COLORS[m.role] ?? '#64748b',
-                    fontSize: 9, fontWeight: 700,
+                    fontSize: 10, fontWeight: 700,
                     fontFamily: 'var(--font-mono)',
                     cursor: isSelf ? 'not-allowed' : 'pointer',
                     padding: '2px 4px',
@@ -321,7 +321,7 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
                     background: 'none',
                     border: '1px solid rgba(244,63,94,0.2)',
                     borderRadius: 3, color: '#f43f5e',
-                    fontSize: 10, cursor: isSelf ? 'not-allowed' : 'pointer',
+                    fontSize: 11, cursor: isSelf ? 'not-allowed' : 'pointer',
                     padding: '1px 5px',
                     opacity: isSelf ? 0.3 : 1,
                   }}
@@ -332,7 +332,7 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
         </div>
 
         {/* Add Researcher */}
-        <div style={{ fontSize: 10, color: '#3d4e64', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 8 }}>
+        <div style={{ fontSize: 11, color: '#3d4e64', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 8 }}>
           ADD RESEARCHER
         </div>
 
@@ -346,8 +346,8 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
           {searchResults.length > 0 && (
             <div style={{
               position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-              background: '#0d1526',
-              border: '1px solid rgba(34,211,238,0.2)',
+              background: 'var(--surface-panel)',
+              border: '1px solid rgba(255,128,21,0.2)',
               borderRadius: 4,
               boxShadow: '0 8px 20px rgba(0,0,0,0.4)',
             }}>
@@ -357,12 +357,12 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
                   onClick={() => handleSelectUser(u)}
                   style={{
                     padding: '7px 10px',
-                    fontSize: 11, color: 'var(--text)',
+                    fontSize: 13, color: 'var(--text)',
                     fontFamily: 'var(--font-mono)',
                     cursor: 'pointer',
                     borderBottom: '1px solid var(--border-subtle)',
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(34,211,238,0.07)' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,128,21,0.07)' }}
                   onMouseLeave={e => { e.currentTarget.style.background = '' }}
                 >
                   {u.username}
@@ -386,10 +386,10 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
             onClick={handleAddMember}
             disabled={!selectedUser || addMemberMutation.isPending}
             style={{
-              background: 'rgba(34,211,238,0.1)',
-              border: '1px solid rgba(34,211,238,0.25)',
-              borderRadius: 4, color: '#22d3ee',
-              fontSize: 10, fontWeight: 700,
+              background: 'rgba(255,128,21,0.1)',
+              border: '1px solid rgba(255,128,21,0.25)',
+              borderRadius: 4, color: '#ff8015',
+              fontSize: 11, fontWeight: 700,
               fontFamily: 'var(--font-mono)',
               padding: '5px 12px',
               cursor: selectedUser ? 'pointer' : 'not-allowed',
@@ -400,7 +400,7 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
           </button>
         </div>
         {addError && (
-          <div style={{ marginTop: 5, fontSize: 9, color: '#f43f5e', fontFamily: 'var(--font-mono)' }}>{addError}</div>
+          <div style={{ marginTop: 5, fontSize: 10, color: '#f43f5e', fontFamily: 'var(--font-mono)' }}>{addError}</div>
         )}
       </div>
     </div>

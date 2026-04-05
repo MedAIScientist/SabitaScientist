@@ -5,7 +5,7 @@ import { EntryEditor } from './EntryEditor'
 
 const STATUS_META: Record<string, { color: string; label: string }> = {
   planned:   { color: '#f59e0b', label: 'PLANNED' },
-  running:   { color: '#22d3ee', label: 'RUNNING' },
+  running:   { color: '#ff8015', label: 'RUNNING' },
   completed: { color: '#10b981', label: 'COMPLETED' },
 }
 
@@ -90,10 +90,10 @@ export function ExperimentDetail({ experiment, projectId, onClose }: Props) {
     : []
 
   const tabStyle = (t: Tab): React.CSSProperties => ({
-    padding: '5px 12px', fontSize: 9, fontFamily: 'var(--font-mono)',
-    color: tab === t ? '#22d3ee' : 'var(--text-3)',
+    padding: '5px 12px', fontSize: 10, fontFamily: 'var(--font-mono)',
+    color: tab === t ? '#ff8015' : 'var(--text-3)',
     background: 'none', border: 'none', borderBottomStyle: 'solid',
-    borderBottomWidth: 2, borderBottomColor: tab === t ? '#22d3ee' : 'transparent',
+    borderBottomWidth: 2, borderBottomColor: tab === t ? '#ff8015' : 'transparent',
     cursor: 'pointer', fontWeight: tab === t ? 700 : 400,
   })
 
@@ -204,7 +204,7 @@ function OverviewTab({
       {experiment.hypothesis && (
         <>
           <span style={fieldLabel}>HYPOTHESIS</span>
-          <p style={{ fontSize: 11, color: 'var(--text-2)', margin: '0 0 8px', lineHeight: 1.6 }}>
+          <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '0 0 8px', lineHeight: 1.6 }}>
             {experiment.hypothesis}
           </p>
         </>
@@ -212,7 +212,7 @@ function OverviewTab({
       {experiment.protocol && (
         <>
           <span style={fieldLabel}>PROTOCOL</span>
-          <pre style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap', margin: '0 0 8px' }}>
+          <pre style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap', margin: '0 0 8px' }}>
             {experiment.protocol}
           </pre>
         </>
@@ -220,7 +220,7 @@ function OverviewTab({
       {experiment.deadline && (
         <>
           <span style={fieldLabel}>DEADLINE</span>
-          <p style={{ fontSize: 11, color: 'var(--text-2)', margin: '0 0 8px' }}>{experiment.deadline}</p>
+          <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '0 0 8px' }}>{experiment.deadline}</p>
         </>
       )}
 
@@ -228,21 +228,21 @@ function OverviewTab({
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
         {linkedTasks.map((t: Task) => (
           <span key={t.id} style={{
-            fontSize: 9, color: '#22d3ee', background: 'rgba(34,211,238,0.06)',
-            border: '1px solid rgba(34,211,238,0.18)', borderRadius: 3, padding: '2px 7px',
+            fontSize: 10, color: '#ff8015', background: 'rgba(255,128,21,0.06)',
+            border: '1px solid rgba(255,128,21,0.18)', borderRadius: 3, padding: '2px 7px',
             display: 'flex', alignItems: 'center', gap: 4,
           }}>
             {t.title}
             <button
               onClick={() => onUnlink(t.id)}
-              style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 10, padding: 0 }}
+              style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 11, padding: 0 }}
             >
               ✕
             </button>
           </span>
         ))}
         {linkedTasks.length === 0 && (
-          <span style={{ fontSize: 9, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>NO LINKED TASKS</span>
+          <span style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>NO LINKED TASKS</span>
         )}
       </div>
       <input
@@ -252,7 +252,7 @@ function OverviewTab({
         style={{
           width: '100%', boxSizing: 'border-box',
           background: 'var(--surface-input)', border: '1px solid var(--border)',
-          borderRadius: 4, color: 'var(--text-2)', fontSize: 10, padding: '5px 8px',
+          borderRadius: 4, color: 'var(--text-2)', fontSize: 11, padding: '5px 8px',
           fontFamily: 'inherit', outline: 'none',
         }}
       />
@@ -262,8 +262,8 @@ function OverviewTab({
           onClick={() => onLink(t.id)}
           style={{
             display: 'block', width: '100%', textAlign: 'left',
-            background: 'rgba(34,211,238,0.04)', border: '1px solid rgba(34,211,238,0.1)',
-            borderRadius: 3, padding: '4px 8px', color: 'var(--text-2)', fontSize: 10,
+            background: 'rgba(255,128,21,0.04)', border: '1px solid rgba(255,128,21,0.1)',
+            borderRadius: 3, padding: '4px 8px', color: 'var(--text-2)', fontSize: 11,
             cursor: 'pointer', marginTop: 2,
           }}
         >
@@ -291,15 +291,15 @@ function EntriesTab({
 }) {
   const [expanded, setExpanded] = useState<string | null>(null)
   const label = type === 'note' ? 'NOTE' : 'RESULT'
-  const accent = type === 'note' ? '#22d3ee' : '#10b981'
+  const accent = type === 'note' ? '#ff8015' : '#10b981'
 
   return (
     <div>
       <button
         onClick={onAdd}
         style={{
-          width: '100%', background: `${accent}10`, border: `1px solid ${accent}33`,
-          borderRadius: 4, padding: '6px', color: accent, fontSize: 9, fontWeight: 700,
+          width: '100%', background: `${accent}14`, border: `1px solid ${accent}55`,
+          borderRadius: 4, padding: '6px', color: accent, fontSize: 10, fontWeight: 700,
           fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', cursor: 'pointer', marginBottom: 10,
         }}
       >
@@ -329,32 +329,32 @@ function EntriesTab({
               onCancel={onCancelEditor}
             />
           ) : (
-            <div style={{ border: `1px solid ${accent}22`, borderRadius: 4, overflow: 'hidden' }}>
+            <div style={{ border: `1px solid var(--border)`, borderRadius: 4, overflow: 'hidden' }}>
               <button
                 onClick={() => setExpanded(expanded === entry.id ? null : entry.id)}
                 style={{
-                  width: '100%', background: `${accent}08`, padding: '6px 8px',
+                  width: '100%', background: 'var(--surface-2)', padding: '6px 8px',
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   border: 'none', cursor: 'pointer',
                 }}
               >
-                <span style={{ fontSize: 10, color: 'var(--text)', fontWeight: 600 }}>{entry.title}</span>
+                <span style={{ fontSize: 11, color: 'var(--text)', fontWeight: 600 }}>{entry.title}</span>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   <span style={{ fontSize: 7, color: 'var(--text-dim)' }}>{entry.created_at.slice(0, 10)}</span>
-                  <span style={{ fontSize: 9, color: 'var(--text-3)' }}>{expanded === entry.id ? '▲' : '▼'}</span>
+                  <span style={{ fontSize: 10, color: 'var(--text-3)' }}>{expanded === entry.id ? '▲' : '▼'}</span>
                 </div>
               </button>
               {expanded === entry.id && (
                 <div style={{ padding: '8px 10px', background: 'var(--surface-input)' }}>
                   {entry.body ? (
-                    <pre style={{ fontSize: 9, color: 'var(--text-2)', fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap', margin: '0 0 8px', lineHeight: 1.6 }}>
+                    <pre style={{ fontSize: 10, color: 'var(--text-2)', fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap', margin: '0 0 8px', lineHeight: 1.6 }}>
                       {entry.body}
                     </pre>
                   ) : (
-                    <p style={{ fontSize: 9, color: 'var(--text-dim)', margin: '0 0 8px' }}>No content.</p>
+                    <p style={{ fontSize: 10, color: 'var(--text-dim)', margin: '0 0 8px' }}>No content.</p>
                   )}
                   <div style={{ display: 'flex', gap: 4 }}>
-                    <button onClick={() => onEdit(entry)} style={{ fontSize: 8, color: '#22d3ee', background: 'rgba(34,211,238,0.06)', border: '1px solid rgba(34,211,238,0.15)', borderRadius: 2, padding: '2px 6px', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>✏ Edit</button>
+                    <button onClick={() => onEdit(entry)} style={{ fontSize: 8, color: '#ff8015', background: 'rgba(255,128,21,0.06)', border: '1px solid rgba(255,128,21,0.15)', borderRadius: 2, padding: '2px 6px', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>✏ Edit</button>
                     <button onClick={() => onDelete(entry.id)} style={{ fontSize: 8, color: '#f43f5e', background: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.15)', borderRadius: 2, padding: '2px 6px', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>✕ Delete</button>
                   </div>
                 </div>

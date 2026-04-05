@@ -123,7 +123,7 @@ function DraggableCard({ task, col, idx, activeTaskId, onCardClick, onEditClick,
             borderRadius: 4,
             color: '#ff8015',
             cursor: 'pointer',
-            fontSize: 11,
+            fontSize: 13,
             lineHeight: 1,
             padding: '2px 5px',
             zIndex: 2,
@@ -133,12 +133,12 @@ function DraggableCard({ task, col, idx, activeTaskId, onCardClick, onEditClick,
         </button>
       )}
 
-      <p style={{ margin: '0 0 6px', fontWeight: 500, fontSize: 13, lineHeight: 1.4, color: 'var(--text-heading)' }}>
+      <p style={{ margin: '0 0 6px', fontWeight: 500, fontSize: 15, lineHeight: 1.4, color: 'var(--text-heading)' }}>
         {task.title}
       </p>
 
       {descSnippet && (
-        <p style={{ margin: '0 0 8px', fontSize: 11, color: 'var(--text-dim)', lineHeight: 1.4 }}>
+        <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--text-dim)', lineHeight: 1.4 }}>
           {descSnippet}
         </p>
       )}
@@ -149,7 +149,7 @@ function DraggableCard({ task, col, idx, activeTaskId, onCardClick, onEditClick,
           background: p.color, boxShadow: `0 0 5px ${p.color}88`,
         }} />
         <span style={{
-          fontSize: 9, fontWeight: 700, color: p.color,
+          fontSize: 10, fontWeight: 700, color: p.color,
           letterSpacing: '0.1em', fontFamily: 'var(--font-mono)',
         }}>
           {p.label}
@@ -161,7 +161,7 @@ function DraggableCard({ task, col, idx, activeTaskId, onCardClick, onEditClick,
               width: 18, height: 18, borderRadius: '50%',
               background: 'rgba(255,128,21,0.18)',
               border: '1px solid rgba(255,128,21,0.3)',
-              color: '#ff8015', fontSize: 9, fontWeight: 700,
+              color: '#ff8015', fontSize: 10, fontWeight: 700,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontFamily: 'var(--font-mono)', flexShrink: 0,
             }}
@@ -171,7 +171,7 @@ function DraggableCard({ task, col, idx, activeTaskId, onCardClick, onEditClick,
         )}
         {task.deadline && (
           <span style={{
-            marginLeft: 'auto', fontSize: 9,
+            marginLeft: 'auto', fontSize: 10,
             color: overdue ? '#f43f5e' : 'var(--text-dim)',
             fontFamily: 'var(--font-mono)',
           }}>
@@ -237,18 +237,18 @@ function ExperimentCard({ exp, idx, onExpClick }: ExperimentCardProps) {
         ))}
       </div>
 
-      <p style={{ margin: '0 0 5px', fontWeight: 500, fontSize: 12, lineHeight: 1.4, color: 'var(--text-heading)' }}>
+      <p style={{ margin: '0 0 5px', fontWeight: 500, fontSize: 14, lineHeight: 1.4, color: 'var(--text-heading)' }}>
         {exp.name}
       </p>
 
       {hypoSnippet && (
-        <p style={{ margin: '0 0 6px', fontSize: 10, color: 'var(--text-dim)', lineHeight: 1.4, fontStyle: 'italic' }}>
+        <p style={{ margin: '0 0 6px', fontSize: 11, color: 'var(--text-dim)', lineHeight: 1.4, fontStyle: 'italic' }}>
           {hypoSnippet}
         </p>
       )}
 
       {exp.deadline && (
-        <div style={{ fontSize: 9, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+        <div style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
           Due {exp.deadline}
         </div>
       )}
@@ -312,14 +312,14 @@ function DroppableColumn({
         flexShrink: 0,
       }}>
         <span style={{
-          fontSize: 10, fontWeight: 700,
+          fontSize: 11, fontWeight: 700,
           letterSpacing: '0.12em', textTransform: 'uppercase',
           color: col.accent, fontFamily: 'var(--font-mono)',
         }}>
           {col.label}
         </span>
         <span style={{
-          fontSize: 10, fontWeight: 700,
+          fontSize: 11, fontWeight: 700,
           color: col.accent,
           background: `rgba(${col.glow},0.1)`,
           border: `1px solid rgba(${col.glow},0.22)`,
@@ -379,12 +379,12 @@ function DroppableColumn({
                 width: '100%', padding: '7px 10px', boxSizing: 'border-box', marginBottom: 5,
                 background: 'var(--surface-input)',
                 border: `1px solid rgba(${col.glow},0.3)`,
-                borderRadius: 6, color: 'var(--text)', fontSize: 12, outline: 'none',
+                borderRadius: 6, color: 'var(--text)', fontSize: 14, outline: 'none',
               }}
             />
             <div style={{ display: 'flex', gap: 4 }}>
               <button type="submit" style={{
-                flex: 1, padding: '5px 0', fontSize: 11, cursor: 'pointer',
+                flex: 1, padding: '5px 0', fontSize: 13, cursor: 'pointer',
                 background: col.accent, color: '#070b12',
                 border: 'none', borderRadius: 5, fontWeight: 700,
                 fontFamily: 'var(--font-mono)',
@@ -392,7 +392,7 @@ function DroppableColumn({
                 ADD
               </button>
               <button type="button" onClick={onAddCancel} style={{
-                padding: '5px 9px', fontSize: 11, cursor: 'pointer',
+                padding: '5px 9px', fontSize: 13, cursor: 'pointer',
                 background: 'var(--surface-input)',
                 border: '1px solid var(--border)',
                 borderRadius: 5, color: 'var(--text-muted)',
@@ -409,7 +409,7 @@ function DroppableColumn({
               border: `1px dashed rgba(${col.glow},0.2)`,
               borderRadius: 6, padding: '7px 10px',
               cursor: 'pointer', color: 'var(--text-dim)',
-              fontSize: 11, textAlign: 'left',
+              fontSize: 13, textAlign: 'left',
               transition: 'border-color 0.14s, color 0.14s',
               fontFamily: 'var(--font-sans)',
             }}
@@ -588,7 +588,7 @@ export function Board() {
               border: '1px solid rgba(16,185,129,0.18)',
               color: '#64748b',
               fontFamily: 'var(--font-mono)',
-              fontSize: 11,
+              fontSize: 13,
               padding: '4px 10px',
               borderRadius: 4,
               cursor: 'pointer',
@@ -607,7 +607,7 @@ export function Board() {
                 border: '1px solid var(--border)',
                 color: 'var(--text-muted)',
                 fontFamily: 'var(--font-mono)',
-                fontSize: 11,
+                fontSize: 13,
                 padding: '4px 10px',
                 borderRadius: 4,
                 cursor: 'pointer',
@@ -626,7 +626,7 @@ export function Board() {
                   width: 26, height: 26, borderRadius: '50%',
                   background: AVATAR_COLORS[i % AVATAR_COLORS.length],
                   color: '#fff', display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', fontSize: 10, fontWeight: 700,
+                  justifyContent: 'center', fontSize: 11, fontWeight: 700,
                   border: '2px solid var(--bg)',
                   fontFamily: 'var(--font-mono)',
                   cursor: 'default',
@@ -645,7 +645,7 @@ export function Board() {
                 : 'linear-gradient(135deg, rgba(255,128,21,0.4), rgba(139,92,246,0.4))',
               color: '#ff8015',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 10, fontWeight: 700, cursor: 'pointer',
+              fontSize: 11, fontWeight: 700, cursor: 'pointer',
               fontFamily: 'var(--font-mono)',
               outline: '1px solid rgba(255,128,21,0.25)',
               transition: 'outline-color 0.15s, box-shadow 0.15s',

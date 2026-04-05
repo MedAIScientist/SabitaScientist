@@ -76,7 +76,7 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose }: CardEd
   }
 
   const labelStyle: React.CSSProperties = {
-    fontSize: 9,
+    fontSize: 10,
     color: 'var(--text-dim)',
     fontFamily: 'var(--font-mono)',
     letterSpacing: '0.1em',
@@ -92,7 +92,7 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose }: CardEd
     color: 'var(--text)',
     borderRadius: 4,
     padding: '4px 8px',
-    fontSize: 11,
+    fontSize: 13,
     fontFamily: 'var(--font-mono)',
     boxSizing: 'border-box',
   }
@@ -108,7 +108,7 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose }: CardEd
         left,
         width,
         background: 'var(--surface-panel)',
-        border: '1px solid rgba(34,211,238,0.25)',
+        border: '1px solid rgba(255,128,21,0.25)',
         borderRadius: 6,
         padding: 12,
         boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
@@ -148,12 +148,12 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose }: CardEd
         style={{
           marginTop: 10,
           width: '100%',
-          background: 'rgba(34,211,238,0.12)',
-          border: '1px solid rgba(34,211,238,0.28)',
-          color: '#22d3ee',
+          background: 'rgba(255,128,21,0.12)',
+          border: '1px solid rgba(255,128,21,0.28)',
+          color: '#ff8015',
           borderRadius: 4,
           padding: '5px 0',
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: 700,
           fontFamily: 'var(--font-mono)',
           cursor: 'pointer',
@@ -163,7 +163,7 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose }: CardEd
         {updateMutation.isPending ? 'saving…' : 'SAVE'}
       </button>
       {saveError && (
-        <div style={{ marginTop: 6, fontSize: 9, color: '#f43f5e', fontFamily: 'var(--font-mono)' }}>
+        <div style={{ marginTop: 6, fontSize: 10, color: '#f43f5e', fontFamily: 'var(--font-mono)' }}>
           {saveError}
         </div>
       )}
