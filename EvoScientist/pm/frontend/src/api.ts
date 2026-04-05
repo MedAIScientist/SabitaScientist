@@ -43,7 +43,7 @@ export const api = {
     request('POST', `/projects/${projectId}/members`, { user_id: userId, role }),
   searchUsers: (q: string) =>
     request<{ id: string; username: string }[]>('GET', `/users/search?q=${encodeURIComponent(q)}`),
-  updateProject: (id: string, data: { name?: string; description?: string }) =>
+  updateProject: (id: string, data: { name?: string; description?: string | null }) =>
     request<Project>('PUT', `/projects/${id}`, data),
   deleteProject: (id: string) =>
     request<void>('DELETE', `/projects/${id}`),

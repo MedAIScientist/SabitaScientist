@@ -53,7 +53,7 @@ import { Board } from '../Board'
 
 // ── Sample data ───────────────────────────────────────────────────────────────
 const MEMBERS: Member[] = [
-  { user_id: 'u1', username: 'alice', role: 'member', added_at: '2026-01-01' },
+  { user_id: 'u1', username: 'alice', role: 'viewer', added_at: '2026-01-01' },
 ]
 
 const MOCK_PROJECT: Project = {

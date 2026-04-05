@@ -50,6 +50,7 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
   const [editDesc, setEditDesc] = useState(project.description ?? '')
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Add member state
@@ -91,7 +92,7 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
 
   // Mutations
   const updateProject = useMutation({
-    mutationFn: (data: { name?: string; description?: string }) =>
+    mutationFn: (data: { name?: string; description?: string | null }) =>
       api.updateProject(projectId, data),
     onSuccess: () => {
       setSaveError(null)
@@ -106,6 +107,10 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] })
       navigate('/projects')
+    },
+    onError: (err: Error) => {
+      setDeleteError(err.message || 'Delete failed')
+      setDeleteConfirm(false)
     },
   })
 
@@ -138,9 +143,9 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
     setSaveError(null)
     updateProject.mutate({
       name: editName.trim(),
-      description: editDesc || undefined,
+      description: editDesc.trim() || null,
     })
-  }, [editName, editDesc, project.name, updateProject])
+  }, [editName, editDesc, updateProject])
 
   const handleDeleteClick = useCallback(() => {
     if (!deleteConfirm) {
@@ -257,6 +262,9 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
           >
             {deleteConfirm ? 'CONFIRM DELETE ?' : 'DELETE PROJECT'}
           </button>
+          {deleteError && (
+            <div style={{ color: '#f43f5e', fontSize: 11, marginTop: 4 }}>{deleteError}</div>
+          )}
         </div>
 
         {/* Section 2: Team Members */}
