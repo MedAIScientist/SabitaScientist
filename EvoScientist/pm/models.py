@@ -72,3 +72,30 @@ class Run:
     error: str | None = None
     started_at: str | None = None
     finished_at: str | None = None
+
+
+@dataclass
+class Experiment:
+    id: str
+    project_id: str
+    name: str
+    status: str           # 'planned' | 'running' | 'completed'
+    tags: list[str]
+    created_by: str
+    created_at: str
+    updated_at: str
+    hypothesis: str | None = None
+    protocol: str | None = None
+    deadline: str | None = None
+
+
+@dataclass
+class ExperimentEntry:
+    id: str
+    experiment_id: str
+    type: str             # 'note' | 'result'
+    title: str
+    body: str
+    created_at: str
+    updated_at: str
+    author_id: str | None = None

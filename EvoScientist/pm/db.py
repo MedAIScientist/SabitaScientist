@@ -82,6 +82,40 @@ CREATE TABLE IF NOT EXISTS runs (
     created_by   TEXT NOT NULL,
     created_at   TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS experiments (
+    id          TEXT PRIMARY KEY,
+    project_id  TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    name        TEXT NOT NULL,
+    hypothesis  TEXT,
+    protocol    TEXT,
+    status      TEXT NOT NULL DEFAULT 'planned'
+                CHECK(status IN ('planned', 'running', 'completed')),
+    tags        TEXT NOT NULL DEFAULT '[]',
+    deadline    TEXT,
+    created_by  TEXT NOT NULL REFERENCES users(id),
+    created_at  TEXT NOT NULL,
+    updated_at  TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS experiment_tasks (
+    experiment_id  TEXT NOT NULL REFERENCES experiments(id) ON DELETE CASCADE,
+    task_id        TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    linked_at      TEXT NOT NULL,
+    linked_by      TEXT NOT NULL REFERENCES users(id),
+    PRIMARY KEY (experiment_id, task_id)
+);
+
+CREATE TABLE IF NOT EXISTS experiment_entries (
+    id             TEXT PRIMARY KEY,
+    experiment_id  TEXT NOT NULL REFERENCES experiments(id) ON DELETE CASCADE,
+    type           TEXT NOT NULL CHECK(type IN ('note', 'result')),
+    title          TEXT NOT NULL,
+    body           TEXT NOT NULL DEFAULT '',
+    author_id      TEXT REFERENCES users(id),
+    created_at     TEXT NOT NULL,
+    updated_at     TEXT NOT NULL
+);
 """
 
 
