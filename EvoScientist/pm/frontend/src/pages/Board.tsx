@@ -5,8 +5,9 @@ import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import type { DragStartEvent, DragOverEvent, DragEndEvent } from '@dnd-kit/core'
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import { api, Task } from '../api'
+import { api, Task, Experiment } from '../api'
 import { TaskDetail } from './TaskDetail'
+import { ExperimentDetail } from '../components/ExperimentDetail'
 import { FilterToolbar } from '../components/FilterToolbar'
 import { CardEditPopover } from '../components/CardEditPopover'
 import { ProjectSettingsPanel } from '../components/ProjectSettingsPanel'
@@ -16,7 +17,7 @@ import { useTheme } from '../theme'
 
 // ── Column definitions (lab context) ─────────────────────────────────────────
 const COLUMNS: { key: Task['status']; label: string; accent: string; glow: string }[] = [
-  { key: 'todo',        label: 'PLANNED',     accent: '#22d3ee', glow: '34,211,238'  },
+  { key: 'todo',        label: 'PLANNED',     accent: '#ff8015', glow: '34,211,238'  },
   { key: 'in_progress', label: 'IN PROGRESS', accent: '#f59e0b', glow: '245,158,11'  },
   { key: 'done',        label: 'COMPLETE',    accent: '#10b981', glow: '16,185,129'  },
 ]
@@ -28,11 +29,18 @@ const PRIORITY: Record<string, { color: string; label: string }> = {
   low:    { color: '#10b981', label: 'ROUT' },
 }
 
-const AVATAR_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#22d3ee', '#10b981', '#8b5cf6']
+const AVATAR_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#ff8015', '#10b981', '#8b5cf6']
 
 // ── Overdue helper ────────────────────────────────────────────────────────────
 function isOverdue(task: Task): boolean {
   return Boolean(task.deadline) && new Date(task.deadline!) < new Date()
+}
+
+// ── Experiment status → column key ────────────────────────────────────────────
+const EXP_STATUS_TO_COL: Record<Experiment['status'], Task['status']> = {
+  planned:   'todo',
+  running:   'in_progress',
+  completed: 'done',
 }
 
 // ── Draggable task card ───────────────────────────────────────────────────────
@@ -43,15 +51,19 @@ interface DraggableCardProps {
   activeTaskId: string | null
   onCardClick: (task: Task) => void
   onEditClick: (task: Task, rect: DOMRect) => void
+  members: { user_id: string; username: string }[]
 }
 
-function DraggableCard({ task, col, idx, activeTaskId, onCardClick, onEditClick }: DraggableCardProps) {
+function DraggableCard({ task, col, idx, activeTaskId, onCardClick, onEditClick, members }: DraggableCardProps) {
   const [isHovered, setIsHovered] = useState(false)
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: String(task.id) })
 
   const p = PRIORITY[task.priority] ?? PRIORITY.low
   const overdue = isOverdue(task)
   const isDragging = activeTaskId === String(task.id)
+
+  const assignee = task.assignee_id ? members.find(m => m.user_id === task.assignee_id) : null
+  const descSnippet = task.description ? task.description.slice(0, 60) + (task.description.length > 60 ? '…' : '') : null
 
   const cardStyle: React.CSSProperties = {
     background: 'var(--surface-card)',
@@ -106,10 +118,10 @@ function DraggableCard({ task, col, idx, activeTaskId, onCardClick, onEditClick 
             position: 'absolute',
             top: 6,
             right: 8,
-            background: 'rgba(34,211,238,0.1)',
-            border: '1px solid rgba(34,211,238,0.22)',
+            background: 'rgba(255,128,21,0.1)',
+            border: '1px solid rgba(255,128,21,0.22)',
             borderRadius: 4,
-            color: '#22d3ee',
+            color: '#ff8015',
             cursor: 'pointer',
             fontSize: 11,
             lineHeight: 1,
@@ -121,9 +133,16 @@ function DraggableCard({ task, col, idx, activeTaskId, onCardClick, onEditClick 
         </button>
       )}
 
-      <p style={{ margin: '0 0 9px', fontWeight: 500, fontSize: 13, lineHeight: 1.4, color: 'var(--text-heading)' }}>
+      <p style={{ margin: '0 0 6px', fontWeight: 500, fontSize: 13, lineHeight: 1.4, color: 'var(--text-heading)' }}>
         {task.title}
       </p>
+
+      {descSnippet && (
+        <p style={{ margin: '0 0 8px', fontSize: 11, color: 'var(--text-dim)', lineHeight: 1.4 }}>
+          {descSnippet}
+        </p>
+      )}
+
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <span style={{
           width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
@@ -135,6 +154,21 @@ function DraggableCard({ task, col, idx, activeTaskId, onCardClick, onEditClick 
         }}>
           {p.label}
         </span>
+        {assignee && (
+          <span
+            title={assignee.username}
+            style={{
+              width: 18, height: 18, borderRadius: '50%',
+              background: 'rgba(255,128,21,0.18)',
+              border: '1px solid rgba(255,128,21,0.3)',
+              color: '#ff8015', fontSize: 9, fontWeight: 700,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'var(--font-mono)', flexShrink: 0,
+            }}
+          >
+            {assignee.username[0].toUpperCase()}
+          </span>
+        )}
         {task.deadline && (
           <span style={{
             marginLeft: 'auto', fontSize: 9,
@@ -149,10 +183,84 @@ function DraggableCard({ task, col, idx, activeTaskId, onCardClick, onEditClick 
   )
 }
 
+// ── Experiment card (non-draggable) ───────────────────────────────────────────
+const EXP_ACCENT = '#10b981'
+const EXP_GLOW   = '16,185,129'
+
+interface ExperimentCardProps {
+  exp: Experiment
+  idx: number
+  onExpClick: (exp: Experiment) => void
+}
+
+function ExperimentCard({ exp, idx, onExpClick }: ExperimentCardProps) {
+  const [hovered, setHovered] = useState(false)
+  const hypoSnippet = exp.hypothesis ? exp.hypothesis.slice(0, 70) + (exp.hypothesis.length > 70 ? '…' : '') : null
+
+  return (
+    <div
+      onClick={() => onExpClick(exp)}
+      style={{
+        background: hovered ? `rgba(${EXP_GLOW},0.06)` : 'var(--surface-card)',
+        border: `1px solid ${hovered ? `rgba(${EXP_GLOW},0.3)` : `rgba(${EXP_GLOW},0.18)`}`,
+        borderLeft: `3px solid ${EXP_ACCENT}`,
+        borderRadius: 7,
+        padding: '10px 13px',
+        cursor: 'pointer',
+        animation: 'fadeInUp 0.22s ease both',
+        animationDelay: `${idx * 0.035}s`,
+        transition: 'background 0.14s, border-color 0.14s, box-shadow 0.14s',
+        boxShadow: hovered ? `0 5px 18px rgba(0,0,0,0.22), 0 0 0 1px rgba(${EXP_GLOW},0.1)` : undefined,
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* Badge */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+        <span style={{
+          fontSize: 8, fontWeight: 700, fontFamily: 'var(--font-mono)',
+          letterSpacing: '0.08em', color: EXP_ACCENT,
+          background: `rgba(${EXP_GLOW},0.1)`,
+          border: `1px solid rgba(${EXP_GLOW},0.25)`,
+          borderRadius: 3, padding: '1px 5px',
+        }}>
+          ⚗ EXP
+        </span>
+        {exp.tags.slice(0, 2).map(tag => (
+          <span key={tag} style={{
+            fontSize: 8, fontFamily: 'var(--font-mono)',
+            color: 'var(--text-dim)',
+            background: 'var(--surface-2)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 3, padding: '1px 4px',
+          }}>{tag}</span>
+        ))}
+      </div>
+
+      <p style={{ margin: '0 0 5px', fontWeight: 500, fontSize: 12, lineHeight: 1.4, color: 'var(--text-heading)' }}>
+        {exp.name}
+      </p>
+
+      {hypoSnippet && (
+        <p style={{ margin: '0 0 6px', fontSize: 10, color: 'var(--text-dim)', lineHeight: 1.4, fontStyle: 'italic' }}>
+          {hypoSnippet}
+        </p>
+      )}
+
+      {exp.deadline && (
+        <div style={{ fontSize: 9, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+          Due {exp.deadline}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Droppable column ──────────────────────────────────────────────────────────
 interface DroppableColumnProps {
   col: typeof COLUMNS[number]
   colTasks: Task[]
+  colExps: Experiment[]
   isDropTarget: boolean
   activeTaskId: string | null
   addingToCol: Task['status'] | null
@@ -163,13 +271,15 @@ interface DroppableColumnProps {
   onAddSubmit: (title: string) => void
   onCardClick: (task: Task) => void
   onEditClick: (task: Task, rect: DOMRect) => void
+  onExpClick: (exp: Experiment) => void
+  members: { user_id: string; username: string }[]
 }
 
 function DroppableColumn({
-  col, colTasks, isDropTarget, activeTaskId,
+  col, colTasks, colExps, isDropTarget, activeTaskId,
   addingToCol, newTaskTitle, onNewTaskTitleChange,
   onAddStart, onAddCancel, onAddSubmit,
-  onCardClick, onEditClick,
+  onCardClick, onEditClick, onExpClick, members,
 }: DroppableColumnProps) {
   const { setNodeRef } = useDroppable({ id: col.key })
 
@@ -216,21 +326,30 @@ function DroppableColumn({
           borderRadius: 9, padding: '1px 7px',
           fontFamily: 'var(--font-mono)',
         }}>
-          {col.label} · {colTasks.length}
+          {col.label} · {colTasks.length + colExps.length}
         </span>
       </div>
 
       {/* Cards */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '8px 9px 4px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+        {colExps.map((exp, idx) => (
+          <ExperimentCard
+            key={`exp-${exp.id}`}
+            exp={exp}
+            idx={idx}
+            onExpClick={onExpClick}
+          />
+        ))}
         {colTasks.map((task, idx) => (
           <DraggableCard
             key={task.id}
             task={task}
             col={col}
-            idx={idx}
+            idx={colExps.length + idx}
             activeTaskId={activeTaskId}
             onCardClick={onCardClick}
             onEditClick={onEditClick}
+            members={members}
           />
         ))}
 
@@ -320,6 +439,7 @@ export function Board() {
   const { theme } = useTheme()
 
   const [selectedTask, setSelectedTask]   = useState<Task | null>(null)
+  const [selectedExp,  setSelectedExp]    = useState<Experiment | null>(null)
   const [newTaskTitle, setNewTaskTitle]   = useState('')
   const [addingToCol,  setAddingToCol]    = useState<Task['status'] | null>(null)
   const [activeTaskId, setActiveTaskId]   = useState<string | null>(null)
@@ -339,6 +459,13 @@ export function Board() {
   const { data: tasks = [] } = useQuery({
     queryKey: ['tasks', projectId],
     queryFn: () => api.listTasks(projectId!),
+    refetchInterval: 15_000,
+    enabled: Boolean(projectId),
+  })
+
+  const { data: experiments = [] } = useQuery({
+    queryKey: ['experiments', projectId],
+    queryFn: () => api.listExperiments(projectId!),
     refetchInterval: 15_000,
     enabled: Boolean(projectId),
   })
@@ -404,6 +531,7 @@ export function Board() {
   const handleAddCancel = useCallback(() => setAddingToCol(null), [])
 
   const handleCardClick = useCallback((task: Task) => setSelectedTask(task), [])
+  const handleExpClick  = useCallback((exp: Experiment) => setSelectedExp(exp), [])
 
   const handleEditClick = useCallback((task: Task, rect: DOMRect) => {
     setEditingTask(task)
@@ -433,14 +561,14 @@ export function Board() {
             padding: '3px 9px', fontSize: 15, lineHeight: 1,
             transition: 'color 0.15s, border-color 0.15s',
           }}
-          onMouseEnter={e => { e.currentTarget.style.color = '#22d3ee'; e.currentTarget.style.borderColor = 'rgba(34,211,238,0.3)' }}
+          onMouseEnter={e => { e.currentTarget.style.color = '#ff8015'; e.currentTarget.style.borderColor = 'rgba(255,128,21,0.3)' }}
           onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
         >←</button>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{
             width: 6, height: 6, borderRadius: '50%',
-            background: '#22d3ee', boxShadow: '0 0 6px #22d3ee',
+            background: '#ff8015', boxShadow: '0 0 6px #ff8015',
             flexShrink: 0,
           }} />
           <h1 style={{
@@ -513,18 +641,18 @@ export function Board() {
             style={{
               width: 28, height: 28, borderRadius: '50%', border: 'none',
               background: theme === 'dark'
-                ? 'linear-gradient(135deg, rgba(34,211,238,0.25), rgba(139,92,246,0.25))'
-                : 'linear-gradient(135deg, rgba(34,211,238,0.4), rgba(139,92,246,0.4))',
-              color: '#22d3ee',
+                ? 'linear-gradient(135deg, rgba(255,128,21,0.25), rgba(139,92,246,0.25))'
+                : 'linear-gradient(135deg, rgba(255,128,21,0.4), rgba(139,92,246,0.4))',
+              color: '#ff8015',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 10, fontWeight: 700, cursor: 'pointer',
               fontFamily: 'var(--font-mono)',
-              outline: '1px solid rgba(34,211,238,0.25)',
+              outline: '1px solid rgba(255,128,21,0.25)',
               transition: 'outline-color 0.15s, box-shadow 0.15s',
               flexShrink: 0,
             }}
-            onMouseEnter={e => { e.currentTarget.style.outlineColor = 'rgba(34,211,238,0.6)'; e.currentTarget.style.boxShadow = '0 0 10px rgba(34,211,238,0.2)' }}
-            onMouseLeave={e => { e.currentTarget.style.outlineColor = 'rgba(34,211,238,0.25)'; e.currentTarget.style.boxShadow = '' }}
+            onMouseEnter={e => { e.currentTarget.style.outlineColor = 'rgba(255,128,21,0.6)'; e.currentTarget.style.boxShadow = '0 0 10px rgba(255,128,21,0.2)' }}
+            onMouseLeave={e => { e.currentTarget.style.outlineColor = 'rgba(255,128,21,0.25)'; e.currentTarget.style.boxShadow = '' }}
           >
             {username?.[0]?.toUpperCase() ?? '?'}
           </button>
@@ -567,11 +695,13 @@ export function Board() {
         }}>
           {COLUMNS.map(col => {
             const colTasks = filtered.filter(t => t.status === col.key)
+            const colExps  = experiments.filter(e => EXP_STATUS_TO_COL[e.status] === col.key)
             return (
               <DroppableColumn
                 key={col.key}
                 col={col}
                 colTasks={colTasks}
+                colExps={colExps}
                 isDropTarget={overColumnId === col.key}
                 activeTaskId={activeTaskId}
                 addingToCol={addingToCol}
@@ -582,6 +712,8 @@ export function Board() {
                 onAddSubmit={handleAddSubmit(col.key)}
                 onCardClick={handleCardClick}
                 onEditClick={handleEditClick}
+                onExpClick={handleExpClick}
+                members={project?.members ?? []}
               />
             )
           })}
@@ -595,6 +727,15 @@ export function Board() {
           projectId={projectId!}
           onClose={() => setSelectedTask(null)}
           members={project?.members ?? []}
+        />
+      )}
+
+      {selectedExp && (
+        <ExperimentDetail
+          key={selectedExp.id}
+          experiment={selectedExp}
+          projectId={projectId!}
+          onClose={() => setSelectedExp(null)}
         />
       )}
 
