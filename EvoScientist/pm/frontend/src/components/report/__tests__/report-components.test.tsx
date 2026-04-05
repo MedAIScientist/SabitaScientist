@@ -37,3 +37,43 @@ describe('StatCard', () => {
     expect(screen.getByText('75%')).toBeInTheDocument()
   })
 })
+import { DonutChart } from '../DonutChart'
+
+describe('DonutChart', () => {
+  it('renders an SVG element', () => {
+    const { container } = render(
+      <DonutChart segments={[
+        { value: 3, color: '#ff8015', label: 'PLANNED' },
+        { value: 5, color: '#10b981', label: 'DONE' },
+      ]} />
+    )
+    expect(container.querySelector('svg')).toBeInTheDocument()
+  })
+
+  it('renders one circle per segment', () => {
+    const { container } = render(
+      <DonutChart segments={[
+        { value: 3, color: '#ff8015', label: 'A' },
+        { value: 5, color: '#10b981', label: 'B' },
+      ]} />
+    )
+    expect(container.querySelectorAll('circle').length).toBe(2)
+  })
+
+  it('renders empty state circle when total is 0', () => {
+    const { container } = render(
+      <DonutChart segments={[{ value: 0, color: '#ff8015', label: 'NONE' }]} />
+    )
+    expect(container.querySelectorAll('circle').length).toBe(1)
+  })
+
+  it('shows label of largest segment in center', () => {
+    render(
+      <DonutChart segments={[
+        { value: 2, color: '#ff8015', label: 'SMALL' },
+        { value: 8, color: '#10b981', label: 'BIG' },
+      ]} />
+    )
+    expect(screen.getByText('BIG')).toBeInTheDocument()
+  })
+})
