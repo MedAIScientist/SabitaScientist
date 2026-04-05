@@ -1,15 +1,16 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Task } from '../api'
 
 export type SortKey = 'created' | 'deadline' | 'priority'
 export type PrioritySet = Set<Task['priority']>
 
 const ALL_PRIORITIES: Task['priority'][] = ['high', 'medium', 'low']
+const ALL_PRIORITIES_SET: PrioritySet = new Set(ALL_PRIORITIES)
 const PRIORITY_ORDER: Record<Task['priority'], number> = { high: 0, medium: 1, low: 2 }
 
 export function useTaskFilters(tasks: Task[]) {
   const [search, setSearch] = useState('')
-  const [priorities, setPriorities] = useState<PrioritySet>(new Set(ALL_PRIORITIES))
+  const [priorities, setPriorities] = useState<PrioritySet>(ALL_PRIORITIES_SET)
   const [sort, setSort] = useState<SortKey>('created')
   const [assigneeId, setAssigneeId] = useState<string | null>(null)
 
@@ -44,7 +45,7 @@ export function useTaskFilters(tasks: Task[]) {
     })
   }, [tasks, search, priorities, sort, assigneeId])
 
-  function togglePriority(p: Task['priority']) {
+  const togglePriority = useCallback((p: Task['priority']) => {
     setPriorities(prev => {
       const next = new Set(prev)
       if (next.has(p)) {
@@ -52,9 +53,9 @@ export function useTaskFilters(tasks: Task[]) {
       } else {
         next.add(p)
       }
-      return next.size === 0 ? new Set(ALL_PRIORITIES) : next
+      return next.size === 0 ? ALL_PRIORITIES_SET : next
     })
-  }
+  }, [])
 
   return { search, setSearch, priorities, togglePriority, sort, setSort, assigneeId, setAssigneeId, filtered }
 }
