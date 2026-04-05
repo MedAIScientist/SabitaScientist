@@ -11,6 +11,7 @@ export function Projects() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [newName, setNewName] = useState('')
+  const [newDesc, setNewDesc] = useState('')
   const [creating, setCreating] = useState(false)
 
   const { data: projects = [], isLoading } = useQuery({
@@ -20,10 +21,12 @@ export function Projects() {
   })
 
   const createMutation = useMutation({
-    mutationFn: (name: string) => api.createProject(name),
+    mutationFn: ({ name, description }: { name: string; description?: string }) =>
+      api.createProject(name, description),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] })
       setNewName('')
+      setNewDesc('')
       setCreating(false)
     },
   })
@@ -148,9 +151,9 @@ export function Projects() {
 
         {creating ? (
           <form
-            onSubmit={e => { e.preventDefault(); createMutation.mutate(newName) }}
+            onSubmit={e => { e.preventDefault(); createMutation.mutate({ name: newName, description: newDesc || undefined }) }}
             style={{
-              display: 'flex', gap: 8, padding: 14,
+              display: 'flex', flexDirection: 'column', gap: 8, padding: 14,
               background: 'rgba(13,21,38,0.65)',
               border: '1px solid rgba(34,211,238,0.18)',
               borderRadius: 8, animation: 'fadeInUp 0.18s ease',
@@ -161,24 +164,39 @@ export function Projects() {
               onChange={e => setNewName(e.target.value)}
               placeholder="Project name…" required
               style={{
-                flex: 1, padding: '8px 11px',
+                padding: '8px 11px',
                 background: 'rgba(7,11,18,0.65)',
                 border: '1px solid rgba(34,211,238,0.2)',
                 borderRadius: 6, color: '#e2e8f0', fontSize: 13, outline: 'none',
               }}
             />
-            <button type="submit" disabled={createMutation.isPending} style={{
-              padding: '8px 16px', cursor: 'pointer',
-              background: '#22d3ee', color: '#070b12',
-              border: 'none', borderRadius: 6, fontSize: 10, fontWeight: 700,
-              letterSpacing: '0.06em', fontFamily: 'var(--font-mono)',
-            }}>CREATE</button>
-            <button type="button" onClick={() => setCreating(false)} style={{
-              padding: '8px 12px', cursor: 'pointer',
-              background: 'rgba(100,140,200,0.07)',
-              border: '1px solid rgba(100,140,200,0.13)',
-              borderRadius: 6, color: '#475569', fontSize: 12,
-            }}>✕</button>
+            <textarea
+              value={newDesc}
+              onChange={e => setNewDesc(e.target.value)}
+              placeholder="Brief description (optional)…"
+              rows={2}
+              style={{
+                padding: '6px 11px',
+                background: 'rgba(7,11,18,0.65)',
+                border: '1px solid rgba(34,211,238,0.2)',
+                borderRadius: 6, color: '#e2e8f0', fontSize: 12, outline: 'none',
+                resize: 'none', fontFamily: 'inherit',
+              }}
+            />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="submit" disabled={createMutation.isPending} style={{
+                padding: '8px 16px', cursor: 'pointer',
+                background: '#22d3ee', color: '#070b12',
+                border: 'none', borderRadius: 6, fontSize: 10, fontWeight: 700,
+                letterSpacing: '0.06em', fontFamily: 'var(--font-mono)',
+              }}>CREATE</button>
+              <button type="button" onClick={() => setCreating(false)} style={{
+                padding: '8px 12px', cursor: 'pointer',
+                background: 'rgba(100,140,200,0.07)',
+                border: '1px solid rgba(100,140,200,0.13)',
+                borderRadius: 6, color: '#475569', fontSize: 12,
+              }}>✕</button>
+            </div>
           </form>
         ) : (
           <button
