@@ -42,8 +42,8 @@ export function Login() {
         onSubmit={handleSubmit}
         style={{
           position: 'relative',
-          background: 'rgba(13,21,38,0.92)',
-          border: '1px solid rgba(100,140,200,0.12)',
+          background: 'var(--surface-panel)',
+          border: '1px solid var(--border)',
           borderRadius: 12, padding: '32px 32px 28px',
           width: 330, display: 'flex', flexDirection: 'column', gap: 16,
           boxShadow: '0 24px 64px rgba(0,0,0,0.55)',
@@ -60,16 +60,16 @@ export function Login() {
             fontSize: 13, color: '#22d3ee',
           }}>⬡</div>
           <div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: '#f1f5f9', letterSpacing: '0.02em' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: 'var(--text-heading)', letterSpacing: '0.02em' }}>
               EvoScientist
             </div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: '#3d4e64', letterSpacing: '0.1em' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 9, color: 'var(--text-dim)', letterSpacing: '0.1em' }}>
               RESEARCH · PM
             </div>
           </div>
         </div>
 
-        <div style={{ height: 1, background: 'rgba(100,140,200,0.08)' }} />
+        <div style={{ height: 1, background: 'var(--border-subtle)' }} />
 
         {error && (
           <div style={{
@@ -84,7 +84,7 @@ export function Login() {
         {(['USERNAME', 'PASSWORD'] as const).map((label, i) => (
           <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
             <label style={{
-              fontSize: 9, fontWeight: 700, color: '#3d4e64',
+              fontSize: 9, fontWeight: 700, color: 'var(--text-dim)',
               letterSpacing: '0.12em', fontFamily: 'var(--font-mono)',
             }}>{label}</label>
             <input
@@ -95,14 +95,14 @@ export function Login() {
               required
               style={{
                 padding: '9px 11px',
-                background: 'rgba(7,11,18,0.65)',
-                border: '1px solid rgba(100,140,200,0.12)',
-                borderRadius: 7, color: '#e2e8f0',
+                background: 'var(--surface-input)',
+                border: '1px solid var(--border)',
+                borderRadius: 7, color: 'var(--text)',
                 fontSize: 13, outline: 'none',
                 transition: 'border-color 0.14s',
               }}
               onFocus={e => { e.currentTarget.style.borderColor = 'rgba(34,211,238,0.32)' }}
-              onBlur={e => { e.currentTarget.style.borderColor = 'rgba(100,140,200,0.12)' }}
+              onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
             />
           </div>
         ))}

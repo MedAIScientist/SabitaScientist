@@ -3,7 +3,7 @@ services:
     build: .
     image: evoscientist:latest
     ports:
-      - "7860:7860"   # PM dashboard
+      - "80:7860"     # PM dashboard (host:container)
       - "8001:8001"   # Runner service (internal, exposed for debugging)
     environment:
       # LLM provider — set at least one
@@ -18,6 +18,8 @@ services:
       - EVOSCIENTIST_PROVIDER=${EVOSCIENTIST_PROVIDER:-anthropic}
       # Workspace directory inside container
       - EVOSCIENTIST_WORKSPACE_DIR=/data/workspaces
+      # PM database — persisted in the named volume
+      - EVOSCIENTIST_PM_DB=/data/pm.db
     volumes:
       # Persist database, workspaces, and agent memory across restarts
       - evoscientist-data:/data

@@ -120,7 +120,16 @@ CREATE TABLE IF NOT EXISTS experiment_entries (
 
 
 def get_db_path() -> Path:
-    """Return path to the PM SQLite database, creating parent dirs."""
+    """Return path to the PM SQLite database, creating parent dirs.
+
+    Override with ``EVOSCIENTIST_PM_DB`` env var (e.g. ``/data/pm.db`` in Docker).
+    """
+    import os
+    env_path = os.environ.get("EVOSCIENTIST_PM_DB")
+    if env_path:
+        path = Path(env_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        return path
     db_dir = Path.home() / ".config" / "evoscientist"
     db_dir.mkdir(parents=True, exist_ok=True)
     return db_dir / "projects.db"

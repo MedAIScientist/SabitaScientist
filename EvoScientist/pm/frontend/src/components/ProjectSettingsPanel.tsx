@@ -18,7 +18,7 @@ const ROLE_COLORS: Record<string, string> = {
 
 const labelStyle: React.CSSProperties = {
   fontSize: 9,
-  color: '#3d4e64',
+  color: 'var(--text-dim)',
   fontFamily: 'var(--font-mono)',
   letterSpacing: '0.1em',
   display: 'block',
@@ -29,10 +29,10 @@ const labelStyle: React.CSSProperties = {
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
-  background: '#070b12',
-  border: '1px solid rgba(100,140,200,0.18)',
+  background: 'var(--surface-input)',
+  border: '1px solid var(--border)',
   borderRadius: 4,
-  color: '#f1f5f9',
+  color: 'var(--text)',
   padding: '5px 8px',
   fontSize: 11,
   fontFamily: 'var(--font-mono)',
@@ -190,15 +190,15 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
   return (
     <div style={{
       position: 'fixed', top: 0, right: 0, width: 340, height: '100vh',
-      background: '#070b12',
-      borderLeft: '1px solid rgba(100,140,200,0.12)',
+      background: 'var(--surface-panel)',
+      borderLeft: '1px solid var(--border)',
       display: 'flex', flexDirection: 'column',
       animation: 'slideInRight 0.22s ease',
       zIndex: 50, overflowY: 'auto',
     }}>
       {/* Header */}
       <div style={{
-        padding: '14px 16px', borderBottom: '1px solid rgba(100,140,200,0.08)',
+        padding: '14px 16px', borderBottom: '1px solid var(--border-subtle)',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         flexShrink: 0,
       }}>
@@ -207,15 +207,15 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
         </span>
         <button
           onClick={onClose}
-          style={{ background: 'none', border: 'none', color: '#475569', fontSize: 14, cursor: 'pointer', padding: '2px 6px' }}
+          style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 14, cursor: 'pointer', padding: '2px 6px' }}
         >×</button>
       </div>
 
       <div style={{ padding: '0 16px 24px', flex: 1 }}>
 
         {/* Section 1: Project Details */}
-        <div style={{ borderBottom: '1px solid rgba(100,140,200,0.07)', paddingBottom: 16, marginBottom: 16 }}>
-          <div style={{ marginTop: 14, fontSize: 10, color: '#3d4e64', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', fontWeight: 700 }}>
+        <div style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: 16, marginBottom: 16 }}>
+          <div style={{ marginTop: 14, fontSize: 10, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', fontWeight: 700 }}>
             PROJECT DETAILS
           </div>
 
@@ -268,7 +268,7 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
         </div>
 
         {/* Section 2: Team Members */}
-        <div style={{ fontSize: 10, color: '#3d4e64', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 10 }}>
+        <div style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 10 }}>
           TEAM MEMBERS · {project.members.length}
         </div>
 
@@ -278,9 +278,9 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
             return (
               <div key={m.user_id} style={{
                 display: 'flex', alignItems: 'center', gap: 8,
-                background: 'rgba(17,30,53,0.5)', borderRadius: 5, padding: '7px 10px',
+                background: 'var(--surface-comment)', borderRadius: 5, padding: '7px 10px',
               }}>
-                <span style={{ flex: 1, fontSize: 11, color: '#e2e8f0', fontFamily: 'var(--font-mono)' }}>
+                <span style={{ flex: 1, fontSize: 11, color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>
                   {m.username}
                 </span>
                 <span style={{
@@ -299,8 +299,8 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
                   disabled={isSelf}
                   onChange={e => updateMemberRole.mutate({ userId: m.user_id, role: e.target.value })}
                   style={{
-                    background: '#070b12',
-                    border: '1px solid rgba(100,140,200,0.14)',
+                    background: 'var(--surface-input)',
+                    border: '1px solid var(--border-subtle)',
                     borderRadius: 3,
                     color: ROLE_COLORS[m.role] ?? '#64748b',
                     fontSize: 9, fontWeight: 700,
@@ -357,10 +357,10 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
                   onClick={() => handleSelectUser(u)}
                   style={{
                     padding: '7px 10px',
-                    fontSize: 11, color: '#e2e8f0',
+                    fontSize: 11, color: 'var(--text)',
                     fontFamily: 'var(--font-mono)',
                     cursor: 'pointer',
-                    borderBottom: '1px solid rgba(100,140,200,0.07)',
+                    borderBottom: '1px solid var(--border-subtle)',
                   }}
                   onMouseEnter={e => { e.currentTarget.style.background = 'rgba(34,211,238,0.07)' }}
                   onMouseLeave={e => { e.currentTarget.style.background = '' }}

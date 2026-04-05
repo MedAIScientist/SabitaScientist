@@ -15,9 +15,9 @@ interface FilterToolbarProps {
 }
 
 const inputStyle: React.CSSProperties = {
-  background: '#070b12',
-  border: '1px solid rgba(100,140,200,0.18)',
-  color: '#f1f5f9',
+  background: 'var(--surface-input)',
+  border: '1px solid var(--border)',
+  color: 'var(--text)',
   borderRadius: 4,
   padding: '4px 8px',
   fontFamily: 'var(--font-mono)',
@@ -32,7 +32,7 @@ const selectStyle: React.CSSProperties = {
 
 const labelStyle: React.CSSProperties = {
   fontSize: 10,
-  color: '#475569',
+  color: 'var(--text-3)',
   fontFamily: 'var(--font-mono)',
   marginRight: 4,
   whiteSpace: 'nowrap',
@@ -58,8 +58,8 @@ function chipStyle(priority: Task['priority'], active: boolean): React.CSSProper
   const accent = CHIP_ACCENTS[priority]
   return {
     background: active ? `rgba(${hexToRgb(accent)},0.15)` : 'transparent',
-    border: active ? `1px solid ${accent}` : '1px solid rgba(100,140,200,0.12)',
-    color: active ? accent : '#475569',
+    border: active ? `1px solid ${accent}` : '1px solid var(--border)',
+    color: active ? accent : 'var(--text-3)',
     borderRadius: 3,
     padding: '2px 8px',
     fontSize: 10,

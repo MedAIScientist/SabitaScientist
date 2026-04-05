@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, Task } from '../api'
+import { DeadlinePicker } from './DeadlinePicker'
 
 interface CardEditPopoverProps {
   task: Task
@@ -76,7 +77,7 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose }: CardEd
 
   const labelStyle: React.CSSProperties = {
     fontSize: 9,
-    color: '#3d4e64',
+    color: 'var(--text-dim)',
     fontFamily: 'var(--font-mono)',
     letterSpacing: '0.1em',
     display: 'block',
@@ -86,9 +87,9 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose }: CardEd
 
   const fieldStyle: React.CSSProperties = {
     width: '100%',
-    background: '#070b12',
-    border: '1px solid rgba(100,140,200,0.18)',
-    color: '#f1f5f9',
+    background: 'var(--surface-input)',
+    border: '1px solid var(--border)',
+    color: 'var(--text)',
     borderRadius: 4,
     padding: '4px 8px',
     fontSize: 11,
@@ -106,7 +107,7 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose }: CardEd
         top: anchorRect.top,
         left,
         width,
-        background: '#0d1526',
+        background: 'var(--surface-panel)',
         border: '1px solid rgba(34,211,238,0.25)',
         borderRadius: 6,
         padding: 12,
@@ -135,11 +136,10 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose }: CardEd
       </select>
 
       <label style={labelStyle}>DEADLINE</label>
-      <input
-        type="date"
+      <DeadlinePicker
         value={deadline}
-        onChange={e => setDeadline(e.target.value)}
-        style={fieldStyle}
+        onChange={setDeadline}
+        inputStyle={fieldStyle}
       />
 
       <button

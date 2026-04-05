@@ -24,7 +24,7 @@ from ...crud.experiments import (
 from ...crud.tasks import get_task
 from ...db import get_db_path
 from ...models import User
-from ..deps import get_current_user, require_project_role
+from ..deps import require_project_role
 from ..schemas import (
     ExperimentCreate,
     ExperimentEntryCreate,

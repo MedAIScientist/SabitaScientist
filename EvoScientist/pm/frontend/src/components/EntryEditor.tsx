@@ -17,7 +17,7 @@ export function EntryEditor({ type, onSave, onCancel, initialTitle = '', initial
 
   return (
     <div style={{
-      background: '#0a1220',
+      background: 'var(--surface-card)',
       border: `1px solid ${accent}33`,
       borderRadius: 6,
       padding: '12px 14px',
@@ -32,8 +32,8 @@ export function EntryEditor({ type, onSave, onCancel, initialTitle = '', initial
         placeholder="Title…"
         style={{
           width: '100%', boxSizing: 'border-box',
-          background: '#070b12', border: '1px solid rgba(100,140,200,0.18)',
-          borderRadius: 4, color: '#e2e8f0', fontSize: 11, padding: '6px 8px',
+          background: 'var(--surface-input)', border: '1px solid var(--border)',
+          borderRadius: 4, color: 'var(--text)', fontSize: 11, padding: '6px 8px',
           fontFamily: 'inherit', marginBottom: 6, outline: 'none',
         }}
       />
@@ -45,8 +45,8 @@ export function EntryEditor({ type, onSave, onCancel, initialTitle = '', initial
         placeholder="Markdown content…"
         style={{
           width: '100%', boxSizing: 'border-box',
-          background: '#070b12', border: '1px solid rgba(100,140,200,0.18)',
-          borderRadius: 4, color: '#94a3b8', fontSize: 10, padding: '6px 8px',
+          background: 'var(--surface-input)', border: '1px solid var(--border)',
+          borderRadius: 4, color: 'var(--text-2)', fontSize: 10, padding: '6px 8px',
           fontFamily: 'var(--font-mono)', resize: 'vertical', outline: 'none',
           marginBottom: 8,
         }}
@@ -56,8 +56,8 @@ export function EntryEditor({ type, onSave, onCancel, initialTitle = '', initial
         <button
           onClick={onCancel}
           style={{
-            background: 'rgba(100,140,200,0.06)', border: '1px solid rgba(100,140,200,0.14)',
-            borderRadius: 3, padding: '4px 10px', color: '#64748b',
+            background: 'var(--surface-input)', border: '1px solid var(--border-subtle)',
+            borderRadius: 3, padding: '4px 10px', color: 'var(--text-muted)',
             fontSize: 9, fontFamily: 'var(--font-mono)', cursor: 'pointer',
           }}
         >

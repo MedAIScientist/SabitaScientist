@@ -12,6 +12,7 @@ import { CardEditPopover } from '../components/CardEditPopover'
 import { ProjectSettingsPanel } from '../components/ProjectSettingsPanel'
 import { useTaskFilters } from '../hooks/useTaskFilters'
 import { useAuth } from '../auth'
+import { useTheme } from '../theme'
 
 // ── Column definitions (lab context) ─────────────────────────────────────────
 const COLUMNS: { key: Task['status']; label: string; accent: string; glow: string }[] = [
@@ -53,8 +54,8 @@ function DraggableCard({ task, col, idx, activeTaskId, onCardClick, onEditClick 
   const isDragging = activeTaskId === String(task.id)
 
   const cardStyle: React.CSSProperties = {
-    background: 'rgba(17,30,53,0.75)',
-    border: '1px solid rgba(100,140,200,0.09)',
+    background: 'var(--surface-card)',
+    border: '1px solid var(--border-subtle)',
     borderLeft: overdue ? '3px solid #f43f5e' : undefined,
     borderRadius: 7,
     padding: '11px 13px',
@@ -86,7 +87,7 @@ function DraggableCard({ task, col, idx, activeTaskId, onCardClick, onEditClick 
         setIsHovered(false)
         const el = e.currentTarget
         el.style.transform = CSS.Transform.toString(transform) ?? ''
-        el.style.borderColor = overdue ? '#f43f5e' : 'rgba(100,140,200,0.09)'
+        el.style.borderColor = overdue ? '#f43f5e' : 'var(--border-subtle)'
         el.style.boxShadow = ''
       }}
     >
@@ -120,7 +121,7 @@ function DraggableCard({ task, col, idx, activeTaskId, onCardClick, onEditClick 
         </button>
       )}
 
-      <p style={{ margin: '0 0 9px', fontWeight: 500, fontSize: 13, lineHeight: 1.4, color: '#dde5f0' }}>
+      <p style={{ margin: '0 0 9px', fontWeight: 500, fontSize: 13, lineHeight: 1.4, color: 'var(--text-heading)' }}>
         {task.title}
       </p>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -137,7 +138,7 @@ function DraggableCard({ task, col, idx, activeTaskId, onCardClick, onEditClick 
         {task.deadline && (
           <span style={{
             marginLeft: 'auto', fontSize: 9,
-            color: overdue ? '#f43f5e' : '#3d4e64',
+            color: overdue ? '#f43f5e' : 'var(--text-dim)',
             fontFamily: 'var(--font-mono)',
           }}>
             Due {task.deadline}
@@ -174,10 +175,10 @@ function DroppableColumn({
 
   const columnStyle: React.CSSProperties = {
     flex: '0 0 290px',
-    background: isDropTarget ? `rgba(${col.glow},0.07)` : 'rgba(13,21,38,0.55)',
+    background: isDropTarget ? `rgba(${col.glow},0.07)` : 'var(--surface-2)',
     border: isDropTarget
       ? `2px solid ${col.accent}`
-      : '1px solid rgba(100,140,200,0.09)',
+      : '1px solid var(--border-subtle)',
     boxShadow: isDropTarget ? `0 0 14px rgba(${col.glow},0.25)` : undefined,
     borderTop: `2px solid ${col.accent}`,
     borderRadius: '0 0 10px 10px',
@@ -196,7 +197,7 @@ function DroppableColumn({
       <div style={{
         padding: '11px 13px 9px',
         background: dimBg,
-        borderBottom: '1px solid rgba(100,140,200,0.07)',
+        borderBottom: '1px solid var(--border-subtle)',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         flexShrink: 0,
       }}>
@@ -253,13 +254,13 @@ function DroppableColumn({
               autoFocus
               value={newTaskTitle}
               onChange={e => onNewTaskTitleChange(e.target.value)}
-              placeholder="Experiment title…"
+              placeholder="Task title…"
               required
               style={{
                 width: '100%', padding: '7px 10px', boxSizing: 'border-box', marginBottom: 5,
-                background: 'rgba(7,11,18,0.65)',
+                background: 'var(--surface-input)',
                 border: `1px solid rgba(${col.glow},0.3)`,
-                borderRadius: 6, color: '#e2e8f0', fontSize: 12, outline: 'none',
+                borderRadius: 6, color: 'var(--text)', fontSize: 12, outline: 'none',
               }}
             />
             <div style={{ display: 'flex', gap: 4 }}>
@@ -273,9 +274,9 @@ function DroppableColumn({
               </button>
               <button type="button" onClick={onAddCancel} style={{
                 padding: '5px 9px', fontSize: 11, cursor: 'pointer',
-                background: 'rgba(100,140,200,0.07)',
-                border: '1px solid rgba(100,140,200,0.14)',
-                borderRadius: 5, color: '#64748b',
+                background: 'var(--surface-input)',
+                border: '1px solid var(--border)',
+                borderRadius: 5, color: 'var(--text-muted)',
               }}>
                 ✕
               </button>
@@ -288,7 +289,7 @@ function DroppableColumn({
               width: '100%', background: 'none',
               border: `1px dashed rgba(${col.glow},0.2)`,
               borderRadius: 6, padding: '7px 10px',
-              cursor: 'pointer', color: '#3d4e64',
+              cursor: 'pointer', color: 'var(--text-dim)',
               fontSize: 11, textAlign: 'left',
               transition: 'border-color 0.14s, color 0.14s',
               fontFamily: 'var(--font-sans)',
@@ -299,10 +300,10 @@ function DroppableColumn({
             }}
             onMouseLeave={e => {
               e.currentTarget.style.borderColor = `rgba(${col.glow},0.2)`
-              e.currentTarget.style.color = '#3d4e64'
+              e.currentTarget.style.color = 'var(--text-dim)'
             }}
           >
-            + Add experiment
+            + Add task
           </button>
         )}
       </div>
@@ -316,6 +317,7 @@ export function Board() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { username } = useAuth()
+  const { theme } = useTheme()
 
   const [selectedTask, setSelectedTask]   = useState<Task | null>(null)
   const [newTaskTitle, setNewTaskTitle]   = useState('')
@@ -416,7 +418,7 @@ export function Board() {
         padding: '0 24px', height: 52,
         borderBottom: '1px solid var(--border)',
         display: 'flex', alignItems: 'center', gap: 14,
-        background: 'rgba(13,21,38,0.85)',
+        background: 'var(--surface-header)',
         backdropFilter: 'blur(12px)',
         position: 'sticky', top: 0, zIndex: 10,
         flexShrink: 0,
@@ -425,14 +427,14 @@ export function Board() {
           onClick={() => navigate('/projects')}
           style={{
             cursor: 'pointer',
-            background: 'rgba(100,140,200,0.07)',
-            border: '1px solid rgba(100,140,200,0.14)',
-            borderRadius: 6, color: '#64748b',
+            background: 'var(--surface-input)',
+            border: '1px solid var(--border)',
+            borderRadius: 6, color: 'var(--text-muted)',
             padding: '3px 9px', fontSize: 15, lineHeight: 1,
             transition: 'color 0.15s, border-color 0.15s',
           }}
           onMouseEnter={e => { e.currentTarget.style.color = '#22d3ee'; e.currentTarget.style.borderColor = 'rgba(34,211,238,0.3)' }}
-          onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(100,140,200,0.14)' }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
         >←</button>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -443,7 +445,7 @@ export function Board() {
           }} />
           <h1 style={{
             margin: 0, fontSize: 14, fontWeight: 600,
-            letterSpacing: '0.03em', color: '#f1f5f9',
+            letterSpacing: '0.03em', color: 'var(--text-heading)',
             fontFamily: 'var(--font-mono)',
           }}>
             {project?.name ?? '…'} — Kanban Board
@@ -473,9 +475,9 @@ export function Board() {
             <button
               onClick={() => setSettingsPanelOpen(true)}
               style={{
-                background: 'rgba(100,140,200,0.08)',
-                border: '1px solid rgba(100,140,200,0.18)',
-                color: '#64748b',
+                background: 'var(--surface-input)',
+                border: '1px solid var(--border)',
+                color: 'var(--text-muted)',
                 fontFamily: 'var(--font-mono)',
                 fontSize: 11,
                 padding: '4px 10px',
@@ -497,7 +499,7 @@ export function Board() {
                   background: AVATAR_COLORS[i % AVATAR_COLORS.length],
                   color: '#fff', display: 'flex', alignItems: 'center',
                   justifyContent: 'center', fontSize: 10, fontWeight: 700,
-                  border: '2px solid rgba(7,11,18,0.9)',
+                  border: '2px solid var(--bg)',
                   fontFamily: 'var(--font-mono)',
                   cursor: 'default',
                 }}>
@@ -505,6 +507,27 @@ export function Board() {
               </span>
             ))}
           </div>
+          <button
+            onClick={() => navigate('/profile')}
+            title={username ?? 'Profile'}
+            style={{
+              width: 28, height: 28, borderRadius: '50%', border: 'none',
+              background: theme === 'dark'
+                ? 'linear-gradient(135deg, rgba(34,211,238,0.25), rgba(139,92,246,0.25))'
+                : 'linear-gradient(135deg, rgba(34,211,238,0.4), rgba(139,92,246,0.4))',
+              color: '#22d3ee',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 10, fontWeight: 700, cursor: 'pointer',
+              fontFamily: 'var(--font-mono)',
+              outline: '1px solid rgba(34,211,238,0.25)',
+              transition: 'outline-color 0.15s, box-shadow 0.15s',
+              flexShrink: 0,
+            }}
+            onMouseEnter={e => { e.currentTarget.style.outlineColor = 'rgba(34,211,238,0.6)'; e.currentTarget.style.boxShadow = '0 0 10px rgba(34,211,238,0.2)' }}
+            onMouseLeave={e => { e.currentTarget.style.outlineColor = 'rgba(34,211,238,0.25)'; e.currentTarget.style.boxShadow = '' }}
+          >
+            {username?.[0]?.toUpperCase() ?? '?'}
+          </button>
         </div>
       </div>
 
@@ -512,7 +535,7 @@ export function Board() {
       <div style={{
         padding: '0 24px',
         borderBottom: '1px solid var(--border)',
-        background: 'rgba(13,21,38,0.85)',
+        background: 'var(--surface-header)',
         backdropFilter: 'blur(12px)',
         position: 'sticky', top: 52, zIndex: 9,
         flexShrink: 0,
