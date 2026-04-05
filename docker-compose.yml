@@ -1,0 +1,33 @@
+services:
+  evoscientist:
+    build: .
+    image: evoscientist:latest
+    ports:
+      - "7860:7860"   # PM dashboard
+      - "8001:8001"   # Runner service (internal, exposed for debugging)
+    environment:
+      # LLM provider — set at least one
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      # Tavily for web search
+      - TAVILY_API_KEY=${TAVILY_API_KEY:-}
+      # EvoScientist config
+      - EVOSCIENTIST_MODEL=${EVOSCIENTIST_MODEL:-claude-sonnet-4-6}
+      - EVOSCIENTIST_PROVIDER=${EVOSCIENTIST_PROVIDER:-anthropic}
+      # Workspace directory inside container
+      - EVOSCIENTIST_WORKSPACE_DIR=/data/workspaces
+    volumes:
+      # Persist database, workspaces, and agent memory across restarts
+      - evoscientist-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7860/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  evoscientist-data:

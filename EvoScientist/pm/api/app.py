@@ -28,11 +28,15 @@ def create_app(db_path: Path | None = None) -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:7860", "http://127.0.0.1:7860"],
+        allow_origins=["*"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.get("/api/v1/health", tags=["health"], include_in_schema=False)
+    def health():
+        return {"status": "ok"}
 
     app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
     app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
