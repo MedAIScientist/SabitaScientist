@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -70,6 +70,11 @@ describe('ExperimentsPage', () => {
 
   it('shows NEW EXPERIMENT button', async () => {
     render(wrap(<ExperimentsPage />))
-    await waitFor(() => expect(screen.getByRole('button', { name: /NEW EXPERIMENT/i })).toBeInTheDocument())
+    // The "+ NEW" dropdown trigger button should always be present
+    const newBtn = await waitFor(() => screen.getByRole('button', { name: /\+ NEW/i }))
+    expect(newBtn).toBeInTheDocument()
+    // Opening the dropdown reveals the EXPERIMENT item
+    fireEvent.click(newBtn)
+    await waitFor(() => expect(screen.getByRole('button', { name: /EXPERIMENT/i })).toBeInTheDocument())
   })
 })

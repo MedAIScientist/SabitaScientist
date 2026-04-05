@@ -52,7 +52,7 @@ describe('AiRunsTab', () => {
 
   it('RUN button is enabled when Research is selected and prompt is non-empty', () => {
     render(wrap(<AiRunsTab task={MOCK_TASK} projectId="p1" />))
-    const btn = screen.getByRole('button', { name: /RUN EVOSCIENTIST/i })
+    const btn = screen.getByRole('button', { name: /RUN SABITA AI/i })
     expect(btn).not.toBeDisabled()
   })
 
