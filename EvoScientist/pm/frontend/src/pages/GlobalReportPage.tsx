@@ -6,6 +6,13 @@ import { api } from '../api'
 import type { Project, Task, Experiment } from '../api'
 import { StatCard } from '../components/report/StatCard'
 import { SectionHeader } from '../components/report/SectionHeader'
+import { BarChart } from '../components/report/BarChart'
+
+function completionColor(pct: number): string {
+  if (pct >= 80) return '#10b981'
+  if (pct >= 40) return '#f59e0b'
+  return '#f43f5e'
+}
 
 export function GlobalReportPage() {
   const navigate = useNavigate()
@@ -36,6 +43,31 @@ export function GlobalReportPage() {
   const totalDone   = allProjectData.reduce((sum, { tasks }) => sum + tasks.filter(t => t.status === 'done').length, 0)
   const totalExps   = allProjectData.reduce((sum, { experiments }) => sum + experiments.length, 0)
   const runningExps = allProjectData.reduce((sum, { experiments }) => sum + experiments.filter(e => e.status === 'running').length, 0)
+
+  const taskCompletionRows = allProjectData.map(({ project, tasks }) => {
+    const done  = tasks.filter(t => t.status === 'done').length
+    const total = tasks.length
+    const pct   = total > 0 ? Math.round((done / total) * 100) : 0
+    return { label: project.name, value: done, max: total || 1, color: completionColor(pct), sublabel: `${pct}%` }
+  })
+
+  const expStatusRows = allProjectData.map(({ project, experiments }) => {
+    const planned   = experiments.filter(e => e.status === 'planned').length
+    const running   = experiments.filter(e => e.status === 'running').length
+    const completed = experiments.filter(e => e.status === 'completed').length
+    return {
+      label: project.name,
+      value: experiments.length,
+      max: experiments.length || 1,
+      color: '#f59e0b',
+      sublabel: String(experiments.length),
+      segments: [
+        { value: planned,   color: '#f59e0b' },
+        { value: running,   color: '#ff8015' },
+        { value: completed, color: '#10b981' },
+      ],
+    }
+  })
 
   const generatedAt = new Date().toLocaleString('en-GB', {
     day: 'numeric', month: 'short', year: 'numeric',
@@ -81,17 +113,49 @@ export function GlobalReportPage() {
           <SectionHeader title="Global Summary" accent="#ff8015" count={projects.length > 0 ? projects.length : undefined} />
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             <StatCard value={projects.length} label="Total Projects" accent="#ff8015" />
-            {projects.length > 0 && (
-              <>
-                <StatCard value={totalDone}   label="Tasks Completed"     accent="#10b981" sublabel={`of ${totalTasks} total`} />
-                <StatCard value={totalExps}   label="Total Experiments"   accent="#f59e0b" />
-                <StatCard value={runningExps} label="Running Experiments" accent="#f43f5e" />
-              </>
+            <StatCard value={totalDone}   label="Tasks Completed"     accent="#10b981" sublabel={`of ${totalTasks} total`} />
+            <StatCard value={totalExps}   label="Total Experiments"   accent="#f59e0b" />
+            <StatCard value={runningExps} label="Running Experiments" accent="#f43f5e" />
+          </div>
+        </div>
+
+        {/* Section 2 — Task Completion by Project */}
+        <div style={{ marginBottom: 40 }}>
+          <SectionHeader title="Task Completion by Project" accent="#ff8015" />
+          <div style={{
+            background: 'var(--surface-card)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 8, padding: '20px 24px',
+          }}>
+            {allProjectData.length === 0 ? (
+              <span style={{ color: 'var(--text-dim)', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+                No data yet
+              </span>
+            ) : (
+              <BarChart rows={taskCompletionRows} rowHeight={28} />
             )}
           </div>
         </div>
 
-        {/* Section 2 — Project Summary Table */}
+        {/* Section 3 — Experiment Status by Project */}
+        <div style={{ marginBottom: 40 }}>
+          <SectionHeader title="Experiment Status by Project" accent="#10b981" />
+          <div style={{
+            background: 'var(--surface-card)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 8, padding: '20px 24px',
+          }}>
+            {allProjectData.length === 0 ? (
+              <span style={{ color: 'var(--text-dim)', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+                No data yet
+              </span>
+            ) : (
+              <BarChart rows={expStatusRows} rowHeight={28} />
+            )}
+          </div>
+        </div>
+
+        {/* Section 4 — Project Summary Table */}
         <div style={{ marginBottom: 40 }}>
           <SectionHeader title="All Projects" accent="#ff8015" count={projects.length > 0 ? projects.length : undefined} />
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>

@@ -67,7 +67,7 @@ describe('GlobalReportPage', () => {
 
   it('shows 0 total projects with empty list', async () => {
     render(wrap(<GlobalReportPage />))
-    await waitFor(() => expect(screen.getByText('0')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getAllByText('0').length).toBeGreaterThanOrEqual(1))
   })
 
   it('shows project names when projects exist', async () => {
@@ -81,8 +81,8 @@ describe('GlobalReportPage', () => {
     )
     render(wrap(<GlobalReportPage />))
     await waitFor(() => {
-      expect(screen.getByText('CRISPR Study')).toBeInTheDocument()
-      expect(screen.getByText('Proteomics')).toBeInTheDocument()
+      expect(screen.getAllByText('CRISPR Study').length).toBeGreaterThanOrEqual(1)
+      expect(screen.getAllByText('Proteomics').length).toBeGreaterThanOrEqual(1)
     })
   })
 
