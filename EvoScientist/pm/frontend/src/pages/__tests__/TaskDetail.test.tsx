@@ -11,6 +11,16 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: vi.fn(() => ({ invalidateQueries: mockInvalidateQueries })),
 }))
 
+// ── AiRunsTab mock ───────────────────────────────────────────────────────────
+vi.mock('../components/AiRunsTab', () => ({
+  AiRunsTab: ({ task }: { task: { title: string } }) => (
+    <div data-testid="ai-runs-tab">
+      <span>Research</span>
+      <span>AI tab for {task.title}</span>
+    </div>
+  ),
+}))
+
 // ── API mock ──────────────────────────────────────────────────────────────────
 vi.mock('../../api', () => ({
   api: {
@@ -141,6 +151,19 @@ describe('TaskDetail', () => {
     const deleteBtn = screen.getByRole('button', { name: /^DELETE$/i })
     fireEvent.click(deleteBtn)
     expect(screen.getByRole('button', { name: /CONFIRM DELETE/i })).toBeInTheDocument()
+  })
+
+  test('renders DETAILS and AI RUNS tabs', () => {
+    render(<TaskDetail task={MOCK_TASK} projectId="p1" onClose={() => {}} members={[]} />)
+    expect(screen.getByRole('button', { name: /DETAILS/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /AI RUNS/i })).toBeInTheDocument()
+  })
+
+  test('shows AiRunsTab when AI RUNS tab is clicked', () => {
+    render(<TaskDetail task={MOCK_TASK} projectId="p1" onClose={() => {}} members={[]} />)
+    fireEvent.click(screen.getByRole('button', { name: /AI RUNS/i }))
+    // AiRunsTab renders the agent buttons
+    expect(screen.getByText(/Research/i)).toBeInTheDocument()
   })
 
   test('overdue task shows deadline badge with rose color', () => {

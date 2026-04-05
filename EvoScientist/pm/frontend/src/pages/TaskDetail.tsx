@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, Task, Member } from '../api'
+import { AiRunsTab } from '../components/AiRunsTab'
 
 interface Props {
   task: Task
@@ -70,6 +71,9 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
   const [editDeadline, setEditDeadline] = useState(task.deadline ?? '')
   const [editDescription, setEditDescription] = useState(task.description ?? '')
   const [editAssigneeId, setEditAssigneeId] = useState(task.assignee_id ?? '')
+
+  // ── Tab state ──
+  const [activeTab, setActiveTab] = useState<'details' | 'ai'>('details')
 
   // ── Delete confirmation state ──
   const [deleteConfirm, setDeleteConfirm] = useState(false)
@@ -256,9 +260,41 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
           >✕</button>
         </div>
 
+        {/* ── Tab bar ── */}
+        {!editMode && (
+          <div style={{ display: 'flex', borderBottom: '1px solid rgba(100,140,200,0.12)', marginBottom: 8 }}>
+            <button
+              onClick={() => setActiveTab('details')}
+              style={{
+                padding: '4px 10px', fontSize: 9, fontFamily: 'var(--font-mono)',
+                color: activeTab === 'details' ? '#22d3ee' : '#475569',
+                background: 'none', border: 'none', borderBottomStyle: 'solid',
+                borderBottomWidth: 2, borderBottomColor: activeTab === 'details' ? '#22d3ee' : 'transparent',
+                cursor: 'pointer', fontWeight: activeTab === 'details' ? 700 : 400,
+              }}
+            >
+              DETAILS
+            </button>
+            <button
+              onClick={() => setActiveTab('ai')}
+              style={{
+                padding: '4px 10px', fontSize: 9, fontFamily: 'var(--font-mono)',
+                color: activeTab === 'ai' ? '#22d3ee' : '#475569',
+                background: 'none', border: 'none', borderBottomStyle: 'solid',
+                borderBottomWidth: 2, borderBottomColor: activeTab === 'ai' ? '#22d3ee' : 'transparent',
+                cursor: 'pointer', fontWeight: activeTab === 'ai' ? 700 : 400,
+              }}
+            >
+              ⬡ AI RUNS
+            </button>
+          </div>
+        )}
+
         {/* ── VIEW MODE ─────────────────────────────────────────────────────── */}
         {!editMode && (
           <>
+            {activeTab === 'details' ? (
+            <>
             {/* Badges */}
             <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
               <span style={{
@@ -417,6 +453,9 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
                 >POST</button>
               </form>
             </div>
+            </> ) : (
+              <AiRunsTab task={task} projectId={projectId} />
+            )}
           </>
         )}
 
