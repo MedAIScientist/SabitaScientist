@@ -1,12 +1,15 @@
 """CRUD operations for Run entities."""
 from __future__ import annotations
 
+import sqlite3
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
 from ..db import get_db
 from ..models import Run
+
+TERMINAL_STATUSES = frozenset({"done", "failed", "cancelled"})
 
 
 def create_run(
@@ -57,16 +60,23 @@ def list_runs_for_task(db_path: Path, task_id: str) -> list[Run]:
 
 
 def update_run_status(db_path: Path, run_id: str, status: str) -> None:
-    """Update run status; sets started_at when transitioning to 'running'."""
+    """Update run status; sets started_at when 'running', finished_at when terminal."""
     now = datetime.now(UTC).isoformat()
     with get_db(db_path) as conn:
         if status == "running":
-            conn.execute(
+            result = conn.execute(
                 "UPDATE runs SET status=?, started_at=? WHERE id=?",
                 (status, now, run_id),
             )
+        elif status in TERMINAL_STATUSES:
+            result = conn.execute(
+                "UPDATE runs SET status=?, finished_at=? WHERE id=?",
+                (status, now, run_id),
+            )
         else:
-            conn.execute("UPDATE runs SET status=? WHERE id=?", (status, run_id))
+            result = conn.execute("UPDATE runs SET status=? WHERE id=?", (status, run_id))
+    if result.rowcount == 0:
+        raise ValueError(f"Run {run_id!r} not found")
 
 
 def update_run_output(
@@ -75,13 +85,15 @@ def update_run_output(
     """Save final output and terminal status (done/failed/cancelled)."""
     now = datetime.now(UTC).isoformat()
     with get_db(db_path) as conn:
-        conn.execute(
+        result = conn.execute(
             "UPDATE runs SET status=?, output=?, error=?, finished_at=? WHERE id=?",
             (status, output, error, now, run_id),
         )
+    if result.rowcount == 0:
+        raise ValueError(f"Run {run_id!r} not found")
 
 
-def _row_to_run(row) -> Run:
+def _row_to_run(row: sqlite3.Row) -> Run:
     return Run(
         id=row["id"],
         task_id=row["task_id"],

@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS auth_tokens (
 CREATE TABLE IF NOT EXISTS runs (
     id           TEXT PRIMARY KEY,
     task_id      TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-    project_id   TEXT NOT NULL,
+    project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     agent_type   TEXT NOT NULL
                  CHECK(agent_type IN ('research', 'code', 'data_analysis', 'writing')),
     prompt       TEXT NOT NULL,

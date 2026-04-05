@@ -43,7 +43,30 @@ def test_update_run_status(setup):
     db, user, _, task = setup
     run = create_run(db, task.id, task.project_id, "research", "p", user.id)
     update_run_status(db, run.id, "running")
-    assert get_run(db, run.id).status == "running"
+    fetched = get_run(db, run.id)
+    assert fetched.status == "running"
+    assert fetched.started_at is not None
+
+
+def test_update_run_status_terminal_sets_finished_at(setup):
+    db, user, _, task = setup
+    run = create_run(db, task.id, task.project_id, "research", "p", user.id)
+    update_run_status(db, run.id, "cancelled")
+    fetched = get_run(db, run.id)
+    assert fetched.status == "cancelled"
+    assert fetched.finished_at is not None
+
+
+def test_update_run_status_missing_raises(setup):
+    db, *_ = setup
+    with pytest.raises(ValueError, match="not found"):
+        update_run_status(db, "nonexistent", "running")
+
+
+def test_update_run_output_missing_raises(setup):
+    db, *_ = setup
+    with pytest.raises(ValueError, match="not found"):
+        update_run_output(db, "nonexistent", "done", "output")
 
 def test_update_run_output(setup):
     db, user, _, task = setup
