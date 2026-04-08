@@ -126,7 +126,7 @@ export function ExperimentsPage() {
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,128,21,0.08)' }}
           >
             + NEW
-            <span style={{ fontSize: 8, opacity: 0.7, marginLeft: 2 }}>▾</span>
+            <span style={{ fontSize: 12, opacity: 0.7, marginLeft: 2 }}>▾</span>
           </button>
 
           {showDropdown && (
@@ -293,7 +293,7 @@ function ExperimentCard({ exp, onClick }: { exp: Experiment; onClick: () => void
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
         <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-heading)', lineHeight: 1.3 }}>{exp.name}</div>
         <span style={{
-          fontSize: 7, fontWeight: 700, fontFamily: 'var(--font-mono)',
+          fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)',
           color, background: `${color}18`, border: `1px solid ${color}33`,
           borderRadius: 2, padding: '1px 5px', flexShrink: 0, marginLeft: 8,
         }}>
@@ -308,7 +308,7 @@ function ExperimentCard({ exp, onClick }: { exp: Experiment; onClick: () => void
       {exp.tags.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
           {exp.tags.map(tag => (
-            <span key={tag} style={{ fontSize: 7, color: 'var(--text-3)', background: 'var(--surface-input)', border: '1px solid var(--border-subtle)', borderRadius: 2, padding: '1px 4px' }}>
+            <span key={tag} style={{ fontSize: 11, color: 'var(--text-3)', background: 'var(--surface-input)', border: '1px solid var(--border-subtle)', borderRadius: 2, padding: '1px 4px' }}>
               {tag}
             </span>
           ))}

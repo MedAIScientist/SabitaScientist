@@ -22,7 +22,7 @@ export function EntryEditor({ type, onSave, onCancel, initialTitle = '', initial
       borderRadius: 6,
       padding: '12px 14px',
     }}>
-      <div style={{ fontSize: 8, fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
         <span style={{ color: 'var(--text-dim)' }}>{initialTitle ? 'EDIT' : 'NEW'}</span>
         <span style={{ color: accent, background: `${accent}18`, border: `1px solid ${accent}33`, borderRadius: 2, padding: '1px 5px' }}>{label}</span>
       </div>

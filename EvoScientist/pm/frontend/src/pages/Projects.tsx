@@ -181,7 +181,7 @@ function ProjectCard({ project, accent, index }: { project: Project; accent: str
                 width: 20, height: 20, borderRadius: '50%',
                 background: ACCENT_CYCLE[(mi + 1) % ACCENT_CYCLE.length],
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 8, fontWeight: 700, color: '#fff',
+                fontSize: 12, fontWeight: 700, color: '#fff',
                 fontFamily: 'var(--font-mono)',
                 border: '1px solid var(--surface-card)',
                 marginLeft: mi > 0 ? -4 : 0,
@@ -193,7 +193,7 @@ function ProjectCard({ project, accent, index }: { project: Project; accent: str
             </div>
           ))}
           {extraMembers > 0 && (
-            <span style={{ fontSize: 8, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginLeft: 4 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginLeft: 4 }}>
               +{extraMembers}
             </span>
           )}

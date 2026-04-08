@@ -203,7 +203,7 @@ export function ProjectReportPage() {
                 </div>
               ))}
               <div style={{ marginTop: 16, borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
-                <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', letterSpacing: '0.1em', marginBottom: 8 }}>
+                <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', letterSpacing: '0.1em', marginBottom: 8 }}>
                   PRIORITY BREAKDOWN
                 </div>
                 {(['high', 'medium', 'low'] as const).map(pri => {
@@ -255,7 +255,7 @@ export function ProjectReportPage() {
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
                 {['NAME', 'STATUS', 'TAGS', 'DEADLINE', 'NOTES', 'RESULTS'].map(h => (
-                  <th key={h} style={{ padding: '6px 8px', textAlign: 'left', fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', letterSpacing: '0.1em' }}>
+                  <th key={h} style={{ padding: '6px 8px', textAlign: 'left', fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', letterSpacing: '0.1em' }}>
                     {h}
                   </th>
                 ))}
@@ -270,7 +270,7 @@ export function ProjectReportPage() {
                     <td style={{ padding: '8px', color: 'var(--text-heading)', fontWeight: 500 }}>{exp.name}</td>
                     <td style={{ padding: '8px' }}>
                       <span style={{
-                        fontSize: 9, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                        fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)',
                         color: statusColor, background: `${statusColor}18`,
                         border: `1px solid ${statusColor}33`,
                         borderRadius: 3, padding: '2px 6px',
@@ -319,7 +319,7 @@ export function ProjectReportPage() {
                       {exp.name}
                     </span>
                     <span style={{
-                      fontSize: 9, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                      fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)',
                       color: statusColor, background: `${statusColor}18`,
                       border: `1px solid ${statusColor}33`,
                       borderRadius: 3, padding: '2px 6px',
@@ -335,7 +335,7 @@ export function ProjectReportPage() {
                     }}>
                       {exp.hypothesis && (
                         <div style={{ marginBottom: 10 }}>
-                          <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', letterSpacing: '0.1em', marginBottom: 4 }}>
+                          <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', letterSpacing: '0.1em', marginBottom: 4 }}>
                             HYPOTHESIS
                           </div>
                           <p style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.5, margin: 0 }}>
@@ -345,7 +345,7 @@ export function ProjectReportPage() {
                       )}
                       {exp.protocol && (
                         <div style={{ marginBottom: 10 }}>
-                          <div style={{ fontSize: 9, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', letterSpacing: '0.1em', marginBottom: 4 }}>
+                          <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', letterSpacing: '0.1em', marginBottom: 4 }}>
                             PROTOCOL
                           </div>
                           <p style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.5, margin: 0 }}>
@@ -397,7 +397,7 @@ export function ProjectReportPage() {
                     {member.username}
                   </span>
                   <span style={{
-                    fontSize: 9, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                    fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)',
                     color: roleColor, background: `${roleColor}18`,
                     border: `1px solid ${roleColor}33`,
                     borderRadius: 3, padding: '2px 6px',

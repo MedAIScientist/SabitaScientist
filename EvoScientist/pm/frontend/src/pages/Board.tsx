@@ -218,7 +218,7 @@ function ExperimentCard({ exp, idx, onExpClick }: ExperimentCardProps) {
       {/* Badge */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
         <span style={{
-          fontSize: 8, fontWeight: 700, fontFamily: 'var(--font-mono)',
+          fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)',
           letterSpacing: '0.08em', color: EXP_ACCENT,
           background: `rgba(${EXP_GLOW},0.1)`,
           border: `1px solid rgba(${EXP_GLOW},0.25)`,
@@ -228,7 +228,7 @@ function ExperimentCard({ exp, idx, onExpClick }: ExperimentCardProps) {
         </span>
         {exp.tags.slice(0, 2).map(tag => (
           <span key={tag} style={{
-            fontSize: 8, fontFamily: 'var(--font-mono)',
+            fontSize: 12, fontFamily: 'var(--font-mono)',
             color: 'var(--text-dim)',
             background: 'var(--surface-2)',
             border: '1px solid var(--border-subtle)',

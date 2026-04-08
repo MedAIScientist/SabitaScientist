@@ -164,7 +164,7 @@ export function GlobalReportPage() {
                 {['PROJECT', 'TASKS', 'EXPERIMENTS', 'MEMBERS', ''].map(h => (
                   <th key={h} style={{
                     padding: '6px 8px', textAlign: 'left',
-                    fontSize: 9, fontFamily: 'var(--font-mono)',
+                    fontSize: 12, fontFamily: 'var(--font-mono)',
                     color: 'var(--text-dim)', letterSpacing: '0.1em',
                   }}>
                     {h}
@@ -196,7 +196,7 @@ export function GlobalReportPage() {
                           background: 'rgba(255,128,21,0.08)',
                           border: '1px solid rgba(255,128,21,0.2)',
                           color: '#ff8015', fontFamily: 'var(--font-mono)',
-                          fontSize: 9, padding: '3px 8px',
+                          fontSize: 12, padding: '3px 8px',
                           borderRadius: 3, cursor: 'pointer', letterSpacing: '0.08em',
                         }}
                       >

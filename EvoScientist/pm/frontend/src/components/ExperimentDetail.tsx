@@ -115,7 +115,7 @@ export function ExperimentDetail({ experiment, projectId, onClose }: Props) {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{
-                fontSize: 8, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)',
                 color: status.color, background: `${status.color}18`,
                 border: `1px solid ${status.color}33`,
                 borderRadius: 2, padding: '1px 5px',
@@ -124,7 +124,7 @@ export function ExperimentDetail({ experiment, projectId, onClose }: Props) {
               </span>
               {experiment.tags.map(tag => (
                 <span key={tag} style={{
-                  fontSize: 7, color: 'var(--text-3)', background: 'var(--surface-input)',
+                  fontSize: 11, color: 'var(--text-3)', background: 'var(--surface-input)',
                   border: '1px solid var(--border-subtle)', borderRadius: 2, padding: '1px 4px',
                 }}>
                   {tag}
@@ -195,7 +195,7 @@ function OverviewTab({
   onUnlink: (id: string) => void
 }) {
   const fieldLabel: React.CSSProperties = {
-    fontSize: 8, fontWeight: 700, color: 'var(--text-dim)',
+    fontSize: 12, fontWeight: 700, color: 'var(--text-dim)',
     letterSpacing: '0.1em', fontFamily: 'var(--font-mono)',
     marginBottom: 4, marginTop: 10, display: 'block',
   }
@@ -313,7 +313,7 @@ function EntriesTab({
       )}
 
       {entries.length === 0 && !showEditor && (
-        <div style={{ fontSize: 8, color: 'var(--text-dim)', textAlign: 'center', fontFamily: 'var(--font-mono)', marginTop: 12 }}>
+        <div style={{ fontSize: 12, color: 'var(--text-dim)', textAlign: 'center', fontFamily: 'var(--font-mono)', marginTop: 12 }}>
           NO {label}S YET
         </div>
       )}
@@ -340,7 +340,7 @@ function EntriesTab({
               >
                 <span style={{ fontSize: 11, color: 'var(--text)', fontWeight: 600 }}>{entry.title}</span>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <span style={{ fontSize: 7, color: 'var(--text-dim)' }}>{entry.created_at.slice(0, 10)}</span>
+                  <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{entry.created_at.slice(0, 10)}</span>
                   <span style={{ fontSize: 10, color: 'var(--text-3)' }}>{expanded === entry.id ? '▲' : '▼'}</span>
                 </div>
               </button>
@@ -354,8 +354,8 @@ function EntriesTab({
                     <p style={{ fontSize: 10, color: 'var(--text-dim)', margin: '0 0 8px' }}>No content.</p>
                   )}
                   <div style={{ display: 'flex', gap: 4 }}>
-                    <button onClick={() => onEdit(entry)} style={{ fontSize: 8, color: '#ff8015', background: 'rgba(255,128,21,0.06)', border: '1px solid rgba(255,128,21,0.15)', borderRadius: 2, padding: '2px 6px', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>✏ Edit</button>
-                    <button onClick={() => onDelete(entry.id)} style={{ fontSize: 8, color: '#f43f5e', background: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.15)', borderRadius: 2, padding: '2px 6px', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>✕ Delete</button>
+                    <button onClick={() => onEdit(entry)} style={{ fontSize: 12, color: '#ff8015', background: 'rgba(255,128,21,0.06)', border: '1px solid rgba(255,128,21,0.15)', borderRadius: 2, padding: '2px 6px', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>✏ Edit</button>
+                    <button onClick={() => onDelete(entry.id)} style={{ fontSize: 12, color: '#f43f5e', background: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.15)', borderRadius: 2, padding: '2px 6px', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>✕ Delete</button>
                   </div>
                 </div>
               )}
