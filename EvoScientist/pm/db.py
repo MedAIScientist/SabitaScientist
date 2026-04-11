@@ -157,6 +157,19 @@ CREATE TABLE IF NOT EXISTS task_dependencies (
     created_at    TEXT NOT NULL,
     PRIMARY KEY (task_id, depends_on_id)
 );
+
+CREATE TABLE IF NOT EXISTS attachments (
+    id            TEXT PRIMARY KEY,
+    entry_id      TEXT NOT NULL REFERENCES experiment_entries(id) ON DELETE CASCADE,
+    filename      TEXT NOT NULL,
+    s3_key        TEXT NOT NULL,
+    content_type  TEXT NOT NULL,
+    size_bytes    INTEGER NOT NULL,
+    uploaded_by   TEXT REFERENCES users(id) ON DELETE SET NULL,
+    created_at    TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_attachments_entry ON attachments(entry_id);
 """
 
 _MIGRATIONS = [
