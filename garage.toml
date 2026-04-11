@@ -1,0 +1,19 @@
+metadata_dir = "/data/meta"
+data_dir = "/data/store"
+db_engine = "sqlite"
+replication_factor = 1
+
+[rpc_bind_addr]
+# Internal cluster RPC — only needed for multi-node; required key nonetheless
+addr = "0.0.0.0"
+port = 3901
+
+[s3_api]
+s3_region = "garage"
+api_bind_addr = "0.0.0.0:3900"
+root_domain = ".s3.garage.localhost"
+
+[s3_web]
+bind_addr = "0.0.0.0:3902"
+root_domain = ".web.garage.localhost"
+index = "index.html"
