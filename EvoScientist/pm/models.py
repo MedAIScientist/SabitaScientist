@@ -99,3 +99,19 @@ class ExperimentEntry:
     created_at: str
     updated_at: str
     author_id: str | None = None
+
+
+@dataclass
+class ExperimentAssist:
+    id: str
+    experiment_id: str
+    project_id: str
+    prompt: str
+    context_json: str
+    status: str          # 'pending'|'running'|'done'|'failed'|'cancelled'
+    created_by: str
+    created_at: str
+    output: str | None = None
+    error: str | None = None
+    target_field: str | None = None   # 'hypothesis'|'protocol'|'entry_body'|None
+    finished_at: str | None = None

@@ -116,6 +116,25 @@ CREATE TABLE IF NOT EXISTS experiment_entries (
     created_at     TEXT NOT NULL,
     updated_at     TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS experiment_assists (
+    id             TEXT PRIMARY KEY,
+    experiment_id  TEXT NOT NULL REFERENCES experiments(id) ON DELETE CASCADE,
+    project_id     TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    prompt         TEXT NOT NULL,
+    context_json   TEXT NOT NULL DEFAULT '{}',
+    status         TEXT NOT NULL DEFAULT 'pending'
+                   CHECK(status IN ('pending','running','done','failed','cancelled')),
+    output         TEXT,
+    error          TEXT,
+    target_field   TEXT,
+    created_by     TEXT NOT NULL REFERENCES users(id),
+    created_at     TEXT NOT NULL,
+    finished_at    TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_experiment_assists_exp
+    ON experiment_assists(experiment_id);
 """
 
 
