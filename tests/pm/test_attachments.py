@@ -16,7 +16,7 @@ from EvoScientist.pm.db import create_schema
 
 
 @pytest.fixture
-def db(tmp_path: Path) -> sqlite3.Connection:
+def db(tmp_path: Path):
     db_path = tmp_path / "test.db"
     create_schema(db_path)
     conn = sqlite3.connect(db_path)
