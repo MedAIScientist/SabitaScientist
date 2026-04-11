@@ -17,9 +17,13 @@ from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from typing import BinaryIO
 
-import boto3
-from botocore.config import Config
-from botocore.exceptions import ClientError
+try:
+    import boto3
+    from botocore.config import Config
+    from botocore.exceptions import ClientError
+    _BOTO3_AVAILABLE = True
+except ImportError:
+    _BOTO3_AVAILABLE = False
 
 # ── Configuration ────────────────────────────────────────────────────────────
 
@@ -35,6 +39,11 @@ _executor = ThreadPoolExecutor(max_workers=4)
 
 def _client():
     """Build and return a boto3 S3 client."""
+    if not _BOTO3_AVAILABLE:
+        raise RuntimeError(
+            "boto3 is not installed. "
+            "Install it with: pip install boto3"
+        )
     if not _ACCESS_KEY or not _SECRET_KEY:
         raise RuntimeError(
             "S3 storage is not configured. "

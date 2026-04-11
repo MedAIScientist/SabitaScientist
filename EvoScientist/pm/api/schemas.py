@@ -218,6 +218,20 @@ class ExperimentEntryResponse(BaseModel):
     updated_at: str
 
 
+# ── Attachments ───────────────────────────────────────────────────────────────
+
+
+class AttachmentResponse(BaseModel):
+    id: str
+    entry_id: str
+    filename: str
+    content_type: str
+    size_bytes: int
+    uploaded_by: str | None
+    created_at: str
+    download_url: str  # presigned S3 URL
+
+
 # ── Errors ────────────────────────────────────────────────────────────────────
 
 
