@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, Experiment, ExperimentEntry, Task } from '../api'
 import { EntryEditor } from './EntryEditor'
+import { AiAssistPanel } from './AiAssistPanel'
 
 const STATUS_META: Record<string, { color: string; label: string }> = {
   planned:   { color: '#f59e0b', label: 'PLANNED' },
@@ -23,6 +24,8 @@ export function ExperimentDetail({ experiment, projectId, onClose }: Props) {
   const [showEditor, setShowEditor] = useState(false)
   const [editingEntry, setEditingEntry] = useState<ExperimentEntry | null>(null)
   const [taskSearch, setTaskSearch] = useState('')
+  const [showAiPanel, setShowAiPanel] = useState(false)
+  const [pendingEntryBody, setPendingEntryBody] = useState<{ text: string; type: 'note' | 'result' } | null>(null)
 
   const status = STATUS_META[experiment.status] ?? STATUS_META.planned
 
@@ -82,6 +85,12 @@ export function ExperimentDetail({ experiment, projectId, onClose }: Props) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['linked-tasks', experiment.id] }),
   })
 
+  const updateExperimentMutation = useMutation({
+    mutationFn: (data: { hypothesis?: string; protocol?: string }) =>
+      api.updateExperiment(projectId, experiment.id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['experiment', experiment.id] }),
+  })
+
   const searchResults = taskSearch.length > 0
     ? allTasks.filter((t: Task) =>
         t.title.toLowerCase().includes(taskSearch.toLowerCase()) &&
@@ -90,7 +99,7 @@ export function ExperimentDetail({ experiment, projectId, onClose }: Props) {
     : []
 
   const tabStyle = (t: Tab): React.CSSProperties => ({
-    padding: '5px 12px', fontSize: 10, fontFamily: 'var(--font-mono)',
+    padding: '5px 12px', fontSize: 15, fontFamily: 'var(--font-mono)',
     color: tab === t ? '#ff8015' : 'var(--text-3)',
     background: 'none', border: 'none', borderBottomStyle: 'solid',
     borderBottomWidth: 2, borderBottomColor: tab === t ? '#ff8015' : 'transparent',
@@ -110,12 +119,12 @@ export function ExperimentDetail({ experiment, projectId, onClose }: Props) {
       }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-heading)', marginBottom: 4 }}>
+            <div style={{ fontSize: 21, fontWeight: 600, color: 'var(--text-heading)', marginBottom: 4 }}>
               {experiment.name}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{
-                fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)',
                 color: status.color, background: `${status.color}18`,
                 border: `1px solid ${status.color}33`,
                 borderRadius: 2, padding: '1px 5px',
@@ -124,7 +133,7 @@ export function ExperimentDetail({ experiment, projectId, onClose }: Props) {
               </span>
               {experiment.tags.map(tag => (
                 <span key={tag} style={{
-                  fontSize: 11, color: 'var(--text-3)', background: 'var(--surface-input)',
+                  fontSize: 16, color: 'var(--text-3)', background: 'var(--surface-input)',
                   border: '1px solid var(--border-subtle)', borderRadius: 2, padding: '1px 4px',
                 }}>
                   {tag}
@@ -132,13 +141,28 @@ export function ExperimentDetail({ experiment, projectId, onClose }: Props) {
               ))}
             </div>
           </div>
-          <button
-            onClick={onClose}
-            aria-label="✕"
-            style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 16, cursor: 'pointer', padding: 4 }}
-          >
-            ✕
-          </button>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <button
+              onClick={() => setShowAiPanel(p => !p)}
+              style={{
+                background: showAiPanel ? 'rgba(167,139,250,0.12)' : 'none',
+                border: showAiPanel ? '1px solid rgba(167,139,250,0.3)' : '1px solid transparent',
+                borderRadius: 4, color: '#a78bfa', fontSize: 18,
+                cursor: 'pointer', padding: '2px 8px',
+                fontFamily: 'var(--font-mono)', fontWeight: 700,
+              }}
+              title="AI Writing Assistant"
+            >
+              ✦ AI
+            </button>
+            <button
+              onClick={onClose}
+              aria-label="✕"
+              style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 24, cursor: 'pointer', padding: 4 }}
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* Tab bar */}
@@ -174,10 +198,27 @@ export function ExperimentDetail({ experiment, projectId, onClose }: Props) {
             onDelete={(id: string) => deleteEntryMutation.mutate(id)}
             onSaveNew={(data: { title: string; body: string }) => createEntryMutation.mutate(data)}
             onSaveEdit={(data: { title: string; body: string }) => editingEntry && updateEntryMutation.mutate({ id: editingEntry.id, data })}
-            onCancelEditor={() => { setShowEditor(false); setEditingEntry(null) }}
+            onCancelEditor={() => { setShowEditor(false); setEditingEntry(null); setPendingEntryBody(null) }}
+            pendingBody={pendingEntryBody?.type === (tab === 'notes' ? 'note' : 'result') ? pendingEntryBody.text : undefined}
           />
         )}
       </div>
+
+      {showAiPanel && (
+        <AiAssistPanel
+          experiment={experiment}
+          projectId={projectId}
+          onClose={() => setShowAiPanel(false)}
+          onApplyHypothesis={(text) => updateExperimentMutation.mutate({ hypothesis: text })}
+          onApplyProtocol={(text) => updateExperimentMutation.mutate({ protocol: text })}
+          onApplyEntryBody={(text, type) => {
+            setPendingEntryBody({ text, type })
+            setTab(type === 'note' ? 'notes' : 'results')
+            setShowEditor(true)
+            setEditingEntry(null)
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -195,7 +236,7 @@ function OverviewTab({
   onUnlink: (id: string) => void
 }) {
   const fieldLabel: React.CSSProperties = {
-    fontSize: 12, fontWeight: 700, color: 'var(--text-dim)',
+    fontSize: 18, fontWeight: 700, color: 'var(--text-dim)',
     letterSpacing: '0.1em', fontFamily: 'var(--font-mono)',
     marginBottom: 4, marginTop: 10, display: 'block',
   }
@@ -204,7 +245,7 @@ function OverviewTab({
       {experiment.hypothesis && (
         <>
           <span style={fieldLabel}>HYPOTHESIS</span>
-          <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '0 0 8px', lineHeight: 1.6 }}>
+          <p style={{ fontSize: 20, color: 'var(--text-2)', margin: '0 0 8px', lineHeight: 1.6 }}>
             {experiment.hypothesis}
           </p>
         </>
@@ -212,7 +253,7 @@ function OverviewTab({
       {experiment.protocol && (
         <>
           <span style={fieldLabel}>PROTOCOL</span>
-          <pre style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap', margin: '0 0 8px' }}>
+          <pre style={{ fontSize: 16, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap', margin: '0 0 8px' }}>
             {experiment.protocol}
           </pre>
         </>
@@ -220,7 +261,7 @@ function OverviewTab({
       {experiment.deadline && (
         <>
           <span style={fieldLabel}>DEADLINE</span>
-          <p style={{ fontSize: 13, color: 'var(--text-2)', margin: '0 0 8px' }}>{experiment.deadline}</p>
+          <p style={{ fontSize: 20, color: 'var(--text-2)', margin: '0 0 8px' }}>{experiment.deadline}</p>
         </>
       )}
 
@@ -228,21 +269,21 @@ function OverviewTab({
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
         {linkedTasks.map((t: Task) => (
           <span key={t.id} style={{
-            fontSize: 10, color: '#ff8015', background: 'rgba(255,128,21,0.06)',
+            fontSize: 15, color: '#ff8015', background: 'rgba(255,128,21,0.06)',
             border: '1px solid rgba(255,128,21,0.18)', borderRadius: 3, padding: '2px 7px',
             display: 'flex', alignItems: 'center', gap: 4,
           }}>
             {t.title}
             <button
               onClick={() => onUnlink(t.id)}
-              style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 11, padding: 0 }}
+              style={{ background: 'none', border: 'none', color: 'var(--text-3)', cursor: 'pointer', fontSize: 16, padding: 0 }}
             >
               ✕
             </button>
           </span>
         ))}
         {linkedTasks.length === 0 && (
-          <span style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>NO LINKED TASKS</span>
+          <span style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>NO LINKED TASKS</span>
         )}
       </div>
       <input
@@ -252,7 +293,7 @@ function OverviewTab({
         style={{
           width: '100%', boxSizing: 'border-box',
           background: 'var(--surface-input)', border: '1px solid var(--border)',
-          borderRadius: 4, color: 'var(--text-2)', fontSize: 11, padding: '5px 8px',
+          borderRadius: 4, color: 'var(--text-2)', fontSize: 16, padding: '5px 8px',
           fontFamily: 'inherit', outline: 'none',
         }}
       />
@@ -263,7 +304,7 @@ function OverviewTab({
           style={{
             display: 'block', width: '100%', textAlign: 'left',
             background: 'rgba(255,128,21,0.04)', border: '1px solid rgba(255,128,21,0.1)',
-            borderRadius: 3, padding: '4px 8px', color: 'var(--text-2)', fontSize: 11,
+            borderRadius: 3, padding: '4px 8px', color: 'var(--text-2)', fontSize: 16,
             cursor: 'pointer', marginTop: 2,
           }}
         >
@@ -276,7 +317,7 @@ function OverviewTab({
 
 function EntriesTab({
   entries, type, editingEntry, showEditor,
-  onAdd, onEdit, onDelete, onSaveNew, onSaveEdit, onCancelEditor,
+  onAdd, onEdit, onDelete, onSaveNew, onSaveEdit, onCancelEditor, pendingBody,
 }: {
   entries: ExperimentEntry[]
   type: 'note' | 'result'
@@ -288,6 +329,7 @@ function EntriesTab({
   onSaveNew: (data: { title: string; body: string }) => void
   onSaveEdit: (data: { title: string; body: string }) => void
   onCancelEditor: () => void
+  pendingBody?: string
 }) {
   const [expanded, setExpanded] = useState<string | null>(null)
   const label = type === 'note' ? 'NOTE' : 'RESULT'
@@ -299,7 +341,7 @@ function EntriesTab({
         onClick={onAdd}
         style={{
           width: '100%', background: `${accent}14`, border: `1px solid ${accent}55`,
-          borderRadius: 4, padding: '6px', color: accent, fontSize: 10, fontWeight: 700,
+          borderRadius: 4, padding: '6px', color: accent, fontSize: 15, fontWeight: 700,
           fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', cursor: 'pointer', marginBottom: 10,
         }}
       >
@@ -308,12 +350,12 @@ function EntriesTab({
 
       {showEditor && (
         <div style={{ marginBottom: 10 }}>
-          <EntryEditor type={type} onSave={onSaveNew} onCancel={onCancelEditor} />
+          <EntryEditor type={type} onSave={onSaveNew} onCancel={onCancelEditor} initialBody={pendingBody ?? ''} />
         </div>
       )}
 
       {entries.length === 0 && !showEditor && (
-        <div style={{ fontSize: 12, color: 'var(--text-dim)', textAlign: 'center', fontFamily: 'var(--font-mono)', marginTop: 12 }}>
+        <div style={{ fontSize: 18, color: 'var(--text-dim)', textAlign: 'center', fontFamily: 'var(--font-mono)', marginTop: 12 }}>
           NO {label}S YET
         </div>
       )}
@@ -338,24 +380,24 @@ function EntriesTab({
                   border: 'none', cursor: 'pointer',
                 }}
               >
-                <span style={{ fontSize: 11, color: 'var(--text)', fontWeight: 600 }}>{entry.title}</span>
+                <span style={{ fontSize: 16, color: 'var(--text)', fontWeight: 600 }}>{entry.title}</span>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                  <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{entry.created_at.slice(0, 10)}</span>
-                  <span style={{ fontSize: 10, color: 'var(--text-3)' }}>{expanded === entry.id ? '▲' : '▼'}</span>
+                  <span style={{ fontSize: 16, color: 'var(--text-dim)' }}>{entry.created_at.slice(0, 10)}</span>
+                  <span style={{ fontSize: 15, color: 'var(--text-3)' }}>{expanded === entry.id ? '▲' : '▼'}</span>
                 </div>
               </button>
               {expanded === entry.id && (
                 <div style={{ padding: '8px 10px', background: 'var(--surface-input)' }}>
                   {entry.body ? (
-                    <pre style={{ fontSize: 10, color: 'var(--text-2)', fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap', margin: '0 0 8px', lineHeight: 1.6 }}>
+                    <pre style={{ fontSize: 15, color: 'var(--text-2)', fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap', margin: '0 0 8px', lineHeight: 1.6 }}>
                       {entry.body}
                     </pre>
                   ) : (
-                    <p style={{ fontSize: 10, color: 'var(--text-dim)', margin: '0 0 8px' }}>No content.</p>
+                    <p style={{ fontSize: 15, color: 'var(--text-dim)', margin: '0 0 8px' }}>No content.</p>
                   )}
                   <div style={{ display: 'flex', gap: 4 }}>
-                    <button onClick={() => onEdit(entry)} style={{ fontSize: 12, color: '#ff8015', background: 'rgba(255,128,21,0.06)', border: '1px solid rgba(255,128,21,0.15)', borderRadius: 2, padding: '2px 6px', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>✏ Edit</button>
-                    <button onClick={() => onDelete(entry.id)} style={{ fontSize: 12, color: '#f43f5e', background: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.15)', borderRadius: 2, padding: '2px 6px', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>✕ Delete</button>
+                    <button onClick={() => onEdit(entry)} style={{ fontSize: 18, color: '#ff8015', background: 'rgba(255,128,21,0.06)', border: '1px solid rgba(255,128,21,0.15)', borderRadius: 2, padding: '2px 6px', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>✏ Edit</button>
+                    <button onClick={() => onDelete(entry.id)} style={{ fontSize: 18, color: '#f43f5e', background: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.15)', borderRadius: 2, padding: '2px 6px', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>✕ Delete</button>
                   </div>
                 </div>
               )}
