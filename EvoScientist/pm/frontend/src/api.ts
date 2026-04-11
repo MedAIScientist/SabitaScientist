@@ -34,6 +34,10 @@ export const api = {
     ),
   me: () => request<{ id: string; username: string; is_admin: boolean }>('GET', '/users/me'),
   setupStatus: () => request<{ needs_setup: boolean }>('GET', '/users/setup/status'),
+  listUsers: () => request<UserRecord[]>('GET', '/users'),
+  createUser: (username: string, password: string, email?: string) =>
+    request<UserRecord>('POST', '/users', { username, password, email }),
+  deleteUser: (userId: string) => request<void>('DELETE', `/users/${userId}`),
   createAdmin: (username: string, password: string, email?: string) =>
     request<{ id: string; username: string }>('POST', '/users/setup/admin', { username, password, email }),
   listProjects: () => request<Project[]>('GET', '/projects'),
@@ -101,6 +105,22 @@ export const api = {
     request<ExperimentEntry>('PATCH', `/projects/${projectId}/experiments/${expId}/entries/${entryId}`, data),
   deleteEntry: (projectId: string, expId: string, entryId: string) =>
     request<void>('DELETE', `/projects/${projectId}/experiments/${expId}/entries/${entryId}`),
+  // ── Assists ──────────────────────────────────────────────────────────────
+  createAssist: (
+    projectId: string,
+    expId: string,
+    data: { prompt: string; target_field?: string | null }
+  ) => request<Assist>('POST', `/projects/${projectId}/experiments/${expId}/assist`, data),
+  listAssists: (projectId: string, expId: string) =>
+    request<Assist[]>('GET', `/projects/${projectId}/experiments/${expId}/assists`),
+  cancelAssist: (assistId: string) =>
+    request<void>('DELETE', `/assists/${assistId}`),
+  assistStreamUrl: (assistId: string): string =>
+    `/api/v1/assists/${assistId}/stream`,
+}
+
+export interface UserRecord {
+  id: string; username: string; email: string | null; is_admin: boolean; created_at: string
 }
 
 export interface Project {
@@ -154,4 +174,18 @@ export interface ExperimentEntry {
   author_id: string | null
   created_at: string
   updated_at: string
+}
+
+export interface Assist {
+  id: string
+  experiment_id: string
+  project_id: string
+  prompt: string
+  status: 'pending' | 'running' | 'done' | 'failed' | 'cancelled'
+  output: string | null
+  error: string | null
+  target_field: 'hypothesis' | 'protocol' | 'entry_body' | null
+  created_by: string
+  created_at: string
+  finished_at: string | null
 }
