@@ -117,6 +117,32 @@ export const api = {
     request<void>('DELETE', `/assists/${assistId}`),
   assistStreamUrl: (assistId: string): string =>
     `/api/v1/assists/${assistId}/stream`,
+  // ── Attachments ───────────────────────────────────────────────────────────
+  listAttachments: (projectId: string, expId: string, entryId: string) =>
+    request<Attachment[]>('GET', `/projects/${projectId}/experiments/${expId}/entries/${entryId}/attachments`),
+  uploadAttachment: (projectId: string, expId: string, entryId: string, file: File): Promise<Attachment> => {
+    const token = getToken()
+    const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {}
+    const form = new FormData()
+    form.append('file', file)
+    return fetch(`${BASE}/projects/${projectId}/experiments/${expId}/entries/${entryId}/attachments`, {
+      method: 'POST',
+      headers,
+      body: form,
+    }).then(async resp => {
+      if (resp.status === 401) {
+        sessionStorage.removeItem('pm_token')
+        window.location.href = '/login'
+      }
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ detail: resp.statusText }))
+        throw new Error(err.detail ?? resp.statusText)
+      }
+      return resp.json() as Promise<Attachment>
+    })
+  },
+  deleteAttachment: (attachmentId: string) =>
+    request<void>('DELETE', `/attachments/${attachmentId}`),
 }
 
 export interface UserRecord {
@@ -411,4 +437,15 @@ export async function assignExperimentPhase(
     const err = await resp.json().catch(() => ({ detail: resp.statusText }))
     throw new Error(err.detail ?? resp.statusText)
   }
+}
+
+export interface Attachment {
+  id: string
+  entry_id: string
+  filename: string
+  content_type: string
+  size_bytes: number
+  uploaded_by: string | null
+  created_at: string
+  download_url: string
 }
