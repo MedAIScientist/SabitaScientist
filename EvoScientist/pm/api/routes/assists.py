@@ -18,6 +18,7 @@ from ...crud.assists import (
 )
 from ...crud.experiment_entries import list_entries
 from ...crud.experiments import get_experiment, list_linked_tasks
+from ...crud.projects import get_member_role
 from ...db import get_db_path
 from ...models import User
 from ..deps import get_current_user, require_project_role
@@ -46,6 +47,25 @@ def _assist_to_response(a) -> AssistResponse:
         created_at=a.created_at,
         finished_at=a.finished_at,
     )
+
+
+def _check_assist_access(assist_id: str, min_roles: tuple[str, ...], current_user: User):
+    """Look up assist, then verify caller has one of min_roles in its project.
+
+    Returns the assist on success. Raises 404 if not found, 403 if not permitted.
+    """
+    assist = get_assist(get_db_path(), assist_id)
+    if not assist:
+        raise HTTPException(status_code=404, detail="Assist not found")
+    role = get_member_role(get_db_path(), assist.project_id, current_user.id)
+    if role is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not a project member")
+    if role not in min_roles:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Role '{role}' not permitted here",
+        )
+    return assist
 
 
 def _build_context(experiment_id: str, project_id: str) -> str:
@@ -198,9 +218,7 @@ async def stream_assist_output(
     current_user: User = Depends(get_current_user),
 ):
     """SSE stream. Returns saved output immediately if assist is already complete."""
-    assist = get_assist(get_db_path(), assist_id)
-    if not assist:
-        raise HTTPException(status_code=404, detail="Assist not found")
+    assist = _check_assist_access(assist_id, ("owner", "editor", "viewer"), current_user)
 
     if assist.status in ("done", "failed", "cancelled"):
         async def _completed():
@@ -261,9 +279,7 @@ async def cancel_assist(
     assist_id: str,
     current_user: User = Depends(get_current_user),
 ):
-    assist = get_assist(get_db_path(), assist_id)
-    if not assist:
-        raise HTTPException(status_code=404, detail="Assist not found")
+    assist = _check_assist_access(assist_id, ("owner", "editor"), current_user)
     try:
         async with httpx.AsyncClient(timeout=5) as client:
             await client.delete(f"{RUNNER_URL}/runs/{assist_id}")
