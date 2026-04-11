@@ -221,3 +221,28 @@ class ErrorResponse(BaseModel):
     detail: str
     status: int
     type: str = "about:blank"
+
+
+# ── Assists ───────────────────────────────────────────────────────────────────
+
+
+class AssistCreate(BaseModel):
+    prompt: str = Field(min_length=1, max_length=4096)
+    target_field: str | None = Field(
+        default=None,
+        pattern="^(hypothesis|protocol|entry_body)$",
+    )
+
+
+class AssistResponse(BaseModel):
+    id: str
+    experiment_id: str
+    project_id: str
+    prompt: str
+    status: str
+    output: str | None
+    error: str | None
+    target_field: str | None
+    created_by: str
+    created_at: str
+    finished_at: str | None
