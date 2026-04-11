@@ -47,6 +47,12 @@ export function useAssistStream(assistId: string | null): AssistStreamState {
         return
       }
 
+      if (!response.ok) {
+        setIsStreaming(false)
+        setStreamStatus('failed')
+        return
+      }
+
       const reader = response.body?.getReader()
       if (!reader) { setIsStreaming(false); setStreamStatus('failed'); return }
 

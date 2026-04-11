@@ -71,6 +71,8 @@ def _check_assist_access(assist_id: str, min_roles: tuple[str, ...], current_use
 def _build_context(experiment_id: str, project_id: str) -> str:
     """Assemble a JSON snapshot of experiment + entries + linked task titles."""
     exp = get_experiment(get_db_path(), experiment_id)
+    if exp is None:
+        return json.dumps({"name": "", "hypothesis": "", "protocol": "", "status": "", "tags": [], "deadline": "", "entries": [], "linked_tasks": []})
     entries = list_entries(get_db_path(), experiment_id)
 
     linked_task_titles: list[str] = []
@@ -280,6 +282,8 @@ async def cancel_assist(
     current_user: User = Depends(get_current_user),
 ):
     assist = _check_assist_access(assist_id, ("owner", "editor"), current_user)
+    if assist.status in ("done", "failed", "cancelled"):
+        return
     try:
         async with httpx.AsyncClient(timeout=5) as client:
             await client.delete(f"{RUNNER_URL}/runs/{assist_id}")

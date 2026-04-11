@@ -94,6 +94,14 @@ def test_update_assist_output(db_path):
     assert fetched.finished_at is not None
 
 
+def test_update_assist_status_terminal(db_path):
+    a = create_assist(db_path, "e1", "p1", "p", "{}", None, "u1")
+    update_assist_status(db_path, a.id, "done")
+    fetched = get_assist(db_path, a.id)
+    assert fetched.status == "done"
+    assert fetched.finished_at is not None
+
+
 def test_cascade_delete(db_path):
     """Deleting experiment should cascade-delete its assists."""
     a = create_assist(db_path, "e1", "p1", "p", "{}", None, "u1")
