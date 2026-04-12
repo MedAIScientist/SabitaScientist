@@ -101,6 +101,7 @@ def update_experiment(
         created_by=exp.created_by,
         created_at=exp.created_at,
         updated_at=now,
+        phase_id=exp.phase_id,
     )
     with get_db(db_path) as conn:
         conn.execute(
@@ -175,4 +176,5 @@ def _row_to_experiment(row: sqlite3.Row) -> Experiment:
         created_by=row["created_by"],
         created_at=row["created_at"],
         updated_at=row["updated_at"],
+        phase_id=row["phase_id"] if "phase_id" in row.keys() else None,
     )

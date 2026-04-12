@@ -48,6 +48,9 @@ def add_task_dependency(
     task = get_task(get_db_path(), task_id)
     if not task or task.project_id != project_id:
         raise HTTPException(status_code=404, detail="Task not found")
+    dep_task = get_task(get_db_path(), body.depends_on_id)
+    if not dep_task or dep_task.project_id != project_id:
+        raise HTTPException(status_code=404, detail="Dependency target task not found in this project")
     try:
         dep = add_dependency(
             get_db_path(),

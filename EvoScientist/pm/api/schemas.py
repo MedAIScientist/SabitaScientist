@@ -178,6 +178,7 @@ class ExperimentUpdate(BaseModel):
     status: str | None = Field(default=None, pattern="^(planned|running|completed)$")
     tags: list[str] | None = None
     deadline: str | None = None
+    phase_id: str | None = None
 
 
 class ExperimentResponse(BaseModel):
@@ -192,6 +193,7 @@ class ExperimentResponse(BaseModel):
     created_by: str
     created_at: str
     updated_at: str
+    phase_id: str | None = None
 
 
 class ExperimentEntryCreate(BaseModel):

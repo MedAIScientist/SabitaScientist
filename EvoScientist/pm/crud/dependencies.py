@@ -80,10 +80,13 @@ def add_dependency(
                 (task_id, depends_on_id, dep_type, created_by, now),
             )
         except sqlite3.IntegrityError as exc:
-            if "unique" in str(exc).lower() or "primary" in str(exc).lower():
+            msg = str(exc).lower()
+            if "unique" in msg or "primary" in msg:
                 raise ValueError(
                     f"Dependency {task_id!r} -> {depends_on_id!r} already exists"
                 ) from exc
+            if "foreign key" in msg:
+                raise ValueError("Referenced task does not exist") from exc
             raise
         # Cycle check runs against the DB including the new edge.
         # If a cycle is found, the raised ValueError causes get_db's

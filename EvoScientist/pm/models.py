@@ -88,6 +88,7 @@ class Experiment:
     hypothesis: str | None = None
     protocol: str | None = None
     deadline: str | None = None
+    phase_id: str | None = None
 
 
 @dataclass

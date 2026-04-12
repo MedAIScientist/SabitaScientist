@@ -55,6 +55,7 @@ def _exp_to_response(e) -> ExperimentResponse:
         created_by=e.created_by,
         created_at=e.created_at,
         updated_at=e.updated_at,
+        phase_id=e.phase_id,
     )
 
 
