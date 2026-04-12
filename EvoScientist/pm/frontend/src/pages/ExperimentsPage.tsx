@@ -34,6 +34,10 @@ export function ExperimentsPage() {
     return () => document.removeEventListener('mousedown', handler)
   }, [showDropdown])
 
+  useEffect(() => {
+    setSelectedPhaseId(null)
+  }, [projectId])
+
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
     queryFn: () => api.getProject(projectId!),
