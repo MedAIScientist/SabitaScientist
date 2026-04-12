@@ -162,6 +162,7 @@ export interface Experiment {
   status: 'planned' | 'running' | 'completed'
   tags: string[]
   deadline: string | null
+  phase_id?: string | null
   created_by: string
   created_at: string
   updated_at: string

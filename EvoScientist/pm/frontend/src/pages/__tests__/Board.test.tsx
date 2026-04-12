@@ -1,5 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, test, expect, vi, beforeEach } from 'vitest'
+import { describe, test, expect, vi, beforeEach, it } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 
 // ── DnD-kit mocks (jsdom-safe) ────────────────────────────────────────────────
@@ -27,7 +27,7 @@ vi.mock('@tanstack/react-query', () => ({
 
 // ── Auth mock ─────────────────────────────────────────────────────────────────
 vi.mock('../../auth', () => ({
-  useAuth: vi.fn(() => ({ username: 'alice' })),
+  useAuth: vi.fn(() => ({ username: 'alice', token: 'test-token' })),
 }))
 
 // ── ProjectSettingsPanel mock ─────────────────────────────────────────────────
@@ -43,12 +43,13 @@ vi.mock('../../api', () => ({
     createTask: vi.fn(),
     updateTask: vi.fn(),
   },
+  listPhases: vi.fn(),
 }))
 
 import React from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useAuth } from '../../auth'
-import { Task, Member, Project } from '../../api'
+import { Task, Member, Project, ProjectPhase } from '../../api'
 import { Board } from '../Board'
 
 // ── Sample data ───────────────────────────────────────────────────────────────
@@ -109,10 +110,11 @@ beforeEach(() => {
   vi.clearAllMocks()
 
   const mockedUseQuery = vi.mocked(useQuery)
-  // First call → project, second call → tasks, third call → experiments
+  // First call → project, second call → tasks, third call → experiments, fourth call → phases
   mockedUseQuery
     .mockReturnValueOnce({ data: MOCK_PROJECT } as any)
     .mockReturnValueOnce({ data: TASKS } as any)
+    .mockReturnValueOnce({ data: [] } as any)
     .mockReturnValueOnce({ data: [] } as any)
 
   vi.mocked(useMutation).mockReturnValue({
@@ -185,11 +187,12 @@ describe('Board', () => {
     ]
     const ownerProject: Project = { ...MOCK_PROJECT, members: ownerMembers }
 
-    vi.mocked(useAuth).mockReturnValue({ username: 'owner_user' } as any)
+    vi.mocked(useAuth).mockReturnValue({ username: 'owner_user', token: 'test-token' } as any)
     vi.mocked(useQuery).mockReset()
     vi.mocked(useQuery)
       .mockReturnValueOnce({ data: ownerProject } as any)
       .mockReturnValueOnce({ data: TASKS } as any)
+      .mockReturnValueOnce({ data: [] } as any)
       .mockReturnValueOnce({ data: [] } as any)
 
     renderBoard()
@@ -202,14 +205,38 @@ describe('Board', () => {
     ]
     const viewerProject: Project = { ...MOCK_PROJECT, members: viewerMembers }
 
-    vi.mocked(useAuth).mockReturnValue({ username: 'viewer_user' } as any)
+    vi.mocked(useAuth).mockReturnValue({ username: 'viewer_user', token: 'test-token' } as any)
     vi.mocked(useQuery).mockReset()
     vi.mocked(useQuery)
       .mockReturnValueOnce({ data: viewerProject } as any)
       .mockReturnValueOnce({ data: TASKS } as any)
       .mockReturnValueOnce({ data: [] } as any)
+      .mockReturnValueOnce({ data: [] } as any)
 
     renderBoard()
     expect(screen.queryByText(/⚙ SETTINGS/i)).not.toBeInTheDocument()
+  })
+
+  it('renders swimlanes when phases exist', () => {
+    const PHASE: ProjectPhase = {
+      id: 'p1',
+      project_id: 'proj1',
+      name: 'Sprint 1',
+      color: '#6366f1',
+      position: 0,
+      target_date: null,
+      created_by: 'u1',
+      created_at: '2024-01-01',
+    }
+
+    vi.mocked(useQuery).mockReset()
+    vi.mocked(useQuery)
+      .mockReturnValueOnce({ data: MOCK_PROJECT } as any)
+      .mockReturnValueOnce({ data: TASKS } as any)
+      .mockReturnValueOnce({ data: [] } as any)
+      .mockReturnValueOnce({ data: [PHASE] } as any)
+
+    renderBoard()
+    expect(screen.getByText('Sprint 1')).toBeInTheDocument()
   })
 })
