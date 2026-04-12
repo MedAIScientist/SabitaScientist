@@ -134,6 +134,8 @@ export interface Task {
   assignee_id: string | null; status: 'todo' | 'in_progress' | 'done'
   priority: 'high' | 'medium' | 'low'; deadline: string | null
   session_id: string | null; created_by: string; created_at: string; updated_at: string
+  phase_id?: string | null
+  blocked_by?: string[]
 }
 export interface Comment { id: string; task_id: string; author_id: string | null; body: string; created_at: string }
 export interface Run {
@@ -188,4 +190,179 @@ export interface Assist {
   created_by: string
   created_at: string
   finished_at: string | null
+}
+
+export interface ProjectPhase {
+  id: string
+  project_id: string
+  name: string
+  color: string
+  position: number
+  target_date: string | null
+  created_by: string
+  created_at: string
+}
+
+export interface TaskDependency {
+  task_id: string
+  depends_on_id: string
+  dep_type: 'hard' | 'soft'
+  created_by: string
+  created_at: string
+}
+
+export interface DependenciesListResponse {
+  dependencies: TaskDependency[]
+  dependents: TaskDependency[]
+}
+
+// ── Phases ────────────────────────────────────────────────────────────────────
+
+export async function listPhases(projectId: string, token: string): Promise<ProjectPhase[]> {
+  const resp = await fetch(`${BASE}/projects/${projectId}/phases`, {
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  })
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ detail: resp.statusText }))
+    throw new Error(err.detail ?? resp.statusText)
+  }
+  return resp.json() as Promise<ProjectPhase[]>
+}
+
+export async function createPhase(
+  projectId: string,
+  data: { name: string; color?: string; position?: number; target_date?: string | null },
+  token: string,
+): Promise<ProjectPhase> {
+  const resp = await fetch(`${BASE}/projects/${projectId}/phases`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ detail: resp.statusText }))
+    throw new Error(err.detail ?? resp.statusText)
+  }
+  return resp.json() as Promise<ProjectPhase>
+}
+
+export async function updatePhase(
+  projectId: string,
+  phaseId: string,
+  data: Partial<{ name: string; color: string; position: number; target_date: string | null }>,
+  token: string,
+): Promise<ProjectPhase> {
+  const resp = await fetch(`${BASE}/projects/${projectId}/phases/${phaseId}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ detail: resp.statusText }))
+    throw new Error(err.detail ?? resp.statusText)
+  }
+  return resp.json() as Promise<ProjectPhase>
+}
+
+export async function deletePhase(projectId: string, phaseId: string, token: string): Promise<void> {
+  const resp = await fetch(`${BASE}/projects/${projectId}/phases/${phaseId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  })
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ detail: resp.statusText }))
+    throw new Error(err.detail ?? resp.statusText)
+  }
+  // 204 No Content — no body to parse
+}
+
+export async function assignTaskPhase(
+  projectId: string,
+  phaseId: string,
+  taskId: string,
+  token: string,
+): Promise<void> {
+  const resp = await fetch(`${BASE}/projects/${projectId}/phases/${phaseId}/assign-task`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ task_id: taskId }),
+  })
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ detail: resp.statusText }))
+    throw new Error(err.detail ?? resp.statusText)
+  }
+}
+
+// ── Dependencies ──────────────────────────────────────────────────────────────
+
+export async function listTaskDependencies(
+  projectId: string,
+  taskId: string,
+  token: string,
+): Promise<DependenciesListResponse> {
+  const resp = await fetch(`${BASE}/projects/${projectId}/tasks/${taskId}/dependencies`, {
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  })
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ detail: resp.statusText }))
+    throw new Error(err.detail ?? resp.statusText)
+  }
+  return resp.json() as Promise<DependenciesListResponse>
+}
+
+export async function addTaskDependency(
+  projectId: string,
+  taskId: string,
+  dependsOnId: string,
+  depType: 'hard' | 'soft',
+  token: string,
+): Promise<TaskDependency> {
+  const resp = await fetch(`${BASE}/projects/${projectId}/tasks/${taskId}/dependencies`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ depends_on_id: dependsOnId, dep_type: depType }),
+  })
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ detail: resp.statusText }))
+    throw new Error(err.detail ?? resp.statusText)
+  }
+  return resp.json() as Promise<TaskDependency>
+}
+
+export async function removeTaskDependency(
+  projectId: string,
+  taskId: string,
+  dependsOnId: string,
+  token: string,
+): Promise<void> {
+  const resp = await fetch(`${BASE}/projects/${projectId}/tasks/${taskId}/dependencies/${dependsOnId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  })
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ detail: resp.statusText }))
+    throw new Error(err.detail ?? resp.statusText)
+  }
+  // 204 No Content — no body to parse
+}
+
+// ── Experiment phase assignment ────────────────────────────────────────────────
+
+export async function assignExperimentPhase(
+  projectId: string,
+  phaseId: string,
+  experimentId: string,
+  token: string,
+): Promise<void> {
+  // TODO: A dedicated experiment-phase assignment endpoint does not yet exist.
+  // For now, use the experiment PATCH endpoint to set the phase_id field.
+  const resp = await fetch(`${BASE}/projects/${projectId}/experiments/${experimentId}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phase_id: phaseId }),
+  })
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ detail: resp.statusText }))
+    throw new Error(err.detail ?? resp.statusText)
+  }
 }
