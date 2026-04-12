@@ -3,6 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, Task, Member } from '../api'
 import { AiRunsTab } from '../components/AiRunsTab'
 import { DeadlinePicker } from '../components/DeadlinePicker'
+import { DependencyPicker } from '../components/DependencyPicker'
+import { useAuth } from '../auth'
 
 interface Props {
   task: Task
@@ -59,6 +61,15 @@ const labelStyle: React.CSSProperties = {
 
 export function TaskDetail({ task, projectId, onClose, members }: Props) {
   const queryClient = useQueryClient()
+  const { token } = useAuth()
+
+  // ── All tasks query (for DependencyPicker) ──
+  const { data: allTasksData = [] } = useQuery({
+    queryKey: ['tasks', projectId],
+    queryFn: () => api.listTasks(projectId),
+  })
+
+  const allTasks = allTasksData.map((t: Task) => ({ id: t.id, title: t.title }))
 
   // ── Comment state ──
   const [commentBody, setCommentBody] = useState('')
@@ -224,8 +235,21 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
               &nbsp;
             </h2>
           ) : (
-            <h2 style={{ flex: 1, margin: 0, fontSize: 24, fontWeight: 600, color: 'var(--text-heading)', lineHeight: 1.35 }}>
-              {task.title}
+            <h2 style={{ flex: 1, margin: 0, fontSize: 24, fontWeight: 600, color: 'var(--text-heading)', lineHeight: 1.35, display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+              <span>{task.title}</span>
+              {task.blocked_by && task.blocked_by.length > 0 && (
+                <span style={{
+                  fontSize: 13, fontWeight: 700, padding: '2px 8px',
+                  borderRadius: 4,
+                  background: 'rgba(244,63,94,0.1)',
+                  border: '1px solid rgba(244,63,94,0.28)',
+                  color: '#f43f5e',
+                  fontFamily: 'var(--font-mono)',
+                  letterSpacing: '0.08em',
+                  whiteSpace: 'nowrap',
+                  alignSelf: 'center',
+                }}>🔒 BLOCKED</span>
+              )}
             </h2>
           )}
           {!editMode && (
@@ -378,6 +402,16 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
                   EvoSci --resume {task.session_id}
                 </p>
               </div>
+            )}
+
+            {/* Dependencies */}
+            {token && (
+              <DependencyPicker
+                projectId={projectId}
+                taskId={task.id}
+                token={token}
+                allTasks={allTasks}
+              />
             )}
 
             {/* Lab Notes (Comments) */}
