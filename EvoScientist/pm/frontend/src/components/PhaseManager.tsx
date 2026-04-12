@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   listPhases,
@@ -81,6 +81,12 @@ function PhaseRow({
   const [editColor, setEditColor] = useState(phase.color)
   const [editDate, setEditDate] = useState(phase.target_date ?? '')
   const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const deleteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => () => {
+    if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current)
+  }, [])
 
   const updateMutation = useMutation({
     mutationFn: (data: Partial<{ name: string; color: string; target_date: string | null }>) =>
@@ -96,6 +102,9 @@ function PhaseRow({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['phases', projectId] })
     },
+    onError: (err: Error) => {
+      setDeleteError(err.message ?? 'Delete failed')
+    },
   })
 
   function handleSaveEdit() {
@@ -109,8 +118,9 @@ function PhaseRow({
   function handleDeleteClick() {
     if (!deleteConfirm) {
       setDeleteConfirm(true)
-      setTimeout(() => setDeleteConfirm(false), 3000)
+      deleteTimerRef.current = setTimeout(() => setDeleteConfirm(false), 3000)
     } else {
+      if (deleteTimerRef.current) clearTimeout(deleteTimerRef.current)
       deleteMutation.mutate()
     }
   }
@@ -169,7 +179,7 @@ function PhaseRow({
         </div>
         {updateMutation.isError && (
           <div style={{ fontSize: 14, color: '#f43f5e', fontFamily: 'var(--font-mono)' }}>
-            {(updateMutation.error as Error).message}
+            {updateMutation.error instanceof Error ? updateMutation.error.message : 'Update failed'}
           </div>
         )}
       </div>
@@ -177,52 +187,59 @@ function PhaseRow({
   }
 
   return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 8,
-      background: 'var(--surface-comment)', borderRadius: 5, padding: '6px 10px',
-    }}>
-      {/* Color swatch */}
+    <>
       <div style={{
-        width: 12, height: 12, borderRadius: '50%',
-        background: phase.color, flexShrink: 0,
-      }} />
+        display: 'flex', alignItems: 'center', gap: 8,
+        background: 'var(--surface-comment)', borderRadius: 5, padding: '6px 10px',
+      }}>
+        {/* Color swatch */}
+        <div style={{
+          width: 12, height: 12, borderRadius: '50%',
+          background: phase.color, flexShrink: 0,
+        }} />
 
-      {/* Phase name + optional date */}
-      <span style={{ flex: 1, fontSize: 15, color: 'var(--text)', fontFamily: 'var(--font-mono)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {phase.name}
-        {phase.target_date && (
-          <span style={{ marginLeft: 6, fontSize: 13, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
-            {phase.target_date}
-          </span>
-        )}
-      </span>
+        {/* Phase name + optional date */}
+        <span style={{ flex: 1, fontSize: 15, color: 'var(--text)', fontFamily: 'var(--font-mono)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {phase.name}
+          {phase.target_date && (
+            <span style={{ marginLeft: 6, fontSize: 13, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
+              {phase.target_date}
+            </span>
+          )}
+        </span>
 
-      {/* Edit button */}
-      <button
-        onClick={() => { setEditing(true); setEditName(phase.name); setEditColor(phase.color); setEditDate(phase.target_date ?? '') }}
-        title="Edit phase"
-        style={{
-          background: 'none', border: 'none',
-          color: 'var(--text-3)', fontSize: 14,
-          cursor: 'pointer', padding: '1px 4px', lineHeight: 1,
-        }}
-      >✎</button>
+        {/* Edit button */}
+        <button
+          onClick={() => { setEditing(true); setEditName(phase.name); setEditColor(phase.color); setEditDate(phase.target_date ?? '') }}
+          title="Edit phase"
+          style={{
+            background: 'none', border: 'none',
+            color: 'var(--text-3)', fontSize: 14,
+            cursor: 'pointer', padding: '1px 4px', lineHeight: 1,
+          }}
+        >✎</button>
 
-      {/* Delete button */}
-      <button
-        onClick={handleDeleteClick}
-        disabled={deleteMutation.isPending}
-        title={deleteConfirm ? 'Click again to confirm' : 'Delete phase'}
-        style={{
-          background: 'none',
-          border: deleteConfirm ? '1px solid rgba(244,63,94,0.45)' : 'none',
-          borderRadius: 3,
-          color: '#f43f5e', fontSize: 14,
-          cursor: 'pointer', padding: '1px 4px', lineHeight: 1,
-          opacity: deleteMutation.isPending ? 0.5 : 1,
-        }}
-      >🗑</button>
-    </div>
+        {/* Delete button */}
+        <button
+          onClick={handleDeleteClick}
+          disabled={deleteMutation.isPending}
+          title={deleteConfirm ? 'Click again to confirm' : 'Delete phase'}
+          style={{
+            background: 'none',
+            border: deleteConfirm ? '1px solid rgba(244,63,94,0.45)' : 'none',
+            borderRadius: 3,
+            color: '#f43f5e', fontSize: 14,
+            cursor: 'pointer', padding: '1px 4px', lineHeight: 1,
+            opacity: deleteMutation.isPending ? 0.5 : 1,
+          }}
+        >🗑</button>
+      </div>
+      {deleteError && (
+        <div style={{ fontSize: 13, color: '#f43f5e', fontFamily: 'var(--font-mono)', marginTop: 2, paddingLeft: 10 }}>
+          {deleteError}
+        </div>
+      )}
+    </>
   )
 }
 
