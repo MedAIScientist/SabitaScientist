@@ -44,6 +44,7 @@ def _task_to_response(t) -> TaskResponse:
         created_at=t.created_at,
         updated_at=t.updated_at,
         phase_id=getattr(t, "phase_id", None),
+        # NOTE: issues one extra query per task (N+1). Acceptable for current SQLite/low-volume usage.
         blocked_by=get_blocked_by(get_db_path(), t.id),
     )
 

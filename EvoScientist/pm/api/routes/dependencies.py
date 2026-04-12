@@ -10,11 +10,10 @@ from ...crud.dependencies import (
     list_dependents,
     remove_dependency,
 )
-from ...crud.projects import get_member_role
 from ...crud.tasks import get_task
 from ...db import get_db_path
 from ...models import User
-from ..deps import get_current_user
+from ..deps import require_project_role
 from ..schemas import (
     DependenciesListResponse,
     DependencyCreate,
@@ -22,29 +21,6 @@ from ..schemas import (
 )
 
 router = APIRouter()
-
-
-def _check_project_membership(project_id: str, user: User) -> None:
-    """Raise 403 if user is not owner/editor in the project."""
-    role = get_member_role(get_db_path(), project_id, user.id)
-    if role is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Not a project member"
-        )
-
-
-def _check_project_editor(project_id: str, user: User) -> None:
-    """Raise 403 if user is not owner/editor in the project."""
-    role = get_member_role(get_db_path(), project_id, user.id)
-    if role is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Not a project member"
-        )
-    if role not in ("owner", "editor"):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"Role '{role}' not permitted here",
-        )
 
 
 def _dep_to_response(d) -> DependencyResponse:
@@ -66,13 +42,12 @@ def add_task_dependency(
     project_id: str,
     task_id: str,
     body: DependencyCreate,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_project_role("owner", "editor")),
 ):
     """Add a dependency to a task (owner/editor only)."""
     task = get_task(get_db_path(), task_id)
     if not task or task.project_id != project_id:
         raise HTTPException(status_code=404, detail="Task not found")
-    _check_project_editor(project_id, current_user)
     try:
         dep = add_dependency(
             get_db_path(),
@@ -94,13 +69,12 @@ def remove_task_dependency(
     project_id: str,
     task_id: str,
     dep_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_project_role("owner", "editor")),
 ):
     """Remove a dependency from a task (owner/editor only)."""
     task = get_task(get_db_path(), task_id)
     if not task or task.project_id != project_id:
         raise HTTPException(status_code=404, detail="Task not found")
-    _check_project_editor(project_id, current_user)
     deleted = remove_dependency(get_db_path(), task_id=task_id, depends_on_id=dep_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Dependency not found")
@@ -113,13 +87,12 @@ def remove_task_dependency(
 def list_task_dependencies(
     project_id: str,
     task_id: str,
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_project_role("owner", "editor", "viewer")),
 ):
     """List all dependencies for a task in both directions."""
     task = get_task(get_db_path(), task_id)
     if not task or task.project_id != project_id:
         raise HTTPException(status_code=404, detail="Task not found")
-    _check_project_membership(project_id, current_user)
     deps = list_dependencies(get_db_path(), task_id)
     dependents = list_dependents(get_db_path(), task_id)
     return DependenciesListResponse(
