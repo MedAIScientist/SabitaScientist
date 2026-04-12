@@ -69,6 +69,9 @@ def get_phase(db_path: Path, phase_id: str) -> ProjectPhase | None:
 def update_phase(db_path: Path, phase_id: str, **kwargs) -> ProjectPhase:
     """Update phase fields. Only keys in kwargs are modified."""
     allowed = {"name", "color", "position", "target_date"}
+    unknown = set(kwargs) - allowed
+    if unknown:
+        raise ValueError(f"Unknown phase fields: {unknown}")
     updates = {k: v for k, v in kwargs.items() if k in allowed}
     if updates:
         set_clause = ", ".join(f"{k} = ?" for k in updates)
@@ -83,14 +86,15 @@ def update_phase(db_path: Path, phase_id: str, **kwargs) -> ProjectPhase:
     return phase
 
 
-def delete_phase(db_path: Path, phase_id: str) -> None:
+def delete_phase(db_path: Path, phase_id: str) -> bool:
     """Delete a phase; owned tasks/experiments have phase_id set to NULL by FK."""
     with get_db(db_path) as conn:
-        conn.execute("DELETE FROM project_phases WHERE id = ?", (phase_id,))
+        cur = conn.execute("DELETE FROM project_phases WHERE id = ?", (phase_id,))
+    return cur.rowcount > 0
 
 
 def assign_task_phase(db_path: Path, task_id: str, phase_id: str | None) -> None:
-    """Assign or unassign a task to a phase."""
+    """Assign or unassign a task to a phase. No-op if task_id does not exist."""
     with get_db(db_path) as conn:
         conn.execute(
             "UPDATE tasks SET phase_id = ? WHERE id = ?", (phase_id, task_id)
@@ -98,7 +102,7 @@ def assign_task_phase(db_path: Path, task_id: str, phase_id: str | None) -> None
 
 
 def assign_experiment_phase(db_path: Path, experiment_id: str, phase_id: str | None) -> None:
-    """Assign or unassign an experiment to a phase."""
+    """Assign or unassign an experiment to a phase. No-op if experiment_id does not exist."""
     with get_db(db_path) as conn:
         conn.execute(
             "UPDATE experiments SET phase_id = ? WHERE id = ?", (phase_id, experiment_id)

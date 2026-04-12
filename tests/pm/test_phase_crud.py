@@ -136,3 +136,13 @@ def test_assign_experiment_phase(db_path):
     row = conn.execute("SELECT phase_id FROM experiments WHERE id='e1'").fetchone()
     conn.close()
     assert row[0] == p.id
+
+
+def test_assign_experiment_phase_unassign(db_path):
+    p = create_phase(db_path, "p1", "P", "#6366f1", 0, None, "u1")
+    assign_experiment_phase(db_path, "e1", p.id)
+    assign_experiment_phase(db_path, "e1", None)
+    conn = sqlite3.connect(db_path)
+    row = conn.execute("SELECT phase_id FROM experiments WHERE id='e1'").fetchone()
+    conn.close()
+    assert row[0] is None
