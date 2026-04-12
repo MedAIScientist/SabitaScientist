@@ -222,6 +222,11 @@ export async function listPhases(projectId: string, token: string): Promise<Proj
   const resp = await fetch(`${BASE}/projects/${projectId}/phases`, {
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
   })
+  if (resp.status === 401) {
+    sessionStorage.removeItem('pm_token')
+    window.location.href = '/login'
+    return []
+  }
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ detail: resp.statusText }))
     throw new Error(err.detail ?? resp.statusText)
@@ -239,6 +244,11 @@ export async function createPhase(
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   })
+  if (resp.status === 401) {
+    sessionStorage.removeItem('pm_token')
+    window.location.href = '/login'
+    return undefined as unknown as ProjectPhase
+  }
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ detail: resp.statusText }))
     throw new Error(err.detail ?? resp.statusText)
@@ -253,10 +263,15 @@ export async function updatePhase(
   token: string,
 ): Promise<ProjectPhase> {
   const resp = await fetch(`${BASE}/projects/${projectId}/phases/${phaseId}`, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   })
+  if (resp.status === 401) {
+    sessionStorage.removeItem('pm_token')
+    window.location.href = '/login'
+    return undefined as unknown as ProjectPhase
+  }
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ detail: resp.statusText }))
     throw new Error(err.detail ?? resp.statusText)
@@ -269,6 +284,11 @@ export async function deletePhase(projectId: string, phaseId: string, token: str
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
   })
+  if (resp.status === 401) {
+    sessionStorage.removeItem('pm_token')
+    window.location.href = '/login'
+    return
+  }
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ detail: resp.statusText }))
     throw new Error(err.detail ?? resp.statusText)
@@ -287,6 +307,11 @@ export async function assignTaskPhase(
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ task_id: taskId }),
   })
+  if (resp.status === 401) {
+    sessionStorage.removeItem('pm_token')
+    window.location.href = '/login'
+    return
+  }
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ detail: resp.statusText }))
     throw new Error(err.detail ?? resp.statusText)
@@ -303,6 +328,11 @@ export async function listTaskDependencies(
   const resp = await fetch(`${BASE}/projects/${projectId}/tasks/${taskId}/dependencies`, {
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
   })
+  if (resp.status === 401) {
+    sessionStorage.removeItem('pm_token')
+    window.location.href = '/login'
+    return undefined as unknown as DependenciesListResponse
+  }
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ detail: resp.statusText }))
     throw new Error(err.detail ?? resp.statusText)
@@ -322,6 +352,11 @@ export async function addTaskDependency(
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ depends_on_id: dependsOnId, dep_type: depType }),
   })
+  if (resp.status === 401) {
+    sessionStorage.removeItem('pm_token')
+    window.location.href = '/login'
+    return undefined as unknown as TaskDependency
+  }
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ detail: resp.statusText }))
     throw new Error(err.detail ?? resp.statusText)
@@ -339,6 +374,11 @@ export async function removeTaskDependency(
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
   })
+  if (resp.status === 401) {
+    sessionStorage.removeItem('pm_token')
+    window.location.href = '/login'
+    return
+  }
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ detail: resp.statusText }))
     throw new Error(err.detail ?? resp.statusText)
@@ -361,6 +401,11 @@ export async function assignExperimentPhase(
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ phase_id: phaseId }),
   })
+  if (resp.status === 401) {
+    sessionStorage.removeItem('pm_token')
+    window.location.href = '/login'
+    return
+  }
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ detail: resp.statusText }))
     throw new Error(err.detail ?? resp.statusText)
