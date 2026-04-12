@@ -246,3 +246,57 @@ class AssistResponse(BaseModel):
     created_by: str
     created_at: str
     finished_at: str | None
+
+
+# ── Phases ────────────────────────────────────────────────────────────────────
+
+
+class PhaseCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    color: str = Field(default="#6366f1", pattern=r"^#[0-9a-fA-F]{6}$")
+    position: int = Field(default=0, ge=0)
+    target_date: str | None = Field(default=None)  # ISO date string YYYY-MM-DD or None
+
+
+class PhaseUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    color: str | None = Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")
+    position: int | None = Field(default=None, ge=0)
+    target_date: str | None = Field(default=None)
+
+
+class PhaseResponse(BaseModel):
+    id: str
+    project_id: str
+    name: str
+    color: str
+    position: int
+    target_date: str | None
+    created_by: str
+    created_at: str
+
+
+class AssignPhaseRequest(BaseModel):
+    task_id: str
+    phase_id: str | None  # None to unassign
+
+
+# ── Dependencies ──────────────────────────────────────────────────────────────
+
+
+class DependencyCreate(BaseModel):
+    depends_on_id: str
+    dep_type: str = Field(default="hard", pattern=r"^(hard|soft)$")
+
+
+class DependencyResponse(BaseModel):
+    task_id: str
+    depends_on_id: str
+    dep_type: str
+    created_by: str
+    created_at: str
+
+
+class DependenciesListResponse(BaseModel):
+    dependencies: list[DependencyResponse]
+    dependents: list[DependencyResponse]
