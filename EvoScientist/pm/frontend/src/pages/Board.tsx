@@ -5,7 +5,7 @@ import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import type { DragStartEvent, DragOverEvent, DragEndEvent } from '@dnd-kit/core'
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import { api, Task, Experiment } from '../api'
+import { api, Task, Experiment, ProjectPhase, listPhases } from '../api'
 import { TaskDetail } from './TaskDetail'
 import { ExperimentDetail } from '../components/ExperimentDetail'
 import { FilterToolbar } from '../components/FilterToolbar'
@@ -154,6 +154,19 @@ function DraggableCard({ task, col, idx, activeTaskId, onCardClick, onEditClick,
         }}>
           {p.label}
         </span>
+        {task.blocked_by && task.blocked_by.length > 0 && (
+          <span style={{
+            fontSize: 13, fontWeight: 700, color: '#f43f5e',
+            background: 'rgba(244,63,94,0.1)',
+            border: '1px solid rgba(244,63,94,0.3)',
+            borderRadius: 3, padding: '1px 4px',
+            fontFamily: 'var(--font-mono)',
+            letterSpacing: '0.08em',
+            flexShrink: 0,
+          }}>
+            BLOCKED
+          </span>
+        )}
         {assignee && (
           <span
             title={assignee.username}
@@ -430,12 +443,148 @@ function DroppableColumn({
   )
 }
 
+// ── Phase Swimlane ────────────────────────────────────────────────────────────
+interface PhaseSwimLaneProps {
+  phase: ProjectPhase | null  // null = "Unassigned" lane
+  tasks: Task[]
+  experiments: Experiment[]
+  overColumnId: string | null
+  activeTaskId: string | null
+  addingToCol: Task['status'] | null
+  newTaskTitle: string
+  onNewTaskTitleChange: (v: string) => void
+  onAddStart: (status: Task['status']) => void
+  onAddCancel: () => void
+  onAddSubmit: (col: Task['status']) => (title: string) => void
+  onCardClick: (task: Task) => void
+  onEditClick: (task: Task, rect: DOMRect) => void
+  onExpClick: (exp: Experiment) => void
+  members: { user_id: string; username: string }[]
+}
+
+function PhaseSwimLane({
+  phase, tasks, experiments, overColumnId, activeTaskId,
+  addingToCol, newTaskTitle, onNewTaskTitleChange,
+  onAddStart, onAddCancel, onAddSubmit,
+  onCardClick, onEditClick, onExpClick, members,
+}: PhaseSwimLaneProps) {
+  const totalTasks = tasks.length
+  const doneTasks = tasks.filter(t => t.status === 'done').length
+  const progressPct = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0
+
+  const phaseColor = phase?.color ?? '#64748b'
+  const phaseName = phase?.name ?? 'Unassigned'
+
+  return (
+    <div style={{
+      display: 'flex',
+      borderBottom: '1px solid var(--border-subtle)',
+      marginBottom: 0,
+      minHeight: 120,
+    }}>
+      {/* Left label */}
+      <div style={{
+        width: 120,
+        flexShrink: 0,
+        borderLeft: `3px solid ${phaseColor}`,
+        borderRight: '1px solid var(--border-subtle)',
+        padding: '12px 10px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
+        background: `${phaseColor}08`,
+      }}>
+        <span style={{
+          fontSize: 14,
+          fontWeight: 700,
+          color: phaseColor,
+          fontFamily: 'var(--font-mono)',
+          letterSpacing: '0.06em',
+          wordBreak: 'break-word',
+          lineHeight: 1.3,
+        }}>
+          {phaseName}
+        </span>
+        <span style={{
+          fontSize: 13,
+          color: 'var(--text-dim)',
+          fontFamily: 'var(--font-mono)',
+        }}>
+          {totalTasks} tasks
+        </span>
+        {totalTasks > 0 && (
+          <div style={{ marginTop: 2 }}>
+            <div style={{
+              height: 4,
+              borderRadius: 2,
+              background: 'var(--border-subtle)',
+              overflow: 'hidden',
+            }}>
+              <div style={{
+                height: '100%',
+                width: `${progressPct}%`,
+                background: phaseColor,
+                borderRadius: 2,
+                transition: 'width 0.3s ease',
+              }} />
+            </div>
+            <span style={{
+              fontSize: 12,
+              color: 'var(--text-dim)',
+              fontFamily: 'var(--font-mono)',
+              marginTop: 2,
+              display: 'block',
+            }}>
+              {progressPct}%
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Columns area */}
+      <div style={{
+        display: 'flex',
+        flex: 1,
+        gap: 16,
+        padding: '12px 16px',
+        overflowX: 'auto',
+        alignItems: 'flex-start',
+      }}>
+        {COLUMNS.map(col => {
+          const colTasks = tasks.filter(t => t.status === col.key)
+          const colExps  = experiments.filter(e => EXP_STATUS_TO_COL[e.status] === col.key)
+          return (
+            <DroppableColumn
+              key={col.key}
+              col={col}
+              colTasks={colTasks}
+              colExps={colExps}
+              isDropTarget={overColumnId === col.key}
+              activeTaskId={activeTaskId}
+              addingToCol={addingToCol}
+              newTaskTitle={newTaskTitle}
+              onNewTaskTitleChange={onNewTaskTitleChange}
+              onAddStart={onAddStart}
+              onAddCancel={onAddCancel}
+              onAddSubmit={onAddSubmit(col.key)}
+              onCardClick={onCardClick}
+              onEditClick={onEditClick}
+              onExpClick={onExpClick}
+              members={members}
+            />
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ── Main Board component ──────────────────────────────────────────────────────
 export function Board() {
   const { id: projectId } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { username } = useAuth()
+  const { username, token } = useAuth()
   const { theme } = useTheme()
 
   const [selectedTask, setSelectedTask]   = useState<Task | null>(null)
@@ -468,6 +617,12 @@ export function Board() {
     queryFn: () => api.listExperiments(projectId!),
     refetchInterval: 15_000,
     enabled: Boolean(projectId),
+  })
+
+  const { data: phases = [] } = useQuery({
+    queryKey: ['phases', projectId],
+    queryFn: () => listPhases(projectId!, token!),
+    enabled: Boolean(projectId) && Boolean(token),
   })
 
   // ── Filter / sort ──
@@ -699,43 +854,130 @@ export function Board() {
         />
       </div>
 
-      {/* ── Columns ── */}
+      {/* ── Columns / Swimlanes ── */}
       <DndContext
         sensors={sensors}
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}
       >
-        <div style={{
-          display: 'flex', flex: 1, overflowX: 'auto',
-          padding: '20px 20px', gap: 16,
-          alignItems: 'flex-start',
-        }}>
-          {COLUMNS.map(col => {
-            const colTasks = filtered.filter(t => t.status === col.key)
-            const colExps  = experiments.filter(e => EXP_STATUS_TO_COL[e.status] === col.key)
-            return (
-              <DroppableColumn
-                key={col.key}
-                col={col}
-                colTasks={colTasks}
-                colExps={colExps}
-                isDropTarget={overColumnId === col.key}
-                activeTaskId={activeTaskId}
-                addingToCol={addingToCol}
-                newTaskTitle={newTaskTitle}
-                onNewTaskTitleChange={setNewTaskTitle}
-                onAddStart={setAddingToCol}
-                onAddCancel={handleAddCancel}
-                onAddSubmit={handleAddSubmit(col.key)}
-                onCardClick={handleCardClick}
-                onEditClick={handleEditClick}
-                onExpClick={handleExpClick}
-                members={project?.members ?? []}
-              />
-            )
-          })}
-        </div>
+        {phases.length === 0 ? (
+          /* Original flat kanban (no phases) */
+          <div style={{
+            display: 'flex', flex: 1, overflowX: 'auto',
+            padding: '20px 20px', gap: 16,
+            alignItems: 'flex-start',
+          }}>
+            {COLUMNS.map(col => {
+              const colTasks = filtered.filter(t => t.status === col.key)
+              const colExps  = experiments.filter(e => EXP_STATUS_TO_COL[e.status] === col.key)
+              return (
+                <DroppableColumn
+                  key={col.key}
+                  col={col}
+                  colTasks={colTasks}
+                  colExps={colExps}
+                  isDropTarget={overColumnId === col.key}
+                  activeTaskId={activeTaskId}
+                  addingToCol={addingToCol}
+                  newTaskTitle={newTaskTitle}
+                  onNewTaskTitleChange={setNewTaskTitle}
+                  onAddStart={setAddingToCol}
+                  onAddCancel={handleAddCancel}
+                  onAddSubmit={handleAddSubmit(col.key)}
+                  onCardClick={handleCardClick}
+                  onEditClick={handleEditClick}
+                  onExpClick={handleExpClick}
+                  members={project?.members ?? []}
+                />
+              )
+            })}
+          </div>
+        ) : (
+          /* Phase swimlanes */
+          <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
+            {/* Column header row (sticky) */}
+            <div style={{
+              display: 'flex',
+              position: 'sticky', top: 0, zIndex: 5,
+              background: 'var(--surface-header)',
+              borderBottom: '1px solid var(--border)',
+              backdropFilter: 'blur(12px)',
+            }}>
+              <div style={{ width: 120, flexShrink: 0, borderRight: '1px solid var(--border-subtle)' }} />
+              <div style={{ display: 'flex', flex: 1, gap: 16, padding: '8px 16px' }}>
+                {COLUMNS.map(col => (
+                  <div key={col.key} style={{
+                    flex: '0 0 290px',
+                    fontSize: 15, fontWeight: 700,
+                    letterSpacing: '0.12em', textTransform: 'uppercase',
+                    color: col.accent, fontFamily: 'var(--font-mono)',
+                    padding: '4px 0',
+                  }}>
+                    {col.label}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* One swimlane per phase */}
+            {phases.map(phase => {
+              const laneTasks = filtered.filter(t => t.phase_id === phase.id)
+              const laneExps  = experiments.filter(e => {
+                // Experiments don't have phase_id in the current Experiment type
+                // so we skip experiment-phase filtering for now
+                return false
+              })
+              return (
+                <PhaseSwimLane
+                  key={phase.id}
+                  phase={phase}
+                  tasks={laneTasks}
+                  experiments={laneExps}
+                  overColumnId={overColumnId}
+                  activeTaskId={activeTaskId}
+                  addingToCol={addingToCol}
+                  newTaskTitle={newTaskTitle}
+                  onNewTaskTitleChange={setNewTaskTitle}
+                  onAddStart={setAddingToCol}
+                  onAddCancel={handleAddCancel}
+                  onAddSubmit={handleAddSubmit}
+                  onCardClick={handleCardClick}
+                  onEditClick={handleEditClick}
+                  onExpClick={handleExpClick}
+                  members={project?.members ?? []}
+                />
+              )
+            })}
+
+            {/* Unassigned swimlane */}
+            {(() => {
+              const phaseIds = new Set(phases.map(p => p.id))
+              const unassignedTasks = filtered.filter(t => !t.phase_id || !phaseIds.has(t.phase_id))
+              const unassignedExps  = experiments // all exps go to unassigned since Experiment has no phase_id
+              return (
+                <PhaseSwimLane
+                  key="unassigned"
+                  phase={null}
+                  tasks={unassignedTasks}
+                  experiments={unassignedExps}
+                  overColumnId={overColumnId}
+                  activeTaskId={activeTaskId}
+                  addingToCol={addingToCol}
+                  newTaskTitle={newTaskTitle}
+                  onNewTaskTitleChange={setNewTaskTitle}
+                  onAddStart={setAddingToCol}
+                  onAddCancel={handleAddCancel}
+                  onAddSubmit={handleAddSubmit}
+                  onCardClick={handleCardClick}
+                  onEditClick={handleEditClick}
+                  onExpClick={handleExpClick}
+                  members={project?.members ?? []}
+                />
+              )
+            })()}
+          </div>
+        )}
       </DndContext>
 
       {selectedTask && (
