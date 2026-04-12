@@ -47,6 +47,7 @@ class Task:
     priority: str = "medium"  # 'high' | 'medium' | 'low'
     deadline: str | None = None  # ISO date string
     session_id: str | None = None  # optional link to sessions.db thread_id
+    phase_id: str | None = None
 
 
 @dataclass
@@ -115,3 +116,24 @@ class ExperimentAssist:
     error: str | None = None
     target_field: str | None = None   # 'hypothesis'|'protocol'|'entry_body'|None
     finished_at: str | None = None
+
+
+@dataclass
+class ProjectPhase:
+    id: str
+    project_id: str
+    name: str
+    color: str
+    position: int
+    created_by: str
+    created_at: str
+    target_date: str | None = None
+
+
+@dataclass
+class TaskDependency:
+    task_id: str
+    depends_on_id: str
+    dep_type: str
+    created_by: str
+    created_at: str

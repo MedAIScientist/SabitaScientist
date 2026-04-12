@@ -135,7 +135,34 @@ CREATE TABLE IF NOT EXISTS experiment_assists (
 
 CREATE INDEX IF NOT EXISTS idx_experiment_assists_exp
     ON experiment_assists(experiment_id);
+
+CREATE TABLE IF NOT EXISTS project_phases (
+    id          TEXT PRIMARY KEY,
+    project_id  TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    name        TEXT NOT NULL,
+    color       TEXT NOT NULL DEFAULT '#6366f1',
+    position    INTEGER NOT NULL DEFAULT 0,
+    target_date TEXT,
+    created_by  TEXT NOT NULL REFERENCES users(id),
+    created_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_phases_project ON project_phases(project_id);
+
+CREATE TABLE IF NOT EXISTS task_dependencies (
+    task_id       TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    depends_on_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    dep_type      TEXT NOT NULL DEFAULT 'hard'
+                  CHECK(dep_type IN ('hard', 'soft')),
+    created_by    TEXT NOT NULL REFERENCES users(id),
+    created_at    TEXT NOT NULL,
+    PRIMARY KEY (task_id, depends_on_id)
+);
 """
+
+_MIGRATIONS = [
+    "ALTER TABLE tasks ADD COLUMN phase_id TEXT REFERENCES project_phases(id) ON DELETE SET NULL",
+    "ALTER TABLE experiments ADD COLUMN phase_id TEXT REFERENCES project_phases(id) ON DELETE SET NULL",
+]
 
 
 def get_db_path() -> Path:
@@ -160,6 +187,11 @@ def create_schema(db_path: Path | None = None) -> None:
     conn = sqlite3.connect(path)
     try:
         conn.executescript(_SCHEMA)
+        for migration in _MIGRATIONS:
+            try:
+                conn.execute(migration)
+            except sqlite3.OperationalError:
+                pass  # column already exists
         conn.commit()
     finally:
         conn.close()

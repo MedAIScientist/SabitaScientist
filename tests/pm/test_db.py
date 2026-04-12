@@ -20,6 +20,7 @@ def test_create_schema_creates_all_tables(tmp_path: Path) -> None:
         "task_comments", "tasks", "users",
         "experiments", "experiment_tasks", "experiment_entries",
         "experiment_assists",
+        "project_phases", "task_dependencies",
     }
 
 
@@ -30,8 +31,48 @@ def test_create_schema_is_idempotent(tmp_path: Path) -> None:
 
     conn = sqlite3.connect(db_path)
     cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    assert len(cur.fetchall()) == 11
+    assert len(cur.fetchall()) == 13
     conn.close()
+
+
+def test_project_phases_table_exists(tmp_path):
+    from EvoScientist.pm.db import create_schema
+    db = tmp_path / "t.db"
+    create_schema(db)
+    import sqlite3
+    conn = sqlite3.connect(db)
+    tables = {r[0] for r in conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table'"
+    ).fetchall()}
+    assert "project_phases" in tables
+    assert "task_dependencies" in tables
+    conn.close()
+
+def test_tasks_has_phase_id_column(tmp_path):
+    from EvoScientist.pm.db import create_schema
+    db = tmp_path / "t.db"
+    create_schema(db)
+    import sqlite3
+    conn = sqlite3.connect(db)
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(tasks)").fetchall()}
+    assert "phase_id" in cols
+    conn.close()
+
+def test_experiments_has_phase_id_column(tmp_path):
+    from EvoScientist.pm.db import create_schema
+    db = tmp_path / "t.db"
+    create_schema(db)
+    import sqlite3
+    conn = sqlite3.connect(db)
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(experiments)").fetchall()}
+    assert "phase_id" in cols
+    conn.close()
+
+def test_create_schema_idempotent_with_migrations(tmp_path):
+    from EvoScientist.pm.db import create_schema
+    db = tmp_path / "t.db"
+    create_schema(db)
+    create_schema(db)  # second call must not raise
 
 
 def test_foreign_keys_enforced(tmp_path: Path) -> None:
