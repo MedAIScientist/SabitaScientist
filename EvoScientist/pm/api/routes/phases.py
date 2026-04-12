@@ -12,6 +12,7 @@ from ...crud.phases import (
     list_phases,
     update_phase,
 )
+from ...crud.tasks import get_task
 from ...db import get_db_path
 from ...models import User
 from ..deps import require_project_role
@@ -124,5 +125,8 @@ def assign_task_to_phase(
     phase = get_phase(get_db_path(), phase_id)
     if not phase or phase.project_id != project_id:
         raise HTTPException(status_code=404, detail="Phase not found")
-    assign_task_phase(get_db_path(), task_id=body.task_id, phase_id=body.phase_id)
+    task = get_task(get_db_path(), body.task_id)
+    if task is None or task.project_id != project_id:
+        raise HTTPException(status_code=404, detail="Task not found in this project")
+    assign_task_phase(get_db_path(), task_id=body.task_id, phase_id=phase_id)
     return {"ok": True}

@@ -151,10 +151,23 @@ def test_assign_task_to_phase(client, admin_token) -> None:
 
     resp = client.post(
         f"/api/v1/projects/{project_id}/phases/{phase_id}/assign-task",
-        json={"task_id": task_id, "phase_id": phase_id},
+        json={"task_id": task_id},
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert resp.status_code == 200
+
+
+def test_assign_task_not_found(client, admin_token) -> None:
+    project_id = _create_project(client, admin_token)
+    create_resp = _create_phase(client, admin_token, project_id, name="Active Phase")
+    phase_id = create_resp.json()["id"]
+
+    resp = client.post(
+        f"/api/v1/projects/{project_id}/phases/{phase_id}/assign-task",
+        json={"task_id": "nonexistent-task-id"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert resp.status_code == 404
 
 
 def test_update_phase_clear_target_date(client, admin_token) -> None:

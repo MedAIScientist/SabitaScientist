@@ -278,7 +278,6 @@ class PhaseResponse(BaseModel):
 
 class AssignPhaseRequest(BaseModel):
     task_id: str
-    phase_id: str | None  # None to unassign
 
 
 # ── Dependencies ──────────────────────────────────────────────────────────────
