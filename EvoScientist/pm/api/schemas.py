@@ -120,6 +120,8 @@ class TaskResponse(BaseModel):
     created_by: str
     created_at: str
     updated_at: str
+    phase_id: str | None = None
+    blocked_by: list[str] = []
 
 
 class CommentCreate(BaseModel):

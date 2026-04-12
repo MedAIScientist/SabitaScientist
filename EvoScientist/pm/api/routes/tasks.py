@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from ...crud.dependencies import get_blocked_by
 from ...crud.tasks import (
     create_comment,
     create_task,
@@ -42,6 +43,8 @@ def _task_to_response(t) -> TaskResponse:
         created_by=t.created_by,
         created_at=t.created_at,
         updated_at=t.updated_at,
+        phase_id=getattr(t, "phase_id", None),
+        blocked_by=get_blocked_by(get_db_path(), t.id),
     )
 
 

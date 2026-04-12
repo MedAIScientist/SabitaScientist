@@ -49,12 +49,14 @@ def app(tmp_db: Path):
     import EvoScientist.pm.api.routes.projects as projects_routes_mod
     import EvoScientist.pm.api.routes.tasks as tasks_routes_mod
     import EvoScientist.pm.api.routes.phases as phases_routes_mod
+    import EvoScientist.pm.api.routes.dependencies as dependencies_routes_mod
+    import EvoScientist.pm.crud.dependencies as dependencies_crud_mod
 
     # Patch all DB path lookups to use the temp DB
     monkeypatch_db(
         tmp_db, deps_mod, auth_mod, users_mod, projects_mod, tasks_mod,
         auth_routes_mod, users_routes_mod, projects_routes_mod, tasks_routes_mod,
-        phases_routes_mod,
+        phases_routes_mod, dependencies_routes_mod, dependencies_crud_mod,
     )
     return create_app(tmp_db)
 
