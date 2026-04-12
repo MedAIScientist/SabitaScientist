@@ -76,7 +76,7 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose }: CardEd
   }
 
   const labelStyle: React.CSSProperties = {
-    fontSize: 10,
+    fontSize: 15,
     color: 'var(--text-dim)',
     fontFamily: 'var(--font-mono)',
     letterSpacing: '0.1em',
@@ -92,7 +92,7 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose }: CardEd
     color: 'var(--text)',
     borderRadius: 4,
     padding: '4px 8px',
-    fontSize: 13,
+    fontSize: 20,
     fontFamily: 'var(--font-mono)',
     boxSizing: 'border-box',
   }
@@ -153,7 +153,7 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose }: CardEd
           color: '#ff8015',
           borderRadius: 4,
           padding: '5px 0',
-          fontSize: 11,
+          fontSize: 16,
           fontWeight: 700,
           fontFamily: 'var(--font-mono)',
           cursor: 'pointer',
@@ -163,7 +163,7 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose }: CardEd
         {updateMutation.isPending ? 'saving…' : 'SAVE'}
       </button>
       {saveError && (
-        <div style={{ marginTop: 6, fontSize: 10, color: '#f43f5e', fontFamily: 'var(--font-mono)' }}>
+        <div style={{ marginTop: 6, fontSize: 15, color: '#f43f5e', fontFamily: 'var(--font-mono)' }}>
           {saveError}
         </div>
       )}

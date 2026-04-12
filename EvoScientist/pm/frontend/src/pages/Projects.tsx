@@ -68,7 +68,7 @@ function ProjectCard({ project, accent, index }: { project: Project; accent: str
       <div style={{ padding: '14px 18px 10px' }}>
         {/* Title row */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
-          <strong style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-heading)', lineHeight: 1.3, flex: 1, marginRight: 12 }}>
+          <strong style={{ fontSize: 21, fontWeight: 600, color: 'var(--text-heading)', lineHeight: 1.3, flex: 1, marginRight: 12 }}>
             {project.name}
           </strong>
           {/* Quick-action buttons */}
@@ -78,7 +78,7 @@ function ProjectCard({ project, accent, index }: { project: Project; accent: str
               title="Kanban Board"
               style={{
                 background: 'rgba(255,128,21,0.08)', border: '1px solid rgba(255,128,21,0.22)',
-                borderRadius: 4, padding: '3px 8px', fontSize: 10, color: '#ff8015',
+                borderRadius: 4, padding: '3px 8px', fontSize: 15, color: '#ff8015',
                 cursor: 'pointer', fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: '0.06em',
               }}
             >⊞ BOARD</button>
@@ -87,7 +87,7 @@ function ProjectCard({ project, accent, index }: { project: Project; accent: str
               title="Experiments"
               style={{
                 background: 'rgba(16,185,129,0.07)', border: '1px solid rgba(16,185,129,0.2)',
-                borderRadius: 4, padding: '3px 8px', fontSize: 10, color: '#10b981',
+                borderRadius: 4, padding: '3px 8px', fontSize: 15, color: '#10b981',
                 cursor: 'pointer', fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: '0.06em',
               }}
             >⚗ EXPS</button>
@@ -96,7 +96,7 @@ function ProjectCard({ project, accent, index }: { project: Project; accent: str
 
         {/* Description */}
         {project.description && (
-          <p style={{ margin: '0 0 10px', color: 'var(--text-2)', fontSize: 13, lineHeight: 1.5 }}>
+          <p style={{ margin: '0 0 10px', color: 'var(--text-2)', fontSize: 20, lineHeight: 1.5 }}>
             {project.description}
           </p>
         )}
@@ -124,40 +124,40 @@ function ProjectCard({ project, accent, index }: { project: Project; accent: str
           {total > 0 ? (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               {todo > 0 && (
-                <span style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                <span style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: 3 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(255,128,21,0.6)', display: 'inline-block' }} />
                   {todo} PLANNED
                 </span>
               )}
               {inProgress > 0 && (
-                <span style={{ fontSize: 10, color: '#f59e0b', fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                <span style={{ fontSize: 15, color: '#f59e0b', fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: 3 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} />
                   {inProgress} ACTIVE
                 </span>
               )}
               {done > 0 && (
-                <span style={{ fontSize: 10, color: '#10b981', fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                <span style={{ fontSize: 15, color: '#10b981', fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: 3 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
                   {done} DONE
                 </span>
               )}
             </div>
           ) : (
-            <span style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>NO TASKS</span>
+            <span style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>NO TASKS</span>
           )}
 
           {/* Experiment counts */}
           {experiments.length > 0 && (
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <span style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>·</span>
+              <span style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>·</span>
               {expPlanned > 0 && (
-                <span style={{ fontSize: 10, color: '#f59e0b', fontFamily: 'var(--font-mono)' }}>⚗ {expPlanned} PLANNED</span>
+                <span style={{ fontSize: 15, color: '#f59e0b', fontFamily: 'var(--font-mono)' }}>⚗ {expPlanned} PLANNED</span>
               )}
               {expRunning > 0 && (
-                <span style={{ fontSize: 10, color: '#ff8015', fontFamily: 'var(--font-mono)' }}>⚗ {expRunning} RUNNING</span>
+                <span style={{ fontSize: 15, color: '#ff8015', fontFamily: 'var(--font-mono)' }}>⚗ {expRunning} RUNNING</span>
               )}
               {expCompleted > 0 && (
-                <span style={{ fontSize: 10, color: '#10b981', fontFamily: 'var(--font-mono)' }}>⚗ {expCompleted} DONE</span>
+                <span style={{ fontSize: 15, color: '#10b981', fontFamily: 'var(--font-mono)' }}>⚗ {expCompleted} DONE</span>
               )}
             </div>
           )}
@@ -181,7 +181,7 @@ function ProjectCard({ project, accent, index }: { project: Project; accent: str
                 width: 20, height: 20, borderRadius: '50%',
                 background: ACCENT_CYCLE[(mi + 1) % ACCENT_CYCLE.length],
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 12, fontWeight: 700, color: '#fff',
+                fontSize: 18, fontWeight: 700, color: '#fff',
                 fontFamily: 'var(--font-mono)',
                 border: '1px solid var(--surface-card)',
                 marginLeft: mi > 0 ? -4 : 0,
@@ -193,14 +193,14 @@ function ProjectCard({ project, accent, index }: { project: Project; accent: str
             </div>
           ))}
           {extraMembers > 0 && (
-            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginLeft: 4 }}>
+            <span style={{ fontSize: 18, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginLeft: 4 }}>
               +{extraMembers}
             </span>
           )}
         </div>
 
         {/* Created date */}
-        <span style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+        <span style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
           {formatDate(project.created_at)}
         </span>
       </div>
@@ -239,7 +239,7 @@ export function Projects() {
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       height: '100vh', color: 'var(--text-muted)',
-      fontFamily: 'var(--font-mono)', fontSize: 13, letterSpacing: '0.08em',
+      fontFamily: 'var(--font-mono)', fontSize: 20, letterSpacing: '0.08em',
     }}>
       LOADING…
     </div>
@@ -258,8 +258,8 @@ export function Projects() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
           <img src="/sabita.jpg" alt="SABITA" style={{ height: 26, borderRadius: 4, display: 'block' }} />
-          <span style={{ color: 'var(--text-dim)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>/</span>
-          <span style={{ color: '#ff8015', fontSize: 14, fontFamily: 'var(--font-mono)' }}>projects</span>
+          <span style={{ color: 'var(--text-dim)', fontSize: 20, fontFamily: 'var(--font-mono)' }}>/</span>
+          <span style={{ color: '#ff8015', fontSize: 21, fontFamily: 'var(--font-mono)' }}>projects</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
@@ -269,7 +269,7 @@ export function Projects() {
               border: '1px solid rgba(255,128,21,0.18)',
               color: '#64748b',
               fontFamily: 'var(--font-mono)',
-              fontSize: 11,
+              fontSize: 16,
               padding: '5px 12px',
               borderRadius: 4,
               cursor: 'pointer',
@@ -290,7 +290,7 @@ export function Projects() {
                 : 'linear-gradient(135deg, rgba(255,128,21,0.4), rgba(139,92,246,0.4))',
               color: '#ff8015',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              fontSize: 20, fontWeight: 700, cursor: 'pointer',
               fontFamily: 'var(--font-mono)',
               outline: '1px solid rgba(255,128,21,0.25)',
               transition: 'outline-color 0.15s, box-shadow 0.15s',
@@ -306,10 +306,10 @@ export function Projects() {
       {/* ── Content ── */}
       <div style={{ maxWidth: 760, margin: '0 auto', padding: '40px 28px' }}>
         <div style={{ marginBottom: 28 }}>
-          <h1 style={{ margin: '0 0 5px', fontSize: 25, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>
+          <h1 style={{ margin: '0 0 5px', fontSize: 38, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>
             Research Projects
           </h1>
-          <p style={{ margin: 0, fontSize: 11, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em' }}>
+          <p style={{ margin: 0, fontSize: 16, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em' }}>
             {projects.length} PROJECT{projects.length !== 1 ? 'S' : ''} · SYNCS EVERY 30S
           </p>
         </div>
@@ -324,7 +324,7 @@ export function Projects() {
             />
           ))}
           {projects.length === 0 && (
-            <p style={{ color: 'var(--text-muted)', fontSize: 14, padding: '10px 0', fontStyle: 'italic' }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: 21, padding: '10px 0', fontStyle: 'italic' }}>
               No projects yet. Create your first one below.
             </p>
           )}
@@ -348,7 +348,7 @@ export function Projects() {
                 padding: '8px 11px',
                 background: 'var(--surface-input)',
                 border: '1px solid rgba(255,128,21,0.2)',
-                borderRadius: 6, color: 'var(--text)', fontSize: 15, outline: 'none',
+                borderRadius: 6, color: 'var(--text)', fontSize: 22, outline: 'none',
               }}
             />
             <textarea
@@ -360,7 +360,7 @@ export function Projects() {
                 padding: '6px 11px',
                 background: 'var(--surface-input)',
                 border: '1px solid rgba(255,128,21,0.2)',
-                borderRadius: 6, color: 'var(--text)', fontSize: 14, outline: 'none',
+                borderRadius: 6, color: 'var(--text)', fontSize: 21, outline: 'none',
                 resize: 'none', fontFamily: 'inherit',
               }}
             />
@@ -368,14 +368,14 @@ export function Projects() {
               <button type="submit" disabled={createMutation.isPending} style={{
                 padding: '8px 16px', cursor: 'pointer',
                 background: '#ff8015', color: '#06091a',
-                border: 'none', borderRadius: 6, fontSize: 11, fontWeight: 700,
+                border: 'none', borderRadius: 6, fontSize: 16, fontWeight: 700,
                 letterSpacing: '0.06em', fontFamily: 'var(--font-mono)',
               }}>CREATE</button>
               <button type="button" onClick={() => setCreating(false)} style={{
                 padding: '8px 12px', cursor: 'pointer',
                 background: 'var(--surface-input)',
                 border: '1px solid var(--border-subtle)',
-                borderRadius: 6, color: 'var(--text-3)', fontSize: 14,
+                borderRadius: 6, color: 'var(--text-3)', fontSize: 21,
               }}>✕</button>
             </div>
           </form>
@@ -387,7 +387,7 @@ export function Projects() {
               background: 'rgba(255,128,21,0.07)',
               border: '1px solid rgba(255,128,21,0.18)',
               borderRadius: 7, color: '#ff8015',
-              fontSize: 11, fontWeight: 700, letterSpacing: '0.08em',
+              fontSize: 16, fontWeight: 700, letterSpacing: '0.08em',
               transition: 'background 0.14s',
               fontFamily: 'var(--font-mono)',
             }}

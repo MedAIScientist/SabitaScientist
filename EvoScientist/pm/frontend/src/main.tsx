@@ -14,6 +14,7 @@ import { ProfilePage } from './pages/ProfilePage'
 import { Setup } from './pages/Setup'
 import { ProjectReportPage } from './pages/ProjectReportPage'
 import { GlobalReportPage }   from './pages/GlobalReportPage'
+import { UsersPage }          from './pages/UsersPage'
 
 const queryClient = new QueryClient()
 
@@ -42,6 +43,7 @@ function App() {
         <Route path="/projects/:id/report" element={<PrivateRoute><ProjectReportPage /></PrivateRoute>} />
         <Route path="/reports"             element={<PrivateRoute><GlobalReportPage /></PrivateRoute>} />
         <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
+        <Route path="/users"   element={<PrivateRoute><UsersPage /></PrivateRoute>} />
         {!needsSetup && <Route path="*" element={<Navigate to="/projects" replace />} />}
       </Routes>
     </BrowserRouter>

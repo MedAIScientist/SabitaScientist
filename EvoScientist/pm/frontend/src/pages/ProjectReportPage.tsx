@@ -48,7 +48,7 @@ function ErrorBanner({ message, onRetry }: { message: string; onRetry: () => voi
       border: '1px solid rgba(244,63,94,0.2)',
       borderRadius: 6, marginBottom: 12,
     }}>
-      <span style={{ fontSize: 11, color: '#f43f5e', fontFamily: 'var(--font-mono)', flex: 1 }}>
+      <span style={{ fontSize: 16, color: '#f43f5e', fontFamily: 'var(--font-mono)', flex: 1 }}>
         {message}
       </span>
       <button
@@ -57,7 +57,7 @@ function ErrorBanner({ message, onRetry }: { message: string; onRetry: () => voi
           background: 'none',
           border: '1px solid rgba(244,63,94,0.3)',
           borderRadius: 4, color: '#f43f5e',
-          fontSize: 10, cursor: 'pointer',
+          fontSize: 15, cursor: 'pointer',
           padding: '3px 8px', fontFamily: 'var(--font-mono)',
         }}
       >
@@ -129,24 +129,24 @@ export function ProjectReportPage() {
             style={{
               cursor: 'pointer', background: 'var(--surface-input)',
               border: '1px solid var(--border)', borderRadius: 6,
-              color: 'var(--text-muted)', padding: '3px 9px', fontSize: 15, lineHeight: 1,
+              color: 'var(--text-muted)', padding: '3px 9px', fontSize: 22, lineHeight: 1,
             }}
           >←</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
             <img src="/sabita.jpg" alt="SABITA" style={{ height: 26, borderRadius: 4, display: 'block' }} />
-            <span style={{ color: 'var(--text-dim)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>/</span>
-            <span style={{ color: '#ff8015', fontSize: 14, fontFamily: 'var(--font-mono)' }}>
+            <span style={{ color: 'var(--text-dim)', fontSize: 20, fontFamily: 'var(--font-mono)' }}>/</span>
+            <span style={{ color: '#ff8015', fontSize: 21, fontFamily: 'var(--font-mono)' }}>
               {project?.name ?? '…'}
             </span>
-            <span style={{ color: 'var(--text-dim)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>/</span>
-            <span style={{ color: 'var(--text-muted)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>report</span>
+            <span style={{ color: 'var(--text-dim)', fontSize: 20, fontFamily: 'var(--font-mono)' }}>/</span>
+            <span style={{ color: 'var(--text-muted)', fontSize: 20, fontFamily: 'var(--font-mono)' }}>report</span>
           </div>
         </div>
         <button
           onClick={() => window.print()}
           style={{
             background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.18)',
-            color: '#10b981', fontFamily: 'var(--font-mono)', fontSize: 11,
+            color: '#10b981', fontFamily: 'var(--font-mono)', fontSize: 16,
             padding: '5px 14px', borderRadius: 4, cursor: 'pointer', letterSpacing: '0.08em',
           }}
         >
@@ -195,15 +195,15 @@ export function ProjectReportPage() {
               ].map(({ label, count, color }) => (
                 <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                   <span style={{ width: 10, height: 10, borderRadius: 2, background: color, flexShrink: 0 }} />
-                  <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', flex: 1 }}>{label}</span>
-                  <span style={{ fontSize: 13, fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-heading)' }}>{count}</span>
-                  <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', width: 36, textAlign: 'right' }}>
+                  <span style={{ fontSize: 16, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', flex: 1 }}>{label}</span>
+                  <span style={{ fontSize: 20, fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-heading)' }}>{count}</span>
+                  <span style={{ fontSize: 15, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', width: 36, textAlign: 'right' }}>
                     {tasks.length > 0 ? Math.round((count / tasks.length) * 100) : 0}%
                   </span>
                 </div>
               ))}
               <div style={{ marginTop: 16, borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
-                <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', letterSpacing: '0.1em', marginBottom: 8 }}>
+                <div style={{ fontSize: 18, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', letterSpacing: '0.1em', marginBottom: 8 }}>
                   PRIORITY BREAKDOWN
                 </div>
                 {(['high', 'medium', 'low'] as const).map(pri => {
@@ -211,9 +211,9 @@ export function ProjectReportPage() {
                   return (
                     <div key={pri} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                       <span style={{ width: 6, height: 6, borderRadius: '50%', background: PRIORITY_COLORS[pri], flexShrink: 0 }} />
-                      <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', flex: 1, textTransform: 'capitalize' }}>{pri}</span>
-                      <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)', fontWeight: 700 }}>{count}</span>
-                      <span style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', width: 36, textAlign: 'right' }}>
+                      <span style={{ fontSize: 15, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', flex: 1, textTransform: 'capitalize' }}>{pri}</span>
+                      <span style={{ fontSize: 16, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)', fontWeight: 700 }}>{count}</span>
+                      <span style={{ fontSize: 15, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', width: 36, textAlign: 'right' }}>
                         {tasks.length > 0 ? Math.round((count / tasks.length) * 100) : 0}%
                       </span>
                     </div>
@@ -245,17 +245,17 @@ export function ProjectReportPage() {
               ].map(({ label, count, color }) => (
                 <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                   <span style={{ width: 10, height: 10, borderRadius: 2, background: color, flexShrink: 0 }} />
-                  <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', flex: 1 }}>{label}</span>
-                  <span style={{ fontSize: 13, fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-heading)' }}>{count}</span>
+                  <span style={{ fontSize: 16, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', flex: 1 }}>{label}</span>
+                  <span style={{ fontSize: 20, fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-heading)' }}>{count}</span>
                 </div>
               ))}
             </div>
           </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 16 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
                 {['NAME', 'STATUS', 'TAGS', 'DEADLINE', 'NOTES', 'RESULTS'].map(h => (
-                  <th key={h} style={{ padding: '6px 8px', textAlign: 'left', fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', letterSpacing: '0.1em' }}>
+                  <th key={h} style={{ padding: '6px 8px', textAlign: 'left', fontSize: 18, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', letterSpacing: '0.1em' }}>
                     {h}
                   </th>
                 ))}
@@ -270,7 +270,7 @@ export function ProjectReportPage() {
                     <td style={{ padding: '8px', color: 'var(--text-heading)', fontWeight: 500 }}>{exp.name}</td>
                     <td style={{ padding: '8px' }}>
                       <span style={{
-                        fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                        fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)',
                         color: statusColor, background: `${statusColor}18`,
                         border: `1px solid ${statusColor}33`,
                         borderRadius: 3, padding: '2px 6px',
@@ -278,14 +278,14 @@ export function ProjectReportPage() {
                         {exp.status.toUpperCase()}
                       </span>
                     </td>
-                    <td style={{ padding: '8px', fontSize: 10, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+                    <td style={{ padding: '8px', fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
                       {exp.tags.join(', ') || '—'}
                     </td>
-                    <td style={{ padding: '8px', fontSize: 10, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+                    <td style={{ padding: '8px', fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
                       {exp.deadline ?? '—'}
                     </td>
-                    <td style={{ padding: '8px', fontSize: 11, textAlign: 'center' }}>{counts.notes}</td>
-                    <td style={{ padding: '8px', fontSize: 11, textAlign: 'center' }}>{counts.results}</td>
+                    <td style={{ padding: '8px', fontSize: 16, textAlign: 'center' }}>{counts.notes}</td>
+                    <td style={{ padding: '8px', fontSize: 16, textAlign: 'center' }}>{counts.results}</td>
                   </tr>
                 )
               })}
@@ -312,14 +312,14 @@ export function ProjectReportPage() {
                       textAlign: 'left',
                     }}
                   >
-                    <span style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+                    <span style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
                       {isOpen ? '▾' : '▸'}
                     </span>
-                    <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: 'var(--text-heading)' }}>
+                    <span style={{ flex: 1, fontSize: 20, fontWeight: 500, color: 'var(--text-heading)' }}>
                       {exp.name}
                     </span>
                     <span style={{
-                      fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                      fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)',
                       color: statusColor, background: `${statusColor}18`,
                       border: `1px solid ${statusColor}33`,
                       borderRadius: 3, padding: '2px 6px',
@@ -335,29 +335,29 @@ export function ProjectReportPage() {
                     }}>
                       {exp.hypothesis && (
                         <div style={{ marginBottom: 10 }}>
-                          <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', letterSpacing: '0.1em', marginBottom: 4 }}>
+                          <div style={{ fontSize: 18, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', letterSpacing: '0.1em', marginBottom: 4 }}>
                             HYPOTHESIS
                           </div>
-                          <p style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.5, margin: 0 }}>
+                          <p style={{ fontSize: 18, color: 'var(--text)', lineHeight: 1.5, margin: 0 }}>
                             {exp.hypothesis.slice(0, 200)}{exp.hypothesis.length > 200 ? '…' : ''}
                           </p>
                         </div>
                       )}
                       {exp.protocol && (
                         <div style={{ marginBottom: 10 }}>
-                          <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', letterSpacing: '0.1em', marginBottom: 4 }}>
+                          <div style={{ fontSize: 18, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', letterSpacing: '0.1em', marginBottom: 4 }}>
                             PROTOCOL
                           </div>
-                          <p style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.5, margin: 0 }}>
+                          <p style={{ fontSize: 18, color: 'var(--text)', lineHeight: 1.5, margin: 0 }}>
                             {exp.protocol.slice(0, 200)}{exp.protocol.length > 200 ? '…' : ''}
                           </p>
                         </div>
                       )}
                       <div style={{ display: 'flex', gap: 16, marginTop: 10 }}>
-                        <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)' }}>
+                        <span style={{ fontSize: 16, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)' }}>
                           <span style={{ color: '#f59e0b', fontWeight: 700 }}>{counts.notes}</span> notes
                         </span>
-                        <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)' }}>
+                        <span style={{ fontSize: 16, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)' }}>
                           <span style={{ color: '#10b981', fontWeight: 700 }}>{counts.results}</span> results
                         </span>
                       </div>
@@ -389,22 +389,22 @@ export function ProjectReportPage() {
                     background: AVATAR_COLORS[i % AVATAR_COLORS.length],
                     color: '#fff',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-mono)', flexShrink: 0,
+                    fontSize: 20, fontWeight: 700, fontFamily: 'var(--font-mono)', flexShrink: 0,
                   }}>
                     {member.username[0].toUpperCase()}
                   </span>
-                  <span style={{ flex: 1, fontSize: 13, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)' }}>
+                  <span style={{ flex: 1, fontSize: 20, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)' }}>
                     {member.username}
                   </span>
                   <span style={{
-                    fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                    fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)',
                     color: roleColor, background: `${roleColor}18`,
                     border: `1px solid ${roleColor}33`,
                     borderRadius: 3, padding: '2px 6px',
                   }}>
                     {member.role.toUpperCase()}
                   </span>
-                  <div style={{ display: 'flex', gap: 16, fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+                  <div style={{ display: 'flex', gap: 16, fontSize: 16, fontFamily: 'var(--font-mono)' }}>
                     <span style={{ color: 'var(--text-dim)' }}>
                       Assigned: <strong style={{ color: 'var(--text-heading)' }}>{assigned}</strong>
                     </span>

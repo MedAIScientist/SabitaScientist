@@ -35,7 +35,7 @@ const inputStyle: React.CSSProperties = {
   border: '1px solid var(--border)',
   borderRadius: 6,
   color: 'var(--text)',
-  fontSize: 15,
+  fontSize: 22,
   outline: 'none',
   boxSizing: 'border-box',
   fontFamily: 'inherit',
@@ -47,7 +47,7 @@ const selectStyle: React.CSSProperties = {
 }
 
 const labelStyle: React.CSSProperties = {
-  fontSize: 10,
+  fontSize: 15,
   fontWeight: 700,
   color: 'var(--text-dim)',
   letterSpacing: '0.12em',
@@ -182,14 +182,14 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
         padding: '3px 10px', borderRadius: 4,
         background: 'rgba(244,63,94,0.12)',
         border: '1px solid rgba(244,63,94,0.28)',
-        color: '#f43f5e', fontSize: 10, fontWeight: 700,
+        color: '#f43f5e', fontSize: 15, fontWeight: 700,
         fontFamily: 'var(--font-mono)',
       }
     : {
         padding: '3px 10px', borderRadius: 4,
         background: 'var(--border-subtle)',
         border: '1px solid var(--border)',
-        color: '#94a3b8', fontSize: 10, fontWeight: 500,
+        color: '#94a3b8', fontSize: 15, fontWeight: 500,
         fontFamily: 'var(--font-mono)',
       }
 
@@ -219,12 +219,12 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
         {/* ── Title + close + edit ── */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
           {editMode ? (
-            <h2 style={{ flex: 1, margin: 0, fontSize: 16, fontWeight: 600, color: 'var(--text-heading)', lineHeight: 1.35 }}>
+            <h2 style={{ flex: 1, margin: 0, fontSize: 24, fontWeight: 600, color: 'var(--text-heading)', lineHeight: 1.35 }}>
               {/* In edit mode the title is in the edit form below; just show a placeholder here */}
               &nbsp;
             </h2>
           ) : (
-            <h2 style={{ flex: 1, margin: 0, fontSize: 16, fontWeight: 600, color: 'var(--text-heading)', lineHeight: 1.35 }}>
+            <h2 style={{ flex: 1, margin: 0, fontSize: 24, fontWeight: 600, color: 'var(--text-heading)', lineHeight: 1.35 }}>
               {task.title}
             </h2>
           )}
@@ -236,7 +236,7 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
                 background: 'rgba(255,128,21,0.08)',
                 border: '1px solid rgba(255,128,21,0.22)',
                 borderRadius: 6, color: '#ff8015',
-                padding: '4px 10px', fontSize: 11, fontWeight: 700,
+                padding: '4px 10px', fontSize: 16, fontWeight: 700,
                 letterSpacing: '0.08em',
                 fontFamily: 'var(--font-mono)',
                 lineHeight: 1,
@@ -253,7 +253,7 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
               background: 'var(--border-subtle)',
               border: '1px solid var(--border)',
               borderRadius: 6, color: 'var(--text-3)',
-              width: 28, height: 28, fontSize: 14, lineHeight: 1,
+              width: 28, height: 28, fontSize: 21, lineHeight: 1,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               transition: 'color 0.14s, border-color 0.14s',
             }}
@@ -268,7 +268,7 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
             <button
               onClick={() => setActiveTab('details')}
               style={{
-                padding: '4px 10px', fontSize: 10, fontFamily: 'var(--font-mono)',
+                padding: '4px 10px', fontSize: 15, fontFamily: 'var(--font-mono)',
                 color: activeTab === 'details' ? '#ff8015' : 'var(--text-3)',
                 background: 'none', border: 'none', borderBottomStyle: 'solid',
                 borderBottomWidth: 2, borderBottomColor: activeTab === 'details' ? '#ff8015' : 'transparent',
@@ -280,7 +280,7 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
             <button
               onClick={() => setActiveTab('ai')}
               style={{
-                padding: '4px 10px', fontSize: 10, fontFamily: 'var(--font-mono)',
+                padding: '4px 10px', fontSize: 15, fontFamily: 'var(--font-mono)',
                 color: activeTab === 'ai' ? '#ff8015' : 'var(--text-3)',
                 background: 'none', border: 'none', borderBottomStyle: 'solid',
                 borderBottomWidth: 2, borderBottomColor: activeTab === 'ai' ? '#ff8015' : 'transparent',
@@ -302,13 +302,13 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
               <span style={{
                 padding: '3px 10px', borderRadius: 4,
                 background: status.bg, border: `1px solid ${status.color}28`,
-                color: status.color, fontSize: 10, fontWeight: 700,
+                color: status.color, fontSize: 15, fontWeight: 700,
                 letterSpacing: '0.12em', fontFamily: 'var(--font-mono)',
               }}>{status.label}</span>
               <span style={{
                 padding: '3px 10px', borderRadius: 4,
                 background: priority.bg, border: `1px solid ${priority.color}28`,
-                color: priority.color, fontSize: 10, fontWeight: 700,
+                color: priority.color, fontSize: 15, fontWeight: 700,
                 letterSpacing: '0.12em', fontFamily: 'var(--font-mono)',
               }}>{priority.label}</span>
               {task.deadline && (
@@ -320,7 +320,7 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
 
             {/* Description */}
             {task.description && (
-              <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 15, lineHeight: 1.65 }}>
+              <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 22, lineHeight: 1.65 }}>
                 {task.description}
               </p>
             )}
@@ -329,7 +329,7 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
             {task.assignee_id && (
               <div>
                 <span style={labelStyle}>Assigned Researcher</span>
-                <span style={{ color: 'var(--text-2)', fontSize: 12 }}>
+                <span style={{ color: 'var(--text-2)', fontSize: 18 }}>
                   {members.find(m => m.user_id === task.assignee_id)?.username ?? task.assignee_id}
                 </span>
               </div>
@@ -348,13 +348,13 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
                     background: '#ff8015', boxShadow: '0 0 5px #ff8015',
                   }} />
                   <span style={{
-                    fontSize: 10, fontWeight: 700, color: '#ff8015',
+                    fontSize: 15, fontWeight: 700, color: '#ff8015',
                     letterSpacing: '0.12em', fontFamily: 'var(--font-mono)',
                   }}>LINKED SESSION</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <code style={{
-                    flex: 1, fontSize: 13, color: 'var(--text-2)',
+                    flex: 1, fontSize: 20, color: 'var(--text-2)',
                     fontFamily: 'var(--font-mono)',
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   }}>
@@ -363,7 +363,7 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
                   <button
                     onClick={copySessionId}
                     style={{
-                      flexShrink: 0, padding: '3px 10px', fontSize: 11, cursor: 'pointer',
+                      flexShrink: 0, padding: '3px 10px', fontSize: 16, cursor: 'pointer',
                       background: copied ? 'rgba(16,185,129,0.12)' : 'rgba(255,128,21,0.08)',
                       border: `1px solid ${copied ? 'rgba(16,185,129,0.28)' : 'rgba(255,128,21,0.22)'}`,
                       borderRadius: 5, color: copied ? '#10b981' : '#ff8015',
@@ -372,7 +372,7 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
                   >{copied ? '✓ Copied' : 'Copy'}</button>
                 </div>
                 <p style={{
-                  margin: '7px 0 0', fontSize: 11, color: 'var(--text-dim)',
+                  margin: '7px 0 0', fontSize: 16, color: 'var(--text-dim)',
                   fontFamily: 'var(--font-mono)',
                 }}>
                   EvoSci --resume {task.session_id}
@@ -384,13 +384,13 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{
-                  fontSize: 10, fontWeight: 700, color: 'var(--text-dim)',
+                  fontSize: 15, fontWeight: 700, color: 'var(--text-dim)',
                   letterSpacing: '0.12em', textTransform: 'uppercase',
                   fontFamily: 'var(--font-mono)',
                 }}>Lab Notes</span>
                 <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
                 <span style={{
-                  fontSize: 10, color: 'var(--text-dim)',
+                  fontSize: 15, color: 'var(--text-dim)',
                   background: 'var(--border-subtle)',
                   border: '1px solid var(--border-subtle)',
                   borderRadius: 9, padding: '1px 7px',
@@ -406,14 +406,14 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
                     borderRadius: 7, padding: '10px 12px',
                     animation: 'fadeInUp 0.18s ease',
                   }}>
-                    <p style={{ margin: '0 0 5px', fontSize: 15, color: 'var(--text)', lineHeight: 1.55 }}>{c.body}</p>
-                    <p style={{ margin: 0, fontSize: 10, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+                    <p style={{ margin: '0 0 5px', fontSize: 22, color: 'var(--text)', lineHeight: 1.55 }}>{c.body}</p>
+                    <p style={{ margin: 0, fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
                       {c.created_at.slice(0, 10)}
                     </p>
                   </div>
                 ))}
                 {comments.length === 0 && (
-                  <p style={{ color: 'var(--text-muted)', fontSize: 14, fontStyle: 'italic', padding: '4px 0' }}>
+                  <p style={{ color: 'var(--text-muted)', fontSize: 21, fontStyle: 'italic', padding: '4px 0' }}>
                     No lab notes yet.
                   </p>
                 )}
@@ -433,7 +433,7 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
                     background: 'var(--surface-input)',
                     border: '1px solid var(--border)',
                     borderRadius: 7, color: 'var(--text)',
-                    fontSize: 14, outline: 'none',
+                    fontSize: 21, outline: 'none',
                     transition: 'border-color 0.14s',
                   }}
                   onFocus={e => { e.currentTarget.style.borderColor = 'rgba(255,128,21,0.3)' }}
@@ -443,7 +443,7 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
                   type="submit"
                   disabled={addComment.isPending}
                   style={{
-                    padding: '9px 16px', fontSize: 13, cursor: 'pointer',
+                    padding: '9px 16px', fontSize: 20, cursor: 'pointer',
                     background: 'rgba(255,128,21,0.1)',
                     border: '1px solid rgba(255,128,21,0.25)',
                     borderRadius: 7, color: '#ff8015', fontWeight: 700,
@@ -552,7 +552,7 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
                 onClick={handleSave}
                 disabled={updateTask.isPending}
                 style={{
-                  flex: 1, padding: '9px 0', fontSize: 13, cursor: 'pointer',
+                  flex: 1, padding: '9px 0', fontSize: 20, cursor: 'pointer',
                   background: 'rgba(255,128,21,0.1)',
                   border: '1px solid rgba(255,128,21,0.28)',
                   borderRadius: 7, color: '#ff8015', fontWeight: 700,
@@ -567,7 +567,7 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
               <button
                 onClick={cancelEdit}
                 style={{
-                  padding: '9px 16px', fontSize: 13, cursor: 'pointer',
+                  padding: '9px 16px', fontSize: 20, cursor: 'pointer',
                   background: 'var(--border-subtle)',
                   border: '1px solid var(--border)',
                   borderRadius: 7, color: '#64748b', fontWeight: 700,
@@ -581,7 +581,7 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
               onClick={handleDeleteClick}
               disabled={deleteTask.isPending}
               style={{
-                width: '100%', padding: '8px 0', fontSize: 13, cursor: 'pointer',
+                width: '100%', padding: '8px 0', fontSize: 20, cursor: 'pointer',
                 background: deleteConfirm ? 'rgba(244,63,94,0.15)' : 'rgba(244,63,94,0.07)',
                 border: `1px solid ${deleteConfirm ? 'rgba(244,63,94,0.4)' : 'rgba(244,63,94,0.2)'}`,
                 borderRadius: 7, color: '#f43f5e', fontWeight: 700,

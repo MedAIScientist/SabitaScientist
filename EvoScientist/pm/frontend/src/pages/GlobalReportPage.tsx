@@ -91,16 +91,16 @@ export function GlobalReportPage() {
             style={{
               cursor: 'pointer', background: 'var(--surface-input)',
               border: '1px solid var(--border)', borderRadius: 6,
-              color: 'var(--text-muted)', padding: '3px 9px', fontSize: 15, lineHeight: 1,
+              color: 'var(--text-muted)', padding: '3px 9px', fontSize: 22, lineHeight: 1,
             }}
           >←</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
             <img src="/sabita.jpg" alt="SABITA" style={{ height: 26, borderRadius: 4, display: 'block' }} />
-            <span style={{ color: 'var(--text-dim)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>/</span>
-            <span style={{ color: '#ff8015', fontSize: 14, fontFamily: 'var(--font-mono)' }}>reports</span>
+            <span style={{ color: 'var(--text-dim)', fontSize: 20, fontFamily: 'var(--font-mono)' }}>/</span>
+            <span style={{ color: '#ff8015', fontSize: 21, fontFamily: 'var(--font-mono)' }}>reports</span>
           </div>
         </div>
-        <span style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+        <span style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
           Generated {generatedAt}
         </span>
       </div>
@@ -128,7 +128,7 @@ export function GlobalReportPage() {
             borderRadius: 8, padding: '20px 24px',
           }}>
             {allProjectData.length === 0 ? (
-              <span style={{ color: 'var(--text-dim)', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+              <span style={{ color: 'var(--text-dim)', fontSize: 16, fontFamily: 'var(--font-mono)' }}>
                 No data yet
               </span>
             ) : (
@@ -146,7 +146,7 @@ export function GlobalReportPage() {
             borderRadius: 8, padding: '20px 24px',
           }}>
             {allProjectData.length === 0 ? (
-              <span style={{ color: 'var(--text-dim)', fontSize: 11, fontFamily: 'var(--font-mono)' }}>
+              <span style={{ color: 'var(--text-dim)', fontSize: 16, fontFamily: 'var(--font-mono)' }}>
                 No data yet
               </span>
             ) : (
@@ -158,13 +158,13 @@ export function GlobalReportPage() {
         {/* Section 4 — Project Summary Table */}
         <div style={{ marginBottom: 40 }}>
           <SectionHeader title="All Projects" accent="#ff8015" count={projects.length > 0 ? projects.length : undefined} />
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 16 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
                 {['PROJECT', 'TASKS', 'EXPERIMENTS', 'MEMBERS', ''].map(h => (
                   <th key={h} style={{
                     padding: '6px 8px', textAlign: 'left',
-                    fontSize: 12, fontFamily: 'var(--font-mono)',
+                    fontSize: 18, fontFamily: 'var(--font-mono)',
                     color: 'var(--text-dim)', letterSpacing: '0.1em',
                   }}>
                     {h}
@@ -180,13 +180,13 @@ export function GlobalReportPage() {
                     <td style={{ padding: '10px 8px', color: 'var(--text-heading)', fontWeight: 500 }}>
                       {project.name}
                     </td>
-                    <td style={{ padding: '10px 8px', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-dim)' }}>
+                    <td style={{ padding: '10px 8px', fontFamily: 'var(--font-mono)', fontSize: 16, color: 'var(--text-dim)' }}>
                       {done}/{tasks.length}
                     </td>
-                    <td style={{ padding: '10px 8px', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-dim)' }}>
+                    <td style={{ padding: '10px 8px', fontFamily: 'var(--font-mono)', fontSize: 16, color: 'var(--text-dim)' }}>
                       {experiments.length}
                     </td>
-                    <td style={{ padding: '10px 8px', fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-dim)' }}>
+                    <td style={{ padding: '10px 8px', fontFamily: 'var(--font-mono)', fontSize: 16, color: 'var(--text-dim)' }}>
                       {project.members.length}
                     </td>
                     <td style={{ padding: '10px 8px' }}>
@@ -196,7 +196,7 @@ export function GlobalReportPage() {
                           background: 'rgba(255,128,21,0.08)',
                           border: '1px solid rgba(255,128,21,0.2)',
                           color: '#ff8015', fontFamily: 'var(--font-mono)',
-                          fontSize: 12, padding: '3px 8px',
+                          fontSize: 18, padding: '3px 8px',
                           borderRadius: 3, cursor: 'pointer', letterSpacing: '0.08em',
                         }}
                       >

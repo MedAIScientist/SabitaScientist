@@ -17,7 +17,7 @@ export function StatCard({ value, label, accent, sublabel }: StatCardProps) {
       minWidth: 0,
     }}>
       <div style={{
-        fontSize: 32,
+        fontSize: 48,
         fontWeight: 700,
         color: 'var(--text-heading)',
         fontFamily: 'var(--font-mono)',
@@ -28,7 +28,7 @@ export function StatCard({ value, label, accent, sublabel }: StatCardProps) {
       </div>
       {sublabel && (
         <div style={{
-          fontSize: 11,
+          fontSize: 16,
           color: 'var(--text-dim)',
           fontFamily: 'var(--font-mono)',
           marginBottom: 4,
@@ -37,7 +37,7 @@ export function StatCard({ value, label, accent, sublabel }: StatCardProps) {
         </div>
       )}
       <div style={{
-        fontSize: 10,
+        fontSize: 15,
         color: 'var(--text-dim)',
         fontFamily: 'var(--font-mono)',
         letterSpacing: '0.1em',

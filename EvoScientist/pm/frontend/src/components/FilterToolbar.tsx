@@ -21,7 +21,7 @@ const inputStyle: React.CSSProperties = {
   borderRadius: 4,
   padding: '4px 8px',
   fontFamily: 'var(--font-mono)',
-  fontSize: 13,
+  fontSize: 20,
   outline: 'none',
 }
 
@@ -31,7 +31,7 @@ const selectStyle: React.CSSProperties = {
 }
 
 const labelStyle: React.CSSProperties = {
-  fontSize: 11,
+  fontSize: 16,
   color: 'var(--text-3)',
   fontFamily: 'var(--font-mono)',
   marginRight: 4,
@@ -62,7 +62,7 @@ function chipStyle(priority: Task['priority'], active: boolean): React.CSSProper
     color: active ? accent : 'var(--text-3)',
     borderRadius: 3,
     padding: '2px 8px',
-    fontSize: 11,
+    fontSize: 16,
     fontWeight: 700,
     cursor: 'pointer',
     fontFamily: 'var(--font-mono)',

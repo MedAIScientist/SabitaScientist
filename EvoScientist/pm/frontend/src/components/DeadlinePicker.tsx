@@ -51,7 +51,7 @@ export function DeadlinePicker({ value, onChange, inputStyle }: Props) {
               onClick={() => onChange(active ? '' : preset)}
               style={{
                 padding: '3px 9px',
-                fontSize: 10,
+                fontSize: 15,
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 700,
                 letterSpacing: '0.06em',
@@ -81,7 +81,7 @@ export function DeadlinePicker({ value, onChange, inputStyle }: Props) {
             onClick={() => onChange('')}
             style={{
               padding: '3px 9px',
-              fontSize: 10,
+              fontSize: 15,
               fontFamily: 'var(--font-mono)',
               fontWeight: 700,
               letterSpacing: '0.06em',
@@ -105,7 +105,7 @@ export function DeadlinePicker({ value, onChange, inputStyle }: Props) {
         onChange={e => onChange(e.target.value)}
         style={{
           ...inputStyle,
-          fontSize: 13,
+          fontSize: 20,
           colorScheme: 'dark',
         }}
         onFocus={e => { e.currentTarget.style.borderColor = 'rgba(255,128,21,0.3)' }}

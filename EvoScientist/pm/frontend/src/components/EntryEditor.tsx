@@ -22,7 +22,7 @@ export function EntryEditor({ type, onSave, onCancel, initialTitle = '', initial
       borderRadius: 6,
       padding: '12px 14px',
     }}>
-      <div style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
         <span style={{ color: 'var(--text-dim)' }}>{initialTitle ? 'EDIT' : 'NEW'}</span>
         <span style={{ color: accent, background: `${accent}18`, border: `1px solid ${accent}33`, borderRadius: 2, padding: '1px 5px' }}>{label}</span>
       </div>
@@ -34,7 +34,7 @@ export function EntryEditor({ type, onSave, onCancel, initialTitle = '', initial
         style={{
           width: '100%', boxSizing: 'border-box',
           background: 'var(--surface-input)', border: '1px solid var(--border)',
-          borderRadius: 4, color: 'var(--text)', fontSize: 13, padding: '6px 8px',
+          borderRadius: 4, color: 'var(--text)', fontSize: 20, padding: '6px 8px',
           fontFamily: 'inherit', marginBottom: 6, outline: 'none',
         }}
       />
@@ -47,7 +47,7 @@ export function EntryEditor({ type, onSave, onCancel, initialTitle = '', initial
         style={{
           width: '100%', boxSizing: 'border-box',
           background: 'var(--surface-input)', border: '1px solid var(--border)',
-          borderRadius: 4, color: 'var(--text-2)', fontSize: 11, padding: '6px 8px',
+          borderRadius: 4, color: 'var(--text-2)', fontSize: 16, padding: '6px 8px',
           fontFamily: 'var(--font-mono)', resize: 'vertical', outline: 'none',
           marginBottom: 8,
         }}
@@ -59,7 +59,7 @@ export function EntryEditor({ type, onSave, onCancel, initialTitle = '', initial
           style={{
             background: 'var(--surface-input)', border: '1px solid var(--border)',
             borderRadius: 3, padding: '4px 10px', color: 'var(--text-3)',
-            fontSize: 10, fontFamily: 'var(--font-mono)', cursor: 'pointer',
+            fontSize: 15, fontFamily: 'var(--font-mono)', cursor: 'pointer',
           }}
         >
           CANCEL
@@ -70,7 +70,7 @@ export function EntryEditor({ type, onSave, onCancel, initialTitle = '', initial
           style={{
             background: `${accent}18`, border: `1px solid ${accent}40`,
             borderRadius: 3, padding: '4px 10px', color: accent,
-            fontSize: 10, fontFamily: 'var(--font-mono)', cursor: 'pointer',
+            fontSize: 15, fontFamily: 'var(--font-mono)', cursor: 'pointer',
             opacity: !title.trim() ? 0.4 : 1,
           }}
         >

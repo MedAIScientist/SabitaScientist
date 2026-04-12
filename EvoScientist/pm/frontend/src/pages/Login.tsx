@@ -57,7 +57,7 @@ export function Login() {
             alt="SABITA"
             style={{ height: 38, borderRadius: 6, display: 'block' }}
           />
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-dim)', letterSpacing: '0.1em', lineHeight: 1.5 }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 15, color: 'var(--text-dim)', letterSpacing: '0.1em', lineHeight: 1.5 }}>
             RESEARCH · PM
           </div>
         </div>
@@ -70,14 +70,14 @@ export function Login() {
             background: 'rgba(244,63,94,0.08)',
             border: '1px solid rgba(244,63,94,0.2)',
             borderRadius: 6, color: '#f43f5e',
-            fontSize: 13, fontFamily: 'var(--font-mono)',
+            fontSize: 20, fontFamily: 'var(--font-mono)',
           }}>{error}</div>
         )}
 
         {(['USERNAME', 'PASSWORD'] as const).map((label, i) => (
           <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
             <label style={{
-              fontSize: 10, fontWeight: 700, color: 'var(--text-dim)',
+              fontSize: 15, fontWeight: 700, color: 'var(--text-dim)',
               letterSpacing: '0.12em', fontFamily: 'var(--font-mono)',
             }}>{label}</label>
             <input
@@ -91,7 +91,7 @@ export function Login() {
                 background: 'var(--surface-input)',
                 border: '1px solid var(--border)',
                 borderRadius: 7, color: 'var(--text)',
-                fontSize: 15, outline: 'none',
+                fontSize: 22, outline: 'none',
                 transition: 'border-color 0.14s',
               }}
               onFocus={e => { e.currentTarget.style.borderColor = 'rgba(255,128,21,0.32)' }}
@@ -104,7 +104,7 @@ export function Login() {
           type="submit"
           disabled={loading}
           style={{
-            marginTop: 4, padding: '10px', fontSize: 11,
+            marginTop: 4, padding: '10px', fontSize: 16,
             cursor: loading ? 'default' : 'pointer',
             background: loading ? 'rgba(255,128,21,0.07)' : 'rgba(255,128,21,0.12)',
             border: '1px solid rgba(255,128,21,0.28)',

@@ -16,7 +16,7 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 const sectionLabel: React.CSSProperties = {
-  fontSize: 11, color: 'var(--text-dim)', letterSpacing: '0.1em',
+  fontSize: 16, color: 'var(--text-dim)', letterSpacing: '0.1em',
   fontWeight: 700, marginBottom: 5, fontFamily: 'var(--font-mono)',
 }
 
@@ -86,10 +86,10 @@ export function AiRunsTab({ task, projectId }: Props) {
               borderRadius: 3, padding: '5px 6px', textAlign: 'left', cursor: 'pointer',
             }}
           >
-            <div style={{ fontSize: 13, color: selectedAgent === a.key ? '#ff8015' : 'var(--text-muted)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
+            <div style={{ fontSize: 20, color: selectedAgent === a.key ? '#ff8015' : 'var(--text-muted)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
               {a.icon} {a.label}
             </div>
-            <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 1 }}>{a.desc}</div>
+            <div style={{ fontSize: 16, color: 'var(--text-dim)', marginTop: 1 }}>{a.desc}</div>
           </button>
         ))}
       </div>
@@ -105,7 +105,7 @@ export function AiRunsTab({ task, projectId }: Props) {
         style={{
           width: '100%', boxSizing: 'border-box',
           background: 'var(--surface-input)', border: '1px solid rgba(255,128,21,0.18)',
-          borderRadius: 3, color: 'var(--text-2)', fontSize: 13, padding: '5px 6px', resize: 'none',
+          borderRadius: 3, color: 'var(--text-2)', fontSize: 20, padding: '5px 6px', resize: 'none',
           fontFamily: 'var(--font-sans)', marginBottom: 6, opacity: isRunning ? 0.5 : 1,
           outline: 'none',
         }}
@@ -117,7 +117,7 @@ export function AiRunsTab({ task, projectId }: Props) {
         disabled={isRunning || !prompt.trim()}
         style={{
           width: '100%', background: 'rgba(255,128,21,0.1)', border: '1px solid rgba(255,128,21,0.28)',
-          borderRadius: 3, padding: '6px 0', color: '#ff8015', fontSize: 13, fontWeight: 700,
+          borderRadius: 3, padding: '6px 0', color: '#ff8015', fontSize: 20, fontWeight: 700,
           fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', cursor: 'pointer',
           marginBottom: 10, opacity: (isRunning || !prompt.trim()) ? 0.4 : 1,
         }}
@@ -131,17 +131,17 @@ export function AiRunsTab({ task, projectId }: Props) {
           <div style={{ background: 'rgba(255,128,21,0.06)', padding: '5px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <div style={{ width: 6, height: 6, background: '#ff8015', borderRadius: '50%' }} />
-              <span style={{ fontSize: 12, color: '#ff8015', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
+              <span style={{ fontSize: 18, color: '#ff8015', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
                 {selectedAgent.toUpperCase()} · RUNNING
               </span>
             </div>
             <button
               onClick={() => cancelMutation.mutate(activeRunId)}
-              style={{ background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)', borderRadius: 2, padding: '1px 6px', color: '#f43f5e', fontSize: 12, cursor: 'pointer', fontFamily: 'var(--font-mono)' }}
+              style={{ background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)', borderRadius: 2, padding: '1px 6px', color: '#f43f5e', fontSize: 18, cursor: 'pointer', fontFamily: 'var(--font-mono)' }}
             >■ STOP</button>
           </div>
           <div style={{ padding: '6px 8px', background: 'var(--surface-input)', minHeight: 60, maxHeight: 120, overflowY: 'auto' }}>
-            <pre style={{ fontSize: 12, color: 'var(--text-2)', fontFamily: 'var(--font-mono)', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.6 }}>
+            <pre style={{ fontSize: 18, color: 'var(--text-2)', fontFamily: 'var(--font-mono)', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.6 }}>
               {streamOutput || '…'}
               {isStreaming && <span style={{ color: '#ff8015' }}>▋</span>}
             </pre>
@@ -151,7 +151,7 @@ export function AiRunsTab({ task, projectId }: Props) {
 
       {/* Run history */}
       {runs.length === 0 && !activeRunId ? (
-        <div style={{ fontSize: 12, color: 'var(--text-dim)', textAlign: 'center', marginTop: 8, fontFamily: 'var(--font-mono)' }}>
+        <div style={{ fontSize: 18, color: 'var(--text-dim)', textAlign: 'center', marginTop: 8, fontFamily: 'var(--font-mono)' }}>
           NO PREVIOUS RUNS
         </div>
       ) : (
@@ -190,33 +190,33 @@ function RunCard({ run, expanded, onToggle, onAddToNotes }: {
         style={{ width: '100%', background: `${color}0a`, padding: '5px 8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: 'none', cursor: 'pointer' }}
       >
         <div>
-          <span style={{ fontSize: 12, color, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
+          <span style={{ fontSize: 18, color, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
             {run.status === 'done' ? '✓' : run.status === 'failed' ? '✗' : '◌'} {run.agent_type.toUpperCase()}
           </span>
-          <span style={{ fontSize: 11, color: 'var(--text-dim)', marginLeft: 6 }}>
+          <span style={{ fontSize: 16, color: 'var(--text-dim)', marginLeft: 6 }}>
             {run.created_at.slice(0, 10)}{duration ? ` · ${duration}` : ''}
           </span>
         </div>
-        <span style={{ fontSize: 13, color: 'var(--text-3)' }}>{expanded ? '▲' : '▼'}</span>
+        <span style={{ fontSize: 20, color: 'var(--text-3)' }}>{expanded ? '▲' : '▼'}</span>
       </button>
       {expanded && (
         <div style={{ padding: '6px 8px', background: 'var(--surface-input)' }}>
           {run.output ? (
-            <pre style={{ fontSize: 12, color: 'var(--text-2)', fontFamily: 'var(--font-mono)', margin: '0 0 6px', whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.5, maxHeight: 120, overflowY: 'auto' }}>
+            <pre style={{ fontSize: 18, color: 'var(--text-2)', fontFamily: 'var(--font-mono)', margin: '0 0 6px', whiteSpace: 'pre-wrap', wordBreak: 'break-word', lineHeight: 1.5, maxHeight: 120, overflowY: 'auto' }}>
               {run.output}
             </pre>
           ) : run.error ? (
-            <div style={{ fontSize: 12, color: '#f43f5e', marginBottom: 6 }}>{run.error}</div>
+            <div style={{ fontSize: 18, color: '#f43f5e', marginBottom: 6 }}>{run.error}</div>
           ) : null}
           {run.output && (
             <div style={{ display: 'flex', gap: 4 }}>
               <button
                 onClick={() => navigator.clipboard.writeText(run.output!)}
-                style={{ background: 'rgba(255,128,21,0.06)', border: '1px solid rgba(255,128,21,0.15)', borderRadius: 2, padding: '2px 6px', fontSize: 11, color: '#ff8015', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}
+                style={{ background: 'rgba(255,128,21,0.06)', border: '1px solid rgba(255,128,21,0.15)', borderRadius: 2, padding: '2px 6px', fontSize: 16, color: '#ff8015', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}
               >📋 Copy</button>
               <button
                 onClick={() => onAddToNotes(run)}
-                style={{ background: 'rgba(255,128,21,0.06)', border: '1px solid rgba(255,128,21,0.15)', borderRadius: 2, padding: '2px 6px', fontSize: 11, color: '#ff8015', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}
+                style={{ background: 'rgba(255,128,21,0.06)', border: '1px solid rgba(255,128,21,0.15)', borderRadius: 2, padding: '2px 6px', fontSize: 16, color: '#ff8015', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}
               >💬 Add to Notes</button>
             </div>
           )}

@@ -4,7 +4,7 @@ import { useAuth } from '../auth'
 import { useTheme } from '../theme'
 
 export function ProfilePage() {
-  const { username, logout } = useAuth()
+  const { username, isAdmin, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
 
@@ -29,7 +29,7 @@ export function ProfilePage() {
               background: 'var(--surface-input)',
               border: '1px solid var(--border)',
               borderRadius: 6, color: 'var(--text-muted)',
-              padding: '3px 9px', fontSize: 15, lineHeight: 1,
+              padding: '3px 9px', fontSize: 22, lineHeight: 1,
               transition: 'color 0.15s, border-color 0.15s',
             }}
             onMouseEnter={e => { e.currentTarget.style.color = '#ff8015'; e.currentTarget.style.borderColor = 'rgba(255,128,21,0.3)' }}
@@ -37,8 +37,8 @@ export function ProfilePage() {
           >←</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
             <img src="/sabita.jpg" alt="SABITA" style={{ height: 26, borderRadius: 4, display: 'block' }} />
-            <span style={{ color: 'var(--text-dim)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>/</span>
-            <span style={{ color: '#ff8015', fontSize: 14, fontFamily: 'var(--font-mono)' }}>profile</span>
+            <span style={{ color: 'var(--text-dim)', fontSize: 20, fontFamily: 'var(--font-mono)' }}>/</span>
+            <span style={{ color: '#ff8015', fontSize: 21, fontFamily: 'var(--font-mono)' }}>profile</span>
           </div>
         </div>
       </div>
@@ -52,17 +52,17 @@ export function ProfilePage() {
             width: 56, height: 56, borderRadius: '50%',
             background: 'linear-gradient(135deg, #ff8015, #8b5cf6)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 25, fontWeight: 700, color: '#fff',
+            fontSize: 38, fontWeight: 700, color: '#fff',
             fontFamily: 'var(--font-mono)',
             boxShadow: '0 0 20px rgba(255,128,21,0.25)',
           }}>
             {username?.[0]?.toUpperCase() ?? '?'}
           </div>
           <div>
-            <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)' }}>
+            <div style={{ fontSize: 30, fontWeight: 600, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)' }}>
               {username}
             </div>
-            <div style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: 2, letterSpacing: '0.06em' }}>
+            <div style={{ fontSize: 16, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: 2, letterSpacing: '0.06em' }}>
               RESEARCHER
             </div>
           </div>
@@ -83,10 +83,10 @@ export function ProfilePage() {
             borderBottom: '1px solid var(--border-subtle)',
           }}>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-heading)', marginBottom: 2 }}>
+              <div style={{ fontSize: 22, fontWeight: 500, color: 'var(--text-heading)', marginBottom: 2 }}>
                 Appearance
               </div>
-              <div style={{ fontSize: 13, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+              <div style={{ fontSize: 20, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
                 {isDark ? 'DARK MODE' : 'LIGHT MODE'}
               </div>
             </div>
@@ -107,7 +107,7 @@ export function ProfilePage() {
               {/* Track label */}
               <span style={{
                 position: 'absolute', top: '50%', transform: 'translateY(-50%)',
-                fontSize: 10, fontFamily: 'var(--font-mono)', fontWeight: 700,
+                fontSize: 15, fontFamily: 'var(--font-mono)', fontWeight: 700,
                 letterSpacing: '0.04em',
                 left: isDark ? 'auto' : 8,
                 right: isDark ? 8 : 'auto',
@@ -134,19 +134,37 @@ export function ProfilePage() {
             padding: '16px 20px',
           }}>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-heading)', marginBottom: 2 }}>
+              <div style={{ fontSize: 22, fontWeight: 500, color: 'var(--text-heading)', marginBottom: 2 }}>
                 Username
               </div>
-              <div style={{ fontSize: 13, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+              <div style={{ fontSize: 20, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
                 {username}
               </div>
             </div>
             <span style={{
-              fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)',
+              fontSize: 15, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)',
               letterSpacing: '0.06em',
             }}>READ-ONLY</span>
           </div>
         </div>
+
+        {/* Admin: Manage Users */}
+        {isAdmin && (
+          <button
+            onClick={() => navigate('/users')}
+            style={{
+              width: '100%', padding: '11px 0', cursor: 'pointer', marginBottom: 10,
+              background: 'rgba(255,128,21,0.07)',
+              border: '1px solid rgba(255,128,21,0.2)',
+              borderRadius: 8, color: '#ff8015',
+              fontSize: 16, fontWeight: 700, letterSpacing: '0.1em',
+              transition: 'background 0.14s',
+              fontFamily: 'var(--font-mono)',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,128,21,0.14)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,128,21,0.07)' }}
+          >MANAGE USERS</button>
+        )}
 
         {/* Logout */}
         <button
@@ -156,7 +174,7 @@ export function ProfilePage() {
             background: 'rgba(244,63,94,0.07)',
             border: '1px solid rgba(244,63,94,0.18)',
             borderRadius: 8, color: '#f43f5e',
-            fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
+            fontSize: 16, fontWeight: 700, letterSpacing: '0.1em',
             transition: 'background 0.14s',
             fontFamily: 'var(--font-mono)',
           }}
