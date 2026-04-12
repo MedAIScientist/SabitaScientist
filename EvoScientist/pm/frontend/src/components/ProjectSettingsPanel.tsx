@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, Project, Member } from '../api'
 import { useAuth } from '../auth'
+import { PhaseManager } from './PhaseManager'
 
 interface ProjectSettingsPanelProps {
   project: Project
@@ -41,7 +42,7 @@ const inputStyle: React.CSSProperties = {
 }
 
 export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSettingsPanelProps) {
-  const { username } = useAuth()
+  const { username, token } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
@@ -401,6 +402,16 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
         </div>
         {addError && (
           <div style={{ marginTop: 5, fontSize: 15, color: '#f43f5e', fontFamily: 'var(--font-mono)' }}>{addError}</div>
+        )}
+
+        {/* Section 3: Phases */}
+        {token && (
+          <div style={{ borderTop: '1px solid var(--border-subtle)', marginTop: 20, paddingTop: 16 }}>
+            <div style={{ fontSize: 16, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 10 }}>
+              PHASES
+            </div>
+            <PhaseManager projectId={projectId} token={token} />
+          </div>
         )}
       </div>
     </div>
