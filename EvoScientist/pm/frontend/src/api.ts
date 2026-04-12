@@ -225,7 +225,7 @@ export async function listPhases(projectId: string, token: string): Promise<Proj
   if (resp.status === 401) {
     sessionStorage.removeItem('pm_token')
     window.location.href = '/login'
-    return []
+    throw new Error('Session expired')
   }
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ detail: resp.statusText }))
@@ -247,7 +247,7 @@ export async function createPhase(
   if (resp.status === 401) {
     sessionStorage.removeItem('pm_token')
     window.location.href = '/login'
-    return undefined as unknown as ProjectPhase
+    throw new Error('Session expired')
   }
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ detail: resp.statusText }))
@@ -270,7 +270,7 @@ export async function updatePhase(
   if (resp.status === 401) {
     sessionStorage.removeItem('pm_token')
     window.location.href = '/login'
-    return undefined as unknown as ProjectPhase
+    throw new Error('Session expired')
   }
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ detail: resp.statusText }))
@@ -331,7 +331,7 @@ export async function listTaskDependencies(
   if (resp.status === 401) {
     sessionStorage.removeItem('pm_token')
     window.location.href = '/login'
-    return undefined as unknown as DependenciesListResponse
+    throw new Error('Session expired')
   }
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ detail: resp.statusText }))
@@ -355,7 +355,7 @@ export async function addTaskDependency(
   if (resp.status === 401) {
     sessionStorage.removeItem('pm_token')
     window.location.href = '/login'
-    return undefined as unknown as TaskDependency
+    throw new Error('Session expired')
   }
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ detail: resp.statusText }))

@@ -131,6 +131,7 @@ export function DependencyPicker({ projectId, taskId, token, allTasks }: Depende
   const [selectedTaskId, setSelectedTaskId] = useState('')
   const [depType, setDepType] = useState<'hard' | 'soft'>('hard')
   const [addError, setAddError] = useState<string | null>(null)
+  const [removeError, setRemoveError] = useState<string | null>(null)
   const [removingId, setRemovingId] = useState<string | null>(null)
 
   const { data, isLoading, isError } = useQuery({
@@ -156,9 +157,11 @@ export function DependencyPicker({ projectId, taskId, token, allTasks }: Depende
     onSuccess: (_data, dependsOnId) => {
       queryClient.invalidateQueries({ queryKey: ['dependencies', taskId] })
       if (removingId === dependsOnId) setRemovingId(null)
+      setRemoveError(null)
     },
-    onError: () => {
+    onError: (err: Error) => {
       setRemovingId(null)
+      setRemoveError(err instanceof Error ? err.message : 'Failed to remove dependency')
     },
   })
 
@@ -271,6 +274,12 @@ export function DependencyPicker({ projectId, taskId, token, allTasks }: Depende
                   </div>
                 )}
               </div>
+
+              {removeError && (
+                <div style={{ fontSize: 13, color: '#f43f5e', fontFamily: 'var(--font-mono)' }}>
+                  {removeError}
+                </div>
+              )}
 
               {/* Dependents (read-only) */}
               {dependents.length > 0 && (

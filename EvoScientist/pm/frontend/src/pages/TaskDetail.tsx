@@ -248,7 +248,7 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
                   letterSpacing: '0.08em',
                   whiteSpace: 'nowrap',
                   alignSelf: 'center',
-                }}>🔒 BLOCKED</span>
+                }}>BLOCKED</span>
               )}
             </h2>
           )}
