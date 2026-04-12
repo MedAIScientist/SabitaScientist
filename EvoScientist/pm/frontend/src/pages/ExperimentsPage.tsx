@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api, Experiment } from '../api'
+import { api, Experiment, listPhases } from '../api'
 import { ExperimentDetail } from '../components/ExperimentDetail'
+import { useAuth } from '../auth'
 
 const STATUS_COLORS: Record<string, string> = {
   planned: '#f59e0b', running: '#ff8015', completed: '#10b981',
@@ -14,10 +15,12 @@ export function ExperimentsPage() {
   const { id: projectId } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const { token } = useAuth()
   const [selectedExp, setSelectedExp] = useState<Experiment | null>(null)
   const [modal, setModal] = useState<ModalType>(null)
   const [showDropdown, setShowDropdown] = useState(false)
   const [newName, setNewName] = useState('')
+  const [selectedPhaseId, setSelectedPhaseId] = useState<string | null>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -42,6 +45,16 @@ export function ExperimentsPage() {
     queryFn: () => api.listExperiments(projectId!),
     enabled: Boolean(projectId),
   })
+
+  const { data: phases = [] } = useQuery({
+    queryKey: ['phases', projectId],
+    queryFn: () => listPhases(projectId!, token!),
+    enabled: Boolean(projectId) && Boolean(token),
+  })
+
+  const filteredExperiments = selectedPhaseId === null
+    ? experiments
+    : experiments.filter(e => e.phase_id === selectedPhaseId)
 
   const createExperimentMutation = useMutation({
     mutationFn: () => api.createExperiment(projectId!, { name: newName.trim() }),
@@ -221,13 +234,34 @@ export function ExperimentsPage() {
 
       {/* Experiment grid */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 24 }}>
-        {experiments.length === 0 ? (
+        {/* Phase filter chips */}
+        {phases.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 18 }}>
+            <PhaseChip
+              label="All"
+              color="#64748b"
+              active={selectedPhaseId === null}
+              onClick={() => setSelectedPhaseId(null)}
+            />
+            {phases.map(phase => (
+              <PhaseChip
+                key={phase.id}
+                label={phase.name}
+                color={phase.color}
+                active={selectedPhaseId === phase.id}
+                onClick={() => setSelectedPhaseId(phase.id)}
+              />
+            ))}
+          </div>
+        )}
+
+        {filteredExperiments.length === 0 ? (
           <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontSize: 20, marginTop: 60 }}>
-            NO EXPERIMENTS YET
+            {experiments.length === 0 ? 'NO EXPERIMENTS YET' : 'NO EXPERIMENTS IN THIS PHASE'}
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
-            {experiments.map(exp => (
+            {filteredExperiments.map(exp => (
               <ExperimentCard key={exp.id} exp={exp} onClick={() => setSelectedExp(exp)} />
             ))}
           </div>
@@ -273,6 +307,41 @@ function DropdownItem({
           {sub}
         </div>
       </div>
+    </button>
+  )
+}
+
+function PhaseChip({
+  label, color, active, onClick,
+}: {
+  label: string; color: string; active: boolean; onClick: () => void
+}) {
+  const [hovered, setHovered] = useState(false)
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 5,
+        padding: '3px 10px', borderRadius: 20,
+        border: active ? `1px solid ${color}` : '1px solid var(--border-subtle)',
+        background: active ? `${color}22` : hovered ? 'var(--surface-card-hover)' : 'var(--surface-input)',
+        color: active ? color : hovered ? 'var(--text)' : 'var(--text-muted)',
+        fontSize: 15, fontFamily: 'var(--font-mono)', fontWeight: active ? 700 : 400,
+        cursor: 'pointer', transition: 'all 0.12s', letterSpacing: '0.04em',
+        outline: 'none',
+      }}
+    >
+      {label !== 'All' && (
+        <span style={{
+          width: 7, height: 7, borderRadius: '50%',
+          background: color,
+          boxShadow: active ? `0 0 5px ${color}` : 'none',
+          flexShrink: 0,
+        }} />
+      )}
+      {label}
     </button>
   )
 }
