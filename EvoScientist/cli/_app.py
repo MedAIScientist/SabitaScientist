@@ -1,4 +1,5 @@
 """Typer application objects — no intra-package imports to avoid circular deps."""
+from __future__ import annotations
 
 import typer  # type: ignore[import-untyped]
 
@@ -51,3 +52,52 @@ app.add_typer(mcp_app, name="mcp")
 # Channel subcommand group
 channel_app = typer.Typer(help="Channel management commands")
 app.add_typer(channel_app, name="channel")
+
+
+@app.command()
+def dashboard(
+    port: int = typer.Option(7860, "--port", help="Port to run the PM server on"),
+    host: str = typer.Option("127.0.0.1", "--host", help="Host to bind the PM server to"),
+    runner_port: int = typer.Option(8001, "--runner-port", help="Port for the runner service"),
+    open: bool = typer.Option(True, "--open/--no-open", help="Open browser after starting"),
+) -> None:
+    """Start the project management dashboard (+ EvoScientist runner service)."""
+    import os
+    import threading
+
+    import uvicorn
+
+    from EvoScientist.pm.api.app import create_app
+    from EvoScientist.pm.runner.main import create_runner_app
+
+    # Start runner service in a background daemon thread
+    runner_server = uvicorn.Server(
+        uvicorn.Config(
+            create_runner_app(),
+            host="127.0.0.1",
+            port=runner_port,
+            log_level="error",
+        )
+    )
+
+    def _start_runner() -> None:
+        import asyncio
+        asyncio.run(runner_server.serve())
+
+    runner_thread = threading.Thread(target=_start_runner, daemon=True)
+    runner_thread.start()
+
+    # Tell PM backend where the runner lives
+    os.environ["RUNNER_URL"] = f"http://127.0.0.1:{runner_port}"
+
+    if open:
+        import time
+        import webbrowser
+
+        def _open_browser() -> None:
+            time.sleep(1.5)
+            webbrowser.open(f"http://{host}:{port}")
+
+        threading.Thread(target=_open_browser, daemon=True).start()
+
+    uvicorn.run(create_app(), host=host, port=port, log_level="info")
