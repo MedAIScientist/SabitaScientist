@@ -102,6 +102,7 @@ def update_task(
     priority: str | None = None,
     deadline: str | None = None,
     session_id: str | None = None,
+    phase_id: str | None = None,
 ) -> Task:
     """Update task fields. Omitted fields are unchanged."""
     task = get_task(db_path, task_id)
@@ -118,7 +119,7 @@ def update_task(
         priority=priority if priority is not None else task.priority,
         deadline=deadline if deadline is not None else task.deadline,
         session_id=session_id if session_id is not None else task.session_id,
-        phase_id=task.phase_id,
+        phase_id=phase_id if phase_id is not None else task.phase_id,
         created_by=task.created_by,
         created_at=task.created_at,
         updated_at=now,
@@ -126,7 +127,7 @@ def update_task(
     with get_db(db_path) as conn:
         conn.execute(
             """UPDATE tasks SET title=?, description=?, assignee_id=?, status=?,
-               priority=?, deadline=?, session_id=?, updated_at=? WHERE id=?""",
+               priority=?, deadline=?, session_id=?, phase_id=?, updated_at=? WHERE id=?""",
             (
                 new.title,
                 new.description,
@@ -135,6 +136,7 @@ def update_task(
                 new.priority,
                 new.deadline,
                 new.session_id,
+                new.phase_id,
                 now,
                 task_id,
             ),

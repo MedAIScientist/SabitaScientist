@@ -190,8 +190,9 @@ def create_schema(db_path: Path | None = None) -> None:
         for migration in _MIGRATIONS:
             try:
                 conn.execute(migration)
-            except sqlite3.OperationalError:
-                pass  # column already exists
+            except sqlite3.OperationalError as exc:
+                if "duplicate column" not in str(exc).lower():
+                    raise
         conn.commit()
     finally:
         conn.close()
