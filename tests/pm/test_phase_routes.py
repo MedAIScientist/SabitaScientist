@@ -155,3 +155,25 @@ def test_assign_task_to_phase(client, admin_token) -> None:
         headers={"Authorization": f"Bearer {admin_token}"},
     )
     assert resp.status_code == 200
+
+
+def test_update_phase_clear_target_date(client, admin_token) -> None:
+    project_id = _create_project(client, admin_token)
+
+    # Create phase with a target_date
+    r = client.post(
+        f"/api/v1/projects/{project_id}/phases",
+        json={"name": "Dated Phase", "target_date": "2025-12-31"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert r.status_code == 201
+    phase_id = r.json()["id"]
+
+    # Clear the date via PATCH with explicit null
+    r = client.patch(
+        f"/api/v1/projects/{project_id}/phases/{phase_id}",
+        json={"target_date": None},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert r.status_code == 200
+    assert r.json()["target_date"] is None

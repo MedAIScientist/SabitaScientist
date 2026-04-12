@@ -95,7 +95,7 @@ def update_existing_phase(
     phase = get_phase(get_db_path(), phase_id)
     if not phase or phase.project_id != project_id:
         raise HTTPException(status_code=404, detail="Phase not found")
-    kwargs = {k: v for k, v in body.model_dump().items() if v is not None}
+    kwargs = {k: v for k, v in body.model_dump().items() if k in body.model_fields_set}
     updated = update_phase(get_db_path(), phase_id, **kwargs)
     return _phase_to_response(updated)
 
