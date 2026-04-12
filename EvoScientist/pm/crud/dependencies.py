@@ -32,6 +32,7 @@ def _has_cycle(conn: sqlite3.Connection, start_task_id: str) -> bool:
     rows = conn.execute(
         "SELECT task_id, depends_on_id FROM task_dependencies"
     ).fetchall()
+    # TODO(perf): for large graphs, consider lazy neighbor-fetch per node
     graph: dict[str, list[str]] = {}
     for row in rows:
         graph.setdefault(row["task_id"], []).append(row["depends_on_id"])
@@ -71,12 +72,22 @@ def add_dependency(
 
     now = datetime.now(UTC).isoformat()
     with get_db(db_path) as conn:
-        conn.execute(
-            """INSERT INTO task_dependencies
-               (task_id, depends_on_id, dep_type, created_by, created_at)
-               VALUES (?, ?, ?, ?, ?)""",
-            (task_id, depends_on_id, dep_type, created_by, now),
-        )
+        try:
+            conn.execute(
+                """INSERT INTO task_dependencies
+                   (task_id, depends_on_id, dep_type, created_by, created_at)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (task_id, depends_on_id, dep_type, created_by, now),
+            )
+        except sqlite3.IntegrityError as exc:
+            if "unique" in str(exc).lower() or "primary" in str(exc).lower():
+                raise ValueError(
+                    f"Dependency {task_id!r} -> {depends_on_id!r} already exists"
+                ) from exc
+            raise
+        # Cycle check runs against the DB including the new edge.
+        # If a cycle is found, the raised ValueError causes get_db's
+        # context manager to rollback the INSERT automatically.
         if _has_cycle(conn, task_id):
             raise ValueError("Adding this dependency would create a cycle")
 

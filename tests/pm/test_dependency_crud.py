@@ -81,6 +81,9 @@ def test_add_dependency_cycle(db_path):
     with pytest.raises(ValueError, match="cycle"):
         add_dependency(db_path, task_id="tC", depends_on_id="tA",
                        dep_type="hard", created_by="u1")
+    # Verify the cyclic edge was NOT persisted (rollback worked)
+    deps = list_dependencies(db_path, task_id="tC")
+    assert len(deps) == 0
 
 
 def test_remove_dependency(db_path):
@@ -127,3 +130,29 @@ def test_get_blocked_by(db_path):
     blocked = get_blocked_by(db_path, task_id="tA")
     # Only hard deps should be returned
     assert blocked == ["tB"]
+
+
+def test_add_dependency_duplicate(db_path):
+    add_dependency(db_path, task_id="tA", depends_on_id="tB", dep_type="hard", created_by="u1")
+    with pytest.raises(ValueError, match="already exists"):
+        add_dependency(db_path, task_id="tA", depends_on_id="tB", dep_type="hard", created_by="u1")
+
+
+def test_diamond_dependency_no_cycle(db_path):
+    """Diamond shape A->B, A->C, B->D, C->D should not be treated as a cycle."""
+    # Insert a 4th task
+    import sqlite3 as _sqlite3
+    conn = _sqlite3.connect(db_path)
+    conn.execute(
+        """INSERT INTO tasks (id, project_id, title, status, priority, created_by, created_at, updated_at)
+           VALUES (?,?,?,?,?,?,?,?)""",
+        ("tD", "p1", "Task D", "todo", "medium", "u1", "2024-01-01T00:00:00", "2024-01-01T00:00:00"),
+    )
+    conn.commit()
+    conn.close()
+
+    add_dependency(db_path, task_id="tA", depends_on_id="tB", dep_type="hard", created_by="u1")
+    add_dependency(db_path, task_id="tA", depends_on_id="tC", dep_type="hard", created_by="u1")
+    add_dependency(db_path, task_id="tB", depends_on_id="tD", dep_type="hard", created_by="u1")
+    dep = add_dependency(db_path, task_id="tC", depends_on_id="tD", dep_type="hard", created_by="u1")
+    assert dep.depends_on_id == "tD"
