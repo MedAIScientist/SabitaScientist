@@ -138,3 +138,15 @@ class TaskDependency:
     dep_type: str
     created_by: str
     created_at: str
+
+
+@dataclass
+class Attachment:
+    id: str
+    entry_id: str
+    filename: str
+    s3_key: str
+    content_type: str
+    size_bytes: int
+    created_at: str
+    uploaded_by: str | None = None

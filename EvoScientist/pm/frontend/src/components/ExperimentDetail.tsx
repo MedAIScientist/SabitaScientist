@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, Experiment, ExperimentEntry, Task } from '../api'
 import { EntryEditor } from './EntryEditor'
 import { AiAssistPanel } from './AiAssistPanel'
+import { AttachmentList } from './AttachmentList'
 
 const STATUS_META: Record<string, { color: string; label: string }> = {
   planned:   { color: '#f59e0b', label: 'PLANNED' },
@@ -200,6 +201,8 @@ export function ExperimentDetail({ experiment, projectId, onClose }: Props) {
             onSaveEdit={(data: { title: string; body: string }) => editingEntry && updateEntryMutation.mutate({ id: editingEntry.id, data })}
             onCancelEditor={() => { setShowEditor(false); setEditingEntry(null); setPendingEntryBody(null) }}
             pendingBody={pendingEntryBody?.type === (tab === 'notes' ? 'note' : 'result') ? pendingEntryBody.text : undefined}
+            projectId={projectId}
+            expId={experiment.id}
           />
         )}
       </div>
@@ -318,6 +321,7 @@ function OverviewTab({
 function EntriesTab({
   entries, type, editingEntry, showEditor,
   onAdd, onEdit, onDelete, onSaveNew, onSaveEdit, onCancelEditor, pendingBody,
+  projectId, expId,
 }: {
   entries: ExperimentEntry[]
   type: 'note' | 'result'
@@ -330,6 +334,8 @@ function EntriesTab({
   onSaveEdit: (data: { title: string; body: string }) => void
   onCancelEditor: () => void
   pendingBody?: string
+  projectId: string
+  expId: string
 }) {
   const [expanded, setExpanded] = useState<string | null>(null)
   const label = type === 'note' ? 'NOTE' : 'RESULT'
@@ -395,7 +401,13 @@ function EntriesTab({
                   ) : (
                     <p style={{ fontSize: 15, color: 'var(--text-dim)', margin: '0 0 8px' }}>No content.</p>
                   )}
-                  <div style={{ display: 'flex', gap: 4 }}>
+                  <AttachmentList
+                    projectId={projectId}
+                    expId={expId}
+                    entryId={entry.id}
+                    accent={accent}
+                  />
+                  <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
                     <button onClick={() => onEdit(entry)} style={{ fontSize: 18, color: '#ff8015', background: 'rgba(255,128,21,0.06)', border: '1px solid rgba(255,128,21,0.15)', borderRadius: 2, padding: '2px 6px', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>✏ Edit</button>
                     <button onClick={() => onDelete(entry.id)} style={{ fontSize: 18, color: '#f43f5e', background: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.15)', borderRadius: 2, padding: '2px 6px', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>✕ Delete</button>
                   </div>
