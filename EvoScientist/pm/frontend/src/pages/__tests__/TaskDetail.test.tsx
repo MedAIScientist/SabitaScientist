@@ -1,4 +1,5 @@
-import { render, screen, fireEvent, act } from '@testing-library/react'
+// EvoScientist/pm/frontend/src/pages/__tests__/TaskDetail.test.tsx
+import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 
 // ── TanStack Query mocks ──────────────────────────────────────────────────────
@@ -11,19 +12,39 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: vi.fn(() => ({ invalidateQueries: mockInvalidateQueries })),
 }))
 
-// ── AiRunsTab mock ───────────────────────────────────────────────────────────
-vi.mock('../components/AiRunsTab', () => ({
-  AiRunsTab: ({ task }: { task: { title: string } }) => (
-    <div data-testid="ai-runs-tab">
-      <span>Research</span>
-      <span>AI tab for {task.title}</span>
+// ── Child component mocks ─────────────────────────────────────────────────────
+vi.mock('../../components/task/TaskDetailView', () => ({
+  TaskDetailView: ({ task }: { task: { title: string; blocked_by?: string[] } }) => (
+    <div data-testid="details-tab">
+      <span>{task.title}</span>
+      {task.blocked_by?.length ? <span>BLOCKED</span> : null}
     </div>
   ),
 }))
 
-// ── API mock ──────────────────────────────────────────────────────────────────
+vi.mock('../../components/task/LabNotesTab', () => ({
+  LabNotesTab: () => <div data-testid="notes-tab">Notes</div>,
+}))
+
+vi.mock('../../components/task/TaskEditForm', () => ({
+  TaskEditForm: ({ editTitle }: { editTitle: string }) => (
+    <div data-testid="edit-tab">
+      <input defaultValue={editTitle} />
+    </div>
+  ),
+}))
+
+vi.mock('../../components/AiRunsTab', () => ({
+  AiRunsTab: () => <div data-testid="ai-runs-tab">AI Runs</div>,
+}))
+
+vi.mock('../../auth', () => ({
+  useAuth: vi.fn(() => ({ token: 'test-token' })),
+}))
+
 vi.mock('../../api', () => ({
   api: {
+    listTasks: vi.fn(),
     listComments: vi.fn(),
     addComment: vi.fn(),
     updateTask: vi.fn(),
@@ -33,150 +54,75 @@ vi.mock('../../api', () => ({
 
 import React from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
-import { Task, Member } from '../../api'
+import type { Task, Member } from '../../api'
 import { TaskDetail } from '../TaskDetail'
 
-// ── Sample data ───────────────────────────────────────────────────────────────
 const MEMBERS: Member[] = [
   { user_id: 'u1', username: 'alice', role: 'member', added_at: '2026-01-01' },
-  { user_id: 'u2', username: 'bob', role: 'admin', added_at: '2026-01-01' },
 ]
 
-const FUTURE_DATE = '2099-12-31'
-const PAST_DATE = '2020-01-01'
-
 const MOCK_TASK: Task = {
-  id: 'task-1',
-  project_id: 'proj-1',
+  id: 'task-1', project_id: 'proj-1',
   title: 'Design primer sequences',
   description: 'Use BLAST to verify specificity',
-  assignee_id: null,
-  status: 'todo',
-  priority: 'high',
-  deadline: FUTURE_DATE,
-  session_id: null,
-  created_by: 'u1',
-  created_at: '2026-01-01T00:00:00Z',
-  updated_at: '2026-01-01T00:00:00Z',
+  assignee_id: null, status: 'todo', priority: 'high',
+  deadline: '2099-12-31', session_id: null,
+  created_by: 'u1', created_at: '2026-01-01', updated_at: '2026-01-01',
 }
 
-const OVERDUE_TASK: Task = {
-  ...MOCK_TASK,
-  id: 'task-overdue',
-  title: 'Submit sequencing order',
-  deadline: PAST_DATE,
-  status: 'in_progress',
-  priority: 'medium',
-}
-
-const onClose = vi.fn()
-
-function renderDetail(task: Task = MOCK_TASK) {
-  return render(
-    <TaskDetail
-      task={task}
-      projectId="proj-1"
-      onClose={onClose}
-      members={MEMBERS}
-    />
-  )
-}
-
-// ── Setup mocks before each test ──────────────────────────────────────────────
 beforeEach(() => {
   vi.clearAllMocks()
-
   vi.mocked(useQuery).mockReturnValue({ data: [] } as any)
-
-  vi.mocked(useMutation).mockReturnValue({
-    mutate: mockMutate,
-    isPending: false,
-  } as any)
+  vi.mocked(useMutation).mockReturnValue({ mutate: mockMutate, isPending: false } as any)
 })
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
 describe('TaskDetail', () => {
-  test('renders task title in view mode', () => {
-    renderDetail()
-    expect(screen.getByText('Design primer sequences')).toBeInTheDocument()
-  })
-
-  test('renders EDIT button in header', () => {
-    renderDetail()
-    expect(screen.getByRole('button', { name: /EDIT/i })).toBeInTheDocument()
-  })
-
-  test('clicking EDIT shows title input with current value', () => {
-    renderDetail()
-    fireEvent.click(screen.getByRole('button', { name: /EDIT/i }))
-    const titleInput = screen.getByDisplayValue('Design primer sequences')
-    expect(titleInput).toBeInTheDocument()
-    expect(titleInput.tagName).toBe('INPUT')
-  })
-
-  test('clicking CANCEL in edit mode returns to view mode', () => {
-    renderDetail()
-    // Enter edit mode
-    fireEvent.click(screen.getByRole('button', { name: /EDIT/i }))
-    expect(screen.getByDisplayValue('Design primer sequences')).toBeInTheDocument()
-
-    // Click CANCEL
-    fireEvent.click(screen.getByRole('button', { name: /CANCEL/i }))
-
-    // Should be back to view mode (input gone, title text visible)
-    expect(screen.queryByDisplayValue('Design primer sequences')).toBeNull()
-    expect(screen.getByText('Design primer sequences')).toBeInTheDocument()
-  })
-
-  test('renders status select with correct options (PLANNED/IN PROGRESS/COMPLETE) in edit mode', () => {
-    renderDetail()
-    fireEvent.click(screen.getByRole('button', { name: /EDIT/i }))
-
-    const options = screen.getAllByRole('option')
-    const optionTexts = options.map(o => o.textContent)
-    expect(optionTexts).toContain('PLANNED')
-    expect(optionTexts).toContain('IN PROGRESS')
-    expect(optionTexts).toContain('COMPLETE')
-  })
-
-  test('renders DELETE button in edit mode', () => {
-    renderDetail()
-    fireEvent.click(screen.getByRole('button', { name: /EDIT/i }))
-    expect(screen.getByRole('button', { name: /DELETE/i })).toBeInTheDocument()
-  })
-
-  test('clicking DELETE once changes button to "CONFIRM DELETE ?"', () => {
-    renderDetail()
-    fireEvent.click(screen.getByRole('button', { name: /EDIT/i }))
-    const deleteBtn = screen.getByRole('button', { name: /^DELETE$/i })
-    fireEvent.click(deleteBtn)
-    expect(screen.getByRole('button', { name: /CONFIRM DELETE/i })).toBeInTheDocument()
-  })
-
-  test('renders DETAILS and AI RUNS tabs', () => {
-    render(<TaskDetail task={MOCK_TASK} projectId="p1" onClose={() => {}} members={[]} />)
-    expect(screen.getByRole('button', { name: /DETAILS/i })).toBeInTheDocument()
+  test('renders all four tabs', () => {
+    render(<TaskDetail task={MOCK_TASK} projectId="p1" onClose={vi.fn()} members={MEMBERS} />)
+    expect(screen.getByRole('button', { name: /^DETAILS$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^NOTES$/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /AI RUNS/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^EDIT$/i })).toBeInTheDocument()
   })
 
-  test('shows AiRunsTab when AI RUNS tab is clicked', () => {
-    render(<TaskDetail task={MOCK_TASK} projectId="p1" onClose={() => {}} members={[]} />)
+  test('shows DETAILS tab by default', () => {
+    render(<TaskDetail task={MOCK_TASK} projectId="p1" onClose={vi.fn()} members={MEMBERS} />)
+    expect(screen.getByTestId('details-tab')).toBeInTheDocument()
+    expect(screen.queryByTestId('notes-tab')).toBeNull()
+  })
+
+  test('switches to NOTES tab', () => {
+    render(<TaskDetail task={MOCK_TASK} projectId="p1" onClose={vi.fn()} members={MEMBERS} />)
+    fireEvent.click(screen.getByRole('button', { name: /^NOTES$/i }))
+    expect(screen.getByTestId('notes-tab')).toBeInTheDocument()
+    expect(screen.queryByTestId('details-tab')).toBeNull()
+  })
+
+  test('switches to AI RUNS tab', () => {
+    render(<TaskDetail task={MOCK_TASK} projectId="p1" onClose={vi.fn()} members={MEMBERS} />)
     fireEvent.click(screen.getByRole('button', { name: /AI RUNS/i }))
-    // AiRunsTab renders the agent buttons
-    expect(screen.getByText(/Research/i)).toBeInTheDocument()
+    expect(screen.getByTestId('ai-runs-tab')).toBeInTheDocument()
   })
 
-  test('overdue task shows deadline badge with rose color', () => {
-    renderDetail(OVERDUE_TASK)
-    // Find the deadline badge — it should display the past date
-    const badges = screen.getAllByText((content) => content.includes(PAST_DATE))
-    // The deadline badge element should have rose-colored styling
-    const deadlineBadge = badges.find(el =>
-      el.tagName === 'SPAN' && el.textContent?.includes(PAST_DATE)
+  test('switches to EDIT tab', () => {
+    render(<TaskDetail task={MOCK_TASK} projectId="p1" onClose={vi.fn()} members={MEMBERS} />)
+    fireEvent.click(screen.getByRole('button', { name: /^EDIT$/i }))
+    expect(screen.getByTestId('edit-tab')).toBeInTheDocument()
+  })
+
+  test('close button calls onClose', () => {
+    const onClose = vi.fn()
+    render(<TaskDetail task={MOCK_TASK} projectId="p1" onClose={onClose} members={MEMBERS} />)
+    fireEvent.click(screen.getByRole('button', { name: /✕/i }))
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  test('clicking overlay calls onClose', () => {
+    const onClose = vi.fn()
+    const { container } = render(
+      <TaskDetail task={MOCK_TASK} projectId="p1" onClose={onClose} members={MEMBERS} />
     )
-    expect(deadlineBadge).not.toBeUndefined()
-    // Check for rose color styling (#f43f5e → rgb(244, 63, 94) after jsdom normalization)
-    const style = deadlineBadge!.getAttribute('style') ?? ''
-    expect(style).toMatch(/f43f5e|rgb\(244,\s*63,\s*94\)/i)
+    fireEvent.click(container.firstChild as Element)
+    expect(onClose).toHaveBeenCalled()
   })
 })
