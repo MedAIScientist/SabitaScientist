@@ -133,7 +133,7 @@ export function TaskEditForm({
           letterSpacing: '0.08em', fontFamily: 'var(--font-mono)',
           transition: 'all 0.18s',
         }}
-      >{deleteConfirm ? 'CONFIRM DELETE ?' : 'DELETE'}</button>
+      >{deleteConfirm ? 'CONFIRM DELETE' : 'DELETE'}</button>
     </div>
   )
 }
