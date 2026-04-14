@@ -13,7 +13,7 @@ import { DraggableCard } from '../DraggableCard'
 import type { Task } from '../../../api'
 
 const COL = {
-  key: 'todo',
+  key: 'todo' as const,
   label: 'PLANNED',
   accent: '#ff8015',
   glow: '255,128,21',
