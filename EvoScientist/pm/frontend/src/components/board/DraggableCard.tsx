@@ -32,10 +32,13 @@ export interface DraggableCardProps {
   onCardClick: (task: Task) => void
   onEditClick: (task: Task, rect: DOMRect) => void
   members: { user_id: string; username: string }[]
+  isSelected: boolean
+  onToggleSelect: (taskId: string) => void
 }
 
 export function DraggableCard({
   task, col, idx, activeTaskId, onCardClick, onEditClick, members,
+  isSelected, onToggleSelect,
 }: DraggableCardProps) {
   const [isHovered, setIsHovered] = useState(false)
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: String(task.id) })
@@ -51,7 +54,7 @@ export function DraggableCard({
 
   const cardStyle: React.CSSProperties = {
     background: 'var(--surface-card)',
-    border: '1px solid var(--border-subtle)',
+    border: isSelected ? '1px solid rgba(255,128,21,0.45)' : '1px solid var(--border-subtle)',
     borderLeft: overdue ? '3px solid #f43f5e' : undefined,
     borderRadius: 7,
     padding: '11px 13px',
@@ -89,6 +92,27 @@ export function DraggableCard({
         el.style.boxShadow = ''
       }}
     >
+      {/* Selection checkbox (shown when hovered or selected) */}
+      {(isHovered || isSelected) && (
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={() => {}}
+          onPointerDown={e => e.stopPropagation()}
+          onClick={e => {
+            e.stopPropagation()
+            onToggleSelect(task.id)
+          }}
+          style={{
+            position: 'absolute',
+            top: 8,
+            left: 8,
+            accentColor: '#ff8015',
+            zIndex: 2,
+          }}
+        />
+      )}
+
       {/* Edit icon (shown on hover) */}
       {isHovered && (
         <button
