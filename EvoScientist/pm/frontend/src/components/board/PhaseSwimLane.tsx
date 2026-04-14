@@ -34,6 +34,8 @@ export interface PhaseSwimLaneProps {
   onEditClick: (task: Task, rect: DOMRect) => void
   onExpClick: (exp: Experiment) => void
   members: { user_id: string; username: string }[]
+  selectedIds: Set<string>
+  onToggleSelect: (taskId: string) => void
 }
 
 export function PhaseSwimLane({
@@ -41,6 +43,7 @@ export function PhaseSwimLane({
   addingToCol, newTaskTitle, onNewTaskTitleChange,
   onAddStart, onAddCancel, onAddSubmit,
   onCardClick, onEditClick, onExpClick, members,
+  selectedIds, onToggleSelect,
 }: PhaseSwimLaneProps) {
   const totalTasks = tasks.length
   const doneTasks = tasks.filter(t => t.status === 'done').length
@@ -145,6 +148,8 @@ export function PhaseSwimLane({
               onEditClick={onEditClick}
               onExpClick={onExpClick}
               members={members}
+              selectedIds={selectedIds}
+              onToggleSelect={onToggleSelect}
             />
           )
         })}

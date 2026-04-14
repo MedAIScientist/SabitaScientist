@@ -97,6 +97,8 @@ export interface DroppableColumnProps {
   onEditClick: (task: Task, rect: DOMRect) => void
   onExpClick: (exp: Experiment) => void
   members: { user_id: string; username: string }[]
+  selectedIds: Set<string>
+  onToggleSelect: (taskId: string) => void
 }
 
 export function DroppableColumn({
@@ -104,6 +106,7 @@ export function DroppableColumn({
   addingToCol, newTaskTitle, onNewTaskTitleChange,
   onAddStart, onAddCancel, onAddSubmit,
   onCardClick, onEditClick, onExpClick, members,
+  selectedIds, onToggleSelect,
 }: DroppableColumnProps) {
   const { setNodeRef } = useDroppable({ id: col.key })
 
@@ -174,6 +177,8 @@ export function DroppableColumn({
             onCardClick={onCardClick}
             onEditClick={onEditClick}
             members={members}
+            isSelected={selectedIds.has(task.id)}
+            onToggleSelect={onToggleSelect}
           />
         ))}
 
