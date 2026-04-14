@@ -81,14 +81,16 @@ export function DraggableCard({
         el.style.transform = CSS.Transform.toString(transform)
           ? CSS.Transform.toString(transform)!
           : 'translateY(-2px)'
-        el.style.borderColor = overdue ? '#f43f5e' : `rgba(${col.glow},0.3)`
+        if (!isSelected) {
+          el.style.borderColor = overdue ? '#f43f5e' : `rgba(${col.glow},0.3)`
+        }
         el.style.boxShadow = `0 5px 18px rgba(0,0,0,0.28), 0 0 0 1px rgba(${col.glow},0.12)`
       }}
       onMouseLeave={e => {
         setIsHovered(false)
         const el = e.currentTarget
         el.style.transform = CSS.Transform.toString(transform) ?? ''
-        el.style.borderColor = overdue ? '#f43f5e' : 'var(--border-subtle)'
+        el.style.borderColor = isSelected ? 'rgba(255,128,21,0.45)' : (overdue ? '#f43f5e' : 'var(--border-subtle)')
         el.style.boxShadow = ''
       }}
     >
@@ -97,7 +99,7 @@ export function DraggableCard({
         <input
           type="checkbox"
           checked={isSelected}
-          onChange={() => {}}
+          readOnly
           onPointerDown={e => e.stopPropagation()}
           onClick={e => {
             e.stopPropagation()
