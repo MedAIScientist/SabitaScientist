@@ -32,6 +32,7 @@ const selectStyle: React.CSSProperties = {
 export function BulkActionBar({ count, phases, onStatusChange, onPhaseChange, onClear }: Props) {
   const [statusVal, setStatusVal] = useState('')
   const [phaseVal, setPhaseVal] = useState('')
+  const [clearHovered, setClearHovered] = useState(false)
 
   return (
     <div style={{
@@ -100,19 +101,20 @@ export function BulkActionBar({ count, phases, onStatusChange, onPhaseChange, on
 
       <button
         onClick={onClear}
+        onMouseEnter={() => setClearHovered(true)}
+        onMouseLeave={() => setClearHovered(false)}
         style={{
           padding: '5px 10px',
           background: 'none',
           border: '1px solid var(--border)',
           borderRadius: 6,
-          color: 'var(--text-dim)',
           fontSize: 20,
           cursor: 'pointer',
           fontFamily: 'var(--font-mono)',
           transition: 'border-color 0.14s, color 0.14s',
+          borderColor: clearHovered ? 'rgba(244,63,94,0.4)' : 'var(--border)',
+          color: clearHovered ? '#f43f5e' : 'var(--text-dim)',
         }}
-        onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(244,63,94,0.4)'; e.currentTarget.style.color = '#f43f5e' }}
-        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-dim)' }}
       >✕ Clear</button>
     </div>
   )
