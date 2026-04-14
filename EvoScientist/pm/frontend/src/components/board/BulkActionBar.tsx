@@ -80,13 +80,13 @@ export function BulkActionBar({ count, phases, onStatusChange, onPhaseChange, on
         defaultValue=""
         onChange={e => {
           const val = e.target.value
-          onPhaseChange(val === '' ? null : val)
+          onPhaseChange(val === '__none__' ? null : val)
           e.target.value = ''
         }}
         style={selectStyle}
       >
         <option value="" disabled>Set phase…</option>
-        <option value="">No phase</option>
+        <option value="__none__">No phase</option>
         {phases.map(p => (
           <option key={p.id} value={p.id}>{p.name}</option>
         ))}

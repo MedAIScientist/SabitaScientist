@@ -56,7 +56,7 @@ describe('BulkActionBar', () => {
     expect(onPhaseChange).toHaveBeenCalledWith('ph1')
   })
 
-  test('phase dropdown calls onPhaseChange with null for empty value', () => {
+  test('phase dropdown calls onPhaseChange with null when No phase is selected', () => {
     const onPhaseChange = vi.fn()
     render(
       <BulkActionBar
@@ -68,7 +68,7 @@ describe('BulkActionBar', () => {
       />
     )
     fireEvent.change(screen.getByTestId('bulk-phase-select'), {
-      target: { value: '' },
+      target: { value: '__none__' },
     })
     expect(onPhaseChange).toHaveBeenCalledWith(null)
   })
