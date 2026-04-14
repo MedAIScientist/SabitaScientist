@@ -11,6 +11,7 @@ import { CardEditPopover } from '../components/CardEditPopover'
 import { ProjectSettingsPanel } from '../components/ProjectSettingsPanel'
 import { DroppableColumn } from '../components/board/DroppableColumn'
 import { PhaseSwimLane } from '../components/board/PhaseSwimLane'
+import { BulkActionBar } from '../components/board/BulkActionBar'
 import { useTaskFilters } from '../hooks/useTaskFilters'
 import { useAuth } from '../auth'
 import { useTheme } from '../theme'
@@ -48,6 +49,7 @@ export function Board() {
   const [editingTask,  setEditingTask]    = useState<Task | null>(null)
   const [editAnchorRect, setEditAnchorRect] = useState<DOMRect | null>(null)
   const [settingsPanelOpen, setSettingsPanelOpen] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
@@ -144,6 +146,22 @@ export function Board() {
     setEditingTask(task)
     setEditAnchorRect(rect)
   }, [])
+
+  const toggleSelect = useCallback((taskId: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      next.has(taskId) ? next.delete(taskId) : next.add(taskId)
+      return next
+    })
+  }, [])
+
+  const applyBulkUpdate = useCallback(async (updates: Partial<Task>) => {
+    await Promise.all(
+      [...selectedIds].map(id => api.updateTask(projectId!, id, updates))
+    )
+    queryClient.invalidateQueries({ queryKey: ['tasks', projectId] })
+    setSelectedIds(new Set())
+  }, [selectedIds, projectId, queryClient])
 
   return (
     <div style={{ background: 'var(--bg)', height: '100vh', display: 'flex', flexDirection: 'column', color: 'var(--text)' }}>
@@ -341,6 +359,8 @@ export function Board() {
                   onEditClick={handleEditClick}
                   onExpClick={handleExpClick}
                   members={project?.members ?? []}
+                  selectedIds={selectedIds}
+                  onToggleSelect={toggleSelect}
                 />
               )
             })}
@@ -394,6 +414,8 @@ export function Board() {
                   onEditClick={handleEditClick}
                   onExpClick={handleExpClick}
                   members={project?.members ?? []}
+                  selectedIds={selectedIds}
+                  onToggleSelect={toggleSelect}
                 />
               )
             })}
@@ -421,6 +443,8 @@ export function Board() {
                   onEditClick={handleEditClick}
                   onExpClick={handleExpClick}
                   members={project?.members ?? []}
+                  selectedIds={selectedIds}
+                  onToggleSelect={toggleSelect}
                 />
               )
             })()}
@@ -461,6 +485,16 @@ export function Board() {
           project={project}
           projectId={projectId!}
           onClose={() => setSettingsPanelOpen(false)}
+        />
+      )}
+
+      {selectedIds.size > 0 && (
+        <BulkActionBar
+          count={selectedIds.size}
+          phases={phases}
+          onStatusChange={status => applyBulkUpdate({ status })}
+          onPhaseChange={phaseId => applyBulkUpdate({ phase_id: phaseId })}
+          onClear={() => setSelectedIds(new Set())}
         />
       )}
     </div>

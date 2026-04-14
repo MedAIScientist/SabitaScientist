@@ -110,12 +110,26 @@ beforeEach(() => {
   vi.clearAllMocks()
 
   const mockedUseQuery = vi.mocked(useQuery)
-  // First call → project, second call → tasks, third call → experiments, fourth call → phases
+  // Each render cycle calls useQuery 4 times: project, tasks, experiments, phases.
+  // Provide enough mock returns to cover initial render + re-renders triggered by state updates.
+  const projectReturn = { data: MOCK_PROJECT } as any
+  const tasksReturn   = { data: TASKS }        as any
+  const expsReturn    = { data: [] }            as any
+  const phasesReturn  = { data: [] }            as any
   mockedUseQuery
-    .mockReturnValueOnce({ data: MOCK_PROJECT } as any)
-    .mockReturnValueOnce({ data: TASKS } as any)
-    .mockReturnValueOnce({ data: [] } as any)
-    .mockReturnValueOnce({ data: [] } as any)
+    .mockReturnValueOnce(projectReturn)
+    .mockReturnValueOnce(tasksReturn)
+    .mockReturnValueOnce(expsReturn)
+    .mockReturnValueOnce(phasesReturn)
+    // extra cycles for tests that trigger re-renders (e.g. bulk selection)
+    .mockReturnValueOnce(projectReturn)
+    .mockReturnValueOnce(tasksReturn)
+    .mockReturnValueOnce(expsReturn)
+    .mockReturnValueOnce(phasesReturn)
+    .mockReturnValueOnce(projectReturn)
+    .mockReturnValueOnce(tasksReturn)
+    .mockReturnValueOnce(expsReturn)
+    .mockReturnValueOnce(phasesReturn)
 
   vi.mocked(useMutation).mockReturnValue({
     mutate: mockMutate,
@@ -238,5 +252,29 @@ describe('Board', () => {
 
     renderBoard()
     expect(screen.getByText('Sprint 1')).toBeInTheDocument()
+  })
+
+  test('selecting a card renders BulkActionBar with count 1', () => {
+    renderBoard()
+    const cardTitle = screen.getByText('Design primer sequences')
+    const card = cardTitle.closest('[data-card="true"]') as HTMLElement
+    expect(card).not.toBeNull()
+    fireEvent.mouseEnter(card)
+    const checkbox = card.querySelector('input[type="checkbox"]') as HTMLElement
+    expect(checkbox).not.toBeNull()
+    fireEvent.click(checkbox)
+    expect(screen.getByText(/1 selected/i)).toBeInTheDocument()
+  })
+
+  test('clearing selection hides BulkActionBar', () => {
+    renderBoard()
+    const cardTitle = screen.getByText('Design primer sequences')
+    const card = cardTitle.closest('[data-card="true"]') as HTMLElement
+    fireEvent.mouseEnter(card)
+    const checkbox = card.querySelector('input[type="checkbox"]') as HTMLElement
+    fireEvent.click(checkbox)
+    expect(screen.getByText(/1 selected/i)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /clear/i }))
+    expect(screen.queryByText(/1 selected/i)).toBeNull()
   })
 })
