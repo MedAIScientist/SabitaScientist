@@ -1,6 +1,8 @@
 // EvoScientist/pm/frontend/src/components/board/BulkActionBar.tsx
-import React from 'react'
+import React, { useState } from 'react'
 import type { Task } from '../../api'
+
+const VALID_STATUSES = ['todo', 'in_progress', 'done'] as const
 
 interface Phase {
   id: string
@@ -28,6 +30,9 @@ const selectStyle: React.CSSProperties = {
 }
 
 export function BulkActionBar({ count, phases, onStatusChange, onPhaseChange, onClear }: Props) {
+  const [statusVal, setStatusVal] = useState('')
+  const [phaseVal, setPhaseVal] = useState('')
+
   return (
     <div style={{
       position: 'fixed',
@@ -60,12 +65,13 @@ export function BulkActionBar({ count, phases, onStatusChange, onPhaseChange, on
 
       <select
         data-testid="bulk-status-select"
-        defaultValue=""
+        value={statusVal}
         onChange={e => {
-          if (e.target.value) {
-            onStatusChange(e.target.value as Task['status'])
-            e.target.value = ''
+          const val = e.target.value
+          if (VALID_STATUSES.includes(val as Task['status'])) {
+            onStatusChange(val as Task['status'])
           }
+          setStatusVal('')
         }}
         style={selectStyle}
       >
@@ -77,11 +83,11 @@ export function BulkActionBar({ count, phases, onStatusChange, onPhaseChange, on
 
       <select
         data-testid="bulk-phase-select"
-        defaultValue=""
+        value={phaseVal}
         onChange={e => {
           const val = e.target.value
           onPhaseChange(val === '__none__' ? null : val)
-          e.target.value = ''
+          setPhaseVal('')
         }}
         style={selectStyle}
       >
