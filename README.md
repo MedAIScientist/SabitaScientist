@@ -10,7 +10,7 @@
 <a href="https://pypi.org/project/EvoScientist/"><picture>
   <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/EvoScientist/EvoScientist/main/.github/assets/badge-pypi-light.svg">
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/EvoScientist/EvoScientist/main/.github/assets/badge-pypi-dark.svg">
-  <img alt="PyPI v0.1.2" src="https://raw.githubusercontent.com/EvoScientist/EvoScientist/main/.github/assets/badge-pypi-light.svg" height="28">
+  <img alt="PyPI v0.1.3" src="https://raw.githubusercontent.com/EvoScientist/EvoScientist/main/.github/assets/badge-pypi-light.svg" height="28">
 </picture></a><a href="https://EvoScientist.github.io/"><picture>
   <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/EvoScientist/EvoScientist/main/.github/assets/badge-website-light.svg">
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/EvoScientist/EvoScientist/main/.github/assets/badge-website-dark.svg">
@@ -135,6 +135,7 @@ Moving beyond traditional human-in-the-loop systems, EvoScientist adopts a human
 <details>
 <summary>📦 Release Highlights — version changelog</summary>
 
+- **[03 Jun 2026]** **[v0.1.3](https://github.com/EvoScientist/EvoScientist/releases/tag/v0.1.3)** — Multimodal handling (image + PDF/doc flatten/hoisting, text-only model fallback), runtime-context middleware, memory middleware → profile files with stream timeline narration, textual CJK-input fix.
 - **[02 Jun 2026]** **[v0.1.2](https://github.com/EvoScientist/EvoScientist/releases/tag/v0.1.2)** — Browser WebUI mode (beta), `EvoSci deploy` standalone LangGraph server, default model → claude-sonnet-4-6, MiniMax M3, plus sandbox-timeout and async-notifier channel-routing fixes.
 - **[19 May 2026]** **[v0.1.1](https://github.com/EvoScientist/EvoScientist/releases/tag/v0.1.1)** — deepagents 0.6.2 DeltaChannel upgrade, tier-aware skill mounts, status & elapsed-time bar, QQ inline buttons.
 - **[08 May 2026]** **[v0.1.0](https://github.com/EvoScientist/EvoScientist/releases/tag/v0.1.0)** — Async sub-agents (langgraph dev), official Docker image, personal WeChat, sessions-DB compaction.

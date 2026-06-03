@@ -15,7 +15,7 @@
 <a href="https://pypi.org/project/EvoScientist/"><picture>
   <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/EvoScientist/EvoScientist/main/.github/assets/badge-pypi-light.svg">
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/EvoScientist/EvoScientist/main/.github/assets/badge-pypi-dark.svg">
-  <img alt="PyPI v0.1.2" src="https://raw.githubusercontent.com/EvoScientist/EvoScientist/main/.github/assets/badge-pypi-light.svg" height="28">
+  <img alt="PyPI v0.1.3" src="https://raw.githubusercontent.com/EvoScientist/EvoScientist/main/.github/assets/badge-pypi-light.svg" height="28">
 </picture></a><a href="https://EvoScientist.github.io/"><picture>
   <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/EvoScientist/EvoScientist/main/.github/assets/badge-website-light.svg">
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/EvoScientist/EvoScientist/main/.github/assets/badge-website-dark.svg">
@@ -144,6 +144,7 @@ EvoScientist 超越了传统的人在回路（Human-in-the-Loop）模式，采�
 <details>
 <summary>📦 版本更新摘要（changelog）</summary>
 
+- **[2026 年 6 月 3 日]** **[v0.1.3](https://github.com/EvoScientist/EvoScientist/releases/tag/v0.1.3)** — 多模态处理（图片 + PDF/文档 flatten/hoisting、纯文本模型回退）、runtime-context 中间件、memory 中间件迁移至 profile 文件 + stream 时间线叙述、textual 中文输入修复。
 - **[2026 年 6 月 2 日]** **[v0.1.2](https://github.com/EvoScientist/EvoScientist/releases/tag/v0.1.2)** — 浏览器 WebUI 模式（beta）、`EvoSci deploy` 独立 LangGraph 服务器、默认模型 → claude-sonnet-4-6、MiniMax M3，以及 sandbox 超时与 async-notifier 渠道路由修复。
 - **[2026 年 5 月 19 日]** **[v0.1.1](https://github.com/EvoScientist/EvoScientist/releases/tag/v0.1.1)** — deepagents 0.6.2 DeltaChannel 升级、tier-aware skill mounts、状态/耗时栏、QQ 内联按钮。
 - **[2026 年 5 月 8 日]** **[v0.1.0](https://github.com/EvoScientist/EvoScientist/releases/tag/v0.1.0)** — 异步子智能体（langgraph dev）、官方 Docker 镜像、个人微信、sessions DB 压缩。
