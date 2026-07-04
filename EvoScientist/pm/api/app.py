@@ -17,6 +17,7 @@ from .routes import (
     auth,
     dependencies,
     experiments,
+    labs,
     phases,
     projects,
     runs,
@@ -70,6 +71,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     app.include_router(
         attachments.global_router, prefix="/api/v1", tags=["attachments"]
     )
+    app.include_router(labs.router, prefix="/api/v1/labs", tags=["labs"])
     app.include_router(
         admissions.router, prefix="/api/v1", tags=["admissions"]
     )

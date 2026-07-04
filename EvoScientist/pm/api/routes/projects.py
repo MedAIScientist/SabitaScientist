@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from ...crud.projects import (
     add_member,
@@ -57,16 +57,21 @@ def _project_to_response(project, db_path) -> ProjectResponse:
         created_by=project.created_by,
         created_at=project.created_at,
         archived_at=project.archived_at,
+        lab_id=project.lab_id,
         members=members,
     )
 
 
 @router.get("", response_model=list[ProjectResponse])
-def list_my_projects(current_user: User = Depends(get_current_user)):
-    """List projects the current user is a member of."""
+def list_my_projects(
+    current_user: User = Depends(get_current_user),
+    lab_id: str | None = Query(default=None),
+):
+    """List projects the current user is a member of. Optionally filter by lab_id."""
     db = get_db_path()
     return [
-        _project_to_response(p, db) for p in list_projects_for_user(db, current_user.id)
+        _project_to_response(p, db)
+        for p in list_projects_for_user(db, current_user.id, lab_id=lab_id)
     ]
 
 
@@ -77,7 +82,7 @@ def create_new_project(
     """Create a new project (creator becomes owner)."""
     db = get_db_path()
     project = create_project(
-        db, name=body.name, description=body.description, created_by=current_user.id
+        db, name=body.name, description=body.description, created_by=current_user.id, lab_id=body.lab_id
     )
     return _project_to_response(project, db)
 

@@ -23,6 +23,7 @@ class Project:
     created_at: str
     description: str | None = None
     archived_at: str | None = None
+    lab_id: str | None = None
 
 
 @dataclass
@@ -150,6 +151,25 @@ class Attachment:
     size_bytes: int
     created_at: str
     uploaded_by: str | None = None
+
+
+@dataclass
+class Lab:
+    id: str
+    name: str
+    pi_id: str | None
+    department: str
+    university: str
+    created_at: str
+    updated_at: str
+
+
+@dataclass
+class LabMember:
+    lab_id: str
+    user_id: str
+    role: str  # pi | postdoc | phd | ms | visitor
+    joined_at: str
 
 
 @dataclass

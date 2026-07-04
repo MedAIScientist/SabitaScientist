@@ -51,6 +51,7 @@ class UserSearchResult(BaseModel):
 class ProjectCreate(BaseModel):
     name: str = Field(min_length=1, max_length=128)
     description: str | None = None
+    lab_id: str | None = None
 
 
 class ProjectUpdate(BaseModel):
@@ -73,6 +74,7 @@ class ProjectResponse(BaseModel):
     created_by: str
     created_at: str
     archived_at: str | None
+    lab_id: str | None = None
     members: list[MemberResponse] = []
 
 
@@ -283,6 +285,45 @@ class AdmissionImportResponse(BaseModel):
     imported: int
     skipped: int
     admission_ids: list[str]
+
+
+# ── Labs ──────────────────────────────────────────────────────────────────────
+
+
+class LabCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=128)
+    department: str = ""
+    university: str = ""
+
+
+class LabUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=128)
+    pi_id: str | None = None
+    department: str | None = None
+    university: str | None = None
+
+
+class LabMemberResponse(BaseModel):
+    user_id: str
+    username: str
+    role: str
+    joined_at: str
+
+
+class LabResponse(BaseModel):
+    id: str
+    name: str
+    pi_id: str | None
+    department: str
+    university: str
+    created_at: str
+    updated_at: str
+    members: list[LabMemberResponse] = []
+
+
+class AddLabMemberRequest(BaseModel):
+    user_id: str
+    role: str = Field(pattern="^(pi|postdoc|phd|ms|visitor)$")
 
 
 # ── Errors ────────────────────────────────────────────────────────────────────

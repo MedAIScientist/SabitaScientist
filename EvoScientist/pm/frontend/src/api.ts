@@ -195,6 +195,13 @@ export interface Project {
   members: Member[]
 }
 export interface Member { user_id: string; username: string; role: string; added_at: string }
+export interface Lab {
+  id: string; name: string; pi_id: string | null
+  department: string; university: string
+  created_at: string; updated_at: string
+  members: LabMember_[]
+}
+export interface LabMember_ { user_id: string; username: string; role: string; joined_at: string }
 export interface Task {
   id: string; project_id: string; title: string; description: string | null
   assignee_id: string | null; status: 'todo' | 'in_progress' | 'done'
@@ -283,7 +290,20 @@ export interface DependenciesListResponse {
   dependents: TaskDependency[]
 }
 
-// ── Phases ────────────────────────────────────────────────────────────────────
+  // ── Labs ─────────────────────────────────────────────────────────────────────
+  listLabs: () => request<Lab[]>('GET', '/labs'),
+  getLab: (id: string) => request<Lab>('GET', `/labs/${id}`),
+  createLab: (name: string, department?: string, university?: string) =>
+    request<Lab>('POST', '/labs', { name, department, university }),
+  updateLab: (id: string, data: { name?: string; pi_id?: string | null; department?: string; university?: string }) =>
+    request<Lab>('PUT', `/labs/${id}`, data),
+  deleteLab: (id: string) => request<void>('DELETE', `/labs/${id}`),
+  addLabMember: (labId: string, userId: string, role: string) =>
+    request<LabMember_>('POST', `/labs/${labId}/members`, { user_id: userId, role }),
+  removeLabMember: (labId: string, userId: string) =>
+    request<void>('DELETE', `/labs/${labId}/members/${userId}`),
+
+  // ── Phases ────────────────────────────────────────────────────────────────────
 
 export async function listPhases(projectId: string, token: string): Promise<ProjectPhase[]> {
   const resp = await fetch(`${BASE}/projects/${projectId}/phases`, {

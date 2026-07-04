@@ -15,14 +15,15 @@ def create_project(
     name: str,
     created_by: str,
     description: str | None = None,
+    lab_id: str | None = None,
 ) -> Project:
     """Create a project and automatically add creator as owner."""
     project_id = uuid.uuid4().hex
     now = datetime.now(UTC).isoformat()
     with get_db(db_path) as conn:
         conn.execute(
-            "INSERT INTO projects (id, name, description, created_by, created_at) VALUES (?, ?, ?, ?, ?)",
-            (project_id, name, description, created_by, now),
+            "INSERT INTO projects (id, name, description, created_by, created_at, lab_id) VALUES (?, ?, ?, ?, ?, ?)",
+            (project_id, name, description, created_by, now, lab_id),
         )
         conn.execute(
             "INSERT INTO project_members (project_id, user_id, role, added_at) VALUES (?, ?, ?, ?)",
@@ -34,6 +35,7 @@ def create_project(
         description=description,
         created_by=created_by,
         created_at=now,
+        lab_id=lab_id,
     )
 
 
@@ -47,17 +49,21 @@ def get_project(db_path: Path, project_id: str) -> Project | None:
     return _row_to_project(row) if row else None
 
 
-def list_projects_for_user(db_path: Path, user_id: str) -> list[Project]:
-    """Return all non-archived projects the user is a member of."""
-    with get_db(db_path) as conn:
-        rows = conn.execute(
-            """SELECT p.id, p.name, p.description, p.created_by, p.created_at, p.archived_at
+def list_projects_for_user(
+    db_path: Path, user_id: str, lab_id: str | None = None
+) -> list[Project]:
+    """Return all non-archived projects the user is a member of, optionally filtered by lab."""
+    query = """SELECT p.id, p.name, p.description, p.created_by, p.created_at, p.archived_at
                FROM projects p
                JOIN project_members pm ON p.id = pm.project_id
-               WHERE pm.user_id = ? AND p.archived_at IS NULL
-               ORDER BY p.created_at DESC""",
-            (user_id,),
-        ).fetchall()
+               WHERE pm.user_id = ? AND p.archived_at IS NULL"""
+    params: list = [user_id]
+    if lab_id:
+        query += " AND p.lab_id = ?"
+        params.append(lab_id)
+    query += " ORDER BY p.created_at DESC"
+    with get_db(db_path) as conn:
+        rows = conn.execute(query, params).fetchall()
     return [_row_to_project(r) for r in rows]
 
 
@@ -141,4 +147,5 @@ def _row_to_project(row) -> Project:
         created_by=row["created_by"],
         created_at=row["created_at"],
         archived_at=row["archived_at"],
+        lab_id=row["lab_id"],
     )

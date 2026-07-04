@@ -199,6 +199,27 @@ CREATE TABLE IF NOT EXISTS admissions (
     updated_at         TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS labs (
+    id            TEXT PRIMARY KEY,
+    name          TEXT NOT NULL,
+    pi_id         TEXT REFERENCES users(id) ON DELETE SET NULL,
+    department    TEXT NOT NULL DEFAULT '',
+    university    TEXT NOT NULL DEFAULT '',
+    created_at    TEXT NOT NULL,
+    updated_at    TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS lab_members (
+    lab_id    TEXT NOT NULL REFERENCES labs(id) ON DELETE CASCADE,
+    user_id   TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role      TEXT NOT NULL CHECK(role IN ('pi', 'postdoc', 'phd', 'ms', 'visitor')),
+    joined_at TEXT NOT NULL,
+    PRIMARY KEY (lab_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_labs_pi ON labs(pi_id);
+CREATE INDEX IF NOT EXISTS idx_lab_members_user ON lab_members(user_id);
+
 CREATE INDEX IF NOT EXISTS idx_admissions_status ON admissions(status);
 CREATE INDEX IF NOT EXISTS idx_admissions_form_id ON admissions(form_submission_id);
 """
@@ -209,6 +230,7 @@ _MIGRATIONS = [
     "ALTER TABLE admissions ADD COLUMN aid_percentage REAL",
     "ALTER TABLE admissions ADD COLUMN aid_notes TEXT",
     "ALTER TABLE admissions ADD COLUMN aid_at TEXT",
+    "ALTER TABLE projects ADD COLUMN lab_id TEXT REFERENCES labs(id) ON DELETE SET NULL",
 ]
 
 
