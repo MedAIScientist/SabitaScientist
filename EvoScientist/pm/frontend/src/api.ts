@@ -350,6 +350,16 @@ export interface DependenciesListResponse {
       'POST', `/publications/${pubId}/respond-to-reviewers`, { reviewer_comments: reviewerComments }
     ),
 
+  // ── AI Research Tools ─────────────────────────────────────────────────────
+  generateHypothesis: (projectId: string, topic: string, context?: string) =>
+    request<{ status: string; message: string }>('POST', `/projects/${projectId}/generate-hypothesis`, { topic, context }),
+  researchIdeation: (projectId: string, topic: string, focusArea?: string, count: number = 5) =>
+    request<{ status: string; message: string }>('POST', `/projects/${projectId}/research-ideation`, { topic, focus_area: focusArea, count }),
+  validateMethodology: (projectId: string, proposedMethods: string) =>
+    request<{ status: string; message: string }>('POST', `/projects/${projectId}/validate-methodology`, { proposed_methods: proposedMethods }),
+  verifyCitations: (projectId: string, citations: string) =>
+    request<{ status: string; message: string }>('POST', `/projects/${projectId}/verify-citations`, { citations }),
+
   // ── Templates ──────────────────────────────────────────────────────────────
   listTemplates: () => request<Template[]>('GET', '/templates'),
   getTemplate: (id: string) => request<Template>('GET', `/templates/${id}`),

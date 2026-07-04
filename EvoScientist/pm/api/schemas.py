@@ -428,6 +428,25 @@ class ReviewResponseRequest(BaseModel):
     reviewer_comments: str = Field(min_length=1, max_length=32768)
 
 
+class HypothesisRequest(BaseModel):
+    topic: str = Field(min_length=1, max_length=1024)
+    context: str | None = Field(default=None, max_length=4096)
+
+
+class ResearchIdeationRequest(BaseModel):
+    topic: str = Field(min_length=1, max_length=1024)
+    focus_area: str | None = Field(default=None, max_length=1024)
+    count: int = Field(default=5, ge=1, le=20)
+
+
+class MethodologyValidationRequest(BaseModel):
+    proposed_methods: str = Field(min_length=1, max_length=16384)
+
+
+class CitationVerificationRequest(BaseModel):
+    citations: str = Field(min_length=1, max_length=32768)
+
+
 # ── Templates ──────────────────────────────────────────────────────────────────
 
 

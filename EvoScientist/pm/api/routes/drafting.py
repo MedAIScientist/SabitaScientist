@@ -9,14 +9,27 @@ from pathlib import Path
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 
-from ...crud.experiment_entries import list_entries
-from ...crud.experiments import get_experiment, list_experiments, list_linked_tasks
+from ...crud.experiment_entries import create_entry, list_entries
+from ...crud.experiments import (
+    create_experiment,
+    get_experiment,
+    list_experiments,
+    list_linked_tasks,
+)
 from ...crud.projects import get_project
 from ...crud.publications import get_publication, update_publication
 from ...db import get_db_path
 from ...models import User
 from ..deps import get_current_user, require_project_role
-from ..schemas import DraftSectionRequest, ReviewResponseRequest, ReviseRequest
+from ..schemas import (
+    CitationVerificationRequest,
+    DraftSectionRequest,
+    HypothesisRequest,
+    MethodologyValidationRequest,
+    ResearchIdeationRequest,
+    ReviewResponseRequest,
+    ReviseRequest,
+)
 
 router = APIRouter()
 RUNNER_URL = os.getenv("RUNNER_URL", "http://127.0.0.1:8001")
@@ -145,15 +158,17 @@ Guidelines:
 Write a complete response letter addressed to the editor and reviewers."""
 
 
-async def _run_agent_and_get_output(run_id: str, prompt: str, workspace_dir: str) -> str | None:
-    """Run the writing agent and return the accumulated text output."""
+async def _run_agent_and_get_output(
+    run_id: str, prompt: str, workspace_dir: str, agent_type: str = "writing",
+) -> str | None:
+    """Run an agent (research/code/data_analysis/writing) and return the accumulated text output."""
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
                 f"{RUNNER_URL}/runs",
                 json={
                     "run_id": run_id,
-                    "agent_type": "writing",
+                    "agent_type": agent_type,
                     "prompt": prompt,
                     "workspace_dir": workspace_dir,
                 },
@@ -431,3 +446,215 @@ async def _run_draft_agent(pub_id: str, prompt: str, workspace_dir: str) -> None
     if text:
         abstract = text[:500].strip()
         _up(get_db_path(), pub_id, abstract=abstract, status="draft")
+
+
+# ── Hypothesis Generation ──────────────────────────────────────────────────────
+
+_HYPOTHESIS_PROMPT = """You are a research scientist generating testable hypotheses. Based on the topic and context below, generate 3-5 specific, falsifiable hypotheses. Each hypothesis should be:
+
+1. **Specific** — clearly defined variables and predicted relationship
+2. **Testable** — can be confirmed or refuted through experiment
+3. **Novel** — not trivially true or false based on existing knowledge
+4. **Grounded** — connected to the provided context
+
+For each hypothesis, include:
+- The hypothesis statement
+- The rationale (why this is worth testing)
+- A suggested experimental approach
+- Predicted outcome if true
+- Predicted outcome if false
+
+Format as a structured Markdown report.
+
+Topic: {topic}
+Additional context:
+{context}"""
+
+
+@router.post("/projects/{project_id}/generate-hypothesis", status_code=status.HTTP_202_ACCEPTED)
+async def generate_hypothesis(
+    project_id: str,
+    body: HypothesisRequest,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(require_project_role("owner", "editor")),
+):
+    """Use the research agent to generate testable hypotheses based on a topic."""
+    project = get_project(get_db_path(), project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    prompt = _HYPOTHESIS_PROMPT.format(topic=body.topic, context=body.context or project.description or "(none provided)")
+    run_id = f"hypothesis-{project_id}-{__import__('time').time():.0f}"
+    workspace_base = os.getenv("EVOSCIENTIST_WORKSPACE_DIR", str(Path.home() / "evoscientist" / "runs"))
+    workspace_dir = str(Path(workspace_base) / "research" / run_id)
+
+    background_tasks.add_task(_save_hypothesis_output, project_id, current_user.id, run_id, prompt, workspace_dir, body.topic)
+
+    return {"status": "generating", "message": "Hypothesis generation started — results will be saved as an experiment entry."}
+
+
+async def _save_hypothesis_output(
+    project_id: str, user_id: str, run_id: str, prompt: str, workspace_dir: str, topic: str,
+) -> None:
+    text = await _run_agent_and_get_output(run_id, prompt, workspace_dir, agent_type="research")
+    if text:
+        db = get_db_path()
+        exp = create_experiment(db, project_id=project_id, name=f"Hypothesis: {topic[:80]}", created_by=user_id)
+        create_entry(db, experiment_id=exp.id, type="result", title=f"AI-Generated Hypotheses for: {topic}", body=text, author_id=user_id)
+
+
+# ── Research Ideation ──────────────────────────────────────────────────────────
+
+_IDEATION_PROMPT = """You are a research strategist helping a scientist explore new directions. Based on the topic and focus area below, generate {count} distinct research ideas.
+
+For each idea, provide:
+1. **Research Question** — a clear, focused question
+2. **Rationale** — why this direction is promising
+3. **Novelty** — what makes this different from existing work
+4. **Feasibility** — estimated difficulty and resource requirements
+5. **Potential Impact** — what success would enable
+6. **Suggested First Step** — a concrete action to begin
+
+Prioritize ideas that are:
+- Novel but build on existing work
+- Feasible with reasonable resources
+- Impactful if successful
+- Aligned with the scientist's domain
+
+Format as a structured Markdown report with clear section headers.
+
+Research Topic: {topic}
+Focus Area: {focus_area}"""
+
+
+@router.post("/projects/{project_id}/research-ideation", status_code=status.HTTP_202_ACCEPTED)
+async def research_ideation(
+    project_id: str,
+    body: ResearchIdeationRequest,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(require_project_role("owner", "editor")),
+):
+    """Use the research agent to generate novel research directions."""
+    project = get_project(get_db_path(), project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    prompt = _IDEATION_PROMPT.format(topic=body.topic, focus_area=body.focus_area or "general", count=body.count)
+    run_id = f"ideation-{project_id}-{__import__('time').time():.0f}"
+    workspace_base = os.getenv("EVOSCIENTIST_WORKSPACE_DIR", str(Path.home() / "evoscientist" / "runs"))
+    workspace_dir = str(Path(workspace_base) / "research" / run_id)
+
+    background_tasks.add_task(_save_ideation_output, project_id, current_user.id, run_id, prompt, workspace_dir, body.topic)
+
+    return {"status": "generating", "message": "Research ideation started — results will be saved as an experiment entry."}
+
+
+async def _save_ideation_output(
+    project_id: str, user_id: str, run_id: str, prompt: str, workspace_dir: str, topic: str,
+) -> None:
+    text = await _run_agent_and_get_output(run_id, prompt, workspace_dir, agent_type="research")
+    if text:
+        db = get_db_path()
+        exp = create_experiment(db, project_id=project_id, name=f"Ideation: {topic[:80]}", created_by=user_id, status="planned")
+        create_entry(db, experiment_id=exp.id, type="result", title=f"Research Ideas for: {topic}", body=text, author_id=user_id)
+
+
+# ── Methodology Validation ─────────────────────────────────────────────────────
+
+_VALIDATION_PROMPT = """You are a senior methodology reviewer evaluating a proposed experimental approach. Analyze the proposed methods below and provide:
+
+1. **Strengths** — what is well-designed and why
+2. **Weaknesses** — potential flaws, confounds, or limitations
+3. **Risks** — things that could go wrong and their likelihood
+4. **Missing Controls** — necessary controls that are absent
+5. **Statistical Concerns** — sample size, power, analysis choices
+6. **Reproducibility** — are the methods described sufficiently for replication?
+7. **Suggested Improvements** — concrete, actionable changes
+8. **Alternative Approaches** — other methods that could work better
+
+Be constructive and specific. Reference established best practices in the field.
+
+--- Proposed Methods ---
+{methods}"""
+
+
+@router.post("/projects/{project_id}/validate-methodology", status_code=status.HTTP_202_ACCEPTED)
+async def validate_methodology(
+    project_id: str,
+    body: MethodologyValidationRequest,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(require_project_role("owner", "editor")),
+):
+    """Use the research agent to validate proposed experimental methods."""
+    project = get_project(get_db_path(), project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    prompt = _VALIDATION_PROMPT.format(methods=body.proposed_methods)
+    run_id = f"validation-{project_id}-{__import__('time').time():.0f}"
+    workspace_base = os.getenv("EVOSCIENTIST_WORKSPACE_DIR", str(Path.home() / "evoscientist" / "runs"))
+    workspace_dir = str(Path(workspace_base) / "research" / run_id)
+
+    background_tasks.add_task(_save_validation_output, project_id, current_user.id, run_id, prompt, workspace_dir)
+
+    return {"status": "generating", "message": "Methodology validation started — results will be saved as an experiment entry."}
+
+
+async def _save_validation_output(project_id: str, user_id: str, run_id: str, prompt: str, workspace_dir: str) -> None:
+    text = await _run_agent_and_get_output(run_id, prompt, workspace_dir, agent_type="research")
+    if text:
+        db = get_db_path()
+        exp = create_experiment(db, project_id=project_id, name="Methodology Review", created_by=user_id)
+        create_entry(db, experiment_id=exp.id, type="result", title="Methodology Validation Report", body=text, author_id=user_id)
+
+
+# ── Citation Verification ──────────────────────────────────────────────────────
+
+_CITATION_PROMPT = """You are a citation verification specialist. Review the citations listed below and flag any concerns.
+
+For each citation, assess:
+1. **Plausibility** — does the claimed finding match what this type of study typically shows?
+2. **Specificity** — is the citation specific enough, or is it a vague reference?
+3. **Field Standards** — are the cited journals/venues appropriate for the claim?
+4. **Suspicious Patterns** — does the citation pattern seem unusual (e.g. too many self-citations, obscure sources for major claims)?
+5. **Missing Citations** — are there obvious landmark papers that should have been cited?
+
+Flag citations as:
+- ✅ **Likely valid** — plausible and specific
+- ⚠️ **Needs verification** — plausible but needs manual check
+- ❌ **Suspicious** — unusual pattern or implausible claim
+
+Format as a structured Markdown report.
+
+--- Citations to Review ---
+{citations}"""
+
+
+@router.post("/projects/{project_id}/verify-citations", status_code=status.HTTP_202_ACCEPTED)
+async def verify_citations(
+    project_id: str,
+    body: CitationVerificationRequest,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(require_project_role("owner", "editor")),
+):
+    """Use the research agent to verify citations for plausibility and flag concerns."""
+    project = get_project(get_db_path(), project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    prompt = _CITATION_PROMPT.format(citations=body.citations)
+    run_id = f"citation-{project_id}-{__import__('time').time():.0f}"
+    workspace_base = os.getenv("EVOSCIENTIST_WORKSPACE_DIR", str(Path.home() / "evoscientist" / "runs"))
+    workspace_dir = str(Path(workspace_base) / "research" / run_id)
+
+    background_tasks.add_task(_save_citation_output, project_id, current_user.id, run_id, prompt, workspace_dir)
+
+    return {"status": "generating", "message": "Citation verification started — results saved as an experiment entry."}
+
+
+async def _save_citation_output(project_id: str, user_id: str, run_id: str, prompt: str, workspace_dir: str) -> None:
+    text = await _run_agent_and_get_output(run_id, prompt, workspace_dir, agent_type="research")
+    if text:
+        db = get_db_path()
+        exp = create_experiment(db, project_id=project_id, name="Citation Review", created_by=user_id)
+        create_entry(db, experiment_id=exp.id, type="result", title="Citation Verification Report", body=text, author_id=user_id)

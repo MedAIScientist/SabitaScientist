@@ -12,6 +12,7 @@ import { ProjectSettingsPanel } from '../components/ProjectSettingsPanel'
 import { DroppableColumn } from '../components/board/DroppableColumn'
 import { PhaseSwimLane } from '../components/board/PhaseSwimLane'
 import { BulkActionBar } from '../components/board/BulkActionBar'
+import { ResearchToolsPanel } from '../components/ResearchToolsPanel'
 import { useTaskFilters } from '../hooks/useTaskFilters'
 import { useAuth } from '../auth'
 import { useTheme } from '../theme'
@@ -50,6 +51,7 @@ export function Board() {
   const [editAnchorRect, setEditAnchorRect] = useState<DOMRect | null>(null)
   const [settingsPanelOpen, setSettingsPanelOpen] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [showResearchTools, setShowResearchTools] = useState(false)
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
@@ -285,6 +287,24 @@ export function Board() {
             onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.18)' }}
           >
             ✍ DRAFT PAPER
+          </button>
+          <button
+            onClick={() => setShowResearchTools(true)}
+            style={{
+              background: 'rgba(139,92,246,0.08)',
+              border: '1px solid rgba(139,92,246,0.18)',
+              color: '#64748b',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 16,
+              padding: '5px 12px',
+              borderRadius: 4,
+              cursor: 'pointer',
+              letterSpacing: '0.08em',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#c084fc'; e.currentTarget.style.borderColor = 'rgba(139,92,246,0.35)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(139,92,246,0.18)' }}
+          >
+            🧪 RESEARCH
           </button>
           {isOwner && (
             <button
@@ -524,6 +544,9 @@ export function Board() {
         />
       )}
 
+      {showResearchTools && projectId && (
+        <ResearchToolsPanel projectId={projectId} onClose={() => setShowResearchTools(false)} />
+      )}
       {settingsPanelOpen && project && (
         <ProjectSettingsPanel
           project={project}
