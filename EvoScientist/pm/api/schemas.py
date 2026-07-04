@@ -411,6 +411,23 @@ class ReviewResponse(BaseModel):
     created_at: str
 
 
+# ── AI Drafting ────────────────────────────────────────────────────────────────
+
+
+class DraftSectionRequest(BaseModel):
+    section: str = Field(pattern="^(abstract|introduction|methods|results|discussion|conclusion)$")
+    style: str = Field(default="standard", pattern="^(standard|concise|detailed|lay)$")
+
+
+class ReviseRequest(BaseModel):
+    text: str | None = None
+    instructions: str = Field(min_length=1, max_length=2048)
+
+
+class ReviewResponseRequest(BaseModel):
+    reviewer_comments: str = Field(min_length=1, max_length=32768)
+
+
 # ── Templates ──────────────────────────────────────────────────────────────────
 
 

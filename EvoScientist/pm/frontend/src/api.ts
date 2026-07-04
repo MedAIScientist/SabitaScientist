@@ -332,7 +332,23 @@ export interface DependenciesListResponse {
 
   // ── Drafting ──────────────────────────────────────────────────────────────
   draftPaper: (projectId: string) =>
-    request<{ publication_id: string; status: string; message: string }>('POST', `/projects/${projectId}/draft-paper`),
+    request<{ publication_id: string; status: string }>('POST', `/projects/${projectId}/draft-paper`),
+  draftSection: (pubId: string, section: string, style: string = 'standard') =>
+    request<{ publication_id: string; section: string; style: string; status: string }>(
+      'POST', `/publications/${pubId}/draft-section`, { section, style }
+    ),
+  draftFromExperiment: (projectId: string, experimentId: string, section: string, style: string = 'standard') =>
+    request<{ publication_id: string; experiment_id: string; section: string; status: string }>(
+      'POST', `/projects/${projectId}/experiments/${experimentId}/draft-to-publication?section=${section}&style=${style}`
+    ),
+  revisePublication: (pubId: string, instructions: string, text?: string) =>
+    request<{ publication_id: string; status: string }>(
+      'POST', `/publications/${pubId}/revise`, { text, instructions }
+    ),
+  respondToReviewers: (pubId: string, reviewerComments: string) =>
+    request<{ publication_id: string; status: string }>(
+      'POST', `/publications/${pubId}/respond-to-reviewers`, { reviewer_comments: reviewerComments }
+    ),
 
   // ── Templates ──────────────────────────────────────────────────────────────
   listTemplates: () => request<Template[]>('GET', '/templates'),
