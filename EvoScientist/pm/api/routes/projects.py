@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
 from ...crud.projects import (
     add_member,
@@ -19,6 +19,7 @@ from ...crud.projects import (
 from ...crud.users import get_user_by_id
 from ...db import get_db, get_db_path
 from ...models import User
+from ..audit_helper import log_action
 from ..deps import get_current_user, require_project_role
 from ..schemas import (
     AddMemberRequest,
@@ -77,13 +78,16 @@ def list_my_projects(
 
 @router.post("", response_model=ProjectResponse, status_code=status.HTTP_201_CREATED)
 def create_new_project(
-    body: ProjectCreate, current_user: User = Depends(get_current_user)
+    request: Request,
+    body: ProjectCreate,
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new project (creator becomes owner)."""
     db = get_db_path()
     project = create_project(
         db, name=body.name, description=body.description, created_by=current_user.id, lab_id=body.lab_id
     )
+    log_action(request, current_user, "create", "project", project.id, f"name={project.name}")
     return _project_to_response(project, db)
 
 

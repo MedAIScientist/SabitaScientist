@@ -447,6 +447,22 @@ class CitationVerificationRequest(BaseModel):
     citations: str = Field(min_length=1, max_length=32768)
 
 
+class BibliographyImportRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=65536)
+    project_id: str | None = None
+
+
+class LiteratureReviewRequest(BaseModel):
+    topic: str = Field(min_length=1, max_length=1024)
+    focus_area: str | None = Field(default=None, max_length=1024)
+    depth: str = Field(default="comprehensive", pattern="^(quick|comprehensive|exhaustive)$")
+
+
+class ReviewAssignmentRequest(BaseModel):
+    reviewer_id: str
+    round: int = 1
+
+
 # ── Templates ──────────────────────────────────────────────────────────────────
 
 

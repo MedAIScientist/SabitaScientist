@@ -134,6 +134,32 @@ def pi_stats(current_user: User = Depends(get_current_user)):
             lab_ids,
         ).fetchall()
 
+    # Mentorship stats: publication co-authorship by lab members
+    mentorship = {}
+    for lab in labs:
+        members = list_members(db, lab.id)
+        member_ids = [m.user_id for m in members]
+        if member_ids:
+            placeholders = ",".join("?" for _ in member_ids)
+            with get_db(db) as conn:
+                co_pubs = conn.execute(
+                    """SELECT p.created_by, COUNT(*) as cnt
+                        FROM publications p
+                        WHERE p.project_id IN (
+                            SELECT id FROM projects WHERE lab_id = ?
+                        )
+                        GROUP BY p.created_by ORDER BY cnt DESC""",
+                    (lab.id,),
+                ).fetchall()
+            mentorship[lab.id] = {
+                "lab_name": lab.name,
+                "member_count": len(members),
+                "publications_by_member": {
+                    r["created_by"]: r["cnt"] for r in co_pubs
+                },
+                "roles": {m.user_id: m.role for m in members},
+            }
+
     return {
         "labs": lab_list,
         "total_tasks": task_count,
@@ -148,4 +174,5 @@ def pi_stats(current_user: User = Depends(get_current_user)):
         "publications_over_time": [
             {"month": r["month"], "count": r["cnt"]} for r in pub_over_time
         ],
+        "mentorship": mentorship,
     }

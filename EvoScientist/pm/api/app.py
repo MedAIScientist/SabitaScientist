@@ -10,17 +10,22 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from ..db import create_schema
+from .audit_middleware import AuditMiddleware
 from .routes import (
     admissions,
     assists,
     attachments,
     audit,
     auth,
+    bibliography,
     dashboard,
     dependencies,
     drafting,
     experiments,
+    export_routes,
     labs,
+    literature_review,
+    peer_review,
     phases,
     projects,
     publications,
@@ -51,6 +56,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(AuditMiddleware)
 
     @app.get("/api/v1/health", tags=["health"], include_in_schema=False)
     def health():
@@ -81,6 +87,10 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     app.include_router(drafting.router, prefix="/api/v1", tags=["drafting"])
     app.include_router(audit.router, prefix="/api/v1", tags=["audit"])
     app.include_router(dashboard.router, prefix="/api/v1", tags=["dashboard"])
+    app.include_router(export_routes.router, prefix="/api/v1", tags=["export"])
+    app.include_router(bibliography.router, prefix="/api/v1", tags=["bibliography"])
+    app.include_router(literature_review.router, prefix="/api/v1", tags=["literature"])
+    app.include_router(peer_review.router, prefix="/api/v1", tags=["peer-review"])
     app.include_router(
         publications.router, prefix="/api/v1/publications", tags=["publications"]
     )

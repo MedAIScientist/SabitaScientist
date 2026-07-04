@@ -11,6 +11,7 @@ from ...crud import admissions as crud
 from ...crud.users import get_user_by_id
 from ...db import get_db_path
 from ...models import User
+from ...notifications import notify_admission_review
 from ..deps import get_current_user, require_admin
 from ..schemas import (
     AdmissionAcceptRequest,
