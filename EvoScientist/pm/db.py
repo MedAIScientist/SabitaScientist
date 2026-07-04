@@ -220,6 +220,52 @@ CREATE TABLE IF NOT EXISTS lab_members (
 CREATE INDEX IF NOT EXISTS idx_labs_pi ON labs(pi_id);
 CREATE INDEX IF NOT EXISTS idx_lab_members_user ON lab_members(user_id);
 
+CREATE TABLE IF NOT EXISTS publications (
+    id            TEXT PRIMARY KEY,
+    project_id    TEXT REFERENCES projects(id) ON DELETE SET NULL,
+    title         TEXT NOT NULL,
+    venue         TEXT,
+    venue_type    TEXT NOT NULL DEFAULT 'journal'
+                  CHECK(venue_type IN ('journal', 'conference', 'preprint', 'other')),
+    authors       TEXT NOT NULL DEFAULT '[]',
+    status        TEXT NOT NULL DEFAULT 'draft'
+                  CHECK(status IN ('draft', 'submitted', 'reviewing', 'accepted', 'published', 'rejected')),
+    doi           TEXT,
+    url           TEXT,
+    abstract      TEXT,
+    submitted_at  TEXT,
+    accepted_at   TEXT,
+    published_at  TEXT,
+    created_by    TEXT NOT NULL REFERENCES users(id),
+    created_at    TEXT NOT NULL,
+    updated_at    TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS publication_versions (
+    id              TEXT PRIMARY KEY,
+    publication_id  TEXT NOT NULL REFERENCES publications(id) ON DELETE CASCADE,
+    version         INTEGER NOT NULL,
+    file_path       TEXT,
+    notes           TEXT,
+    created_by      TEXT NOT NULL REFERENCES users(id),
+    created_at      TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS publication_reviews (
+    id              TEXT PRIMARY KEY,
+    publication_id  TEXT NOT NULL REFERENCES publications(id) ON DELETE CASCADE,
+    reviewer_name   TEXT,
+    comments        TEXT,
+    decision        TEXT CHECK(decision IN ('accept', 'minor_revision', 'major_revision', 'reject')),
+    round           INTEGER NOT NULL DEFAULT 1,
+    created_at      TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_publications_project ON publications(project_id);
+CREATE INDEX IF NOT EXISTS idx_publications_status ON publications(status);
+CREATE INDEX IF NOT EXISTS idx_pub_versions_pub ON publication_versions(publication_id);
+CREATE INDEX IF NOT EXISTS idx_pub_reviews_pub ON publication_reviews(publication_id);
+
 CREATE INDEX IF NOT EXISTS idx_admissions_status ON admissions(status);
 CREATE INDEX IF NOT EXISTS idx_admissions_form_id ON admissions(form_submission_id);
 """

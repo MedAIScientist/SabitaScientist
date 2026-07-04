@@ -330,6 +330,87 @@ class AddLabMemberRequest(BaseModel):
     role: str = Field(pattern="^(pi|postdoc|phd|ms|visitor)$")
 
 
+# ── Publications ────────────────────────────────────────────────────────────────
+
+
+class PublicationCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=512)
+    project_id: str | None = None
+    venue: str | None = None
+    venue_type: str = Field(default="journal", pattern="^(journal|conference|preprint|other)$")
+    authors: list[dict] = []
+    abstract: str | None = None
+    doi: str | None = None
+    url: str | None = None
+
+
+class PublicationUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=512)
+    venue: str | None = None
+    venue_type: str | None = Field(default=None, pattern="^(journal|conference|preprint|other)$")
+    authors: list[dict] | None = None
+    abstract: str | None = None
+    doi: str | None = None
+    url: str | None = None
+    status: str | None = Field(default=None, pattern="^(draft|submitted|reviewing|accepted|published|rejected)$")
+
+
+class PublicationResponse(BaseModel):
+    id: str
+    project_id: str | None
+    title: str
+    venue: str | None
+    venue_type: str
+    authors: list[dict]
+    status: str
+    doi: str | None
+    url: str | None
+    abstract: str | None
+    submitted_at: str | None
+    accepted_at: str | None
+    published_at: str | None
+    created_by: str
+    created_at: str
+    updated_at: str
+
+
+class VersionCreate(BaseModel):
+    notes: str | None = None
+
+
+class VersionResponse(BaseModel):
+    id: str
+    publication_id: str
+    version: int
+    file_path: str | None
+    notes: str | None
+    created_by: str
+    created_at: str
+
+
+class ReviewCreate(BaseModel):
+    reviewer_name: str | None = None
+    comments: str | None = None
+    decision: str | None = Field(default=None, pattern="^(accept|minor_revision|major_revision|reject)$")
+    round: int = 1
+
+
+class ReviewUpdate(BaseModel):
+    reviewer_name: str | None = None
+    comments: str | None = None
+    decision: str | None = Field(default=None, pattern="^(accept|minor_revision|major_revision|reject)$")
+
+
+class ReviewResponse(BaseModel):
+    id: str
+    publication_id: str
+    reviewer_name: str | None
+    comments: str | None
+    decision: str | None
+    round: int
+    created_at: str
+
+
 # ── Templates ──────────────────────────────────────────────────────────────────
 
 

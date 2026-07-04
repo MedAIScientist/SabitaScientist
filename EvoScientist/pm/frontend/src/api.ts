@@ -303,6 +303,33 @@ export interface DependenciesListResponse {
   removeLabMember: (labId: string, userId: string) =>
     request<void>('DELETE', `/labs/${labId}/members/${userId}`),
 
+  // ── Publications ──────────────────────────────────────────────────────────
+  listPublications: (projectId?: string, status?: string) => {
+    const params = new URLSearchParams()
+    if (projectId) params.set('project_id', projectId)
+    if (status) params.set('status', status)
+    const qs = params.toString()
+    return request<Publication_[]>('GET', `/publications${qs ? `?${qs}` : ''}`)
+  },
+  getPublication: (id: string) => request<Publication_>('GET', `/publications/${id}`),
+  createPublication: (data: {
+    title: string; project_id?: string | null; venue?: string; venue_type?: string;
+    authors?: { name?: string; email?: string }[]; abstract?: string; doi?: string; url?: string
+  }) => request<Publication_>('POST', '/publications', data),
+  updatePublication: (id: string, data: Partial<{
+    title: string; venue: string; venue_type: string; authors: { name?: string; email?: string }[];
+    abstract: string; doi: string; url: string; status: string
+  }>) => request<Publication_>('PUT', `/publications/${id}`, data),
+  submitPublication: (id: string) => request<Publication_>('POST', `/publications/${id}/submit`),
+  deletePublication: (id: string) => request<void>('DELETE', `/publications/${id}`),
+  listVersions: (pubId: string) => request<Version[]>('GET', `/publications/${pubId}/versions`),
+  createVersion: (pubId: string, notes?: string) =>
+    request<Version>('POST', `/publications/${pubId}/versions`, { notes }),
+  listReviews: (pubId: string) => request<Review[]>('GET', `/publications/${pubId}/reviews`),
+  createReview: (pubId: string, data: {
+    reviewer_name?: string; comments?: string; decision?: string; round?: number
+  }) => request<Review>('POST', `/publications/${pubId}/reviews`, data),
+
   // ── Templates ──────────────────────────────────────────────────────────────
   listTemplates: () => request<Template[]>('GET', '/templates'),
   getTemplate: (id: string) => request<Template>('GET', `/templates/${id}`),
@@ -546,6 +573,22 @@ export interface AdmissionImportResponse {
   imported: number
   skipped: number
   admission_ids: string[]
+}
+
+export interface Publication_ {
+  id: string; project_id: string | null; title: string; venue: string | null
+  venue_type: string; authors: { name?: string; email?: string }[]; status: string
+  doi: string | null; url: string | null; abstract: string | null
+  submitted_at: string | null; accepted_at: string | null; published_at: string | null
+  created_by: string; created_at: string; updated_at: string
+}
+export interface Version {
+  id: string; publication_id: string; version: number
+  file_path: string | null; notes: string | null; created_by: string; created_at: string
+}
+export interface Review {
+  id: string; publication_id: string; reviewer_name: string | null
+  comments: string | null; decision: string | null; round: number; created_at: string
 }
 
 export interface Template {

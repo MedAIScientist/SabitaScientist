@@ -174,6 +174,48 @@ class LabMember:
 
 
 @dataclass
+class Publication:
+    id: str
+    title: str
+    status: str       # draft|submitted|reviewing|accepted|published|rejected
+    authors: list[dict]
+    created_by: str
+    created_at: str
+    updated_at: str
+    project_id: str | None = None
+    venue: str | None = None
+    venue_type: str = "journal"
+    doi: str | None = None
+    url: str | None = None
+    abstract: str | None = None
+    submitted_at: str | None = None
+    accepted_at: str | None = None
+    published_at: str | None = None
+
+
+@dataclass
+class PublicationVersion:
+    id: str
+    publication_id: str
+    version: int
+    notes: str | None
+    created_by: str
+    created_at: str
+    file_path: str | None = None
+
+
+@dataclass
+class PublicationReview:
+    id: str
+    publication_id: str
+    round: int
+    created_at: str
+    reviewer_name: str | None = None
+    comments: str | None = None
+    decision: str | None = None  # accept|minor_revision|major_revision|reject
+
+
+@dataclass
 class Admission:
     id: str
     applicant_name: str
