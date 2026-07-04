@@ -232,6 +232,59 @@ class AttachmentResponse(BaseModel):
     download_url: str  # presigned S3 URL
 
 
+# ── Admissions ─────────────────────────────────────────────────────────────────
+
+
+class AdmissionUpdate(BaseModel):
+    reviewer_id: str | None = None
+    review_notes: str | None = None
+
+
+class AdmissionAcceptRequest(BaseModel):
+    notes: str | None = None
+
+
+class AdmissionRejectRequest(BaseModel):
+    notes: str = Field(min_length=1, max_length=4096)
+
+
+class FinancialAidRequest(BaseModel):
+    aid_percentage: float = Field(ge=0, le=100)
+    notes: str | None = None
+
+
+class AdmissionResponse(BaseModel):
+    id: str
+    form_submission_id: int | None
+    applicant_name: str
+    supervisor: str | None
+    email: str
+    phone: str | None
+    university: str | None
+    department: str | None
+    service_areas: str
+    modas_members: str
+    grant_context: str | None
+    comments: str | None
+    status: str
+    reviewer_id: str | None
+    review_notes: str | None
+    reviewed_at: str | None
+    created_project_id: str | None
+    aid_percentage: float | None
+    aid_notes: str | None
+    aid_at: str | None
+    imported_at: str
+    created_at: str
+    updated_at: str
+
+
+class AdmissionImportResponse(BaseModel):
+    imported: int
+    skipped: int
+    admission_ids: list[str]
+
+
 # ── Errors ────────────────────────────────────────────────────────────────────
 
 

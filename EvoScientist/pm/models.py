@@ -150,3 +150,30 @@ class Attachment:
     size_bytes: int
     created_at: str
     uploaded_by: str | None = None
+
+
+@dataclass
+class Admission:
+    id: str
+    applicant_name: str
+    email: str
+    service_areas: str
+    modas_members: str
+    imported_at: str
+    created_at: str
+    updated_at: str
+    status: str = "submitted"  # submitted|reviewing|accepted|rejected
+    form_submission_id: int | None = None
+    supervisor: str | None = None
+    phone: str | None = None
+    university: str | None = None
+    department: str | None = None
+    grant_context: str | None = None
+    comments: str | None = None
+    reviewer_id: str | None = None
+    review_notes: str | None = None
+    reviewed_at: str | None = None
+    created_project_id: str | None = None
+    aid_percentage: float | None = None
+    aid_notes: str | None = None
+    aid_at: str | None = None

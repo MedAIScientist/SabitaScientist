@@ -15,6 +15,8 @@ import { Setup } from './pages/Setup'
 import { ProjectReportPage } from './pages/ProjectReportPage'
 import { GlobalReportPage }   from './pages/GlobalReportPage'
 import { UsersPage }          from './pages/UsersPage'
+import { AdmissionsPage }     from './pages/AdmissionsPage'
+import { AdmissionDetail }    from './pages/AdmissionDetail'
 
 const queryClient = new QueryClient()
 
@@ -44,6 +46,8 @@ function App() {
         <Route path="/reports"             element={<PrivateRoute><GlobalReportPage /></PrivateRoute>} />
         <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
         <Route path="/users"   element={<PrivateRoute><UsersPage /></PrivateRoute>} />
+        <Route path="/admissions"       element={<PrivateRoute><AdmissionsPage /></PrivateRoute>} />
+        <Route path="/admissions/:id"   element={<PrivateRoute><AdmissionDetail /></PrivateRoute>} />
         {!needsSetup && <Route path="*" element={<Navigate to="/projects" replace />} />}
       </Routes>
     </BrowserRouter>

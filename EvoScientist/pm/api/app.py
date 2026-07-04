@@ -10,7 +10,19 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from ..db import create_schema
-from .routes import attachments, assists, auth, dependencies, experiments, phases, projects, runs, tasks, users
+from .routes import (
+    admissions,
+    assists,
+    attachments,
+    auth,
+    dependencies,
+    experiments,
+    phases,
+    projects,
+    runs,
+    tasks,
+    users,
+)
 
 _FRONTEND_DIST = Path(__file__).parent.parent / "frontend" / "dist"
 
@@ -57,6 +69,9 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     )
     app.include_router(
         attachments.global_router, prefix="/api/v1", tags=["attachments"]
+    )
+    app.include_router(
+        admissions.router, prefix="/api/v1", tags=["admissions"]
     )
 
     # Serve React SPA — only if the dist folder exists (i.e., frontend has been built)

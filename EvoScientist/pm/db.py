@@ -170,11 +170,45 @@ CREATE TABLE IF NOT EXISTS attachments (
 );
 
 CREATE INDEX IF NOT EXISTS idx_attachments_entry ON attachments(entry_id);
+
+CREATE TABLE IF NOT EXISTS admissions (
+    id                 TEXT PRIMARY KEY,
+    form_submission_id INTEGER,
+    applicant_name     TEXT NOT NULL,
+    supervisor         TEXT,
+    email              TEXT NOT NULL,
+    phone              TEXT,
+    university         TEXT,
+    department         TEXT,
+    service_areas      TEXT NOT NULL DEFAULT '',
+    modas_members      TEXT NOT NULL DEFAULT '',
+    grant_context      TEXT,
+    comments           TEXT,
+    status             TEXT NOT NULL DEFAULT 'submitted'
+                       CHECK(status IN ('submitted', 'reviewing', 'accepted', 'rejected')),
+    reviewer_id        TEXT REFERENCES users(id) ON DELETE SET NULL,
+    review_notes       TEXT,
+    reviewed_at        TEXT,
+    created_project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
+    aid_percentage    REAL
+                      CHECK(aid_percentage IS NULL OR (aid_percentage >= 0 AND aid_percentage <= 100)),
+    aid_notes         TEXT,
+    aid_at            TEXT,
+    imported_at        TEXT NOT NULL,
+    created_at         TEXT NOT NULL,
+    updated_at         TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_admissions_status ON admissions(status);
+CREATE INDEX IF NOT EXISTS idx_admissions_form_id ON admissions(form_submission_id);
 """
 
 _MIGRATIONS = [
     "ALTER TABLE tasks ADD COLUMN phase_id TEXT REFERENCES project_phases(id) ON DELETE SET NULL",
     "ALTER TABLE experiments ADD COLUMN phase_id TEXT REFERENCES project_phases(id) ON DELETE SET NULL",
+    "ALTER TABLE admissions ADD COLUMN aid_percentage REAL",
+    "ALTER TABLE admissions ADD COLUMN aid_notes TEXT",
+    "ALTER TABLE admissions ADD COLUMN aid_at TEXT",
 ]
 
 

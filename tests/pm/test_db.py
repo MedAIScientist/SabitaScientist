@@ -1,7 +1,8 @@
 """Tests for PM database schema creation."""
-import pytest
 import sqlite3
 from pathlib import Path
+
+import pytest
 
 from EvoScientist.pm.db import create_schema
 
@@ -21,7 +22,7 @@ def test_create_schema_creates_all_tables(tmp_path: Path) -> None:
         "experiments", "experiment_tasks", "experiment_entries",
         "experiment_assists",
         "project_phases", "task_dependencies",
-        "attachments",
+        "attachments", "admissions",
     }
 
 
@@ -32,7 +33,7 @@ def test_create_schema_is_idempotent(tmp_path: Path) -> None:
 
     conn = sqlite3.connect(db_path)
     cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    assert len(cur.fetchall()) == 14
+    assert len(cur.fetchall()) == 15
     conn.close()
 
 

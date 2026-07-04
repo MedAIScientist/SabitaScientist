@@ -143,6 +143,46 @@ export const api = {
   },
   deleteAttachment: (attachmentId: string) =>
     request<void>('DELETE', `/attachments/${attachmentId}`),
+
+  // ── Admissions ────────────────────────────────────────────────────────────
+  listAdmissions: (status?: string) => {
+    const qs = status ? `?status=${encodeURIComponent(status)}` : ''
+    return request<Admission[]>('GET', `/admissions${qs}`)
+  },
+  getAdmission: (id: string) =>
+    request<Admission>('GET', `/admissions/${id}`),
+  importAdmissions: (file: File): Promise<AdmissionImportResponse> => {
+    const token = getToken()
+    const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {}
+    const form = new FormData()
+    form.append('file', file)
+    return fetch(`${BASE}/admissions/import`, {
+      method: 'POST',
+      headers,
+      body: form,
+    }).then(async resp => {
+      if (resp.status === 401) {
+        sessionStorage.removeItem('pm_token')
+        window.location.href = '/login'
+      }
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ detail: resp.statusText }))
+        throw new Error(err.detail ?? resp.statusText)
+      }
+      return resp.json() as Promise<AdmissionImportResponse>
+    })
+  },
+  updateAdmission: (id: string, data: { reviewer_id?: string | null; review_notes?: string | null }) =>
+    request<Admission>('PATCH', `/admissions/${id}`, data),
+  acceptAdmission: (id: string, notes?: string) =>
+    request<Admission>('POST', `/admissions/${id}/accept`, { notes }),
+  rejectAdmission: (id: string, notes: string) =>
+    request<Admission>('POST', `/admissions/${id}/reject`, { notes }),
+  deleteAdmission: (admissionId: string) =>
+    request<void>('DELETE', `/admissions/${admissionId}`),
+
+  grantAid: (admissionId: string, data: { aid_percentage: number; notes?: string | null }) =>
+    request<Admission>('POST', `/admissions/${admissionId}/financial-aid`, data),
 }
 
 export interface UserRecord {
@@ -448,4 +488,36 @@ export interface Attachment {
   uploaded_by: string | null
   created_at: string
   download_url: string
+}
+
+export interface Admission {
+  id: string
+  form_submission_id: number | null
+  applicant_name: string
+  supervisor: string | null
+  email: string
+  phone: string | null
+  university: string | null
+  department: string | null
+  service_areas: string
+  modas_members: string
+  grant_context: string | null
+  comments: string | null
+  status: 'submitted' | 'reviewing' | 'accepted' | 'rejected'
+  reviewer_id: string | null
+  review_notes: string | null
+  reviewed_at: string | null
+  created_project_id: string | null
+  aid_percentage: number | null
+  aid_notes: string | null
+  aid_at: string | null
+  imported_at: string
+  created_at: string
+  updated_at: string
+}
+
+export interface AdmissionImportResponse {
+  imported: number
+  skipped: number
+  admission_ids: string[]
 }

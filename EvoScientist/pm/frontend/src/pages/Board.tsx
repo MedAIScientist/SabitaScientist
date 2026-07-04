@@ -207,6 +207,24 @@ export function Board() {
 
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
+            onClick={() => navigate('/admissions')}
+            style={{
+              background: 'rgba(129,140,248,0.08)',
+              border: '1px solid rgba(129,140,248,0.18)',
+              color: '#64748b',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 20,
+              padding: '4px 10px',
+              borderRadius: 4,
+              cursor: 'pointer',
+              letterSpacing: '0.08em',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#818cf8'; e.currentTarget.style.borderColor = 'rgba(129,140,248,0.35)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(129,140,248,0.18)' }}
+          >
+            📋 ADMISSIONS
+          </button>
+          <button
             onClick={() => navigate(`/projects/${projectId}/experiments`)}
             style={{
               background: 'rgba(16,185,129,0.08)',
