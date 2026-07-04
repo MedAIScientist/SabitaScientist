@@ -6,6 +6,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth'
 import { ThemeProvider } from './theme'
 import { api } from './api'
+import { NavBar } from './components/NavBar'
 import { Login } from './pages/Login'
 import { Projects } from './pages/Projects'
 import { Board } from './pages/Board'
@@ -19,12 +20,13 @@ import { AdmissionsPage }     from './pages/AdmissionsPage'
 import { AdmissionDetail }    from './pages/AdmissionDetail'
 import { LabsPage }           from './pages/LabsPage'
 import { LabDetail }          from './pages/LabDetail'
+import { AdminDashboard }     from './pages/AdminDashboard'
 
 const queryClient = new QueryClient()
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuth()
-  return token ? <>{children}</> : <Navigate to="/login" replace />
+  return token ? <><NavBar />{children}</> : <Navigate to="/login" replace />
 }
 
 function App() {
@@ -52,6 +54,7 @@ function App() {
         <Route path="/admissions/:id"   element={<PrivateRoute><AdmissionDetail /></PrivateRoute>} />
         <Route path="/labs"            element={<PrivateRoute><LabsPage /></PrivateRoute>} />
         <Route path="/labs/:id"        element={<PrivateRoute><LabDetail /></PrivateRoute>} />
+        <Route path="/admin"           element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
         {!needsSetup && <Route path="*" element={<Navigate to="/projects" replace />} />}
       </Routes>
     </BrowserRouter>

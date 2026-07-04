@@ -1,0 +1,86 @@
+# Production deployment for EvoScientist Research Ecosystem.
+# Usage:
+#   cp .env deploy/.env && vim deploy/.env   # set API keys
+#   docker compose -f deploy/docker-compose.yml up -d
+#
+# With SSL (requires cert.pem + key.pem in deploy/nginx/ssl/):
+#   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.ssl.yml up -d
+
+x-shared: &shared
+  env_file:
+    - ../.env
+    - .env
+  restart: unless-stopped
+
+services:
+  # ── Main application: PM API + SPA + Agent Runner ──────────────────────────
+  evoscientist:
+    <<: *shared
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: evoscientist:prod
+    container_name: evoscientist
+    command: ["uv", "run", "EvoSci", "dashboard", "--host", "0.0.0.0", "--no-open"]
+    ports:
+      - "127.0.0.1:7860:7860"
+      - "127.0.0.1:8001:8001"
+    depends_on:
+      garage:
+        condition: service_healthy
+    environment:
+      - EVOSCIENTIST_PM_DB=/data/pm.db
+      - EVOSCIENTIST_WORKSPACE_DIR=/data/workspaces
+      - GARAGE_S3_ENDPOINT=${GARAGE_S3_ENDPOINT:-http://garage:3900}
+      - GARAGE_ACCESS_KEY=${GARAGE_ACCESS_KEY:-}
+      - GARAGE_SECRET_KEY=${GARAGE_SECRET_KEY:-}
+      - GARAGE_BUCKET=${GARAGE_BUCKET:-evoscientist}
+    volumes:
+      - evoscientist-prod-data:/data
+      - evoscientist-home:/home/evosci/.evoscientist
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7860/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+
+  # ── S3-compatible object storage for file attachments ──────────────────────
+  garage:
+    image: dxflrs/garage:v1.0.1
+    container_name: evoscientist-garage
+    ports:
+      - "127.0.0.1:3900:3900"
+    environment:
+      - GARAGE_CONFIG_FILE=/etc/garage.toml
+    volumes:
+      - garage-prod-data:/data
+      - ../garage.toml:/etc/garage.toml:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3900"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ── Reverse proxy (HTTP-only; add SSL override for HTTPS) ──────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: evoscientist-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      evoscientist:
+        condition: service_healthy
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - nginx-logs:/var/log/nginx
+    restart: unless-stopped
+
+volumes:
+  evoscientist-prod-data:
+  evoscientist-home:
+  garage-prod-data:
+  nginx-logs:
