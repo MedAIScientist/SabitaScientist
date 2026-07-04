@@ -185,7 +185,7 @@ ignore = [
 ]
 fixable = ["ALL"]
 unfixable = []
-allowed-confusables = ["–", "❯", "：", "（", "）", "，"]
+allowed-confusables = ["–", "❯", "：", "（", "）", "，", "ı", "ğ", "ü", "ş", "ö", "ç", "İ", "Ğ", "Ü", "Ş", "Ö", "Ç"]
 
 [tool.ruff.format]
 quote-style = "double"

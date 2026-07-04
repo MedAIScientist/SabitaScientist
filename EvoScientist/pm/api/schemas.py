@@ -470,7 +470,7 @@ class ComputeResourceCreate(BaseModel):
 
 
 class GrantWriterRequest(BaseModel):
-    grant_type: str = Field(default="general", pattern="^(nih_r01|nsf|erc|wellcome|general)$")
+    grant_type: str = Field(default="general", pattern="^(tubitak_1001|tubitak_1003|tubitak_3501|tubitak_other|tuseb|nih_r01|nsf|erc|wellcome|general)$")
 
 
 class ComputeRunRequest(BaseModel):

@@ -308,7 +308,7 @@ export function Board() {
           </button>
           <button
             onClick={async () => {
-              const type = prompt('Grant type (nih_r01 / nsf / erc / wellcome / general):', 'general')
+              const type = prompt('Grant type:\n  tubitak_1001 / tubitak_1003 / tubitak_3501\n  tubitak_other / tuseb / nih_r01\n  nsf / erc / wellcome / general', 'tubitak_1001')
               if (!type) return
               try {
                 const r = await api.draftGrantProposal(projectId!, type.trim())

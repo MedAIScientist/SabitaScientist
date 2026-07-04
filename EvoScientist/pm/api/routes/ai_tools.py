@@ -24,6 +24,46 @@ RUNNER_URL = os.getenv("RUNNER_URL", "http://127.0.0.1:8001")
 # =============================================================================
 
 _GRANT_TEMPLATES = {
+    "tubitak_1001": (
+        "TÜBİTAK 1001 — Bilimsel ve Teknolojik Araştırma Projelerini Destekleme Programı. "
+        "Azami 36 ay süreli, 20 sayfaya kadar proje önerisi. "
+        "Proje yürütücüsü + araştırmacılar + danışmanlar. "
+        "Bütçe: makine-teçhizat, sarf malzemesi, seyahat, hizmet alımı, personel. "
+        "Değerlendirme kriterleri: özgün değer, yöntem, proje yönetimi, yaygın etki, bütçe uygunluğu. "
+        "Proje önerisi bölümleri: Proje Adı, Özet, Amaç ve Hedefler, Özgün Değer, Yöntem, "
+        "Proje Yönetimi, Yaygın Etki, Bütçe Gerekçesi, Kaynakça, Ekler."
+    ),
+    "tubitak_1003": (
+        "TÜBİTAK 1003 — Öncelikli Alanlar Ar-Ge Projeleri Destekleme Programı. "
+        "Öncelikli alanlarda (sağlık, enerji, malzeme, yapay zeka vb.) uygulamalı Ar-Ge projeleri. "
+        "Azami 36 ay, 20 sayfa. İki aşamalı değerlendirme. "
+        "Hedef odaklı, çıktıya yönelik, takvimli projeler beklenir. "
+        "Çağrı bazlı başvuru — proje çağrı metnindeki hedeflerle uyum gerekli."
+    ),
+    "tubitak_3501": (
+        "TÜBİTAK 3501 — Kariyer Geliştirme Programı. "
+        "Doktora sonrası genç araştırmacılar için (üniversitede ilk 5 yıl). "
+        "Azami 24 ay, 15 sayfa. "
+        "Amaç: bağımsız araştırma grubu kurma, kariyer gelişimini destekleme. "
+        "Değerlendirme: araştırmanın özgünlüğü, yöntem, araştırmacının bağımsızlık potansiyeli."
+    ),
+    "tubitak_other": (
+        "TÜBİTAK — Diğer Programlar. "
+        "Standart TÜBİTAK proje önerisi formatı. "
+        "Bölümler: Proje Adı, Özet (Türkçe + İngilizce), Literatür Özeti, "
+        "Amaç ve Hedefler, Özgün Değer, Yöntem, İş-Zaman Çizelgesi, "
+        "Risk Yönetimi, Bütçe, Yaygın Etki, Kaynakça. "
+        "Maksimum 20 sayfa, 36 ay."
+    ),
+    "tuseb": (
+        "TÜSEB — Türkiye Sağlık Enstitüleri Başkanlığı Sağlık Araştırmaları Destek Programı. "
+        "Sağlık alanında uygulamalı ve temel araştırma projeleri. "
+        "Bütçe kalemleri: personel, makine-teçhizat, sarf, hizmet alımı, seyahat, yayın. "
+        "Proje süresi: 12-36 ay. "
+        "Öncelikli alanlar: nadir hastalıklar, aşı geliştirme, biyomalzeme, "
+        "dijital sağlık, geleneksel ve tamamlayıcı tıp, sağlık teknolojileri. "
+        "Proje önerisi: Özet, Amaç, Gerekçe ve Önem, Yöntem, İş-Zaman Planı, Bütçe, Kaynakça."
+    ),
     "nih_r01": "NIH R01 — Research Project Grant. 12-page limit, Specific Aims page, Research Strategy (Significance, Innovation, Approach).",
     "nsf": "NSF Standard Grant. 15-page project description, Intellectual Merit + Broader Impacts required.",
     "erc": "ERC Starting/Consolidator/Advanced Grant. Extended narrative with ground-breaking ambition, no page limit but concise.",
@@ -47,9 +87,19 @@ _GRANT_WRITER_PROMPT = """You are an expert grant proposal writer. Draft a compl
    - Experimental design and methods
    - Expected outcomes
    - Alternative strategies and contingency plans
-7. **Timeline** — Gantt-style timeline (12-60 months)
-8. **Budget Justification** — Key personnel, equipment, supplies, travel
-9. **References** — Key citations supporting the proposal
+7. **Timeline / İş-Zaman Çizelgesi** — Gantt-style timeline (12-60 months)
+8. **Budget Justification / Bütçe Gerekçesi** — Key personnel, equipment, supplies, travel
+9. **Risk Management / Risk Yönetimi** — Potential risks and contingency plans
+10. **Yaygın Etki / Dissemination** — How results will be shared, societal impact
+11. **References** — Key citations supporting the proposal
+
+**TÜBİTAK/TÜSEB özel kurallar (Turkish agency rules):**
+- If grant_type starts with 'tubitak' or is 'tuseb', include a **Türkçe Özet** (Turkish abstract, 200-300 kelime)
+- TÜBİTAK projelerinde **özgün değer** (original value) ayrı bir başlık altında vurgulanmalı
+- Bütçe kalemlerini TL cinsinden belirt (TRY)
+- Proje yürütücüsünün **özgeçmişi** ve yayın listesi eklenmeli
+- TÜSEB projelerinde sağlık alanına özgü etik kurul onayı ve gönüllü onam süreçlerine yer verilmeli
+- Varsa **etik kurul izni** (hayvan deneyleri, klinik çalışmalar) planı ekleyin
 
 **Writing guidelines:**
 - Be specific and concrete — avoid vague promises
