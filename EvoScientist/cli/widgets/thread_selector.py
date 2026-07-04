@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, ClassVar
 
+from prompt_toolkit.styles import Style as PtStyle  # type: ignore[import-untyped]
 from rich.text import Text
 from textual.binding import Binding, BindingType
 from textual.containers import Container
@@ -28,6 +29,22 @@ from textual.widgets import Static
 if TYPE_CHECKING:
     from textual import events
     from textual.app import ComposeResult
+
+
+# Style for questionary pickers used by the Rich CLI ``/resume`` and
+# ``/delete`` interactive selectors. Matches the slash-completion menu's
+# visual language: gray (#888888) for non-selected, bold for selected,
+# no background changes.
+PICKER_STYLE = PtStyle.from_dict(
+    {
+        "questionmark": "#888888",
+        "question": "",
+        "pointer": "bold",
+        "highlighted": "bold",
+        "text": "#888888",
+        "answer": "bold",
+    }
+)
 
 
 # ---------------------------------------------------------------------------
@@ -185,9 +202,9 @@ def build_row_text(
     indented: bool = False,
 ) -> Text:
     """Thread row.  *indented* adds extra leading space for L2-grouped rows."""
-    from ...sessions import _format_relative_time
+    from ...sessions import _format_relative_time, short_thread_id
 
-    tid = thread["thread_id"]
+    tid = short_thread_id(thread["thread_id"])
     preview = thread.get("preview", "") or ""
     msgs = thread.get("message_count", 0)
     model = thread.get("model", "") or ""

@@ -1,11 +1,19 @@
 from __future__ import annotations
 
+import inspect
 from typing import ClassVar
 
 from rich.table import Table
 
+from ...gateway import GraphGateway, GraphTarget
 from ..base import Argument, Command, CommandContext
 from ..manager import manager
+
+
+def _graph_gateway(ctx: CommandContext) -> GraphGateway:
+    if ctx.graph_gateway is None:
+        raise RuntimeError("Session commands require a graph_gateway")
+    return ctx.graph_gateway
 
 
 class CompactCommand(Command):
@@ -13,16 +21,60 @@ class CompactCommand(Command):
 
     name = "/compact"
     description = "Compact conversation to free context"
+    requires_agent = True
 
     async def execute(self, ctx: CommandContext, args: list[str]) -> None:
-        from ...cli.commands import compact_conversation, render_compact_result
-
-        ctx.ui.append_system("Compacting conversation...")
-        result = await compact_conversation(
-            agent=ctx.agent,
-            thread_id=ctx.thread_id,
+        from ...cli.commands import (
+            build_compact_summary_renderable,
+            compact_conversation,
+            render_compact_result,
         )
+
+        start_indicator = getattr(ctx.ui, "start_compacting_indicator", None)
+        stop_indicator = getattr(ctx.ui, "stop_compacting_indicator", None)
+        using_indicator = callable(start_indicator) and callable(stop_indicator)
+
+        if using_indicator:
+            maybe = start_indicator()
+            if inspect.isawaitable(maybe):
+                await maybe
+        else:
+            ctx.ui.append_system("Compacting conversation...")
+
+        try:
+            result = await compact_conversation(
+                graph_gateway=_graph_gateway(ctx),
+                thread_id=ctx.thread_id,
+                target=GraphTarget(
+                    local_graph=ctx.agent,
+                    workspace_dir=ctx.workspace_dir,
+                ),
+                input_tokens_hint=ctx.input_tokens_hint,
+            )
+        finally:
+            if using_indicator:
+                maybe = stop_indicator()
+                if inspect.isawaitable(maybe):
+                    await maybe
+
         ctx.ui.mount_renderable(render_compact_result(result))
+        summary_renderable = build_compact_summary_renderable(result)
+        if summary_renderable is not None:
+            ctx.ui.mount_renderable(summary_renderable)
+        # Push the reduced token count to the status bar immediately so it
+        # reflects the new context without waiting for the next LLM call.
+        # Only when input_tokens_hint was available: tokens_after is then
+        # LLM-level (includes system + tool overhead), matching the unit that
+        # _status_last_input_tokens expects. Without a hint, tokens_after is
+        # message-level only and would produce a misleadingly low reading.
+        if (
+            result.status == "ok"
+            and result.tokens_after > 0
+            and ctx.input_tokens_hint is not None
+        ):
+            update_fn = getattr(ctx.ui, "update_status_after_compact", None)
+            if callable(update_fn):
+                update_fn(result.tokens_after)
 
 
 class ThreadsCommand(Command):
@@ -32,9 +84,10 @@ class ThreadsCommand(Command):
     description = "List recent sessions"
 
     async def execute(self, ctx: CommandContext, args: list[str]) -> None:
-        from ...sessions import _format_relative_time, list_threads
+        from ...sessions import _format_relative_time, short_thread_id
 
-        threads = await list_threads(
+        gateway = _graph_gateway(ctx)
+        threads = await gateway.list_threads(
             limit=0,
             include_message_count=True,
             include_preview=True,
@@ -62,7 +115,7 @@ class ThreadsCommand(Command):
             marker = " *" if thread_id_value == ctx.thread_id else ""
 
             row = [
-                f"{thread_id_value}{marker}",
+                f"{short_thread_id(thread_id_value)}{marker}",
                 thread.get("preview", "") or "",
                 str(thread.get("message_count", 0)),
             ]
@@ -72,6 +125,11 @@ class ThreadsCommand(Command):
 
             table.add_row(*row)
         ctx.ui.mount_renderable(table)
+        if not is_channel:
+            ctx.ui.append_system(
+                "  /resume to continue a session  "
+                "/delete <id> to remove  /new to start fresh",
+            )
 
 
 class ResumeCommand(Command):
@@ -89,15 +147,10 @@ class ResumeCommand(Command):
     ]
 
     async def execute(self, ctx: CommandContext, args: list[str]) -> None:
-
-        from ...sessions import (
-            get_thread_metadata,
-            list_threads,
-        )
-
+        gateway = _graph_gateway(ctx)
         arg = args[0] if args else ""
         if not arg:
-            threads = await list_threads(
+            threads = await gateway.list_threads(
                 limit=0,
                 include_message_count=True,
                 include_preview=True,
@@ -121,7 +174,7 @@ class ResumeCommand(Command):
         if not resolved:
             return
 
-        metadata = await get_thread_metadata(resolved)
+        metadata = await gateway.get_thread_metadata(resolved)
         restored_workspace = (metadata or {}).get("workspace_dir", "")
         if restored_workspace:
             ctx.workspace_dir = restored_workspace
@@ -133,21 +186,16 @@ class ResumeCommand(Command):
             await ctx.ui.handle_session_resume(resolved, restored_workspace)
 
     async def _resolve_thread_id(self, prefix: str, ctx: CommandContext) -> str | None:
-        from ...sessions import find_similar_threads, thread_exists
+        resolution = await _graph_gateway(ctx).resolve_thread(prefix)
+        if resolution.thread_id:
+            return resolution.thread_id
 
-        if await thread_exists(prefix):
-            return prefix
-
-        similar = await find_similar_threads(prefix)
-        if len(similar) == 1:
-            return similar[0]
-
-        if len(similar) > 1:
+        if resolution.matches:
             ctx.ui.append_system(
                 f"Ambiguous thread ID '{prefix}'. Use a longer prefix.",
                 style="yellow",
             )
-            for thread in similar:
+            for thread in resolution.matches:
                 ctx.ui.append_system(f"  - {thread}", style="dim")
             return None
 
@@ -162,7 +210,7 @@ class NewCommand(Command):
     description = "Start a new session"
 
     async def execute(self, ctx: CommandContext, args: list[str]) -> None:
-        ctx.ui.start_new_session()
+        await ctx.ui.start_new_session()
 
 
 class ClearCommand(Command):
@@ -190,16 +238,10 @@ class DeleteCommand(Command):
     ]
 
     async def execute(self, ctx: CommandContext, args: list[str]) -> None:
-        from ...sessions import (
-            delete_thread,
-            find_similar_threads,
-            list_threads,
-            thread_exists,
-        )
-
+        gateway = _graph_gateway(ctx)
         arg = args[0] if args else ""
         if not arg:
-            threads = await list_threads(
+            threads = await gateway.list_threads(
                 limit=0,
                 include_message_count=True,
                 include_preview=True,
@@ -219,22 +261,17 @@ class DeleteCommand(Command):
             arg = selected
 
         # Resolve thread_id
-        resolved = None
-        if await thread_exists(arg):
-            resolved = arg
-        else:
-            similar = await find_similar_threads(arg)
-            if len(similar) == 1:
-                resolved = similar[0]
-            elif len(similar) > 1:
-                ctx.ui.append_system(
-                    f"Ambiguous thread ID '{arg}'. Use a longer prefix.",
-                    style="yellow",
-                )
-                for thread in similar:
-                    ctx.ui.append_system(f"  - {thread}", style="dim")
-                return
+        resolution = await gateway.resolve_thread(arg)
+        if resolution.matches:
+            ctx.ui.append_system(
+                f"Ambiguous thread ID '{arg}'. Use a longer prefix.",
+                style="yellow",
+            )
+            for thread in resolution.matches:
+                ctx.ui.append_system(f"  - {thread}", style="dim")
+            return
 
+        resolved = resolution.thread_id
         if not resolved:
             ctx.ui.append_system(f"Session '{arg}' not found.", style="red")
             return
@@ -246,7 +283,7 @@ class DeleteCommand(Command):
             )
             return
 
-        deleted = await delete_thread(resolved)
+        deleted = await gateway.delete_thread(resolved)
         if deleted:
             ctx.ui.append_system(f"Deleted session {resolved}.", style="green")
         else:

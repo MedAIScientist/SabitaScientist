@@ -7,6 +7,7 @@ adapted for deepagents tool names.
 
 import sys
 from enum import StrEnum
+from functools import lru_cache
 from pathlib import PurePath
 
 # === Status marker constants ===
@@ -106,6 +107,36 @@ def _shorten_path(path: str, max_len: int = 40) -> str:
     return path
 
 
+def _tool_path_arg(args: dict | None) -> str:
+    """Return the best-effort path argument used by file tools."""
+    if not isinstance(args, dict):
+        return ""
+    return str(args.get("path") or args.get("file_path") or "")
+
+
+def _is_memory_path(path: str) -> bool:
+    """Return True when a virtual path targets the global memories directory."""
+    normalized = (path or "").strip()
+    return normalized == "/memories" or normalized.startswith("/memories/")
+
+
+@lru_cache(maxsize=1)
+def _profile_memory_headings() -> tuple[str, ...]:
+    """Return profile headings from the canonical profile templates."""
+    from EvoScientist.middleware.memory import PROFILE_TEMPLATES
+
+    return tuple(
+        template.strip().splitlines()[0].strip()
+        for template in PROFILE_TEMPLATES.values()
+        if template.strip()
+    )
+
+
+def _looks_like_profile_memory(content: str) -> bool:
+    """Recognize profile-memory content when streamed without file args."""
+    return any(heading in content for heading in _profile_memory_headings())
+
+
 def format_tool_compact(name: str, args: dict | None) -> str:
     """Format as compact tool call string: ToolName(key_arg).
 
@@ -127,20 +158,20 @@ def format_tool_compact(name: str, args: dict | None) -> str:
 
     # File operations (with special case for memory files)
     if name_lower == "read_file":
-        path = args.get("path", "")
-        if path.endswith("/MEMORY.md") or path == "/MEMORY.md":
+        path = _tool_path_arg(args)
+        if _is_memory_path(path):
             return "Reading memory"
         return f"read_file({_shorten_path(path)})"
 
     if name_lower == "write_file":
-        path = args.get("path", "")
-        if path.endswith("/MEMORY.md") or path == "/MEMORY.md":
+        path = _tool_path_arg(args)
+        if _is_memory_path(path):
             return "Updating memory"
         return f"write_file({_shorten_path(path)})"
 
     if name_lower == "edit_file":
-        path = args.get("path", "")
-        if path.endswith("/MEMORY.md") or path == "/MEMORY.md":
+        path = _tool_path_arg(args)
+        if _is_memory_path(path):
             return "Updating memory"
         return f"edit_file({_shorten_path(path)})"
 
@@ -184,12 +215,6 @@ def format_tool_compact(name: str, args: dict | None) -> str:
                     task_desc = task_desc[:47] + "\u2026"
                 return f"Cooking with {sa_type} — {task_desc}"
             return f"Cooking with {sa_type}"
-        # Fallback if no subagent_type
-        if task_desc:
-            if len(task_desc) > 50:
-                task_desc = task_desc[:47] + "\u2026"
-            return f"Cooking with sub-agent — {task_desc}"
-        return "Cooking with sub-agent"
 
     # Web search
     if name_lower in ("tavily_search", "internet_search"):
@@ -218,6 +243,32 @@ def format_tool_compact(name: str, args: dict | None) -> str:
         params_str = params_str[:47] + "\u2026"
 
     return f"{name}({params_str})"
+
+
+def format_tool_compact_with_result(
+    name: str,
+    args: dict | None,
+    result_content: str = "",
+) -> str:
+    """Format tool labels with a small amount of result-based inference.
+
+    Some providers stream sparse file-tool args, especially for memory reads
+    and edits. Reuse the CLI inference here so all frontends keep the same
+    display names.
+    """
+    compact = format_tool_compact(name, args)
+    name_lower = name.lower()
+    result_content = result_content or ""
+
+    if name_lower in ("write_file", "edit_file"):
+        if "/memories/" in result_content:
+            return "Updating memory"
+    elif name_lower == "read_file":
+        path = _tool_path_arg(args)
+        if not path and _looks_like_profile_memory(result_content):
+            return "Reading memory"
+
+    return compact
 
 
 def format_tree_output(lines: list[str], max_lines: int = 5, indent: str = "  ") -> str:

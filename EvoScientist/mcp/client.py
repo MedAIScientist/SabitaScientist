@@ -13,12 +13,88 @@ import os
 import re
 import shutil
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import yaml
 
 logger = logging.getLogger(__name__)
+
+
+# =============================================================================
+# Windows MCP SDK patch — drop the blocking os.access from stdio command resolution
+# =============================================================================
+#
+# On Windows, ``mcp.client.stdio`` resolves the server command on every stdio
+# session open via ``get_windows_executable_command()``, which calls
+# ``shutil.which()`` → ``os.access()`` — a blocking syscall. ``langgraph dev``
+# enables ``blockbuster`` by default, which flags that ``os.access()`` as an
+# illegal blocking call inside the event loop (one of the two root causes of
+# issue #283; the other is the Selector-loop subprocess fallback handled by
+# ``EvoScientist._winloop``).
+#
+# ``_resolve_command()`` (below) already resolves bare command names to their
+# absolute paths at connection-build time — a sync context where blocking is
+# fine. So by the time the stdio transport asks for the executable, the command
+# is already absolute and there is nothing left to look up. We short-circuit the
+# SDK's resolver for absolute paths, avoiding the ``os.access()`` entirely; bare
+# commands (which shouldn't reach here, but might via a transport we don't build)
+# still fall through to the original SDK behaviour.
+
+
+def _patch_mcp_windows_command_resolver() -> None:
+    """Make the MCP SDK's stdio command resolver skip ``os.access`` for absolute
+    paths.
+
+    Idempotent. A no-op when the MCP SDK is absent (it is an optional
+    dependency). If the SDK is present but its resolver can't be located, we log
+    a warning rather than failing silently — a silent no-op here would let the
+    blocking ``os.access`` quietly return after an SDK refactor.
+    """
+    try:
+        import mcp.client.stdio as _stdio_mod
+    except ImportError:
+        return  # MCP SDK not installed — nothing to patch.
+
+    original = getattr(_stdio_mod, "get_windows_executable_command", None)
+    if not callable(original):
+        logger.warning(
+            "MCP SDK layout changed: mcp.client.stdio.get_windows_executable_command "
+            "is missing; the Windows os.access fast-path was NOT applied. MCP stdio "
+            "tool calls may trip blocking-call detection (blockbuster) on Windows."
+        )
+        return
+
+    if getattr(original, "_evosci_absolute_fast_path", False):
+        return  # Already patched.
+
+    def _patched_get_windows_executable_command(command: str) -> str:
+        # Absolute path → already resolved, no filesystem probe needed.
+        if os.path.isabs(command):
+            return command
+        return original(command)
+
+    _patched_get_windows_executable_command._evosci_absolute_fast_path = True  # type: ignore[attr-defined]
+
+    # Patch the name in the stdio module (the call site resolves it from this
+    # module's globals) and, best-effort, the origin module in case anything
+    # imports it from there directly.
+    _stdio_mod.get_windows_executable_command = _patched_get_windows_executable_command
+    try:
+        import mcp.os.win32.utilities as _win32_utils
+
+        _win32_utils.get_windows_executable_command = (
+            _patched_get_windows_executable_command
+        )
+    except ImportError:
+        pass  # Origin module path differs in this SDK version; stdio patch suffices.
+
+    logger.debug("Applied MCP Windows command-resolver os.access fast-path patch")
+
+
+_patch_mcp_windows_command_resolver()
+
 
 # =============================================================================
 # Constants
@@ -32,6 +108,31 @@ VALID_TRANSPORTS = {"stdio", "http", "streamable_http", "sse", "websocket"}
 
 # URL-based transports (share the same connection shape)
 _URL_TRANSPORTS = {"http", "streamable_http", "sse", "websocket"}
+
+# Upper bound on simultaneous ``get_tools`` attempts in :func:`_load_tools`.
+# Keeps stdio-server fleets from spawning 20+ subprocesses at once while
+# still parallelizing the common 3–7 server case to completion.
+_MAX_CONCURRENT_CONNECTIONS = 8
+
+# Env vars forwarded to stdio MCP subprocesses on top of the MCP SDK's
+# minimal default set (HOME/PATH/USER/…). Without this, servers behind
+# a proxy or with a custom CA bundle silently fail with long timeouts.
+# User-provided ``env`` still wins via dict merge.
+_STDIO_FORWARDED_ENV_VARS = (
+    "http_proxy",
+    "https_proxy",
+    "HTTP_PROXY",
+    "HTTPS_PROXY",
+    "all_proxy",
+    "ALL_PROXY",
+    "no_proxy",
+    "NO_PROXY",
+    "SSL_CERT_FILE",
+    "SSL_CERT_DIR",
+    "REQUESTS_CA_BUNDLE",
+    "CURL_CA_BUNDLE",
+    "NODE_EXTRA_CA_CERTS",
+)
 
 
 def _get_mcp_config_dir() -> Path:
@@ -527,8 +628,13 @@ def _build_connections(config: dict[str, Any]) -> dict[str, dict[str, Any]]:
                 "command": _resolve_command(server.get("command", "")),
                 "args": server.get("args", []),
             }
-            if "env" in server:
-                conn["env"] = server["env"]
+            forwarded = {
+                k: os.environ[k] for k in _STDIO_FORWARDED_ENV_VARS if k in os.environ
+            }
+            user_env = server.get("env") or {}
+            merged = {**forwarded, **user_env}
+            if merged:
+                conn["env"] = merged
             connections[name] = conn
 
         elif transport in _URL_TRANSPORTS:
@@ -624,7 +730,20 @@ def _route_tools(
     return by_agent
 
 
-async def _load_tools(config: dict[str, Any]) -> dict[str, list]:
+ProgressCallback = Callable[[str, str, str], None]
+"""Per-server progress callback: ``(event, server_name, detail)``.
+
+- ``event="start"``   — connection attempt has begun.  ``detail`` is empty.
+- ``event="success"`` — tools fetched.  ``detail`` is the count as a string.
+- ``event="error"``   — failed.  ``detail`` is the exception message.
+"""
+
+
+async def _load_tools(
+    config: dict[str, Any],
+    *,
+    on_progress: ProgressCallback | None = None,
+) -> dict[str, list]:
     """Connect to MCP servers and retrieve tools.
 
     Returns a dict of server name -> list of LangChain tools.
@@ -644,22 +763,54 @@ async def _load_tools(config: dict[str, Any]) -> dict[str, list]:
     if not connections:
         return {}
 
-    server_tools: dict[str, list] = {}
     client = MultiServerMCPClient(connections)  # type: ignore[invalid-argument-type]
 
-    for server_name in connections:
+    def _report(event: str, name: str, detail: str = "") -> None:
+        if on_progress is None:
+            return
         try:
-            tools = await client.get_tools(server_name=server_name)
-            server_tools[server_name] = tools
-            logger.info("MCP server %r: loaded %d tool(s)", server_name, len(tools))
-        except Exception as exc:
-            logger.warning("MCP server %r: failed to load tools: %s", server_name, exc)
-            server_tools[server_name] = []
+            on_progress(event, name, detail)
+        except Exception:
+            # Progress callbacks are UI glue — never let their bugs break
+            # the actual MCP load.
+            logger.debug("MCP progress callback raised", exc_info=True)
 
-    return server_tools
+    # Cap in-flight connections so a user with many servers doesn't
+    # spawn all their stdio subprocesses at once (fd/ulimit pressure,
+    # load spikes).  The cap still parallelizes ~an order of magnitude
+    # better than the old serial loop.
+    sem = asyncio.Semaphore(_MAX_CONCURRENT_CONNECTIONS)
+
+    async def _fetch(name: str) -> tuple[str, list]:
+        async with sem:
+            _report("start", name)
+            try:
+                tools = await client.get_tools(server_name=name)
+                logger.info("MCP server %r: loaded %d tool(s)", name, len(tools))
+                _report("success", name, str(len(tools)))
+                return name, tools
+            except Exception as exc:
+                # When the caller wired up ``on_progress`` they own the
+                # user-facing display; downgrade the logger so we don't
+                # double-print.
+                if on_progress is None:
+                    logger.warning("MCP server %r: failed to load tools: %s", name, exc)
+                else:
+                    logger.debug("MCP server %r: failed to load tools: %s", name, exc)
+                _report("error", name, str(exc))
+                return name, []
+
+    # ``return_exceptions=False`` is fine because ``_fetch`` already
+    # swallows errors per server.
+    results = await asyncio.gather(*(_fetch(name) for name in connections))
+    return dict(results)
 
 
-async def aload_mcp_tools(config: dict[str, Any] | None = None) -> dict[str, list]:
+async def aload_mcp_tools(
+    config: dict[str, Any] | None = None,
+    *,
+    on_progress: ProgressCallback | None = None,
+) -> dict[str, list]:
     """Async version of :func:`load_mcp_tools`.
 
     Prefer this when already inside an async context (e.g. Jupyter, async CLI).
@@ -667,20 +818,26 @@ async def aload_mcp_tools(config: dict[str, Any] | None = None) -> dict[str, lis
     Args:
         config: Optional pre-loaded MCP config dict.  When ``None``,
             loads from ``~/.config/evoscientist/mcp.yaml``.
+        on_progress: Optional callback invoked per server with
+            ``(event, server_name, detail)``.  See :data:`ProgressCallback`.
     """
     if config is None:
         config = load_mcp_config()
     if not config:
         return {}
     try:
-        server_tools = await _load_tools(config)
+        server_tools = await _load_tools(config, on_progress=on_progress)
     except Exception as exc:
         logger.warning("MCP tool loading failed: %s", exc)
         return {}
     return _route_tools(config, server_tools)
 
 
-def load_mcp_tools(config: dict[str, Any] | None = None) -> dict[str, list]:
+def load_mcp_tools(
+    config: dict[str, Any] | None = None,
+    *,
+    on_progress: ProgressCallback | None = None,
+) -> dict[str, list]:
     """Load MCP tools and return them grouped by target agent.
 
     This is the main synchronous entry point. It:
@@ -694,6 +851,8 @@ def load_mcp_tools(config: dict[str, Any] | None = None) -> dict[str, list]:
             loads from ``~/.config/evoscientist/mcp.yaml``.  Passing a
             pre-loaded config avoids duplicate env-var interpolation
             warnings when the caller has already loaded the config.
+        on_progress: Optional callback invoked per server with
+            ``(event, server_name, detail)``.  See :data:`ProgressCallback`.
 
     Returns:
         Dict mapping agent name -> list of LangChain ``BaseTool`` objects.
@@ -717,7 +876,7 @@ def load_mcp_tools(config: dict[str, Any] | None = None) -> dict[str, list]:
             import nest_asyncio
 
             nest_asyncio.apply()
-        server_tools = asyncio.run(_load_tools(config))
+        server_tools = asyncio.run(_load_tools(config, on_progress=on_progress))
     except Exception as exc:
         logger.warning("MCP tool loading failed: %s", exc)
         return {}

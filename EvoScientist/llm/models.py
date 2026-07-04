@@ -3,21 +3,25 @@
 This module provides a unified interface for creating chat model instances
 with support for multiple providers (Anthropic, OpenAI, Google GenAI, MiniMax
 (Anthropic-compatible), NVIDIA, SiliconFlow, OpenRouter, ZhipuAI, Volcengine,
-DashScope, DeepSeek, Ollama, and custom OpenAI/Anthropic-compatible endpoints) and
-convenient short names for common models.
+DashScope, DashScope-Code, DeepSeek, Ollama, and custom OpenAI/Anthropic-compatible
+endpoints) and convenient short names for common models.
 """
 
 from __future__ import annotations
 
 import os
+import warnings
 from typing import Any
 
 from langchain.chat_models import init_chat_model
 
+from .context_window import apply_known_context_window
 from .patches import (
     _is_ccproxy_codex,
+    _patch_ccproxy_system_to_developer,
+    _patch_deepseek_reasoning_passback,
     _patch_openai_compat_content,
-    _patch_openrouter_reasoning_details,
+    _patch_openrouter_strip_responses_reasoning,
 )
 
 _MINIMAX_ANTHROPIC_BASE_URL = "https://api.minimaxi.com/anthropic"
@@ -27,18 +31,23 @@ _ZHIPU_BASE_URL = "https://open.bigmodel.cn/api/paas/v4"
 _ZHIPU_CODE_BASE_URL = "https://open.bigmodel.cn/api/coding/paas/v4"
 _VOLCENGINE_BASE_URL = "https://ark.cn-beijing.volces.com/api/v3"
 _DASHSCOPE_BASE_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+_DASHSCOPE_CODE_BASE_URL = "https://coding.dashscope.aliyuncs.com/v1"
 
 _DEEPSEEK_BASE_URL = "https://api.deepseek.com"
+_MOONSHOT_BASE_URL = "https://api.moonshot.cn/v1"
+_KIMI_CODING_BASE_URL = "https://api.kimi.com/coding/"
 
 # Providers routed through the OpenAI provider with a custom base_url.
 # Maps provider name → (base_url or None, env var for API key).
 _OPENAI_ROUTED_PROVIDERS: dict[str, tuple[str | None, str]] = {
     "deepseek": (_DEEPSEEK_BASE_URL, "DEEPSEEK_API_KEY"),
+    "moonshot": (_MOONSHOT_BASE_URL, "MOONSHOT_API_KEY"),
     "siliconflow": (_SILICONFLOW_BASE_URL, "SILICONFLOW_API_KEY"),
     "zhipu": (_ZHIPU_BASE_URL, "ZHIPU_API_KEY"),
     "zhipu-code": (_ZHIPU_CODE_BASE_URL, "ZHIPU_API_KEY"),
     "volcengine": (_VOLCENGINE_BASE_URL, "VOLCENGINE_API_KEY"),
     "dashscope": (_DASHSCOPE_BASE_URL, "DASHSCOPE_API_KEY"),
+    "dashscope-code": (_DASHSCOPE_CODE_BASE_URL, "DASHSCOPE_API_KEY"),
     "custom-openai": (
         None,
         "CUSTOM_OPENAI_API_KEY",
@@ -49,43 +58,50 @@ _OPENAI_ROUTED_PROVIDERS: dict[str, tuple[str | None, str]] = {
 # Maps provider name → (base_url or None, env var for API key).
 _ANTHROPIC_ROUTED_PROVIDERS: dict[str, tuple[str | None, str]] = {
     "minimax": (_MINIMAX_ANTHROPIC_BASE_URL, "MINIMAX_API_KEY"),
+    "kimi-coding": (_KIMI_CODING_BASE_URL, "KIMI_API_KEY"),
     "custom-anthropic": (None, "CUSTOM_ANTHROPIC_API_KEY"),
 }
 
 # Anthropic-routed providers that support extended thinking.
 _THINKING_CAPABLE_PROVIDERS: set[str] = {"minimax"}
 
+_TRUTHY_ENV_VALUES = {"1", "true", "yes", "on"}
+_FALSEY_ENV_VALUES = {"0", "false", "no", "off"}
+
 # Model registry: list of (short_name, model_id, provider)
 # Allows same short_name across different providers.
 _MODEL_ENTRIES: list[tuple[str, str, str]] = [
-    # Custom Anthropic (third-party Claude-compatible endpoints, 3 defaults)
+    # Custom Anthropic (third-party Claude-compatible endpoints, current-gen defaults)
     # Listed BEFORE native anthropic so MODELS dict defaults to native provider
     ("claude-sonnet-4-6", "claude-sonnet-4-6", "custom-anthropic"),
-    ("claude-sonnet-4-5", "claude-sonnet-4-5", "custom-anthropic"),
     ("claude-haiku-4-5", "claude-haiku-4-5", "custom-anthropic"),
     # Custom OpenAI (third-party OpenAI-compatible endpoints, 3 defaults)
     # Listed BEFORE native openai so MODELS dict defaults to native provider
+    ("gpt-5.5-pro", "gpt-5.5-pro", "custom-openai"),
+    ("gpt-5.5", "gpt-5.5", "custom-openai"),
     ("gpt-5.4", "gpt-5.4", "custom-openai"),
     ("gpt-5.3-codex", "gpt-5.3-codex", "custom-openai"),
     ("gpt-5-mini", "gpt-5-mini", "custom-openai"),
-    # Anthropic (ordered by capability)
-    ("claude-opus-4-6", "claude-opus-4-6", "anthropic"),
+    # Anthropic (current generation)
+    ("claude-fable-5", "claude-fable-5", "anthropic"),
+    ("claude-opus-4-8", "claude-opus-4-8", "anthropic"),
     ("claude-sonnet-4-6", "claude-sonnet-4-6", "anthropic"),
-    ("claude-opus-4-5", "claude-opus-4-5", "anthropic"),
-    ("claude-sonnet-4-5", "claude-sonnet-4-5", "anthropic"),
     ("claude-haiku-4-5", "claude-haiku-4-5", "anthropic"),
     # OpenAI
-    ("gpt-5.4", "gpt-5.4-2026-03-05", "openai"),
+    ("gpt-5.5-pro", "gpt-5.5-pro", "openai"),
+    ("gpt-5.5", "gpt-5.5", "openai"),
+    ("gpt-5.4", "gpt-5.4", "openai"),
     ("gpt-5.4-mini", "gpt-5.4-mini", "openai"),
     ("gpt-5.4-nano", "gpt-5.4-nano", "openai"),
     ("gpt-5.3-codex", "gpt-5.3-codex", "openai"),
     ("gpt-5.2-codex", "gpt-5.2-codex", "openai"),
-    ("gpt-5.2", "gpt-5.2-2025-12-11", "openai"),
-    ("gpt-5.1", "gpt-5.1-2025-11-13", "openai"),
-    ("gpt-5", "gpt-5-2025-08-07", "openai"),
-    ("gpt-5-mini", "gpt-5-mini-2025-08-07", "openai"),
-    ("gpt-5-nano", "gpt-5-nano-2025-08-07", "openai"),
+    ("gpt-5.2", "gpt-5.2", "openai"),
+    ("gpt-5.1", "gpt-5.1", "openai"),
+    ("gpt-5", "gpt-5", "openai"),
+    ("gpt-5-mini", "gpt-5-mini", "openai"),
+    ("gpt-5-nano", "gpt-5-nano", "openai"),
     # Google GenAI
+    ("gemini-3.5-flash", "gemini-3.5-flash", "google-genai"),
     ("gemini-3.1-pro", "gemini-3.1-pro-preview", "google-genai"),
     (
         "gemini-3.1-pro-customtools",
@@ -97,7 +113,8 @@ _MODEL_ENTRIES: list[tuple[str, str, str]] = [
     ("gemini-2.5-flash", "gemini-2.5-flash", "google-genai"),
     ("gemini-2.5-flash-lite", "gemini-2.5-flash-lite", "google-genai"),
     ("gemini-2.5-pro", "gemini-2.5-pro", "google-genai"),
-    # MiniMax (direct API — Anthropic-compatible at api.minimaxi.com)
+    # MiniMax (direct API — Anthropic-compatible; default: api.minimaxi.com, global: api.minimax.io)
+    ("minimax-m3", "MiniMax-M3", "minimax"),
     ("minimax-m2.7", "MiniMax-M2.7", "minimax"),
     ("minimax-m2.7-highspeed", "MiniMax-M2.7-highspeed", "minimax"),
     ("minimax-m2.5", "MiniMax-M2.5", "minimax"),
@@ -120,18 +137,30 @@ _MODEL_ENTRIES: list[tuple[str, str, str]] = [
     ("kimi-k2.5", "Pro/moonshotai/Kimi-K2.5", "siliconflow"),
     ("glm-4.7", "Pro/zai-org/GLM-4.7", "siliconflow"),
     # OpenRouter
-    ("claude-opus-4.6", "anthropic/claude-opus-4.6", "openrouter"),
+    ("claude-fable-5", "anthropic/claude-fable-5", "openrouter"),
+    ("claude-opus-4.8", "anthropic/claude-opus-4.8", "openrouter"),
+    ("claude-opus-4.8-fast", "anthropic/claude-opus-4.8-fast", "openrouter"),
     ("claude-sonnet-4.6", "anthropic/claude-sonnet-4.6", "openrouter"),
+    ("gpt-5.5-pro", "openai/gpt-5.5-pro", "openrouter"),
+    ("gpt-5.5", "openai/gpt-5.5", "openrouter"),
     ("gpt-5.4", "openai/gpt-5.4", "openrouter"),
     ("gpt-5.3-codex", "openai/gpt-5.3-codex", "openrouter"),
+    ("gemini-3.5-flash", "google/gemini-3.5-flash", "openrouter"),
     ("gemini-3.1-pro", "google/gemini-3.1-pro-preview", "openrouter"),
     ("gemini-3-flash", "google/gemini-3-flash-preview", "openrouter"),
-    ("kimi-k2.5", "moonshotai/kimi-k2.5", "openrouter"),
+    ("kimi-k2.6", "moonshotai/kimi-k2.6", "openrouter"),
     ("glm-5v-turbo", "z-ai/glm-5v-turbo", "openrouter"),
-    ("minimax-m2.7", "minimax/minimax-m2.7", "openrouter"),
-    ("mimo-v2-pro", "xiaomi/mimo-v2-pro", "openrouter"),
-    ("grok-4.1-fast", "x-ai/grok-4.1-fast", "openrouter"),
+    ("minimax-m3", "minimax/minimax-m3", "openrouter"),
+    ("mimo-v2.5-pro", "xiaomi/mimo-v2.5-pro", "openrouter"),
+    ("mimo-v2.5", "xiaomi/mimo-v2.5", "openrouter"),
+    ("grok-build-0.1", "x-ai/grok-build-0.1", "openrouter"),
+    ("grok-4.3", "x-ai/grok-4.3", "openrouter"),
+    ("qwen3.7-max", "qwen/qwen3.7-max", "openrouter"),
+    ("qwen3.7-plus", "qwen/qwen3.7-plus", "openrouter"),
+    ("qwen3.6-flash", "qwen/qwen3.6-flash", "openrouter"),
     ("qwen3.5-122b", "qwen/qwen3.5-122b-a10b", "openrouter"),
+    ("deepseek-v4-pro", "deepseek/deepseek-v4-pro", "openrouter"),
+    ("deepseek-v4-flash", "deepseek/deepseek-v4-flash", "openrouter"),
     # Zhipu CodePlan (智谱代码计划 — coding-only endpoint)
     ("glm-5.1", "glm-5.1", "zhipu-code"),
     ("glm-5", "glm-5", "zhipu-code"),
@@ -152,14 +181,43 @@ _MODEL_ENTRIES: list[tuple[str, str, str]] = [
     ("doubao-seed-1.6", "doubao-seed-1.6", "volcengine"),
     ("doubao-1.5-pro", "doubao-1.5-pro-256k", "volcengine"),
     ("doubao-1.5-thinking-pro", "doubao-1.5-thinking-pro", "volcengine"),
-    # DashScope (阿里云 — Qwen models)
+    # DashScope Coding Plan (阿里云代码计划 — subscription sk-sp-* endpoint)
+    ("qwen3.7-max", "qwen3.7-max", "dashscope-code"),
+    ("qwen3.7-plus", "qwen3.7-plus", "dashscope-code"),
+    ("qwen3.6-max", "qwen3.6-max-preview", "dashscope-code"),
+    ("qwen3.6-plus", "qwen3.6-plus", "dashscope-code"),
+    ("qwen3.6-flash", "qwen3.6-flash", "dashscope-code"),
+    ("qwen3-coder", "qwen3-coder-plus", "dashscope-code"),
+    ("qwen3-coder-next", "qwen3-coder-next", "dashscope-code"),
+    ("qwen3-max", "qwen3-max", "dashscope-code"),
+    ("qwen3.5-plus", "qwen3.5-plus", "dashscope-code"),
+    # DashScope (阿里云 — Qwen models, default for simple lookups)
+    ("qwen3.7-max", "qwen3.7-max", "dashscope"),
+    ("qwen3.7-plus", "qwen3.7-plus", "dashscope"),
+    ("qwen3.6-max", "qwen3.6-max-preview", "dashscope"),
+    ("qwen3.6-plus", "qwen3.6-plus", "dashscope"),
+    ("qwen3.6-flash", "qwen3.6-flash", "dashscope"),
     ("qwen3-coder", "qwen3-coder-plus", "dashscope"),
     ("qwen3-235b", "qwen3-235b-a22b", "dashscope"),
     ("qwen-max", "qwen-max", "dashscope"),
     ("qwq-plus", "qwq-plus", "dashscope"),
     # DeepSeek
+    ("deepseek-v4-pro", "deepseek-v4-pro", "deepseek"),
+    ("deepseek-v4-flash", "deepseek-v4-flash", "deepseek"),
+    # Legacy aliases (deprecated 2026-07-24; route to v4-flash thinking/non-thinking)
     ("deepseek-r1", "deepseek-reasoner", "deepseek"),
     ("deepseek-v3", "deepseek-chat", "deepseek"),
+    # Moonshot (OpenAI-compatible)
+    ("kimi-k2.6", "kimi-k2.6", "moonshot"),
+    ("kimi-k2.5", "kimi-k2.5", "moonshot"),
+    ("kimi-k2-thinking", "kimi-k2-thinking", "moonshot"),
+    ("kimi-k2-thinking-turbo", "kimi-k2-thinking-turbo", "moonshot"),
+    ("moonshot-v1-auto", "moonshot-v1-auto", "moonshot"),
+    ("moonshot-v1-128k", "moonshot-v1-128k", "moonshot"),
+    ("moonshot-v1-32k", "moonshot-v1-32k", "moonshot"),
+    ("moonshot-v1-8k", "moonshot-v1-8k", "moonshot"),
+    # Kimi Coding Plan (Anthropic-compatible)
+    ("kimi-for-coding", "kimi-for-coding", "kimi-coding"),
 ]
 
 # Public dict for simple lookups (last entry wins for duplicate names).
@@ -181,6 +239,60 @@ def get_models_for_provider(provider: str) -> list[tuple[str, str]]:
         List of (short_name, model_id) tuples for the provider.
     """
     return [(name, model_id) for name, model_id, p in _MODEL_ENTRIES if p == provider]
+
+
+def _env_flag_enabled(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in _TRUTHY_ENV_VALUES
+
+
+def _env_flag_disabled(name: str) -> bool:
+    value = os.environ.get(name)
+    return value is not None and value.strip().lower() in _FALSEY_ENV_VALUES
+
+
+def _supports_openrouter_anthropic_prompt_cache(provider: str, model_id: str) -> bool:
+    """Return whether EvoScientist should declare OpenRouter Claude caching."""
+    return provider == "openrouter" and model_id.startswith(
+        ("anthropic/", "~anthropic/")
+    )
+
+
+def _has_cache_control_override(kwargs: dict[str, Any]) -> bool:
+    """Return whether the caller already supplied cache-control settings."""
+    if "cache_control" in kwargs:
+        return True
+    model_kwargs = kwargs.get("model_kwargs")
+    if model_kwargs is None:
+        return False
+    if not isinstance(model_kwargs, dict):
+        warnings.warn(
+            "OpenRouter Anthropic prompt caching was not applied because "
+            "`model_kwargs` is not a dict; pass cache_control explicitly or use "
+            "a dict-shaped model_kwargs.",
+            UserWarning,
+            stacklevel=3,
+        )
+        return True
+    return "cache_control" in model_kwargs
+
+
+def _apply_openrouter_anthropic_prompt_cache(
+    provider: str,
+    model_id: str,
+    kwargs: dict[str, Any],
+) -> None:
+    """Declare OpenRouter Claude prompt caching unless explicitly disabled.
+
+    OpenRouter already handles implicit caching for most providers, but Claude
+    prompt caching needs Anthropic-style cache-control declaration.
+    """
+    if _env_flag_disabled("EVOSCIENTIST_OPENROUTER_ANTHROPIC_PROMPT_CACHE"):
+        return
+    if not _supports_openrouter_anthropic_prompt_cache(provider, model_id):
+        return
+    if _has_cache_control_override(kwargs):
+        return
+    kwargs.setdefault("model_kwargs", {})["cache_control"] = {"type": "ephemeral"}
 
 
 def _apply_auto_config(
@@ -208,8 +320,8 @@ def _apply_auto_config(
             _is_proxy = False
         if _is_proxy or (is_third_party and not _supports_thinking):
             pass
-        elif model_id.endswith("4-6"):
-            kwargs["thinking"] = {"type": "adaptive"}
+        elif "fable" in model_id or model_id.endswith(("4-6", "4-7", "4-8")):
+            kwargs["thinking"] = {"type": "adaptive", "display": "summarized"}
             kwargs.setdefault("effort", "max")
         else:
             kwargs["thinking"] = {"type": "enabled", "budget_tokens": 10000}
@@ -220,7 +332,11 @@ def _apply_auto_config(
             # ccproxy uses Chat Completions which doesn't support reasoning.
             pass
         else:
-            _eff = "xhigh" if ("5.4" in model_id or "codex" in model_id) else "high"
+            _eff = (
+                "xhigh"
+                if ("5.4" in model_id or "5.5" in model_id or "codex" in model_id)
+                else "high"
+            )
             kwargs["reasoning"] = {"effort": _eff, "summary": "auto"}
 
     # Google GenAI: surface thinking traces
@@ -240,8 +356,8 @@ def get_chat_model(
     """Get a chat model instance.
 
     Args:
-        model: Model name (short name like 'claude-sonnet-4-5' or full ID
-               like 'claude-sonnet-4-5-20250929'). Defaults to DEFAULT_MODEL.
+        model: Model name (short name like 'claude-sonnet-4-6' or full ID
+               like 'claude-sonnet-4-6-20250929'). Defaults to DEFAULT_MODEL.
         provider: Override the provider (e.g., 'anthropic', 'openai').
                   If not specified, inferred from model name or defaults to 'anthropic'.
         **kwargs: Additional arguments passed to init_chat_model (e.g., temperature).
@@ -250,8 +366,8 @@ def get_chat_model(
         A LangChain chat model instance.
 
     Examples:
-        >>> model = get_chat_model()  # Uses default (claude-sonnet-4-5)
-        >>> model = get_chat_model("claude-opus-4-5")  # Use short name
+        >>> model = get_chat_model()  # Uses default (claude-sonnet-4-6)
+        >>> model = get_chat_model("claude-opus-4-8")  # Use short name
         >>> model = get_chat_model("gpt-4o")  # OpenAI model
         >>> model = get_chat_model("claude-3-opus-20240229", provider="anthropic")  # Full ID
     """
@@ -307,20 +423,24 @@ def get_chat_model(
             kwargs["base_url"] = base_url
             _is_openai_proxy = _is_ccproxy_codex()
             if _is_openai_proxy:
-                # Default to Chat Completions for ccproxy: its Chat
-                # Completions → Responses API converter handles system messages
-                # correctly; its native Responses API endpoint does not.
-                # (User can override via EVOSCIENTIST_USE_RESPONSES_API=true.)
-                kwargs.setdefault("use_responses_api", False)
-                # Default streaming off: ccproxy duplicates tool call names
-                # in streaming Chat Completions chunks.
-                kwargs.setdefault("streaming", False)
+                # Use Responses API for ccproxy: bypasses the format chain
+                # converter (Chat→Responses→Chat) which returns 502 on
+                # complex responses.  System messages are converted to
+                # developer role by _patch_ccproxy_system_to_developer().
+                kwargs.setdefault("use_responses_api", True)
+                # Streaming must stay ON for Responses API: ccproxy's
+                # StreamingBufferService loses output when assembling
+                # non-streaming responses.  (The old streaming=False was
+                # for Chat Completions tool_call duplication — not an issue
+                # with the Responses API SSE format.)
+                kwargs.pop("streaming", None)  # remove if set elsewhere
         api_key = os.environ.get("OPENAI_API_KEY", "")
         if api_key:
             kwargs["api_key"] = api_key
 
     # OpenAI-routed providers → route through OpenAI provider with base_url
     elif provider in _OPENAI_ROUTED_PROVIDERS:
+        _original_provider = provider
         base_url_default, api_key_env = _OPENAI_ROUTED_PROVIDERS[provider]
         if provider == "custom-openai":
             base_url = os.environ.get("CUSTOM_OPENAI_BASE_URL", "")
@@ -342,21 +462,32 @@ def get_chat_model(
         # from history, causing error 20015 on multi-turn requests.
         if provider == "siliconflow":
             kwargs.setdefault("extra_body", {})["enable_thinking"] = False
+        # Moonshot: disable thinking for all models to prevent LangChain from dropping
+        # reasoning_content, which causes multi-turn conversation errors (error 20015).
+        # Even native thinking models like kimi-k2-thinking operate in non-thinking mode.
+        if provider == "moonshot":
+            kwargs.setdefault("extra_body", {})["thinking"] = {"type": "disabled"}
         provider = "openai"
 
     # OpenRouter → native ChatOpenRouter via init_chat_model.
     elif provider == "openrouter":
-        _patch_openrouter_reasoning_details()
         _is_third_party = True
         api_key = os.environ.get("OPENROUTER_API_KEY", "")
         if api_key:
             kwargs["api_key"] = api_key
-        # Enable reasoning; disable summary to avoid multi-turn schema errors.
+        # Reasoning via `effort` + `summary: "auto"` so a readable reasoning
+        # summary is returned for display. OpenAI-Responses also emits encrypted
+        # reasoning items (`rs_*` id) that can't be replayed on multi-turn
+        # passback (OpenRouter's `/responses` beta is stateless, store=false —
+        # "Item with id 'rs_...' not found"); the patch strips them on passback,
+        # so enabling `summary` is safe. See langchain-ai/langchain#37777.
         effort = os.environ.get("EVOSCIENTIST_REASONING_EFFORT", "").strip() or "high"
-        kwargs.setdefault("reasoning", {"effort": effort, "summary": "disabled"})
+        kwargs.setdefault("reasoning", {"effort": effort, "summary": "auto"})
+        _patch_openrouter_strip_responses_reasoning()
 
     # Anthropic-routed providers → route through Anthropic provider with base_url
     elif provider in _ANTHROPIC_ROUTED_PROVIDERS:
+        _original_provider = provider
         base_url_default, api_key_env = _ANTHROPIC_ROUTED_PROVIDERS[provider]
         if provider == "custom-anthropic":
             base_url = os.environ.get("CUSTOM_ANTHROPIC_BASE_URL", "")
@@ -367,6 +498,8 @@ def get_chat_model(
                     "Anthropic-compatible API endpoint URL (e.g. https://api.anthropic.com)."
                 )
             base_url = base_url.rstrip("/")
+        elif provider == "minimax":
+            base_url = os.environ.get("MINIMAX_BASE_URL", base_url_default).rstrip("/")
         else:
             base_url = base_url_default
         if base_url:
@@ -374,7 +507,9 @@ def get_chat_model(
         api_key = os.environ.get(api_key_env, "")
         if api_key:
             kwargs["api_key"] = api_key
-        _original_provider = provider
+        # Kimi Coding Plan requires claude-code User-Agent header
+        if provider == "kimi-coding":
+            kwargs.setdefault("default_headers", {})["User-Agent"] = "claude-code/0.1.0"
         provider = "anthropic"
 
     elif provider == "ollama":
@@ -383,6 +518,7 @@ def get_chat_model(
             kwargs["base_url"] = base_url
 
     _apply_auto_config(provider, model_id, _is_third_party, kwargs, _original_provider)
+    _apply_openrouter_anthropic_prompt_cache(provider, model_id, kwargs)
 
     # User-level override for the OpenAI Responses API vs Chat Completions.
     # When "false", force Chat Completions and drop reasoning (which triggers
@@ -399,11 +535,28 @@ def get_chat_model(
 
     chat_model = init_chat_model(model=model_id, model_provider=provider, **kwargs)
 
-    # Flatten list content to strings for OpenAI-compatible providers
+    # Flatten list content to strings for strict OpenAI-compatible providers
     # (DeepSeek, SiliconFlow, OpenRouter, custom-openai, etc.) and
     # native OpenAI through a proxy, to avoid "sequence expected string" errors.
-    if _is_third_party or _is_openai_proxy:
-        _patch_openai_compat_content(chat_model)
+    # Moonshot and Kimi Coding support standard format, no patch needed.
+    _no_patch_providers = {"moonshot", "kimi-coding"}
+    if (
+        _is_third_party or _is_openai_proxy
+    ) and _original_provider not in _no_patch_providers:
+        # Anthropic-routed providers accept media in tool results natively;
+        # only OpenAI-compatible providers need tool-media hoisting.
+        _hoist = _original_provider not in _ANTHROPIC_ROUTED_PROVIDERS
+        _patch_openai_compat_content(chat_model, hoist_tool_media=_hoist)
+
+    # DeepSeek thinking mode requires reasoning_content passback in multi-turn
+    # + tool_use scenarios.
+    if _original_provider == "deepseek":
+        _patch_deepseek_reasoning_passback(chat_model)
+
+    if _is_openai_proxy:
+        _patch_ccproxy_system_to_developer(chat_model)
+
+    apply_known_context_window(chat_model)
 
     return chat_model
 
@@ -421,6 +574,42 @@ def list_models() -> list[str]:
             seen.add(name)
             result.append(name)
     return result
+
+
+def list_models_by_provider() -> list[tuple[str, str, str]]:
+    """List all unique (short_name, model_id, provider) entries.
+
+    Returns:
+        De-duplicated list of model entries preserving registry order.
+    """
+    seen: set[tuple[str, str]] = set()
+    result: list[tuple[str, str, str]] = []
+    for name, model_id, provider in _MODEL_ENTRIES:
+        key = (name, provider)
+        if key not in seen:
+            seen.add(key)
+            result.append((name, model_id, provider))
+    return result
+
+
+async def list_model_picker_entries(
+    ollama_base_url: str | None,
+    *,
+    include_custom_ollama: bool,
+) -> list[tuple[str, str, str]]:
+    """Return model picker entries, optionally including local Ollama models."""
+    entries = list_models_by_provider()
+    if ollama_base_url:
+        from .ollama_discovery import discover_ollama_models
+
+        for detected_name in await discover_ollama_models(
+            ollama_base_url,
+            timeout=1.5,
+        ):
+            entries.append((detected_name, detected_name, "ollama"))
+        if include_custom_ollama:
+            entries.append(("Custom Ollama model...", "__custom_ollama__", "ollama"))
+    return entries
 
 
 def get_model_info(model: str) -> tuple[str, str] | None:

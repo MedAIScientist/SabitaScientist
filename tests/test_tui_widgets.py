@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import importlib
 import unittest
+from unittest.mock import AsyncMock
 
 # ---------------------------------------------------------------------------
 # Textual might not be installed — skip entire module if missing
@@ -21,8 +22,10 @@ class TestLoadingWidget(unittest.TestCase):
 
     def test_construction(self):
         from EvoScientist.cli.widgets.loading_widget import LoadingWidget
+        from EvoScientist.cli.widgets.timed_status_widget import TimedStatusWidget
 
         w = LoadingWidget()
+        assert isinstance(w, TimedStatusWidget)
         assert w._frame == 0
         assert w._elapsed == 0.0
         assert w._timer_handle is None
@@ -31,6 +34,49 @@ class TestLoadingWidget(unittest.TestCase):
         from EvoScientist.cli.widgets.loading_widget import _SPINNER_FRAMES
 
         assert len(_SPINNER_FRAMES) > 0
+
+    def test_tick_advances_spinner_and_elapsed(self):
+        from EvoScientist.cli.widgets.loading_widget import LoadingWidget
+
+        w = LoadingWidget()
+        w._tick()
+        assert w._frame == 1
+        assert w._elapsed == 0.1
+
+    def test_cleanup_stops_timer_and_removes(self):
+        from EvoScientist.cli.widgets.loading_widget import LoadingWidget
+
+        class _Timer:
+            def __init__(self) -> None:
+                self.stopped = False
+
+            def stop(self) -> None:
+                self.stopped = True
+
+        w = LoadingWidget()
+        timer = _Timer()
+        w._timer_handle = timer
+        w.remove = AsyncMock()
+
+        from tests.conftest import run_async
+
+        run_async(w.cleanup())
+
+        assert timer.stopped is True
+        assert w._timer_handle is None
+        w.remove.assert_awaited_once()
+
+
+@unittest.skipUnless(_has_textual, "textual not installed")
+class TestCompactingWidget(unittest.TestCase):
+    """CompactingWidget construction and cleanup."""
+
+    def test_construction(self):
+        from EvoScientist.cli.widgets.compacting_widget import CompactingWidget
+
+        w = CompactingWidget()
+        assert w._elapsed == 0.0
+        assert w._timer_handle is None
 
 
 @unittest.skipUnless(_has_textual, "textual not installed")
@@ -69,6 +115,74 @@ class TestThinkingWidget(unittest.TestCase):
         # Simulate finalize without DOM
         w._is_active = False
         assert w._is_active is False
+
+
+class TestSummarizationStateMachine(unittest.TestCase):
+    """Summary panel lifecycle decisions in the TUI event loop."""
+
+    def test_summary_continuation_events_do_not_finalize(self):
+        from EvoScientist.cli.tui_interactive import (
+            _should_finalize_active_summarization,
+        )
+
+        for event_type in ("summarization_start", "summarization", "usage_stats"):
+            assert _should_finalize_active_summarization(event_type) is False
+
+    def test_non_summary_events_finalize_active_summary(self):
+        from EvoScientist.cli.tui_interactive import (
+            _should_finalize_active_summarization,
+        )
+
+        for event_type in (
+            "thinking",
+            "text",
+            "tool_call",
+            "tool_result",
+            "tool_selection",
+            "subagent_start",
+            "subagent_tool_call",
+            "subagent_tool_result",
+            "subagent_end",
+            "ask_user",
+            "interrupt",
+            "done",
+            "error",
+        ):
+            assert _should_finalize_active_summarization(event_type) is True
+
+
+class TestStoppedResponseText(unittest.TestCase):
+    """Stopped-response text normalization."""
+
+    def test_trims_before_appending_marker(self):
+        from EvoScientist.stream.display import build_stopped_response_text
+
+        current, final_text = build_stopped_response_text("partial answer  \n")
+
+        assert current == "partial answer"
+        assert final_text == "partial answer\n[Stopped.]"
+
+    def test_does_not_duplicate_marker(self):
+        from EvoScientist.stream.display import build_stopped_response_text
+
+        current, final_text = build_stopped_response_text("partial\n[Stopped.]")
+
+        assert current == "partial\n[Stopped.]"
+        assert final_text == "partial\n[Stopped.]"
+
+    def test_strips_trailing_placeholder_ellipsis(self):
+        from EvoScientist.cli.tui_interactive import (
+            _strip_trailing_placeholder_ellipsis,
+        )
+
+        assert (
+            _strip_trailing_placeholder_ellipsis("final answer\n...") == "final answer"
+        )
+        assert _strip_trailing_placeholder_ellipsis("...") == ""
+        assert (
+            _strip_trailing_placeholder_ellipsis("final answer\n...\n...")
+            == "final answer"
+        )
 
 
 @unittest.skipUnless(_has_textual, "textual not installed")
@@ -120,6 +234,26 @@ class TestToolCallWidget(unittest.TestCase):
         assert w._status == "error"
         w._status = "interrupted"
         assert w._status == "interrupted"
+
+    def test_memory_tool_header_uses_result_inference(self):
+        from EvoScientist.cli.widgets.tool_call_widget import ToolCallWidget
+
+        w = ToolCallWidget("edit_file", {}, "mem-1")
+        w._result_content = "Successfully replaced 1 instance(s) of the string in '/memories/profile/USER_PROFILE.md'"
+
+        class _Header:
+            def __init__(self) -> None:
+                self.updated = None
+
+            def update(self, value) -> None:
+                self.updated = value
+
+        header = _Header()
+        w.query_one = lambda selector, cls=None: header  # type: ignore[assignment]
+        w._status = "success"
+        w._render_header()
+
+        assert "Updating memory" in header.updated.plain
 
     def test_result_summary_truncation(self):
         from EvoScientist.cli.widgets.tool_call_widget import ToolCallWidget
@@ -236,6 +370,49 @@ class TestSubAgentWidget(unittest.TestCase):
         assert "id-1" in sa._tool_widgets
         assert sa._tool_widgets["id-1"] is tw
 
+    def test_complete_tool_routes_by_id_and_dedups(self):
+        """Result delivery must use tool_call_id so concurrent same-name tools
+        don't leave orphans that get marked ``interrupted`` at finalize time.
+        Also, repeat deliveries must not inflate ``_completed_ids``.
+        """
+        from EvoScientist.cli.widgets.subagent_widget import SubAgentWidget
+        from EvoScientist.cli.widgets.tool_call_widget import ToolCallWidget
+
+        class _FakeToolWidget(ToolCallWidget):
+            def set_success(self, content):
+                self._status = "success"
+                self._result_content = content
+
+            def set_error(self, content):
+                self._status = "error"
+                self._result_content = content
+
+        sa = SubAgentWidget("code-agent")
+        sa._update_visibility = lambda: None  # skip mount-dependent render
+
+        tw_a = _FakeToolWidget("execute", {"cmd": "a"}, "id_A")
+        tw_b = _FakeToolWidget("execute", {"cmd": "b"}, "id_B")
+        sa._tool_widgets["id_A"] = tw_a
+        sa._tool_widgets["id_B"] = tw_b
+        sa._running_ids = ["id_A", "id_B"]
+
+        # Out-of-order delivery: result for B arrives first.
+        sa.complete_tool("execute", "out B", True, tool_id="id_B")
+        assert tw_b._status == "success"
+        assert tw_a._status == "running"
+        assert sa._completed_ids == ["id_B"]
+        assert sa._running_ids == ["id_A"]
+
+        # Duplicate delivery for id_B must not inflate counts.
+        sa.complete_tool("execute", "out B dup", True, tool_id="id_B")
+        assert sa._completed_ids == ["id_B"]
+
+        # Now id_A finishes normally.
+        sa.complete_tool("execute", "out A", True, tool_id="id_A")
+        assert tw_a._status == "success"
+        assert sa._completed_ids == ["id_B", "id_A"]
+        assert sa._running_ids == []
+
 
 @unittest.skipUnless(_has_textual, "textual not installed")
 class TestTodoWidget(unittest.TestCase):
@@ -343,15 +520,6 @@ class TestIsFinalResponse(unittest.TestCase):
         sa = SubAgentState("research-agent")
         sa.is_active = False
         state.subagents = [sa]
-        assert _is_final_response(state) is True
-
-    def test_internal_tools_ignored(self):
-        from EvoScientist.cli.tui_interactive import _is_final_response
-        from EvoScientist.stream.state import StreamState
-
-        state = StreamState()
-        state.tool_calls = [{"name": "ExtractedMemory", "args": {}}]
-        # No result for internal tool -- should still be considered final
         assert _is_final_response(state) is True
 
     def test_processing_not_final(self):
@@ -556,21 +724,30 @@ class TestCompletionLogic(unittest.TestCase):
             ("#completions", None): fake_completions,
         }
 
-        from EvoScientist.commands import manager as cmd_manager
-
-        _slash_commands = cmd_manager.list_commands()
-
         # Build stub --------------------------------------------------------
         class _StubApp:
             """Minimal stub that shares the real completion method bodies."""
 
             def __init__(self):
-                self._comp_items: list = list(comp_items or [])
+                from EvoScientist.commands._completion_engine import CompletionCandidate
+
+                self._comp_items = []
+                for item in comp_items or []:
+                    if hasattr(item, "replace_start"):
+                        self._comp_items.append(item)
+                    else:
+                        text, desc = item[0], item[1]
+                        self._comp_items.append(
+                            CompletionCandidate(
+                                text=text,
+                                description=desc,
+                                replace_start=0,
+                                replace_end=0,
+                            )
+                        )
                 self._comp_index: int = comp_index
-                # Expose fakes for assertions
                 self._fake_input = fake_input
                 self._fake_completions = fake_completions
-                self._SLASH_COMMANDS = _slash_commands
 
             def query_one(self, selector, widget_type=None):
                 # Match by selector string; widget_type is ignored in stub
@@ -591,9 +768,20 @@ class TestCompletionLogic(unittest.TestCase):
                 self._apply_selected_completion()
 
             def _apply_selected_completion(self):
-                selected_cmd = self._comp_items[self._comp_index][0]
+                candidate = self._comp_items[self._comp_index]
                 prompt = self.query_one("#prompt")
-                prompt.value = selected_cmd + " "
+                if candidate.text.startswith("@"):
+                    prompt.value = candidate.text + " "
+                else:
+                    current = prompt.value
+                    suffix = current[candidate.replace_end :]
+                    sep = "" if suffix.startswith(" ") else " "
+                    prompt.value = (
+                        current[: candidate.replace_start]
+                        + candidate.text
+                        + sep
+                        + suffix
+                    )
                 prompt.cursor_position = len(prompt.value)
                 self._render_completions()
 
@@ -606,7 +794,8 @@ class TestCompletionLogic(unittest.TestCase):
             def _render_completions(self):
                 comp_widget = self.query_one("#completions")
                 comp_text = Text()
-                for i, (cmd, desc) in enumerate(self._comp_items):
+                for i, candidate in enumerate(self._comp_items):
+                    cmd, desc = candidate.text, candidate.description
                     if i == self._comp_index:
                         comp_text.append("\u25b8 ", style="bold")
                         comp_text.append(f"{cmd:<22}", style="bold")
@@ -618,27 +807,6 @@ class TestCompletionLogic(unittest.TestCase):
                     if i < len(self._comp_items) - 1:
                         comp_text.append("\n")
                 comp_widget.update(comp_text)
-
-            def on_input_changed(self, text: str):
-                """Simplified version matching the real on_input_changed logic."""
-                comp_widget = self.query_one("#completions")
-                if text.startswith("/"):
-                    prefix = text.lower()
-                    matches = [
-                        (cmd, desc)
-                        for cmd, desc in self._SLASH_COMMANDS
-                        if cmd.startswith(prefix)
-                    ]
-                    if len(matches) == 1 and matches[0][0] == prefix:
-                        self._hide_completions()
-                        return
-                    if matches:
-                        self._comp_items = matches
-                        self._comp_index = -1
-                        self._render_completions()
-                        comp_widget.display = True
-                        return
-                self._hide_completions()
 
             def on_key(self, key: str):
                 """Simplified version matching the real on_key logic.
@@ -762,40 +930,134 @@ class TestCompletionLogic(unittest.TestCase):
         assert arrow_in_bold, f"No bold arrow found. Spans: {bold_spans}"
 
     # ------------------------------------------------------------------
-    # on_input_changed
+    # compute_completions (shared engine)
     # ------------------------------------------------------------------
 
-    def test_input_changed_slash_shows_completions(self):
-        """/re prefix should show matching commands."""
-        app = self._make_app()
-        app.on_input_changed("/re")
-        assert app._fake_completions.display is True
-        assert len(app._comp_items) > 0
-        assert all(cmd.startswith("/re") for cmd, _ in app._comp_items)
+    def test_engine_slash_shows_top_level_commands(self):
+        from EvoScientist.commands._completion_engine import compute_completions
 
-    def test_input_changed_exact_match_hides_completions(self):
-        """An exact match for a command should hide completions."""
-        app = self._make_app()
-        # /help is the only command starting with /help
-        app.on_input_changed("/help")
-        assert app._fake_completions.display is False
+        result = compute_completions("/re", 3)
+        assert result.kind == "commands"
+        assert len(result.candidates) > 0
+        assert all(c.text.startswith("/re") for c in result.candidates)
 
-    def test_input_changed_non_slash_hides_completions(self):
-        """Regular text (no leading slash) should hide completions."""
-        items = [("/resume", "d")]
-        app = self._make_app(comp_items=items)
-        app._fake_completions.display = True
+    def test_engine_exact_match_no_space_hides(self):
+        from EvoScientist.commands._completion_engine import compute_completions
 
-        app.on_input_changed("hello world")
-        assert app._fake_completions.display is False
+        result = compute_completions("/help", 5)
+        assert result.kind == "empty"
 
-    def test_input_changed_no_match_hides_completions(self):
-        """A /prefix that matches nothing should hide completions."""
-        app = self._make_app()
-        app._fake_completions.display = True
+    def test_engine_non_slash_returns_empty(self):
+        from EvoScientist.commands._completion_engine import compute_completions
 
-        app.on_input_changed("/zzznomatch")
-        assert app._fake_completions.display is False
+        result = compute_completions("hello", 5)
+        assert result.kind == "empty"
+
+    def test_engine_trailing_space_shows_subcommands(self):
+        from EvoScientist.commands._completion_engine import compute_completions
+
+        result = compute_completions("/mcp ", 5)
+        assert result.kind == "subcommands"
+        names = {c.text for c in result.candidates}
+        assert "list" in names
+        assert "add" in names
+
+    def test_engine_subcommand_prefix_filters(self):
+        from EvoScientist.commands._completion_engine import compute_completions
+
+        result = compute_completions("/mcp lis", 8)
+        assert result.kind == "subcommands"
+        names = {c.text for c in result.candidates}
+        assert names == {"list"}
+
+    def test_engine_exact_subcommand_hides(self):
+        """When the user has already typed the full subcommand (no
+        trailing space), the engine should hide — Tab shouldn't re-insert
+        the same subcommand. Mirrors the top-level exact-match rule.
+        """
+        from EvoScientist.commands._completion_engine import compute_completions
+
+        result = compute_completions("/mcp list", 9)
+        assert result.kind == "empty"
+        assert result.candidates == []
+
+    def test_engine_exact_subcommand_with_trailing_space_hides(self):
+        """When the user has typed the full subcommand plus a trailing
+        space (``/mcp list ``), the engine must also hide.  Without this
+        guard Tab oscillates between adding and removing the trailing
+        whitespace.
+        """
+        from EvoScientist.commands._completion_engine import compute_completions
+
+        result = compute_completions("/mcp list ", 10)
+        assert result.kind == "empty"
+        assert result.candidates == []
+
+    def test_engine_three_parts_hides(self):
+        from EvoScientist.commands._completion_engine import compute_completions
+
+        result = compute_completions("/mcp list a", 11)
+        assert result.kind == "empty"
+
+    def test_engine_non_subcommand_cmd_hides(self):
+        from EvoScientist.commands._completion_engine import compute_completions
+
+        result = compute_completions("/help ", 6)
+        assert result.kind == "empty"
+
+    def test_engine_subcommand_replace_range(self):
+        from EvoScientist.commands._completion_engine import compute_completions
+
+        result = compute_completions("/mcp lis", 8)
+        assert result.candidates[0].replace_start == 5
+        assert result.candidates[0].replace_end == 8
+
+    def test_engine_subcommand_trailing_space_excludes_space_from_range(self):
+        """When the user has typed a partial subcommand prefix + a
+        trailing space (e.g. ``/mcp a ``), the engine's replace range
+        must exclude the trailing space — otherwise the apply step
+        would produce a double space (``/mcp add  ``).
+        """
+        from EvoScientist.commands._completion_engine import compute_completions
+
+        text = "/mcp a "
+        result = compute_completions(text, len(text))  # cursor at end
+        assert result.candidates
+        for c in result.candidates:
+            # ``a`` is at position 5; trailing space at position 6.
+            # ``replace_start=5`` (start of the partial prefix),
+            # ``replace_end=6`` (right after the prefix, before the
+            # trailing space — so the trailing space is preserved in
+            # the suffix during apply).
+            assert c.replace_start == 5
+            assert c.replace_end == 6
+
+    def test_engine_subcommand_trailing_space_apply_does_not_double_space(self):
+        """Applying the completion for ``/mcp a `` + accept 'add' must
+        not produce ``/mcp add  `` (double space). The engine's
+        replace range excludes the trailing space; the apply step
+        must skip the separator when the suffix already starts with one.
+        """
+        from EvoScientist.commands._completion_engine import compute_completions
+
+        text = "/mcp a "
+        result = compute_completions(text, len(text))
+        c = result.candidates[0]
+        current = text
+        # Apply logic that mirrors the TUI ``_apply_selected_completion``.
+        suffix = current[c.replace_end :]
+        sep = "" if suffix.startswith(" ") else " "
+        new_value = current[: c.replace_start] + c.text + sep + suffix
+        # Expected: ``/mcp add `` — the ``a`` is replaced with ``add``,
+        # the trailing space is preserved via the suffix. No double space.
+        assert new_value == f"/mcp {c.text} "
+
+    def test_engine_trailing_space_replace_range(self):
+        from EvoScientist.commands._completion_engine import compute_completions
+
+        result = compute_completions("/mcp ", 5)
+        assert result.candidates[0].replace_start == 5
+        assert result.candidates[0].replace_end == 5
 
     # ------------------------------------------------------------------
     # on_key  (enter only — up/down handled by priority bindings)
@@ -830,6 +1092,276 @@ class TestCompletionLogic(unittest.TestCase):
         handled = app.on_key("down")
         assert handled is False
         assert app._comp_index == 0  # unchanged
+
+
+@unittest.skipUnless(_has_textual, "textual not installed")
+class TestModelPickerWidgetOllama(unittest.TestCase):
+    """ModelPickerWidget Ollama fallback: sentinel row renders under the
+    ollama group, selecting it enters free-text input mode, Enter confirms
+    with ``Picked(typed, "ollama")``, Esc returns to list, and filtering
+    never hides the sentinel."""
+
+    def _make_widget(self, entries=None, *, current_model=None):
+        """Build a widget with a mix of providers + the sentinel row.
+
+        When ``entries`` is ``None``, a default mix (anthropic + one ollama
+        model + sentinel) is used. When provided, it fully replaces the
+        default — callers that need extra rows should pass the complete list.
+        """
+        from unittest.mock import MagicMock
+
+        from EvoScientist.cli.widgets.model_picker import (
+            _CUSTOM_OLLAMA_ID,
+            ModelPickerWidget,
+        )
+
+        if entries is None:
+            entries = [
+                ("claude-sonnet-4-6", "claude-sonnet-4-6", "anthropic"),
+                ("llama3.3", "llama3.3", "ollama"),
+                ("Custom Ollama model...", _CUSTOM_OLLAMA_ID, "ollama"),
+            ]
+        w = ModelPickerWidget(entries, current_model=current_model)
+        # Stub out Textual-dependent side effects so we can drive actions
+        # directly (follows the module's "no pilot" test pattern).
+        w.post_message = MagicMock()
+        w.focus = MagicMock()
+        # Fake the Input child — real one requires a mounted app.
+        custom_input = MagicMock()
+        custom_input.value = ""
+        custom_input.display = False
+        w._custom_input = custom_input
+        return w
+
+    def _sentinel_index(self, widget):
+        from EvoScientist.cli.widgets.model_picker import _CUSTOM_OLLAMA_ID
+
+        for i, item in enumerate(widget._items):
+            if item["type"] == "model" and item.get("model_id") == _CUSTOM_OLLAMA_ID:
+                return i
+        raise AssertionError(f"sentinel not found in items: {widget._items}")
+
+    def test_sentinel_rendered_under_ollama_group(self):
+        w = self._make_widget()
+        # The sentinel must be grouped under an "ollama" header.
+        headers = [i["label"] for i in w._items if i["type"] == "header"]
+        assert "ollama" in headers
+
+    def test_selecting_regular_row_posts_picked(self):
+        """Baseline: non-sentinel selection still works."""
+        from EvoScientist.cli.widgets.model_picker import ModelPickerWidget
+
+        w = self._make_widget()
+        # Find the claude row
+        claude_idx = next(
+            i
+            for i, item in enumerate(w._items)
+            if item["type"] == "model" and item["name"] == "claude-sonnet-4-6"
+        )
+        w._selected = claude_idx
+        w.action_select()
+        assert w._mode == "list"
+        msgs = [c.args[0] for c in w.post_message.call_args_list]
+        assert any(
+            isinstance(m, ModelPickerWidget.Picked)
+            and m.name == "claude-sonnet-4-6"
+            and m.provider == "anthropic"
+            for m in msgs
+        )
+
+    def test_selecting_sentinel_enters_input_mode(self):
+        w = self._make_widget()
+        w._selected = self._sentinel_index(w)
+        w.action_select()
+
+        assert w._mode == "input"
+        assert w._custom_input.display is True
+        w._custom_input.focus.assert_called_once()
+        # Entering input mode must NOT post any message — the user hasn't
+        # submitted anything yet.
+        w.post_message.assert_not_called()
+
+    def test_enter_with_typed_name_posts_picked(self):
+        from EvoScientist.cli.widgets.model_picker import ModelPickerWidget
+
+        w = self._make_widget()
+        w._mode = "input"
+        w._custom_input.value = "qwen3-coder-next"
+        w._custom_input.display = True
+
+        w.action_select()
+
+        msgs = [c.args[0] for c in w.post_message.call_args_list]
+        picked = [m for m in msgs if isinstance(m, ModelPickerWidget.Picked)]
+        assert len(picked) == 1
+        assert picked[0].name == "qwen3-coder-next"
+        assert picked[0].provider == "ollama"
+
+    def test_enter_with_empty_input_is_noop(self):
+        w = self._make_widget()
+        w._mode = "input"
+        w._custom_input.value = ""
+
+        w.action_select()
+
+        w.post_message.assert_not_called()
+        # Still in input mode — user can keep typing or Esc out.
+        assert w._mode == "input"
+
+    def test_enter_with_whitespace_only_input_is_noop(self):
+        w = self._make_widget()
+        w._mode = "input"
+        w._custom_input.value = "   \t "
+
+        w.action_select()
+
+        w.post_message.assert_not_called()
+        assert w._mode == "input"
+
+    def test_esc_in_input_mode_returns_to_list(self):
+        from EvoScientist.cli.widgets.model_picker import ModelPickerWidget
+
+        w = self._make_widget()
+        w._mode = "input"
+        w._custom_input.value = "partial"
+        w._custom_input.display = True
+
+        w.action_cancel()
+
+        assert w._mode == "list"
+        assert w._custom_input.display is False
+        assert w._custom_input.value == ""
+        # No Cancelled message — Esc from input returns to list, not closes.
+        cancelled = [
+            c.args[0]
+            for c in w.post_message.call_args_list
+            if isinstance(c.args[0], ModelPickerWidget.Cancelled)
+        ]
+        assert cancelled == []
+
+    def test_esc_in_list_mode_cancels(self):
+        from EvoScientist.cli.widgets.model_picker import ModelPickerWidget
+
+        w = self._make_widget()
+        w._mode = "list"
+        w.action_cancel()
+        msgs = [c.args[0] for c in w.post_message.call_args_list]
+        assert any(isinstance(m, ModelPickerWidget.Cancelled) for m in msgs)
+
+    def test_up_in_input_mode_exits_to_list(self):
+        w = self._make_widget()
+        w._mode = "input"
+        w._custom_input.display = True
+
+        w.action_move_up()
+
+        assert w._mode == "list"
+        assert w._custom_input.display is False
+
+    def test_down_in_input_mode_absorbed(self):
+        w = self._make_widget()
+        w._mode = "input"
+        before_selected = w._selected
+        w._custom_input.display = True
+
+        w.action_move_down()
+
+        # State unchanged — key was absorbed.
+        assert w._mode == "input"
+        assert w._custom_input.display is True
+        assert w._selected == before_selected
+
+    def test_backspace_in_input_mode_no_filter_change(self):
+        w = self._make_widget()
+        w._mode = "input"
+        w._filter_text = "foo"
+
+        w.action_backspace()
+
+        # Input widget handles its own backspace — filter unchanged.
+        assert w._filter_text == "foo"
+
+    def test_printable_key_in_input_mode_does_not_filter(self):
+        from unittest.mock import MagicMock
+
+        w = self._make_widget()
+        w._mode = "input"
+        w._filter_text = ""
+
+        event = MagicMock()
+        event.key = "a"
+        event.character = "a"
+
+        w.on_key(event)
+
+        assert w._filter_text == ""
+
+    def test_duplicate_sentinels_collapsed(self):
+        """Defense-in-depth: even if callers pass two sentinel rows (state
+        reuse, stale merges), only one "Custom Ollama model..." renders."""
+        from EvoScientist.cli.widgets.model_picker import (
+            _CUSTOM_OLLAMA_ID,
+            _build_items,
+        )
+
+        entries = [
+            ("claude-sonnet-4-6", "claude-sonnet-4-6", "anthropic"),
+            ("Custom Ollama model...", _CUSTOM_OLLAMA_ID, "ollama"),
+            ("Custom Ollama model...", _CUSTOM_OLLAMA_ID, "ollama"),
+            ("Custom Ollama model...", _CUSTOM_OLLAMA_ID, "ollama"),
+        ]
+        items = _build_items(entries)
+        sentinel_rows = [
+            i
+            for i in items
+            if i["type"] == "model" and i.get("model_id") == _CUSTOM_OLLAMA_ID
+        ]
+        assert len(sentinel_rows) == 1, f"duplicate sentinels rendered: {items}"
+
+    def test_sentinel_survives_filter(self):
+        """The Custom Ollama row is the user's escape hatch — filtering
+        must never hide it."""
+        from EvoScientist.cli.widgets.model_picker import (
+            _CUSTOM_OLLAMA_ID,
+            _build_items,
+        )
+
+        entries = [
+            ("claude-sonnet-4-6", "claude-sonnet-4-6", "anthropic"),
+            ("llama3.3", "llama3.3", "ollama"),
+            ("Custom Ollama model...", _CUSTOM_OLLAMA_ID, "ollama"),
+        ]
+        # A filter that matches NOTHING in the normal entries.
+        items = _build_items(entries, filter_text="zzzzzz")
+        sentinel_rows = [
+            i
+            for i in items
+            if i["type"] == "model" and i.get("model_id") == _CUSTOM_OLLAMA_ID
+        ]
+        assert len(sentinel_rows) == 1, f"sentinel hidden by filter: {items}"
+
+    def test_on_input_submitted_routes_to_submit(self):
+        """Belt-and-suspenders: Enter fired inside the Input widget should
+        be handled the same way as action_select in input mode."""
+        from unittest.mock import MagicMock
+
+        from EvoScientist.cli.widgets.model_picker import ModelPickerWidget
+
+        w = self._make_widget()
+        w._mode = "input"
+        w._custom_input.value = "mymodel"
+
+        event = MagicMock()
+        event.input = w._custom_input  # the Input child we stubbed
+
+        w.on_input_submitted(event)
+
+        event.stop.assert_called_once()
+        msgs = [c.args[0] for c in w.post_message.call_args_list]
+        picked = [m for m in msgs if isinstance(m, ModelPickerWidget.Picked)]
+        assert len(picked) == 1
+        assert picked[0].name == "mymodel"
+        assert picked[0].provider == "ollama"
 
 
 if __name__ == "__main__":

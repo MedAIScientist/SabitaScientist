@@ -1,8 +1,10 @@
 """Custom backends for EvoScientist agent."""
 
 import os
+import posixpath
 import re
 import shlex
+import sys
 import uuid
 from pathlib import Path
 
@@ -13,8 +15,17 @@ from deepagents.backends.protocol import (
     ExecuteResponse,
     FileDownloadResponse,
     FileUploadResponse,
+    GlobResult,
+    GrepResult,
+    LsResult,
     WriteResult,
 )
+
+from . import paths
+
+# Reproduced here to dodge a circular import from .EvoScientist (the canonical
+# SKILLS_DIR constant).
+_BUILTIN_SKILLS_DIR = Path(__file__).parent / "skills"
 
 # System path prefixes that should never appear in virtual paths.
 # If the agent hallucinates an absolute system path, we block it.
@@ -34,10 +45,14 @@ _SYSTEM_PATH_PREFIXES = (
     "/root/",
 )
 
-# Dangerous patterns that could escape the workspace
-BLOCKED_PATTERNS = [
+# Path-confinement patterns: keep the agent inside the workspace. These are
+# bypassed in dangerous mode (real-filesystem access).
+_PATH_PATTERNS = [
     r"~/",  # home directory
     r"\bcd\s+/",  # cd to absolute path
+]
+# Destructive patterns: catastrophic regardless of mode — always enforced.
+_DESTRUCTIVE_PATTERNS = [
     r"\brm\s+-rf\s+/",  # rm -rf with absolute path
 ]
 
@@ -53,25 +68,335 @@ BLOCKED_COMMANDS = [
 ]
 
 
+def _shell_token_spans(command: str) -> list[dict[str, object]]:
+    """Tokenize enough shell syntax to find quoted SSH remote commands.
+
+    This is intentionally small: it tracks words, quotes, and command
+    separators, but does not try to be a full POSIX shell parser.
+    """
+    tokens: list[dict[str, object]] = []
+    i = 0
+    n = len(command)
+
+    def read_operator(index: int) -> str | None:
+        if command.startswith(("&&", "||"), index):
+            return command[index : index + 2]
+        if command.startswith("&>", index):
+            return "&>"
+        ch = command[index]
+        if ch in "`();|&":
+            return ch
+        if ch in "<>":
+            if index + 1 < n and command[index + 1] == ch:
+                return command[index : index + 2]
+            return ch
+        if ch.isdigit():
+            j = index
+            while j < n and command[j].isdigit():
+                j += 1
+            if j < n and command[j] in "<>":
+                end = j + 1
+                if end < n and command[end] in ("&", command[j]):
+                    end += 1
+                return command[index:end]
+        return None
+
+    while i < n:
+        if command[i].isspace():
+            i += 1
+            continue
+        operator = read_operator(i)
+        if operator is not None:
+            tokens.append(
+                {"type": "op", "value": operator, "start": i, "end": i + len(operator)}
+            )
+            i += len(operator)
+            continue
+
+        start = i
+        value: list[str] = []
+        quoted = False
+        while i < n:
+            ch = command[i]
+            if ch.isspace():
+                break
+            if read_operator(i) is not None:
+                break
+            if ch in ("'", '"'):
+                quoted = True
+                quote = ch
+                i += 1
+                while i < n:
+                    inner = command[i]
+                    if inner == quote:
+                        i += 1
+                        break
+                    if inner == "\\" and quote == '"' and i + 1 < n:
+                        value.append(command[i + 1])
+                        i += 2
+                    else:
+                        value.append(inner)
+                        i += 1
+                continue
+            if ch == "\\" and i + 1 < n:
+                value.append(command[i + 1])
+                i += 2
+                continue
+            value.append(ch)
+            i += 1
+
+        tokens.append(
+            {
+                "type": "word",
+                "value": "".join(value),
+                "raw": command[start:i],
+                "start": start,
+                "end": i,
+                "quoted": quoted,
+            }
+        )
+    return tokens
+
+
+_SSH_OPTIONS_WITH_VALUE = {
+    "-B",
+    "-b",
+    "-c",
+    "-D",
+    "-E",
+    "-e",
+    "-F",
+    "-I",
+    "-i",
+    "-J",
+    "-L",
+    "-l",
+    "-m",
+    "-O",
+    "-o",
+    "-p",
+    "-Q",
+    "-R",
+    "-S",
+    "-W",
+    "-w",
+}
+
+
+def _ssh_option_consumes_next(token: str) -> bool:
+    """Return whether an SSH option token consumes the following argument."""
+    if token in _SSH_OPTIONS_WITH_VALUE:
+        return True
+    return False
+
+
+def _is_ssh_executable(token: str) -> bool:
+    return token == "ssh"
+
+
+def _is_shell_assignment(token: dict[str, object]) -> bool:
+    raw = str(token.get("raw", token.get("value", "")))
+    return re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", raw) is not None
+
+
+def _ssh_executable_index(words: list[dict[str, object]]) -> int | None:
+    idx = 0
+    while idx < len(words) and _is_shell_assignment(words[idx]):
+        idx += 1
+    if idx < len(words) and _is_ssh_executable(str(words[idx].get("value", ""))):
+        return idx
+    return None
+
+
+def _is_single_quoted_word(token: dict[str, object]) -> bool:
+    raw = str(token.get("raw", ""))
+    return raw.startswith("'") and raw.endswith("'")
+
+
+def _ssh_host_index(words: list[dict[str, object]], ssh_idx: int) -> int:
+    """Return the index of the host argument (first non-option after ssh)."""
+    idx = ssh_idx + 1
+    while idx < len(words):
+        value = str(words[idx].get("value", ""))
+        if value == "--":
+            idx += 1
+            break
+        if value.startswith("-") and value != "-":
+            idx += 2 if _ssh_option_consumes_next(value) else 1
+            continue
+        break
+    return idx
+
+
+def _ssh_invocations(
+    command: str,
+) -> list[tuple[list[dict[str, object]], int, int, int | None, int]]:
+    """Return SSH invocations as ``(words, ssh_idx, host_idx, remote_idx, extra)``.
+
+    Examples:
+        >>> [(i, h, r, e) for _, i, h, r, e in _ssh_invocations("ssh host")]
+        [(0, 1, None, 0)]
+        >>> [(i, h, r, e) for _, i, h, r, e in _ssh_invocations("ssh host 'pwd'")]
+        [(0, 1, 2, 0)]
+        >>> [(i, h, r, e) for _, i, h, r, e in _ssh_invocations('ssh host "pwd"')]
+        [(0, 1, 2, 0)]
+        >>> [(i, h, r, e) for _, i, h, r, e in _ssh_invocations("ssh host 'pwd' extra")]
+        [(0, 1, 2, 1)]
+        >>> [(i, h, r, e) for _, i, h, r, e in _ssh_invocations("cat x && ssh -p 22 host 'pwd'")]
+        [(0, 3, 4, 0)]
+        >>> _ssh_invocations("/tmp/ssh host 'pwd'")
+        []
+    """
+    tokens = _shell_token_spans(command)
+    invocations: list[tuple[list[dict[str, object]], int, int, int | None, int]] = []
+    segment: list[dict[str, object]] = []
+
+    def flush_segment() -> None:
+        if not segment:
+            return
+        words = [tok for tok in segment if tok.get("type") == "word"]
+        ssh_idx = _ssh_executable_index(words)
+        if ssh_idx is None:
+            return
+
+        host_idx = _ssh_host_index(words, ssh_idx)
+        remote_idx = host_idx + 1 if host_idx + 1 < len(words) else None
+        remote_extra_argv_count = (
+            max(0, len(words) - remote_idx - 1) if remote_idx is not None else 0
+        )
+        invocations.append(
+            (words, ssh_idx, host_idx, remote_idx, remote_extra_argv_count)
+        )
+
+    for token in tokens:
+        if token.get("type") == "op":
+            flush_segment()
+            segment = []
+        else:
+            segment.append(token)
+    flush_segment()
+    return invocations
+
+
+def _ssh_remote_command_spans(command: str) -> list[tuple[int, int]]:
+    """Return remote-command argv spans in SSH invocations.
+
+    Only the supported single-quoted token after the destination host is treated
+    as remote argv. Plain ``ssh host`` has no remote argv and returns no spans.
+
+    Examples:
+        >>> _ssh_remote_command_spans("ssh host 'ls /home/u/project'")
+        [(9, 29)]
+        >>> _ssh_remote_command_spans('ssh host "ls /home/u/project"')
+        []
+        >>> _ssh_remote_command_spans("cat /tmp/x && ssh host 'pwd'")
+        [(23, 28)]
+    """
+    spans: list[tuple[int, int]] = []
+    for words, ssh_idx, host_idx, remote_idx, _ in _ssh_invocations(command):
+        # Mask the SSH executable path itself (e.g., /usr/bin/ssh) so
+        # virtual path conversion doesn't rewrite it.
+        spans.append(
+            (
+                int(words[ssh_idx]["start"]),
+                int(words[ssh_idx]["end"]),
+            )
+        )
+
+        if (
+            host_idx < len(words)
+            and remote_idx is not None
+            and _is_single_quoted_word(words[remote_idx])
+        ):
+            spans.append(
+                (
+                    int(words[remote_idx]["start"]),
+                    int(words[remote_idx]["end"]),
+                )
+            )
+    return spans
+
+
+def _mask_spans(
+    command: str, spans: list[tuple[int, int]]
+) -> tuple[str, dict[str, str]]:
+    """Replace spans with placeholders and return the restoration map."""
+    if not spans:
+        return command, {}
+    pieces: list[str] = []
+    replacements: dict[str, str] = {}
+    cursor = 0
+    nonce = uuid.uuid4().hex
+    for index, (start, end) in enumerate(sorted(spans)):
+        if start < cursor:
+            continue
+        placeholder = f"__EVOSCI_SSH_REMOTE_{nonce}_{index}__"
+        pieces.append(command[cursor:start])
+        pieces.append(placeholder)
+        replacements[placeholder] = command[start:end]
+        cursor = end
+    pieces.append(command[cursor:])
+    return "".join(pieces), replacements
+
+
+def _restore_spans(command: str, replacements: dict[str, str]) -> str:
+    for placeholder, original in replacements.items():
+        command = command.replace(placeholder, original)
+    return command
+
+
+def _mask_ssh_remote_commands(command: str) -> tuple[str, dict[str, str]]:
+    """Mask supported SSH remote argv so local path logic can skip it.
+
+    Examples:
+        >>> _restore_spans(*_mask_ssh_remote_commands("ssh host 'pwd'"))
+        "ssh host 'pwd'"
+    """
+    return _mask_spans(command, _ssh_remote_command_spans(command))
+
+
+def _validate_ssh_remote_command_format(command: str) -> str | None:
+    """Require SSH remote commands to be one single-quoted token after the host."""
+
+    def error() -> str:
+        return (
+            "SSH remote commands must be passed as a single quoted argument, "
+            "for example: ssh host 'cd /home/user/project && python train.py'."
+        )
+
+    for words, _, _, remote_idx, remote_extra_argv_count in _ssh_invocations(command):
+        if remote_idx is None:
+            continue
+        if not _is_single_quoted_word(words[remote_idx]):
+            return error()
+        if remote_extra_argv_count:
+            return error()
+    return None
+
+
 def _split_shell_commands(command: str) -> list[str]:
     """Split a compound shell command into individual base commands.
 
-    Handles &&, ||, ;, and | operators. Returns base command names.
+    Handles command-boundary shell operators tracked by ``_shell_token_spans``.
+    Redirection operators are not boundaries; their operands are filenames, not
+    commands.
     """
+    command_boundaries = {"&&", "||", ";", "|", "&", "(", ")", "`"}
     base_commands: list[str] = []
-    # Split by sequential operators first
-    for segment in re.split(r"\s*(?:&&|\|\||;)\s*", command):
-        # Then split by pipe
-        for pipe_seg in segment.split("|"):
-            pipe_seg = pipe_seg.strip()
-            if not pipe_seg:
-                continue
-            try:
-                tokens = shlex.split(pipe_seg)
-            except ValueError:
-                tokens = pipe_seg.split()
-            if tokens:
-                base_commands.append(tokens[0])
+    segment: list[str] = []
+
+    def flush_segment() -> None:
+        words = [token for token in segment if token]
+        if words:
+            base_commands.append(words[0])
+
+    for token in _shell_token_spans(command):
+        if token.get("type") == "op" and token.get("value") in command_boundaries:
+            flush_segment()
+            segment = []
+        else:
+            segment.append(str(token.get("value", "")))
+    flush_segment()
     return base_commands
 
 
@@ -125,12 +450,36 @@ def _collect_executable_positions(command: str) -> set[int]:
     return offsets
 
 
-def _extract_all_paths(command: str) -> list[str]:
+def _is_under_allowed_prefix(path: str, allow_prefixes: tuple[str, ...]) -> bool:
+    """True if *path* equals a prefix or is a strict descendant.
+
+    Boundary-aware: ``str.startswith`` alone would let ``/A/skills_evil``
+    match the prefix ``/A/skills`` — anchoring on ``/`` blocks neighbour
+    directories that merely share a name prefix.
+    """
+    for prefix in allow_prefixes:
+        normalized = prefix.rstrip("/")
+        # Skip empty/root prefixes: they'd reduce the check to startswith("/")
+        # and admit every absolute path, silently disabling the allowlist.
+        if not normalized:
+            continue
+        if path == normalized or path.startswith(normalized + "/"):
+            return True
+    return False
+
+
+def _extract_all_paths(
+    command: str,
+    allow_prefixes: tuple[str, ...] = (),
+) -> list[str]:
     """Extract potential file paths from a command, including inside quoted strings.
 
     Scans both shell tokens and string literals (single/double quoted) to find
     paths that start with system prefixes like /Users/, /etc/, /tmp/, etc.
     Skips paths in executable position (command name) and pip install targets.
+
+    Paths matched by ``allow_prefixes`` (via ``_is_under_allowed_prefix``)
+    are dropped.
     """
     exe_offsets = _collect_executable_positions(command)
     paths: list[str] = []
@@ -146,27 +495,55 @@ def _extract_all_paths(command: str) -> list[str]:
         # Skip paths that land at an executable-position offset
         if m.start(1) in exe_offsets:
             continue
-        paths.append(m.group(1))
+        extracted = m.group(1)
+        if _is_under_allowed_prefix(extracted, allow_prefixes):
+            continue
+        paths.append(extracted)
     return paths
 
 
-def validate_command(command: str) -> str | None:
+def validate_command(
+    command: str,
+    allow_prefixes: tuple[str, ...] = (),
+    *,
+    dangerous: bool = False,
+) -> str | None:
     """
     Validate a shell command for safety.
+
+    Args:
+        command: Shell command string.
+        allow_prefixes: Absolute path prefixes exempt from the system-path
+            block list (matching rules in ``_is_under_allowed_prefix``).
+        dangerous: When True (real-filesystem mode), skip the path-confinement
+            checks (``..`` traversal, ``~/``/``cd /`` patterns, absolute system
+            paths). Privileged commands (:data:`BLOCKED_COMMANDS`) and
+            catastrophic patterns (:data:`_DESTRUCTIVE_PATTERNS`) are still
+            enforced.
 
     Returns:
         None if command is safe, error message string if blocked.
     """
-    # Check for '..' path traversal as a path component
-    if _has_traversal_component(command):
-        return (
-            "Command blocked: contains '..' path traversal. "
-            "All commands must operate within the workspace directory. "
-            "Use relative paths (e.g., './file.py') instead."
-        )
+    # Path-confinement checks — skipped in dangerous mode.
+    if not dangerous:
+        # Check for '..' path traversal as a path component
+        if _has_traversal_component(command):
+            return (
+                "Command blocked: contains '..' path traversal. "
+                "All commands must operate within the workspace directory. "
+                "Use relative paths (e.g., './file.py') instead."
+            )
 
-    # Check for dangerous patterns
-    for pattern in BLOCKED_PATTERNS:
+        for pattern in _PATH_PATTERNS:
+            if re.search(pattern, command):
+                return (
+                    f"Command blocked: contains forbidden pattern '{pattern}'. "
+                    f"All commands must operate within the workspace directory. "
+                    f"Use relative paths (e.g., './file.py') instead."
+                )
+
+    # Catastrophic patterns (e.g. `rm -rf /`) — always enforced.
+    for pattern in _DESTRUCTIVE_PATTERNS:
         if re.search(pattern, command):
             return (
                 f"Command blocked: contains forbidden pattern '{pattern}'. "
@@ -174,7 +551,7 @@ def validate_command(command: str) -> str | None:
                 f"Use relative paths (e.g., './file.py') instead."
             )
 
-    # Check for dangerous commands (pipeline-aware)
+    # Check for dangerous commands (pipeline-aware) — always enforced.
     for base_cmd in _split_shell_commands(command):
         if base_cmd in BLOCKED_COMMANDS:
             return (
@@ -182,16 +559,160 @@ def validate_command(command: str) -> str | None:
                 f"Only standard development commands are permitted."
             )
 
-    # Check for absolute system paths (including inside quoted strings).
-    # This catches attacks like: python -c "os.remove('/Users/foo/file')"
-    escaped_paths = _extract_all_paths(command)
-    if escaped_paths:
-        path_sample = escaped_paths[0]
-        return (
-            f"Command blocked: contains absolute system path '{path_sample}'. "
-            f"All file operations must use relative paths within the workspace. "
-            f"Use relative paths (e.g., './file.py') instead."
-        )
+    # Absolute-system-path check — skipped in dangerous mode.
+    # Catches attacks like: python -c "os.remove('/Users/foo/file')"
+    if not dangerous:
+        escaped_paths = _extract_all_paths(command, allow_prefixes=allow_prefixes)
+        if escaped_paths:
+            path_sample = escaped_paths[0]
+            return (
+                f"Command blocked: contains absolute system path '{path_sample}'. "
+                f"All file operations must use relative paths within the workspace. "
+                f"Use relative paths (e.g., './file.py') instead."
+            )
+
+    return None
+
+
+def _subpath_under_mount(token: str, mount: str) -> str | None:
+    """Return the subpath of *token* under *mount*, or ``None`` if not under it.
+
+    Bare ``mount`` and ``mount + "/"`` both return ``""`` so the caller can
+    join uniformly (``Path(tier) / ""`` is the tier itself).
+    """
+    if token == mount or token == mount + "/":
+        return ""
+    prefix = mount + "/"
+    if token.startswith(prefix):
+        return token[len(prefix) :]
+    return None
+
+
+def _skills_tier_paths() -> tuple[Path, Path | None, Path]:
+    """``(USER, GLOBAL or None, BUILTIN)`` — the tier priority chain that
+    ``MergedSkillsBackend._backends()`` honors. Single source of truth so
+    the resolver and the backend can't silently drift out of order.
+    """
+    return (paths.USER_SKILLS_DIR, paths.GLOBAL_SKILLS_DIR, _BUILTIN_SKILLS_DIR)
+
+
+def _is_windows() -> bool:
+    return sys.platform == "win32"
+
+
+def _cmd_quote(s: str) -> str:
+    """Quote *s* for cmd.exe using double-quote wrapping.
+
+    cmd.exe strips outer double quotes; content between them is taken
+    literally. Backslashes are not escape chars inside double quotes, so
+    Windows paths pass through unchanged. Embedded ``"`` is escaped as
+    ``\"``; bare paths with no shell-special chars need no quoting at all.
+
+    .. note::
+
+       ``%VAR%`` expansion is **not** neutralised here.  Variable expansion
+       happens before quote processing in cmd.exe, and ``%%`` collapsing
+       only occurs inside ``.bat``/``.cmd`` files — not via ``cmd /c``.
+       This is acceptable because virtual-mount paths (skills, memories)
+       should never contain percent signs in practice.
+
+    Mirrors the role of :func:`shlex.quote` for the Windows shell so the
+    sandbox command can pass a single token through :func:`subprocess.run`
+    with ``shell=True`` (which on Windows invokes cmd.exe, not /bin/sh).
+    """
+    if not s:
+        return '""'
+    if not any(c in s for c in ' \t\n"&|<>^()'):
+        return s
+    return '"' + s.replace('"', '\\"') + '"'
+
+
+def _platform_quote(s: str) -> str:
+    """Quote *s* for the host's default shell.
+
+    On POSIX, delegates to :func:`shlex.quote` (single-quote wrapping).
+    On Windows, uses double-quote wrapping compatible with cmd.exe —
+    see :func:`_cmd_quote`. The platform check is read at call time, so
+    tests can swap it via ``monkeypatch.setattr(backends, "_is_windows", ...)``
+    without mutating :mod:`sys` module state.
+    """
+    if _is_windows():
+        return _cmd_quote(s)
+    return shlex.quote(s)
+
+
+def _resolve_virtual_mount_path(token: str) -> str | None:
+    """Resolve a virtual mount token to a shell-safe token, or ``None`` when
+    *token* is not a registered virtual mount.
+
+    For ``/skills/...``: walks ``_skills_tier_paths()`` priority (USER →
+    GLOBAL → BUILTIN), returning :func:`_platform_quote` of the first tier
+    where the path exists. On miss, returns a workspace-relative
+    ``./skills/<rel>`` form — agent typed a virtual path, so the shell error
+    should reference a location they recognise (`USER_SKILLS_DIR` defaults to
+    ``WORKSPACE_ROOT / "skills"``, which is also where ``MergedSkillsBackend``
+    would write a new skill).
+
+    For ``/memories/...``: single tier (``paths.MEMORIES_DIR``), always
+    absolute and :func:`_platform_quote`-wrapped. Memories live outside the
+    workspace, so a relative form would point at an unrelated location.
+    """
+    rel = _subpath_under_mount(token, "/skills")
+    if rel is not None:
+        for tier in _skills_tier_paths():
+            if tier is None:
+                continue
+            candidate = Path(tier) / rel
+            if candidate.exists():
+                return _platform_quote(str(candidate))
+        return _platform_quote("./skills/" + rel if rel else "./skills")
+
+    rel = _subpath_under_mount(token, "/memories")
+    if rel is not None:
+        return _platform_quote(str(Path(paths.MEMORIES_DIR) / rel))
+
+    return None
+
+
+def _guard_bare_absolute(result: str | None) -> str | None:
+    """If *result* is a bare absolute path (no surrounding quotes),
+    single-quote it so the post-process regex won't re-rewrite it."""
+    if result and result.startswith("/") and result == result.strip("'\""):
+        return "'" + result + "'"
+    return result
+
+
+def _rewrite_quoted_path(
+    path: str,
+    workspace_name: str | None,
+) -> str | None:
+    """Return the shell-quoted replacement for *path* (the decoded
+    content of a quoted ``"..."`` or ``'...'`` argument),
+    or ``None`` if no rewrite applies.
+    """
+    if not path or "://" in path[max(0, len(path) - 10) :]:
+        return None
+    if not path.startswith("/"):
+        return None
+
+    resolved = _resolve_virtual_mount_path(path)
+    if resolved is not None:
+        return _guard_bare_absolute(resolved)  # already shlex.quoted
+
+    # Fix hallucinated system absolute paths that reference the workspace.
+    if workspace_name:
+        for prefix in _SYSTEM_PATH_PREFIXES:
+            if path.startswith(prefix):
+                marker = f"/{workspace_name}/"
+                idx = path.rfind(marker)
+                if idx != -1:
+                    relative = path[idx + len(marker) :]
+                    return _guard_bare_absolute(
+                        shlex.quote("./" + relative if relative else ".")
+                    )
+                if path.endswith(f"/{workspace_name}"):
+                    return _guard_bare_absolute(shlex.quote("."))
+                break
 
     return None
 
@@ -200,27 +721,32 @@ def convert_virtual_paths_in_command(
     command: str,
     workspace_name: str | None = None,
 ) -> str:
-    """
-    Convert virtual paths (starting with /) in commands to relative paths.
+    """Convert virtual paths (starting with ``/``) in commands to relative paths.
 
     Also auto-corrects hallucinated system absolute paths that reference the
     workspace directory (e.g. ``/Users/.../myproject/file.py`` → ``./file.py``).
 
-    Args:
-        command: Original command.
-        workspace_name: Basename of the workspace directory (e.g. ``"workspace"``,
-            ``"my-project"``).  When provided, system paths containing
-            ``/<workspace_name>/`` are auto-corrected.
-
-    Examples:
-        >>> convert_virtual_paths_in_command("python /main.py")
-        'python ./main.py'
-        >>> convert_virtual_paths_in_command("ls /")
-        'ls .'
-        >>> convert_virtual_paths_in_command(
-        ...     "mkdir -p /Users/u/proj/dir", workspace_name="proj")
-        'mkdir -p ./dir'
+    Pre-process: quoted arguments whose content resolves to a virtual
+    mount (``/skills/...``, ``/memories/...``) or a workspace-prefixed
+    system path are rewritten as a single shell token — this fixes #237
+    where ``python "/skills/my skill/main.py"`` was truncated at the
+    embedded space.  Bare quoted ``/...`` paths (e.g. ``echo "/hi"``)
+    are left untouched since their semantics are ambiguous.
+    After pre-processing, the original regex handles unquoted
+    paths and workspace-name correction as before.
     """
+    # Pre-process: rewrite quoted paths whose decoded content starts with /
+    command = re.sub(
+        r'(["\'])((?:\\.|(?!\1).)*?)\1',
+        lambda m: (
+            _rewrite_quoted_path(
+                re.sub(r"\\(.)", r"\1", m.group(2)),
+                workspace_name,
+            )
+            or m.group(0)
+        ),
+        command,
+    )
 
     def replace_virtual_path(match: re.Match[str]) -> str:
         path = match.group(0)
@@ -229,14 +755,16 @@ def convert_virtual_paths_in_command(
         if "://" in command[max(0, match.start() - 10) : match.end() + 10]:
             return path
 
+        resolved = _resolve_virtual_mount_path(path)
+        if resolved is not None:
+            return resolved
+
         # Fix hallucinated system absolute paths that reference the workspace.
-        # E.g. /Users/user/.../myproject/file.py → ./file.py
-        # This mirrors _resolve_path() logic but for shell command strings.
         if workspace_name:
             for prefix in _SYSTEM_PATH_PREFIXES:
                 if path.startswith(prefix):
                     marker = f"/{workspace_name}/"
-                    idx = path.find(marker)
+                    idx = path.rfind(marker)
                     if idx != -1:
                         relative = path[idx + len(marker) :]
                         return "./" + relative if relative else "."
@@ -247,8 +775,7 @@ def convert_virtual_paths_in_command(
         # Convert virtual path
         if path == "/":
             return "."
-        else:
-            return "." + path
+        return "." + path
 
     # Match pattern: paths starting with / (but not URLs)
     pattern = r'(?<=\s)/[^\s;|&<>\'"`]*|^/[^\s;|&<>\'"`]*'
@@ -261,7 +788,7 @@ class ReadOnlyFilesystemBackend(FilesystemBackend):
     """
     Read-only filesystem backend.
 
-    Allows read, ls, grep, glob operations but blocks write and edit.
+    Allows read, ls, grep, glob operations but blocks write, edit, and upload.
     Used for skills directory — agent can read skill definitions but cannot
     modify them.
     """
@@ -282,78 +809,39 @@ class ReadOnlyFilesystemBackend(FilesystemBackend):
             error="This directory is read-only. Edit operations are not permitted here."
         )
 
+    def upload_files(self, files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
+        return [
+            FileUploadResponse(
+                path=file_path,
+                error="This directory is read-only. Upload operations are not permitted here.",
+            )
+            for file_path, _ in files
+        ]
 
-class MergedReadOnlyBackend(BackendProtocol):
-    """Read-only backend that merges two directories.
 
-    Reads from *primary* first (user skills in workspace/skills/),
-    falls back to *secondary* (system skills in ./skills/).
-    User skills override system skills with the same name.
+class MemoryFilesystemBackend(FilesystemBackend):
+    """Filesystem backend for memory files with structured-write enforcement.
 
-    Both directories share the same virtual path namespace — the agent
-    sees all skills under /skills/ regardless of which backend serves them.
+    Agents may read memory files and edit existing profile notes, but raw file
+    creation is blocked so observations are recorded through memory tools.
     """
 
-    def __init__(self, primary_dir: str, secondary_dir: str):
-        self._primary = ReadOnlyFilesystemBackend(
-            root_dir=primary_dir, virtual_mode=True
-        )
-        self._secondary = ReadOnlyFilesystemBackend(
-            root_dir=secondary_dir, virtual_mode=True
-        )
+    _RAW_WRITE_ERROR = (
+        "Raw writes to /memories are blocked. Edit existing "
+        "/memories/profile/... files or use memory tools."
+    )
+    _RAW_EDIT_ERROR = (
+        "Raw edits under /memories are limited to existing "
+        "/memories/profile/... files. Use memory tools for observations."
+    )
 
-    # -- read: try primary first, fall back to secondary --
-
-    def read(self, file_path: str, offset: int = 0, limit: int = 2000) -> str:
-        try:
-            result = self._primary.read(file_path, offset, limit)
-            if not result.startswith("Error:"):
-                return result
-        except (ValueError, FileNotFoundError, OSError):
-            pass
-        return self._secondary.read(file_path, offset, limit)
-
-    # -- ls_info: merge both, primary wins on name conflicts --
-
-    def ls_info(self, path: str = "/") -> list:
-        secondary_items = {item["path"]: item for item in self._secondary.ls_info(path)}
-        primary_items = {item["path"]: item for item in self._primary.ls_info(path)}
-        secondary_items.update(primary_items)  # primary overrides
-        return sorted(secondary_items.values(), key=lambda x: x["path"])
-
-    # -- grep_raw: search both, deduplicate --
-
-    def grep_raw(
-        self, pattern: str, path: str | None = None, glob: str | None = None
-    ) -> list:
-        results = self._secondary.grep_raw(pattern, path, glob)
-        try:
-            results += self._primary.grep_raw(pattern, path, glob)
-        except Exception:
-            pass
-        return results
-
-    # -- glob_info: merge both --
-
-    def glob_info(self, pattern: str, path: str = "/") -> list:
-        secondary = {
-            item["path"]: item for item in self._secondary.glob_info(pattern, path)
-        }
-        try:
-            primary = {
-                item["path"]: item for item in self._primary.glob_info(pattern, path)
-            }
-            secondary.update(primary)
-        except Exception:
-            pass
-        return sorted(secondary.values(), key=lambda x: x["path"])
-
-    # -- write / edit: blocked --
+    @staticmethod
+    def _is_profile_path(file_path: str) -> bool:
+        normalized = posixpath.normpath("/" + file_path.strip().lstrip("/"))
+        return normalized == "/profile" or normalized.startswith("/profile/")
 
     def write(self, file_path: str, content: str) -> WriteResult:
-        return WriteResult(
-            error="This directory is read-only. Write operations are not permitted here."
-        )
+        return WriteResult(error=self._RAW_WRITE_ERROR)
 
     def edit(
         self,
@@ -362,27 +850,274 @@ class MergedReadOnlyBackend(BackendProtocol):
         new_string: str,
         replace_all: bool = False,
     ) -> EditResult:
-        return EditResult(
-            error="This directory is read-only. Edit operations are not permitted here."
+        if not self._is_profile_path(file_path):
+            return EditResult(error=self._RAW_EDIT_ERROR)
+        return super().edit(file_path, old_string, new_string, replace_all)
+
+    def upload_files(self, files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
+        return [
+            FileUploadResponse(path=file_path, error=self._RAW_WRITE_ERROR)
+            for file_path, _ in files
+        ]
+
+
+def build_memory_agent_backend(
+    *,
+    workspace_dir: str | Path,
+    memory_dir: str | Path,
+):
+    """Build the standard memory-agent backend with guarded `/memories/` routing."""
+    from deepagents.backends import CompositeBackend
+
+    return CompositeBackend(
+        default=FilesystemBackend(root_dir=str(workspace_dir), virtual_mode=True),
+        routes={
+            "/memories/": MemoryFilesystemBackend(
+                root_dir=str(memory_dir),
+                virtual_mode=True,
+            )
+        },
+    )
+
+
+def build_memory_worker_backend(
+    *,
+    workspace_dir: str | Path,
+    memory_dir: str | Path,
+):
+    """Build the memory-worker backend.
+
+    Workers may update profile memory through /memories/profile/... and write
+    observations through structured tools. The workspace itself is read-only.
+    """
+    from deepagents.backends import CompositeBackend
+
+    return CompositeBackend(
+        default=ReadOnlyFilesystemBackend(
+            root_dir=str(workspace_dir),
+            virtual_mode=True,
+        ),
+        routes={
+            "/memories/": MemoryFilesystemBackend(
+                root_dir=str(memory_dir),
+                virtual_mode=True,
+            )
+        },
+    )
+
+
+def build_autoskill_agent_backend(
+    *,
+    memory_dir: str | Path,
+    proposals_dir: str | Path,
+    sandbox_timeout: int = 300,
+):
+    """Build the AutoSkills backend.
+
+    AutoSkills has a different security model from ordinary memory
+    maintenance: it can read memories and installed skills, write proposal
+    folders, and run shell validation from the proposal root.
+    """
+    from deepagents.backends import CompositeBackend
+
+    return CompositeBackend(
+        default=AutoskillProposalSandboxBackend(
+            root_dir=str(proposals_dir),
+            timeout=sandbox_timeout,
+        ),
+        routes={
+            "/memories/": ReadOnlyFilesystemBackend(
+                root_dir=str(memory_dir),
+                virtual_mode=True,
+            ),
+            "/skills/": MergedSkillsBackend(
+                primary_dir=str(paths.USER_SKILLS_DIR),
+                global_dir=str(paths.GLOBAL_SKILLS_DIR),
+                secondary_dir=str(_BUILTIN_SKILLS_DIR),
+                writable_primary=False,
+            ),
+            "/autoskill-proposals/": FilesystemBackend(
+                root_dir=str(proposals_dir),
+                virtual_mode=True,
+            ),
+        },
+    )
+
+
+class MergedSkillsBackend(BackendProtocol):
+    """Skills backend that merges up to three skill directories.
+
+    Priority (high → low):
+    1. primary   — workspace/skills/  (project-local, writable)
+    2. global    — ~/.evoscientist/skills/  (user global, read-only)
+    3. secondary — EvoScientist/skills/  (built-in, PyPI, read-only)
+
+    Higher-priority skills override lower-priority skills with the same name.
+    All directories share the same virtual path namespace (/skills/).
+    Only the workspace tier (primary) allows write and edit operations.
+    """
+
+    def __init__(
+        self,
+        primary_dir: str,
+        secondary_dir: str,
+        global_dir: str | None = None,
+        writable_primary: bool = True,
+    ):
+        primary_backend = (
+            FilesystemBackend if writable_primary else ReadOnlyFilesystemBackend
         )
+        self._primary = primary_backend(root_dir=primary_dir, virtual_mode=True)
+        self._global = (
+            ReadOnlyFilesystemBackend(root_dir=global_dir, virtual_mode=True)
+            if global_dir
+            else None
+        )
+        self._secondary = ReadOnlyFilesystemBackend(
+            root_dir=secondary_dir, virtual_mode=True
+        )
+
+    def _backends(self):
+        """Yield backends in priority order: primary → global → secondary."""
+        yield self._primary
+        if self._global:
+            yield self._global
+        yield self._secondary
+
+    # -- read: try each tier in priority order --
+
+    def read(self, file_path: str, offset: int = 0, limit: int = 2000) -> str:
+        for backend in list(self._backends())[:-1]:
+            try:
+                result = backend.read(file_path, offset, limit)
+                if hasattr(result, "error"):
+                    if result.error is None:
+                        return result
+                elif not str(result).startswith("Error:"):
+                    return result
+            except (ValueError, FileNotFoundError, OSError):
+                pass
+        return self._secondary.read(file_path, offset, limit)
+
+    # -- ls: merge all tiers, higher priority wins on name conflicts --
+
+    def ls(self, path: str = "/") -> LsResult:
+        merged: dict = {}
+        for backend in reversed(list(self._backends())):
+            result = backend.ls(path)
+            for item in result.entries or []:
+                merged[item["path"]] = item
+        return LsResult(entries=sorted(merged.values(), key=lambda x: x["path"]))
+
+    # -- grep: search all tiers --
+
+    def grep(
+        self, pattern: str, path: str | None = None, glob: str | None = None
+    ) -> GrepResult:
+        matches = []
+        for backend in self._backends():
+            try:
+                result = backend.grep(pattern, path, glob)
+                matches.extend(result.matches or [])
+            except Exception:
+                pass
+        return GrepResult(matches=matches)
+
+    # -- glob: merge all tiers, higher priority wins on name conflicts --
+
+    def glob(self, pattern: str, path: str = "/") -> GlobResult:
+        merged: dict = {}
+        for backend in reversed(list(self._backends())):
+            try:
+                result = backend.glob(pattern, path)
+                for item in result.matches or []:
+                    merged[item["path"]] = item
+            except Exception:
+                pass
+        return GlobResult(matches=sorted(merged.values(), key=lambda x: x["path"]))
+
+    # -- write / edit: only workspace/skills/ (primary) is writable --
+
+    def write(self, file_path: str, content: str) -> WriteResult:
+        return self._primary.write(file_path, content)
+
+    def edit(
+        self,
+        file_path: str,
+        old_string: str,
+        new_string: str,
+        replace_all: bool = False,
+    ) -> EditResult:
+        return self._primary.edit(file_path, old_string, new_string, replace_all)
 
     # -- download / upload --
 
     def download_files(self, paths: list[str]) -> list[FileDownloadResponse]:
-        """Download files, trying primary then secondary."""
+        """Download files, trying each tier in priority order."""
+        backends = list(self._backends())
         responses: list[FileDownloadResponse] = []
         for path in paths:
-            resp = self._primary.download_files([path])[0]
-            if resp.error is not None:
-                resp = self._secondary.download_files([path])[0]
+            resp = backends[-1].download_files([path])[0]
+            for backend in backends[:-1]:
+                candidate = backend.download_files([path])[0]
+                if candidate.error is None:
+                    resp = candidate
+                    break
             responses.append(resp)
         return responses
 
     def upload_files(self, files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
-        return [
-            FileUploadResponse(path=path, error="permission_denied")
-            for path, _ in files
-        ]
+        return self._primary.upload_files(files)
+
+
+def prepare_sandbox_command(
+    command: str, cwd: str | Path, *, virtual_mode: bool = True, dangerous: bool = False
+) -> tuple[str, str | None]:
+    """Normalize workspace paths in ``command`` and validate it for the sandbox.
+
+    Shared by :meth:`CustomSandboxBackend.execute` and the background-process tools so
+    both enforce *identical* workspace-path rewriting (so virtual ``/`` paths resolve to
+    the workspace, not the host root) and the same command validation.
+
+    Returns ``(prepared_command, error)``: ``error`` is a message string when the command
+    is rejected (the caller must NOT run it), otherwise ``None``.
+    """
+    ssh_error = _validate_ssh_remote_command_format(command)
+    if ssh_error:
+        return command, ssh_error
+
+    command, ssh_replacements = _mask_ssh_remote_commands(command)
+
+    cwd_str = str(cwd).rstrip("/")
+    # Replace literal workspace-root absolute paths with ./ after SSH masking so
+    # remote paths that happen to contain the local cwd are preserved, and before
+    # validation so local workspace paths are sanitized before the system-path
+    # check fires. Skipped in dangerous mode: there is no virtual workspace, the
+    # agent uses real absolute paths, and rewriting would corrupt any argument
+    # (echo text, grep/git pattern) that merely contains the cwd string.
+    if not dangerous:
+        ws = cwd_str + "/"
+        if ws in command:
+            command = command.replace(ws, "./")
+    if virtual_mode:
+        command = convert_virtual_paths_in_command(
+            command=command,
+            workspace_name=Path(cwd_str).name,
+        )
+    # Skills/memory dirs must be allowlisted: the workspace-literal replace above runs
+    # before the resolver, so any absolute path it later injects reaches validate unstripped.
+    allow_prefixes = (
+        str(paths.USER_SKILLS_DIR),
+        str(paths.GLOBAL_SKILLS_DIR),
+        str(paths.MEMORIES_DIR),
+        str(_BUILTIN_SKILLS_DIR),
+    )
+    error = validate_command(
+        command, allow_prefixes=allow_prefixes, dangerous=dangerous
+    )
+    if error:
+        return command, error
+    return _restore_spans(command, ssh_replacements), None
 
 
 class CustomSandboxBackend(LocalShellBackend):
@@ -406,6 +1141,7 @@ class CustomSandboxBackend(LocalShellBackend):
         max_output_bytes: int = 100_000,
         env: dict[str, str] | None = None,
         inherit_env: bool = True,
+        dangerous: bool = False,
     ):
         """
         Initialize custom sandbox backend.
@@ -417,7 +1153,16 @@ class CustomSandboxBackend(LocalShellBackend):
             max_output_bytes: Max output size before truncation (default 100KB)
             env: Extra environment variables for subprocess
             inherit_env: Whether to inherit parent process env (default True)
+            dangerous: Real-filesystem mode — the agent operates on real absolute
+                paths anywhere on disk (no workspace confinement). Forces
+                ``virtual_mode=False`` and relaxes path validation while keeping
+                the privileged-command blocklist. Defaults to False.
         """
+        self._dangerous = dangerous
+        if dangerous:
+            # Real paths require the legacy (non-virtual) resolution path so the
+            # parent backend returns absolute paths as-is.
+            virtual_mode = False
         super().__init__(
             root_dir=root_dir,
             virtual_mode=virtual_mode,
@@ -436,11 +1181,27 @@ class CustomSandboxBackend(LocalShellBackend):
 
         Intercepts all file operations (read, write, edit, ls, grep, glob).
         Auto-corrects common LLM path mistakes instead of crashing:
-          1. /<ws_name>/file.py            → /file.py
-          2. /Users/name/.../<ws_name>/f   → /f  (strip up to ws dir)
-          3. /Users/name/file.py           → /file.py (keep basename)
+          1. /Users/.../<cwd>/file.py      → /file.py (full cwd match — safest)
+          2. /<ws_name>/file.py            → /file.py
+          3. /Users/name/.../<ws_name>/f   → /f  (strip at LAST <ws_name>/)
+          4. /Users/name/file.py           → /file.py (keep basename)
+
+        In dangerous (real-filesystem) mode, skip all rewriting and let the
+        parent resolve real absolute paths as-is.
         """
-        ws_name = Path(str(self.cwd)).name  # e.g. "workspace", "my-project"
+        if self._dangerous:
+            return super()._resolve_path(key)
+
+        cwd_str = str(self.cwd).rstrip("/")
+        ws_name = Path(cwd_str).name  # e.g. "workspace", "my-project"
+
+        # Prefer the full cwd match so a parent path that happens to contain
+        # "/<ws_name>/" (e.g. cwd = /Users/u/workspace/.../workspace) doesn't
+        # confuse the basename-based fallback below.
+        if key == cwd_str:
+            return super()._resolve_path("/")
+        if key.startswith(cwd_str + "/"):
+            return super()._resolve_path("/" + key[len(cwd_str) + 1 :])
 
         # Auto-strip /<ws_name>/ prefix to prevent nesting
         ws_prefix = f"/{ws_name}/"
@@ -452,8 +1213,10 @@ class CustomSandboxBackend(LocalShellBackend):
         # Auto-correct system absolute paths
         for prefix in _SYSTEM_PATH_PREFIXES:
             if key.startswith(prefix):
-                # Try to extract path after "<ws_name>/"
-                idx = key.find(ws_prefix)
+                # rfind, not find: the cwd's parent path may itself contain
+                # "/<ws_name>/" as a substring, and we want the boundary
+                # nearest the file — the workspace mount.
+                idx = key.rfind(ws_prefix)
                 if idx != -1:
                     key = "/" + key[idx + len(ws_prefix) :]
                 elif key.endswith(f"/{ws_name}"):
@@ -476,28 +1239,11 @@ class CustomSandboxBackend(LocalShellBackend):
 
         Then delegates to LocalShellBackend.execute() for actual execution.
         """
-        # Replace literal workspace-root absolute paths with ./
-        # Must happen BEFORE validation so workspace paths (e.g. /tmp/...)
-        # are sanitized before the system-path check fires.
-        ws = str(self.cwd).rstrip("/") + "/"
-        if ws in command:
-            command = command.replace(ws, "./")
-
-        # Convert virtual paths to relative paths
-        if self.virtual_mode:
-            command = convert_virtual_paths_in_command(
-                command=command,
-                workspace_name=Path(str(self.cwd)).name,
-            )
-
-        # Validate command safety (after path sanitization)
-        error = validate_command(command)
+        command, error = prepare_sandbox_command(
+            command, self.cwd, virtual_mode=self.virtual_mode, dangerous=self._dangerous
+        )
         if error:
-            return ExecuteResponse(
-                output=error,
-                exit_code=1,
-                truncated=False,
-            )
+            return ExecuteResponse(output=error, exit_code=1, truncated=False)
 
         # Delegate to parent for subprocess execution
         response = super().execute(command, timeout=timeout)
@@ -506,17 +1252,70 @@ class CustomSandboxBackend(LocalShellBackend):
         if response.exit_code == 124:
             cmd_words = command.split()
             grep_hint = cmd_words[0] if cmd_words else "process"
-            bg_cmd = f"{command} > /output.log 2>&1 &"
+            # In dangerous mode `/` is the host root; use a workspace-relative
+            # log path so the suggested command doesn't fail or write to `/`.
+            output_log = "./output.log" if self._dangerous else "/output.log"
+            bg_cmd = f'{command} > {output_log} 2>&1 & echo "PID: $!"'
             response = ExecuteResponse(
                 output=(
                     f"{response.output}\n\n"
-                    f"Recovery: re-run in background to avoid the sandbox timeout:\n"
-                    f"  {bg_cmd}\n"
-                    f"Then check progress: ps aux | grep {grep_hint}\n"
-                    f"Read results: cat /output.log"
+                    f"Recovery — pick one:\n"
+                    f"  1. Needs more time? Re-run with a larger timeout (up to 3600s): "
+                    f"execute(command=..., timeout=600)\n"
+                    f"  2. Runs indefinitely? Run it in the background and keep the PID:\n"
+                    f"       {bg_cmd}\n"
+                    f"     Check: ps -p <PID>  (or: ps aux | grep {grep_hint})  ·  "
+                    f"Read: cat {output_log}  ·  Stop: kill <PID>"
                 ),
                 exit_code=response.exit_code,
                 truncated=response.truncated,
             )
 
         return response
+
+
+class AutoskillProposalSandboxBackend(CustomSandboxBackend):
+    """Shell backend rooted at the autoskill proposal directory.
+
+    File-tool writes through this backend are blocked; proposal writes go
+    through the `/autoskill-proposals/` route. Shell commands run with cwd set
+    to the proposal root so validation commands can inspect generated skill
+    folders without executing in the user's project workspace.
+    """
+
+    _RAW_WRITE_ERROR = (
+        "Raw workspace writes are blocked for AutoSkills. Write proposal files "
+        "under /autoskill-proposals/<skill-name>/."
+    )
+
+    @staticmethod
+    def _rewrite_autoskill_mount(command: str) -> str:
+        return re.sub(
+            r"(^|[\s'\"(=<>])/autoskill-proposals(?=/|$|[\s'\";|&)])",
+            r"\1.",
+            command,
+        )
+
+    def write(self, file_path: str, content: str) -> WriteResult:
+        return WriteResult(error=self._RAW_WRITE_ERROR)
+
+    def edit(
+        self,
+        file_path: str,
+        old_string: str,
+        new_string: str,
+        replace_all: bool = False,
+    ) -> EditResult:
+        return EditResult(error=self._RAW_WRITE_ERROR)
+
+    def upload_files(self, files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
+        return [
+            FileUploadResponse(path=file_path, error=self._RAW_WRITE_ERROR)
+            for file_path, _ in files
+        ]
+
+    def execute(self, command: str, *, timeout: int | None = None) -> ExecuteResponse:
+        return super().execute(
+            self._rewrite_autoskill_mount(command),
+            timeout=timeout,
+        )

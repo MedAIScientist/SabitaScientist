@@ -10,6 +10,7 @@ dist/
 build/
 *.egg
 *.pytest_cache/
+.benchmarks/
 .coverage
 .ipynb_checkpoints/
 
@@ -36,7 +37,9 @@ bridge/package-lock.json
 .langgraph_api/
 workspace/
 skills/
+!EvoScientist/skills/
 memory/
+!EvoScientist/memory/
 media/
 conversation_history/
 .deno_cache/

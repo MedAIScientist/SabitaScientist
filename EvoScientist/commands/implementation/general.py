@@ -29,6 +29,9 @@ class HelpCommand(Command):
             if cmd.alias:
                 desc += f" (aliases: {', '.join(cmd.alias)})"
             help_text.append(f"{desc}\n", style="dim")
+            if cmd.subcommands:
+                names = ", ".join(sc.name for sc in cmd.subcommands)
+                help_text.append(f"    subcommands: {names}\n", style="dim italic")
         ctx.ui.mount_renderable(help_text)
 
 
@@ -49,17 +52,13 @@ class CurrentCommand(Command):
                 f"Workspace: {_shorten_path(ctx.workspace_dir)}",
                 style="dim",
             )
-        memory_path = paths.MEMORY_DIR
+        memory_path = paths.MEMORIES_DIR
         if memory_path:
             from ...cli.agent import _shorten_path
 
             ctx.ui.append_system(
                 f"Memory dir: {_shorten_path(str(memory_path))}", style="dim"
             )
-        # How to determine UI type here?
-        # Maybe ctx.ui has a name or we pass it in ctx.
-        # For now, let's keep it simple.
-        ctx.ui.append_system("UI: auto", style="dim")
 
 
 # Register commands

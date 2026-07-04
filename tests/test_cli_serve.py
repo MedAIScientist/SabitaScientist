@@ -2,20 +2,41 @@
 
 from __future__ import annotations
 
+import os
 from types import SimpleNamespace
 
 from EvoScientist.cli import commands
+from EvoScientist.config import MemoryObservationWriter
 
 
 def _make_config(
     *,
     default_workdir: str = "",
     channel_send_thinking: bool = True,
+    log_level: str = "warning",
+    channel_debug_tracing: bool = False,
+    auto_approve: bool = False,
+    auto_mode: bool = False,
+    enable_ask_user: bool = True,
+    dangerous_mode: bool = False,
 ):
     return SimpleNamespace(
         channel_enabled="telegram",
         default_workdir=default_workdir,
         channel_send_thinking=channel_send_thinking,
+        log_level=log_level,
+        channel_debug_tracing=channel_debug_tracing,
+        auto_approve=auto_approve,
+        auto_mode=auto_mode,
+        enable_ask_user=enable_ask_user,
+        dangerous_mode=dangerous_mode,
+        enable_async_subagents=False,
+        enable_scheduler=False,
+        memory_profile_enabled=True,
+        memory_observations_enabled=True,
+        memory_observation_writer=MemoryObservationWriter.ALL,
+        memory_workers_enabled=False,
+        memory_skill_synthesis_enabled=False,
         provider="anthropic",
         anthropic_auth_mode="api_key",
         openai_auth_mode="api_key",
@@ -28,7 +49,12 @@ def _run_serve_once(
     *,
     workdir: str | None = None,
     no_thinking: bool = False,
+    debug: bool = False,
     cwd: str | None = None,
+    auto_approve: bool = False,
+    auto_mode: bool = False,
+    ask_user: bool = False,
+    dangerous: bool = False,
 ):
     import EvoScientist.config as config_mod
 
@@ -50,7 +76,7 @@ def _run_serve_once(
         captured["send_thinking"] = send_thinking
         captured["thread_id"] = thread_id
 
-    def _fake_channels_stop():
+    def _fake_channels_stop(channel_type=None, *, runtime=None):
         captured["stopped"] = True
 
     class _InterruptQueue:
@@ -68,13 +94,27 @@ def _run_serve_once(
     monkeypatch.setattr(commands, "_channels_stop", _fake_channels_stop)
     monkeypatch.setattr(commands, "_message_queue", _InterruptQueue())
 
-    monkeypatch.setattr(config_mod, "get_effective_config", lambda *_a, **_k: config)
+    def _fake_get_effective_config(cli_overrides=None):
+        captured["cli_overrides"] = dict(cli_overrides or {})
+        merged = vars(config).copy()
+        merged.update(cli_overrides or {})
+        return SimpleNamespace(**merged)
+
+    monkeypatch.setattr(config_mod, "get_effective_config", _fake_get_effective_config)
     monkeypatch.setattr(config_mod, "apply_config_to_env", lambda _cfg: None)
 
     if cwd is not None:
         monkeypatch.setattr(commands.os, "getcwd", lambda: cwd)
 
-    commands.serve(no_thinking=no_thinking, workdir=workdir)
+    commands.serve(
+        no_thinking=no_thinking,
+        workdir=workdir,
+        debug=debug,
+        auto_approve=auto_approve,
+        auto_mode=auto_mode,
+        ask_user=ask_user,
+        dangerous=dangerous,
+    )
     return order, captured
 
 
@@ -145,3 +185,84 @@ def test_serve_channel_thinking_respects_config_and_no_thinking(monkeypatch, tmp
         no_thinking=True,
     )
     assert captured_cli_off["send_thinking"] is False
+
+
+def test_serve_debug_sets_log_level_and_channel_trace(monkeypatch, tmp_path):
+    ws = str((tmp_path / "ws").resolve())
+    config = _make_config(default_workdir=ws, channel_send_thinking=True)
+    configure_calls: list[tuple[str | None, str | None]] = []
+    monkeypatch.delenv("EVOSCIENTIST_LOG_LEVEL", raising=False)
+    monkeypatch.delenv("EVOSCIENTIST_CHANNEL_DEBUG_TRACING", raising=False)
+
+    monkeypatch.setattr(
+        commands,
+        "_configure_logging",
+        lambda: configure_calls.append(
+            (
+                os.environ.get("EVOSCIENTIST_LOG_LEVEL"),
+                os.environ.get("EVOSCIENTIST_CHANNEL_DEBUG_TRACING"),
+            )
+        ),
+    )
+
+    _, captured = _run_serve_once(
+        monkeypatch,
+        config,
+        workdir=ws,
+        debug=True,
+    )
+
+    assert captured["cli_overrides"] == {
+        "log_level": "DEBUG",
+        "channel_debug_tracing": True,
+    }
+    assert configure_calls == [("DEBUG", "true")]
+
+
+def test_serve_auto_approve_only_sets_auto_approve(monkeypatch, tmp_path):
+    ws = str((tmp_path / "ws").resolve())
+    config = _make_config(default_workdir=ws, enable_ask_user=True)
+
+    _, captured = _run_serve_once(
+        monkeypatch,
+        config,
+        workdir=ws,
+        auto_approve=True,
+    )
+
+    assert captured["cli_overrides"] == {"auto_approve": True}
+
+
+def test_serve_auto_mode_implies_auto_approve_and_disables_ask_user(
+    monkeypatch, tmp_path
+):
+    ws = str((tmp_path / "ws").resolve())
+    config = _make_config(default_workdir=ws, enable_ask_user=True)
+
+    _, captured = _run_serve_once(
+        monkeypatch,
+        config,
+        workdir=ws,
+        auto_mode=True,
+        ask_user=True,
+    )
+
+    assert captured["cli_overrides"] == {
+        "auto_mode": True,
+        "auto_approve": True,
+        "enable_ask_user": False,
+    }
+
+
+def test_serve_dangerous_sets_dangerous_mode(monkeypatch, tmp_path):
+    ws = str((tmp_path / "ws").resolve())
+    config = _make_config(default_workdir=ws)
+
+    _, captured = _run_serve_once(
+        monkeypatch,
+        config,
+        workdir=ws,
+        dangerous=True,
+    )
+
+    assert captured["cli_overrides"] == {"dangerous_mode": True}

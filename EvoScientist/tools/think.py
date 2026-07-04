@@ -28,12 +28,10 @@ def think_tool(reflection: str) -> str:
        the relevant `SKILL.md` for full instructions. Skills cover various research
        phases — ideation, experiment execution, paper writing, review, and more.
        Follow a skill's workflow rather than improvising when one is available.
-    4. Prior knowledge — Have I checked research memory before starting?
-       `/memory/ideation-memory.md` records promising and failed research directions.
-       `/memory/experiment-memory.md` records proven strategies from past cycles.
-       Read these at the start of new work. After completing or failing a task,
-       consider whether the outcome should be recorded back into memory.
-       Skip this if the memory files do not exist yet.
+    4. Prior knowledge — Is there relevant memory, prior work, or a
+       skill-provided workflow that should change the plan? Use the memory
+       guidance present in the system prompt when memory is enabled; otherwise
+       avoid inventing remembered facts.
     5. Strategy — Should I continue the current approach, adjust it, or try
        something different? What evidence supports this decision?
     6. Handoff — Is this phase complete? What artifacts and results does the

@@ -1,6 +1,6 @@
 """Tests for the ask_user middleware, stream events, state, and UI helpers."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -388,6 +388,101 @@ class TestConfig:
         cfg = EvoScientistConfig(enable_ask_user=False)
         assert cfg.enable_ask_user is False
 
+    def test_auto_mode_default_is_false(self):
+        from EvoScientist.config.settings import EvoScientistConfig
+
+        cfg = EvoScientistConfig()
+        assert cfg.auto_mode is False
+
+    def test_auto_mode_set_to_true(self):
+        from EvoScientist.config.settings import EvoScientistConfig
+
+        cfg = EvoScientistConfig(auto_mode=True)
+        assert cfg.auto_mode is True
+
+
+@patch("EvoScientist.middleware.create_tool_selector_middleware", return_value=[])
+@patch("EvoScientist.EvoScientist._ensure_chat_model")
+@patch("EvoScientist.EvoScientist._ensure_config")
+def test_auto_approve_still_includes_ask_user_middleware(
+    mock_config, mock_model, mock_tool_selector
+):
+    cfg = MagicMock()
+    cfg.enable_ask_user = True
+    cfg.auto_approve = True
+    cfg.auto_mode = False
+    cfg.auxiliary_model = ""
+    cfg.auxiliary_provider = ""
+    mock_config.return_value = cfg
+    mock_model.return_value = MagicMock(profile={"max_input_tokens": 200_000})
+
+    from EvoScientist.EvoScientist import _get_default_middleware
+
+    type_names = [type(m).__name__ for m in _get_default_middleware()]
+    assert "AskUserMiddleware" in type_names
+
+
+@patch("EvoScientist.middleware.create_tool_selector_middleware", return_value=[])
+@patch("EvoScientist.EvoScientist._ensure_chat_model")
+@patch("EvoScientist.EvoScientist._ensure_config")
+def test_auto_mode_disables_ask_user_middleware(
+    mock_config, mock_model, mock_tool_selector
+):
+    cfg = MagicMock()
+    cfg.enable_ask_user = True
+    cfg.auto_approve = True
+    cfg.auto_mode = True
+    cfg.auxiliary_model = ""
+    cfg.auxiliary_provider = ""
+    mock_config.return_value = cfg
+    mock_model.return_value = MagicMock(profile={"max_input_tokens": 200_000})
+
+    from EvoScientist.EvoScientist import _get_default_middleware
+
+    type_names = [type(m).__name__ for m in _get_default_middleware()]
+    assert "AskUserMiddleware" not in type_names
+
+
+@patch("EvoScientist.middleware.create_tool_selector_middleware", return_value=[])
+@patch("EvoScientist.EvoScientist._ensure_chat_model")
+@patch("EvoScientist.EvoScientist._ensure_config")
+def test_for_async_subagent_omits_ask_user_middleware(
+    mock_config, mock_model, mock_tool_selector
+):
+    """``AskUserMiddleware`` uses ``interrupt()`` to wait on user input.
+
+    Async sub-agents run in the langgraph dev subprocess where the parent
+    only holds a ``task_id`` and has no UI path to surface or resume an
+    interrupt. Including ``AskUserMiddleware`` would deadlock the
+    sub-agent the first time the LLM calls ``ask_user``. The
+    ``for_async_subagent=True`` flag must suppress it even when the user
+    has globally enabled ``ask_user``.
+    """
+    cfg = MagicMock()
+    cfg.enable_ask_user = True
+    cfg.auto_approve = False
+    cfg.auto_mode = False
+    cfg.auxiliary_model = ""
+    cfg.auxiliary_provider = ""
+    mock_config.return_value = cfg
+    mock_model.return_value = MagicMock(profile={"max_input_tokens": 200_000})
+
+    from EvoScientist.EvoScientist import _get_default_middleware
+
+    # Sanity: with the default flag, ask_user IS present.
+    default_names = [type(m).__name__ for m in _get_default_middleware()]
+    assert "AskUserMiddleware" in default_names
+
+    # With for_async_subagent=True, ask_user is suppressed.
+    async_names = [
+        type(m).__name__ for m in _get_default_middleware(for_async_subagent=True)
+    ]
+    assert "AskUserMiddleware" not in async_names
+    # Other middleware must remain — only ask_user is filtered.
+    assert "ConfigurableModelMiddleware" in async_names
+    assert "ContextEditingMiddleware" in async_names
+    assert "ModelFallbackMiddleware" in async_names
+
 
 # ---------------------------------------------------------------------------
 # Rich CLI prompt (mocking input)
@@ -395,30 +490,37 @@ class TestConfig:
 
 
 class TestRichCLIPrompt:
-    """Test _resolve_ask_user_prompt with mocked prompt_toolkit.prompt()."""
-
-    _PT_PROMPT = "prompt_toolkit.prompt"
+    """Test _resolve_ask_user_prompt with mocked questionary."""
 
     def test_text_question_returns_answered(self):
+        from unittest.mock import MagicMock
+
         from EvoScientist.stream.display import _resolve_ask_user_prompt
 
         data = {
             "questions": [{"question": "What dataset?", "type": "text"}],
             "tool_call_id": "tc_1",
         }
-        with patch(self._PT_PROMPT, side_effect=["CIFAR-10"]):
+        mock_text = MagicMock()
+        mock_text.return_value.ask.return_value = "CIFAR-10"
+        with patch("questionary.text", mock_text):
             result = _resolve_ask_user_prompt(data)
         assert result["status"] == "answered"
         assert result["answers"] == ["CIFAR-10"]
 
     def test_keyboard_interrupt_returns_cancelled(self):
+        from unittest.mock import MagicMock
+
         from EvoScientist.stream.display import _resolve_ask_user_prompt
 
         data = {
             "questions": [{"question": "What?", "type": "text"}],
             "tool_call_id": "tc_1",
         }
-        with patch(self._PT_PROMPT, side_effect=KeyboardInterrupt):
+        # questionary returns None when user presses Ctrl+C
+        mock_text = MagicMock()
+        mock_text.return_value.ask.return_value = None
+        with patch("questionary.text", mock_text):
             result = _resolve_ask_user_prompt(data)
         assert result["status"] == "cancelled"
 
@@ -430,7 +532,9 @@ class TestRichCLIPrompt:
         assert result["status"] == "answered"
         assert result["answers"] == []
 
-    def test_multiple_choice_letter_mapping(self):
+    def test_multiple_choice_selection(self):
+        from unittest.mock import MagicMock
+
         from EvoScientist.stream.display import _resolve_ask_user_prompt
 
         data = {
@@ -443,10 +547,39 @@ class TestRichCLIPrompt:
             ],
             "tool_call_id": "tc_1",
         }
-        with patch(self._PT_PROMPT, side_effect=["B"]):
+        mock_select = MagicMock()
+        mock_select.return_value.ask.return_value = "ImageNet"
+        with patch("questionary.select", mock_select):
             result = _resolve_ask_user_prompt(data)
         assert result["status"] == "answered"
         assert result["answers"] == ["ImageNet"]
+
+    def test_multiple_choice_other_option(self):
+        from unittest.mock import MagicMock
+
+        from EvoScientist.stream.display import _resolve_ask_user_prompt
+
+        data = {
+            "questions": [
+                {
+                    "question": "Which?",
+                    "type": "multiple_choice",
+                    "choices": [{"value": "CIFAR-10"}, {"value": "ImageNet"}],
+                }
+            ],
+            "tool_call_id": "tc_1",
+        }
+        mock_select = MagicMock()
+        mock_select.return_value.ask.return_value = "Other (type your answer)"
+        mock_text = MagicMock()
+        mock_text.return_value.ask.return_value = "custom dataset"
+        with (
+            patch("questionary.select", mock_select),
+            patch("questionary.text", mock_text),
+        ):
+            result = _resolve_ask_user_prompt(data)
+        assert result["status"] == "answered"
+        assert result["answers"] == ["custom dataset"]
 
 
 # ---------------------------------------------------------------------------

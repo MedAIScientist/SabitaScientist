@@ -32,7 +32,7 @@ class StreamEventEmitter:
         return StreamEvent("text", {"type": "text", "content": content})
 
     @staticmethod
-    def tool_call(name: str, args: dict[str, Any], tool_id: str = "") -> StreamEvent:
+    def tool_call(name: str, args: dict[str, Any], tool_id: str) -> StreamEvent:
         """Tool call event."""
         return StreamEvent(
             "tool_call",
@@ -40,7 +40,12 @@ class StreamEventEmitter:
         )
 
     @staticmethod
-    def tool_result(name: str, content: str, success: bool = True) -> StreamEvent:
+    def tool_result(
+        name: str,
+        content: str,
+        success: bool,
+        tool_call_id: str,
+    ) -> StreamEvent:
         """Tool result event."""
         return StreamEvent(
             "tool_result",
@@ -49,11 +54,14 @@ class StreamEventEmitter:
                 "name": name,
                 "content": content,
                 "success": success,
+                "id": tool_call_id,
             },
         )
 
     @staticmethod
-    def subagent_start(name: str, description: str) -> StreamEvent:
+    def subagent_start(
+        name: str, description: str, instance_id: str, tool_call_id: str
+    ) -> StreamEvent:
         """Sub-agent delegation started."""
         return StreamEvent(
             "subagent_start",
@@ -61,12 +69,18 @@ class StreamEventEmitter:
                 "type": "subagent_start",
                 "name": name,
                 "description": description,
+                "instance_id": instance_id,
+                "tool_call_id": tool_call_id,
             },
         )
 
     @staticmethod
     def subagent_tool_call(
-        subagent: str, name: str, args: dict[str, Any], tool_id: str = ""
+        subagent: str,
+        name: str,
+        args: dict[str, Any],
+        tool_id: str,
+        instance_id: str,
     ) -> StreamEvent:
         """Tool call from inside a sub-agent."""
         return StreamEvent(
@@ -77,12 +91,18 @@ class StreamEventEmitter:
                 "name": name,
                 "args": args,
                 "id": tool_id,
+                "instance_id": instance_id,
             },
         )
 
     @staticmethod
     def subagent_tool_result(
-        subagent: str, name: str, content: str, success: bool = True
+        subagent: str,
+        name: str,
+        content: str,
+        success: bool,
+        tool_call_id: str,
+        instance_id: str,
     ) -> StreamEvent:
         """Tool result from inside a sub-agent."""
         return StreamEvent(
@@ -93,14 +113,14 @@ class StreamEventEmitter:
                 "name": name,
                 "content": content,
                 "success": success,
+                "id": tool_call_id,
+                "instance_id": instance_id,
             },
         )
 
     @staticmethod
-    def subagent_text(
-        subagent: str, content: str, instance_id: str = ""
-    ) -> StreamEvent:
-        """Text content from a sub-agent (for fallback extraction)."""
+    def subagent_text(subagent: str, content: str, instance_id: str) -> StreamEvent:
+        """Text content from a sub-agent."""
         return StreamEvent(
             "subagent_text",
             {
@@ -112,9 +132,12 @@ class StreamEventEmitter:
         )
 
     @staticmethod
-    def subagent_end(name: str) -> StreamEvent:
+    def subagent_end(name: str, instance_id: str) -> StreamEvent:
         """Sub-agent delegation completed."""
-        return StreamEvent("subagent_end", {"type": "subagent_end", "name": name})
+        return StreamEvent(
+            "subagent_end",
+            {"type": "subagent_end", "name": name, "instance_id": instance_id},
+        )
 
     @staticmethod
     def done(response: str = "") -> StreamEvent:
@@ -179,6 +202,14 @@ class StreamEventEmitter:
         """Context summarization event."""
         return StreamEvent(
             "summarization", {"type": "summarization", "content": content}
+        )
+
+    @staticmethod
+    def summarization_start() -> StreamEvent:
+        """Context summarization started."""
+        return StreamEvent(
+            "summarization_start",
+            {"type": "summarization_start"},
         )
 
     @staticmethod

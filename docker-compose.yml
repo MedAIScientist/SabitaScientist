@@ -1,61 +1,20 @@
 services:
   evoscientist:
-    build: .
-    image: evoscientist:latest
-    ports:
-      - "80:7860"     # PM dashboard (host:container)
-      - "8001:8001"   # Runner service (internal, exposed for debugging)
-    depends_on:
-      garage:
-        condition: service_healthy
-    environment:
-      # LLM provider — set at least one
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
-      # Tavily for web search
-      - TAVILY_API_KEY=${TAVILY_API_KEY:-}
-      # EvoScientist config
-      - EVOSCIENTIST_MODEL=${EVOSCIENTIST_MODEL:-claude-sonnet-4-6}
-      - EVOSCIENTIST_PROVIDER=${EVOSCIENTIST_PROVIDER:-anthropic}
-      # Workspace directory inside container
-      - EVOSCIENTIST_WORKSPACE_DIR=/data/workspaces
-      # PM database — persisted in the named volume
-      - EVOSCIENTIST_PM_DB=/data/pm.db
-      # Garage S3 storage for file attachments
-      - GARAGE_S3_ENDPOINT=${GARAGE_S3_ENDPOINT:-http://garage:3900}
-      - GARAGE_ACCESS_KEY=${GARAGE_ACCESS_KEY:-}
-      - GARAGE_SECRET_KEY=${GARAGE_SECRET_KEY:-}
-      - GARAGE_BUCKET=${GARAGE_BUCKET:-evoscientist}
+    image: ghcr.io/evoscientist/evoscientist:latest
+    # To build the image from this checkout instead of pulling, comment out
+    # the `image:` line above and uncomment the block below:
+    # build:
+    #   context: .
+    container_name: evoscientist
+    stdin_open: true
+    tty: true
+    env_file:
+      - .env
     volumes:
-      # Persist database, workspaces, and agent memory across restarts
-      - evoscientist-data:/data
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:7860/api/v1/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 15s
-
-  garage:
-    image: dxflrs/garage:v1.0.1
-    ports:
-      - "3900:3900"   # S3 API (expose to host for dev convenience)
-    environment:
-      - GARAGE_CONFIG_FILE=/etc/garage.toml
-    volumes:
-      - garage-data:/data
-      - ./garage.toml:/etc/garage.toml:ro
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3900"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
+      # Working directory for the agent
+      - ./workspace:/workspace
+      # Persistent app data: sessions, global skills, memories, config
+      - evosci-data:/home/evosci/.evoscientist
 
 volumes:
-  evoscientist-data:
-  garage-data:
+  evosci-data:

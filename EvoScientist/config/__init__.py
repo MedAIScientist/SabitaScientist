@@ -10,6 +10,11 @@ The onboard module is loaded lazily because it pulls in heavy dependencies
 
 from .settings import (
     EvoScientistConfig,
+    MemoryControls,
+    MemoryObservationTarget,
+    MemoryObservationWriter,
+    MemorySkillSynthesisCadence,
+    MemorySkillSynthesisMode,
     apply_config_to_env,
     get_config_dir,
     get_config_path,
@@ -24,6 +29,11 @@ from .settings import (
 
 __all__ = [
     "EvoScientistConfig",
+    "MemoryControls",
+    "MemoryObservationTarget",
+    "MemoryObservationWriter",
+    "MemorySkillSynthesisCadence",
+    "MemorySkillSynthesisMode",
     "apply_config_to_env",
     # settings
     "get_config_dir",

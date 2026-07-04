@@ -5,11 +5,16 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from ..stream.display import console
+from ..gateway import GraphGateway
+from ..stream.console import console
 from .tui_backends import RichStreamingBackend, StreamingTUIBackend
 
 DEFAULT_UI_BACKEND = "cli"
-SUPPORTED_UI_BACKENDS = ("cli", "tui")
+# "webui" launches the browser front-end instead of an in-terminal UI; it is
+# intercepted earlier (cli/commands.py:_main_callback) and never reaches the
+# streaming backends, but is listed here so normalize/resolve preserve it
+# rather than falling back to "cli".
+SUPPORTED_UI_BACKENDS = ("cli", "tui", "webui")
 _LEGACY_BACKEND_MAP = {"textual": "tui", "rich": "cli"}
 
 
@@ -69,9 +74,13 @@ def run_streaming(
     on_thinking: Callable[[str], None] | None = None,
     on_todo: Callable[[list[dict]], None] | None = None,
     on_file_write: Callable[[str], None] | None = None,
+    on_stream_event: Callable[[str, Any], Any] | None = None,
+    status_footer_builder: Callable[[], Any] | None = None,
     metadata: dict | None = None,
     hitl_prompt_fn: Callable[[list], list[dict] | None] | None = None,
     ask_user_prompt_fn: Callable[[dict], dict] | None = None,
+    cancel_scope: str | None = None,
+    gateway: GraphGateway,
 ) -> str:
     """Run streaming with the selected backend."""
     backend = get_backend(ui_backend, warn_fallback=True)
@@ -85,9 +94,13 @@ def run_streaming(
             on_thinking=on_thinking,
             on_todo=on_todo,
             on_file_write=on_file_write,
+            on_stream_event=on_stream_event,
+            status_footer_builder=status_footer_builder,
             metadata=metadata,
             hitl_prompt_fn=hitl_prompt_fn,
             ask_user_prompt_fn=ask_user_prompt_fn,
+            cancel_scope=cancel_scope,
+            gateway=gateway,
         )
     except RuntimeError:
         requested = normalize_ui_backend(ui_backend)
@@ -104,8 +117,12 @@ def run_streaming(
                 on_thinking=on_thinking,
                 on_todo=on_todo,
                 on_file_write=on_file_write,
+                on_stream_event=on_stream_event,
+                status_footer_builder=status_footer_builder,
                 metadata=metadata,
                 hitl_prompt_fn=hitl_prompt_fn,
                 ask_user_prompt_fn=ask_user_prompt_fn,
+                cancel_scope=cancel_scope,
+                gateway=gateway,
             )
         raise

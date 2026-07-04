@@ -54,6 +54,23 @@ channel_app = typer.Typer(help="Channel management commands")
 app.add_typer(channel_app, name="channel")
 
 
+# Sessions subcommand group — diagnostic tools for the LangGraph checkpoint DB
+sessions_app = typer.Typer(
+    help="Inspect and manage the sessions DB (~/.evoscientist/sessions.db)",
+    invoke_without_command=True,
+)
+app.add_typer(sessions_app, name="sessions")
+
+# Configure subcommand group — re-run a single onboarding section.
+configure_app = typer.Typer(
+    help=(
+        "Re-run one onboarding section without going through the full wizard.\n"
+        "Example: EvoSci configure provider"
+    ),
+)
+app.add_typer(configure_app, name="configure")
+
+
 @app.command()
 def dashboard(
     port: int = typer.Option(7860, "--port", help="Port to run the PM server on"),

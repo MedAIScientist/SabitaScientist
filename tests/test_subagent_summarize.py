@@ -10,56 +10,26 @@ Covers:
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
-from langchain_core.messages import AIMessageChunk
-
-from EvoScientist.channels.base import Channel
 from EvoScientist.channels.bus.events import InboundMessage as BusInbound
 from EvoScientist.channels.bus.message_bus import MessageBus
 from EvoScientist.channels.channel_manager import ChannelManager
 from EvoScientist.channels.consumer import InboundConsumer, _join_subagent_text
 from EvoScientist.stream.emitter import StreamEvent, StreamEventEmitter
-from EvoScientist.stream.events import stream_agent_events
 from tests.conftest import run_async as _run
+from tests.fakes import FakeGraphGateway
+from tests.fakes import StubChannel as _StubChannel
+from tests.stream_v3_fakes import (
+    FakeSubagent,
+    FakeV3Agent,
+    collect_events,
+    message_delta,
+)
 
 # ═══════════════════════════════════════════════════════════════════
 # Helpers
 # ═══════════════════════════════════════════════════════════════════
-
-
-@dataclass
-class _FakeConfig:
-    text_chunk_limit: int = 4096
-    allowed_senders: list | None = None
-    allowed_channels: list | None = None
-    proxy: str | None = None
-    require_mention: str = "group"
-    dm_policy: str = "allowlist"
-
-
-def _make_ai_chunk(content: str = "", **kwargs):
-    return AIMessageChunk(content=content, **kwargs)
-
-
-async def _async_iter(items):
-    for item in items:
-        yield item
-
-
-def _collect_events(agent, message="hi", thread_id="t1"):
-    async def _run_inner():
-        events = []
-        async for ev in stream_agent_events(agent, message, thread_id):
-            events.append(ev)
-        return events
-
-    loop = asyncio.new_event_loop()
-    try:
-        return loop.run_until_complete(_run_inner())
-    finally:
-        loop.close()
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -69,29 +39,29 @@ def _collect_events(agent, message="hi", thread_id="t1"):
 
 class TestSubagentTextEmitter:
     def test_creates_correct_event_type(self):
-        ev = StreamEventEmitter.subagent_text("research-agent", "Found 3 papers.")
+        ev = StreamEventEmitter.subagent_text(
+            "research-agent", "Found 3 papers.", "task:research"
+        )
         assert isinstance(ev, StreamEvent)
         assert ev.type == "subagent_text"
 
     def test_data_contains_subagent_and_content(self):
-        ev = StreamEventEmitter.subagent_text("analyst", "Result summary")
+        ev = StreamEventEmitter.subagent_text(
+            "analyst", "Result summary", "task:analyst"
+        )
         assert ev.data["subagent"] == "analyst"
         assert ev.data["content"] == "Result summary"
 
     def test_data_contains_type_key(self):
         """Event data dict should include 'type' matching event type (project convention)."""
-        ev = StreamEventEmitter.subagent_text("a", "b")
+        ev = StreamEventEmitter.subagent_text("a", "b", "task:a")
         assert ev.data["type"] == "subagent_text"
 
     def test_empty_content(self):
-        ev = StreamEventEmitter.subagent_text("agent", "")
+        ev = StreamEventEmitter.subagent_text("agent", "", "task:agent")
         assert ev.data["content"] == ""
 
-    def test_instance_id_defaults_to_empty(self):
-        ev = StreamEventEmitter.subagent_text("agent", "content")
-        assert ev.data["instance_id"] == ""
-
-    def test_instance_id_included_when_provided(self):
+    def test_instance_id_included(self):
         ev = StreamEventEmitter.subagent_text(
             "agent", "content", instance_id="tracker:abc"
         )
@@ -99,7 +69,7 @@ class TestSubagentTextEmitter:
 
     def test_included_in_all_events_type_check(self):
         """subagent_text must pass the same invariant as other emitters."""
-        ev = StreamEventEmitter.subagent_text("s", "c")
+        ev = StreamEventEmitter.subagent_text("s", "c", "task:s")
         assert "type" in ev.data
         assert ev.data["type"] == ev.type
 
@@ -114,16 +84,16 @@ class TestStreamAgentEventsSubagentText:
 
     def test_subagent_text_emitted_for_subagent_chunks(self):
         """When a sub-agent produces text, subagent_text events should appear."""
-        subagent_chunk = _make_ai_chunk("Sub-agent finding: X is significant.")
-        mock_agent = AsyncMock()
-        mock_agent.astream = MagicMock(
-            return_value=_async_iter(
-                [
-                    (("sub:research",), "messages", (subagent_chunk, {})),
-                ]
-            )
+        namespace = ("sub", "research")
+        agent = FakeV3Agent(
+            [
+                message_delta(
+                    "Sub-agent finding: X is significant.", namespace=namespace
+                )
+            ],
+            subagents=[FakeSubagent(namespace, "research-agent")],
         )
-        events = _collect_events(mock_agent)
+        events = collect_events(agent)
         sa_text = [e for e in events if e.get("type") == "subagent_text"]
         assert len(sa_text) == 1
         assert "Sub-agent finding" in sa_text[0]["content"]
@@ -132,16 +102,8 @@ class TestStreamAgentEventsSubagentText:
 
     def test_subagent_text_not_emitted_for_main_agent(self):
         """Main agent text should produce 'text' events, not 'subagent_text'."""
-        chunk = _make_ai_chunk("Main agent reply.")
-        mock_agent = AsyncMock()
-        mock_agent.astream = MagicMock(
-            return_value=_async_iter(
-                [
-                    ((), "messages", (chunk, {})),
-                ]
-            )
-        )
-        events = _collect_events(mock_agent)
+        agent = FakeV3Agent([message_delta("Main agent reply.")])
+        events = collect_events(agent)
         sa_text = [e for e in events if e.get("type") == "subagent_text"]
         text_events = [e for e in events if e.get("type") == "text"]
         assert len(sa_text) == 0
@@ -149,14 +111,16 @@ class TestStreamAgentEventsSubagentText:
 
     def test_multiple_subagent_text_chunks_all_emitted(self):
         """Multiple text chunks from a sub-agent all yield subagent_text events."""
-        chunks = [
-            (("sub:a",), "messages", (_make_ai_chunk("Part 1."), {})),
-            (("sub:a",), "messages", (_make_ai_chunk("Part 2."), {})),
-            (("sub:a",), "messages", (_make_ai_chunk("Part 3."), {})),
-        ]
-        mock_agent = AsyncMock()
-        mock_agent.astream = MagicMock(return_value=_async_iter(chunks))
-        events = _collect_events(mock_agent)
+        namespace = ("sub", "a")
+        agent = FakeV3Agent(
+            [
+                message_delta("Part 1.", namespace=namespace),
+                message_delta("Part 2.", namespace=namespace),
+                message_delta("Part 3.", namespace=namespace),
+            ],
+            subagents=[FakeSubagent(namespace, "research-agent")],
+        )
+        events = collect_events(agent)
         sa_text = [e for e in events if e.get("type") == "subagent_text"]
         assert len(sa_text) == 3
         combined = "".join(e["content"] for e in sa_text)
@@ -176,33 +140,21 @@ class TestStreamAgentEventsSubagentText:
         the two instances apart even though their 'subagent' field is
         identical.
         """
-        # Two different namespaces with task: IDs, same lc_agent_name
-        chunks = [
-            (
-                ("ns:task:id1:agent",),
-                "messages",
-                (
-                    _make_ai_chunk("Instance-1 text."),
-                    {"lc_agent_name": "research-agent"},
-                ),
-            ),
-            (
-                ("ns:task:id2:agent",),
-                "messages",
-                (
-                    _make_ai_chunk("Instance-2 text."),
-                    {"lc_agent_name": "research-agent"},
-                ),
-            ),
-            (
-                ("ns:task:id1:agent",),
-                "messages",
-                (_make_ai_chunk(" More from 1."), {"lc_agent_name": "research-agent"}),
-            ),
-        ]
-        mock_agent = AsyncMock()
-        mock_agent.astream = MagicMock(return_value=_async_iter(chunks))
-        events = _collect_events(mock_agent)
+        # Two different v3 namespaces, same projected subagent display name.
+        ns1 = ("ns", "task", "id1", "agent")
+        ns2 = ("ns", "task", "id2", "agent")
+        agent = FakeV3Agent(
+            [
+                message_delta("Instance-1 text.", namespace=ns1),
+                message_delta("Instance-2 text.", namespace=ns2),
+                message_delta(" More from 1.", namespace=ns1),
+            ],
+            subagents=[
+                FakeSubagent(ns1, "research-agent"),
+                FakeSubagent(ns2, "research-agent"),
+            ],
+        )
+        events = collect_events(agent)
         sa_text = [e for e in events if e.get("type") == "subagent_text"]
         assert len(sa_text) == 3
 
@@ -230,24 +182,6 @@ class TestStreamAgentEventsSubagentText:
 # ═══════════════════════════════════════════════════════════════════
 
 
-class _StubChannel(Channel):
-    """Minimal concrete channel for consumer tests."""
-
-    name = "stub"
-
-    def __init__(self, config=None):
-        super().__init__(config or _FakeConfig())
-
-    async def start(self):
-        self._running = True
-
-    async def _send_chunk(self, chat_id, formatted, raw, reply_to, metadata):
-        pass
-
-    async def _send_typing_action(self, chat_id):
-        pass
-
-
 def _make_consumer(stream_events: list[dict], **kw):
     """Create an InboundConsumer whose agent streams the given event dicts.
 
@@ -258,24 +192,20 @@ def _make_consumer(stream_events: list[dict], **kw):
     mgr = ChannelManager(bus)
     mgr.register(_StubChannel())
 
-    # Patch stream_agent_events to yield pre-built events
-    async def _fake_stream(agent, message, thread_id, **kwargs):
-        for ev in stream_events:
-            yield ev
-
     agent = MagicMock()
     consumer = InboundConsumer(
         bus=bus,
         manager=mgr,
         agent=agent,
         thread_id="",
+        graph_gateway=FakeGraphGateway(events=stream_events),
         max_concurrent=2,
         max_pending=10,
         inference_timeout=5.0,
         drain_timeout=1.0,
         **kw,
     )
-    return consumer, bus, _fake_stream
+    return consumer, bus
 
 
 class TestConsumerSubagentTextFallback:
@@ -287,40 +217,36 @@ class TestConsumerSubagentTextFallback:
             {
                 "type": "subagent_text",
                 "subagent": "research",
+                "instance_id": "task:research",
                 "content": "Found 3 relevant papers.",
             },
             {
                 "type": "subagent_text",
                 "subagent": "research",
+                "instance_id": "task:research",
                 "content": " Key insight: X is Y.",
             },
             {"type": "done", "content": ""},
         ]
-        consumer, bus, fake_stream = _make_consumer(events)
+        consumer, bus = _make_consumer(events)
 
         async def _test():
-            with patch(
-                "EvoScientist.stream.events.stream_agent_events",
-                new=fake_stream,
-            ):
-                msg = BusInbound(
-                    channel="stub",
-                    sender_id="u1",
-                    chat_id="c1",
-                    content="analyze papers",
-                )
-                await bus.publish_inbound(msg)
+            msg = BusInbound(
+                channel="stub",
+                sender_id="u1",
+                chat_id="c1",
+                content="analyze papers",
+            )
+            await bus.publish_inbound(msg)
 
-                task = asyncio.create_task(consumer.run())
-                outbound = await asyncio.wait_for(bus.consume_outbound(), timeout=5.0)
+            task = asyncio.create_task(consumer.run())
+            outbound = await asyncio.wait_for(bus.consume_outbound(), timeout=5.0)
 
-                assert (
-                    outbound.content == "Found 3 relevant papers. Key insight: X is Y."
-                )
-                assert outbound.channel == "stub"
+            assert outbound.content == "Found 3 relevant papers. Key insight: X is Y."
+            assert outbound.channel == "stub"
 
-                await consumer.stop()
-                await task
+            await consumer.stop()
+            await task
 
         _run(_test())
 
@@ -330,33 +256,171 @@ class TestConsumerSubagentTextFallback:
             {
                 "type": "subagent_text",
                 "subagent": "research",
+                "instance_id": "task:research",
                 "content": "Sub-agent detail.",
             },
             {"type": "text", "content": "Here is my summary."},
             {"type": "done", "content": ""},
         ]
-        consumer, bus, fake_stream = _make_consumer(events)
+        consumer, bus = _make_consumer(events)
 
         async def _test():
-            with patch(
-                "EvoScientist.stream.events.stream_agent_events",
-                new=fake_stream,
-            ):
-                msg = BusInbound(
+            msg = BusInbound(
+                channel="stub",
+                sender_id="u1",
+                chat_id="c1",
+                content="test",
+            )
+            await bus.publish_inbound(msg)
+
+            task = asyncio.create_task(consumer.run())
+            outbound = await asyncio.wait_for(bus.consume_outbound(), timeout=5.0)
+
+            assert outbound.content == "Here is my summary."
+
+            await consumer.stop()
+            await task
+
+        _run(_test())
+
+    def test_duplicate_thinking_not_relayed_across_resume_rounds(self):
+        """Repeated thinking from resumed rounds should only be sent once."""
+        bus = MessageBus()
+        mgr = ChannelManager(bus)
+        mgr.register(_StubChannel())
+
+        channel = mgr.get_channel("stub")
+        assert channel is not None
+        channel.send_thinking_message = AsyncMock()
+
+        thinking = "Initial plan. " * 20
+        stream_calls = 0
+
+        async def _fake_stream(_request):
+            nonlocal stream_calls
+            stream_calls += 1
+            if stream_calls == 1:
+                yield {"type": "thinking", "content": thinking}
+                yield {
+                    "type": "ask_user",
+                    "interrupt_id": "ask-1",
+                    "tool_call_id": "tc-1",
+                    "questions": [{"question": "Continue?"}],
+                }
+                return
+
+            yield {"type": "thinking", "content": thinking}
+            yield {"type": "text", "content": "final answer"}
+            yield {"type": "done", "content": "final answer"}
+
+        consumer = InboundConsumer(
+            bus=bus,
+            manager=mgr,
+            agent=MagicMock(),
+            thread_id="",
+            graph_gateway=FakeGraphGateway(stream=_fake_stream),
+            max_concurrent=2,
+            max_pending=10,
+            inference_timeout=5.0,
+            drain_timeout=1.0,
+            send_thinking=True,
+        )
+        consumer._resolve_ask_user = AsyncMock(  # type: ignore[method-assign]
+            return_value={"answers": ["yes"], "status": "answered"}
+        )
+
+        async def _test():
+            await bus.publish_inbound(
+                BusInbound(
                     channel="stub",
                     sender_id="u1",
                     chat_id="c1",
-                    content="test",
+                    content="analyze papers",
                 )
-                await bus.publish_inbound(msg)
+            )
 
-                task = asyncio.create_task(consumer.run())
-                outbound = await asyncio.wait_for(bus.consume_outbound(), timeout=5.0)
+            task = asyncio.create_task(consumer.run())
+            outbound = await asyncio.wait_for(bus.consume_outbound(), timeout=5.0)
 
-                assert outbound.content == "Here is my summary."
+            assert outbound.content == "final answer"
+            assert channel.send_thinking_message.await_count == 1
+            call = channel.send_thinking_message.await_args_list[0]
+            assert call.args[1] == thinking.rstrip()
 
-                await consumer.stop()
-                await task
+            await consumer.stop()
+            await task
+
+        _run(_test())
+
+    def test_new_thinking_relayed_after_resume(self):
+        """Genuinely different thinking in round 2 should be sent."""
+        bus = MessageBus()
+        mgr = ChannelManager(bus)
+        mgr.register(_StubChannel())
+
+        channel = mgr.get_channel("stub")
+        assert channel is not None
+        channel.send_thinking_message = AsyncMock()
+
+        thinking_r1 = "Initial plan. " * 20
+        thinking_r2 = "Revised plan. " * 20
+        stream_calls = 0
+
+        async def _fake_stream(_request):
+            nonlocal stream_calls
+            stream_calls += 1
+            if stream_calls == 1:
+                yield {"type": "thinking", "content": thinking_r1}
+                yield {
+                    "type": "ask_user",
+                    "interrupt_id": "ask-1",
+                    "tool_call_id": "tc-1",
+                    "questions": [{"question": "Continue?"}],
+                }
+                return
+
+            yield {"type": "thinking", "content": thinking_r2}
+            yield {"type": "text", "content": "final answer"}
+            yield {"type": "done", "content": "final answer"}
+
+        consumer = InboundConsumer(
+            bus=bus,
+            manager=mgr,
+            agent=MagicMock(),
+            thread_id="",
+            graph_gateway=FakeGraphGateway(stream=_fake_stream),
+            max_concurrent=2,
+            max_pending=10,
+            inference_timeout=5.0,
+            drain_timeout=1.0,
+            send_thinking=True,
+        )
+        consumer._resolve_ask_user = AsyncMock(  # type: ignore[method-assign]
+            return_value={"answers": ["yes"], "status": "answered"}
+        )
+
+        async def _test():
+            await bus.publish_inbound(
+                BusInbound(
+                    channel="stub",
+                    sender_id="u1",
+                    chat_id="c1",
+                    content="analyze papers",
+                )
+            )
+
+            task = asyncio.create_task(consumer.run())
+            outbound = await asyncio.wait_for(bus.consume_outbound(), timeout=5.0)
+
+            assert outbound.content == "final answer"
+            assert channel.send_thinking_message.await_count == 2
+            call1 = channel.send_thinking_message.await_args_list[0]
+            call2 = channel.send_thinking_message.await_args_list[1]
+            assert call1.args[1] == thinking_r1.rstrip()
+            assert call2.args[1] == thinking_r2.rstrip()
+
+            await consumer.stop()
+            await task
 
         _run(_test())
 
@@ -365,28 +429,24 @@ class TestConsumerSubagentTextFallback:
         events = [
             {"type": "done", "content": ""},
         ]
-        consumer, bus, fake_stream = _make_consumer(events)
+        consumer, bus = _make_consumer(events)
 
         async def _test():
-            with patch(
-                "EvoScientist.stream.events.stream_agent_events",
-                new=fake_stream,
-            ):
-                msg = BusInbound(
-                    channel="stub",
-                    sender_id="u1",
-                    chat_id="c1",
-                    content="test",
-                )
-                await bus.publish_inbound(msg)
+            msg = BusInbound(
+                channel="stub",
+                sender_id="u1",
+                chat_id="c1",
+                content="test",
+            )
+            await bus.publish_inbound(msg)
 
-                task = asyncio.create_task(consumer.run())
-                outbound = await asyncio.wait_for(bus.consume_outbound(), timeout=5.0)
+            task = asyncio.create_task(consumer.run())
+            outbound = await asyncio.wait_for(bus.consume_outbound(), timeout=5.0)
 
-                assert outbound.content == "No response"
+            assert outbound.content == "No response"
 
-                await consumer.stop()
-                await task
+            await consumer.stop()
+            await task
 
         _run(_test())
 
@@ -396,32 +456,29 @@ class TestConsumerSubagentTextFallback:
             {
                 "type": "subagent_text",
                 "subagent": "research",
+                "instance_id": "task:research",
                 "content": "Sub-agent work.",
             },
             {"type": "done", "content": "Final summary from done event."},
         ]
-        consumer, bus, fake_stream = _make_consumer(events)
+        consumer, bus = _make_consumer(events)
 
         async def _test():
-            with patch(
-                "EvoScientist.stream.events.stream_agent_events",
-                new=fake_stream,
-            ):
-                msg = BusInbound(
-                    channel="stub",
-                    sender_id="u1",
-                    chat_id="c1",
-                    content="test",
-                )
-                await bus.publish_inbound(msg)
+            msg = BusInbound(
+                channel="stub",
+                sender_id="u1",
+                chat_id="c1",
+                content="test",
+            )
+            await bus.publish_inbound(msg)
 
-                task = asyncio.create_task(consumer.run())
-                outbound = await asyncio.wait_for(bus.consume_outbound(), timeout=5.0)
+            task = asyncio.create_task(consumer.run())
+            outbound = await asyncio.wait_for(bus.consume_outbound(), timeout=5.0)
 
-                assert outbound.content == "Final summary from done event."
+            assert outbound.content == "Final summary from done event."
 
-                await consumer.stop()
-                await task
+            await consumer.stop()
+            await task
 
         _run(_test())
 
@@ -509,107 +566,75 @@ class TestConsumerParallelSubagentFallback:
             {
                 "type": "subagent_text",
                 "subagent": "research",
+                "instance_id": "task:research",
                 "content": "Found papers.",
             },
             {
                 "type": "subagent_text",
                 "subagent": "analysis",
+                "instance_id": "task:analysis",
                 "content": "Metric is high.",
             },
             {
                 "type": "subagent_text",
                 "subagent": "research",
+                "instance_id": "task:research",
                 "content": " Key insight.",
             },
             {"type": "done", "content": ""},
         ]
-        consumer, bus, fake_stream = _make_consumer(events)
+        consumer, bus = _make_consumer(events)
 
         async def _test():
-            with patch(
-                "EvoScientist.stream.events.stream_agent_events",
-                new=fake_stream,
-            ):
-                msg = BusInbound(
-                    channel="stub",
-                    sender_id="u1",
-                    chat_id="c1",
-                    content="test",
-                )
-                await bus.publish_inbound(msg)
+            msg = BusInbound(
+                channel="stub",
+                sender_id="u1",
+                chat_id="c1",
+                content="test",
+            )
+            await bus.publish_inbound(msg)
 
-                task = asyncio.create_task(consumer.run())
-                outbound = await asyncio.wait_for(bus.consume_outbound(), timeout=5.0)
+            task = asyncio.create_task(consumer.run())
+            outbound = await asyncio.wait_for(bus.consume_outbound(), timeout=5.0)
 
-                assert "[research]: Found papers. Key insight." in outbound.content
-                assert "[analysis]: Metric is high." in outbound.content
+            assert "[research]: Found papers. Key insight." in outbound.content
+            assert "[analysis]: Metric is high." in outbound.content
 
-                await consumer.stop()
-                await task
+            await consumer.stop()
+            await task
 
         _run(_test())
 
     def test_single_agent_no_attribution_prefix(self):
         """Single sub-agent fallback has no [name]: prefix."""
         events = [
-            {"type": "subagent_text", "subagent": "research", "content": "Only agent."},
+            {
+                "type": "subagent_text",
+                "subagent": "research",
+                "instance_id": "task:research",
+                "content": "Only agent.",
+            },
             {"type": "done", "content": ""},
         ]
-        consumer, bus, fake_stream = _make_consumer(events)
+        consumer, bus = _make_consumer(events)
 
         async def _test():
-            with patch(
-                "EvoScientist.stream.events.stream_agent_events",
-                new=fake_stream,
-            ):
-                msg = BusInbound(
-                    channel="stub",
-                    sender_id="u1",
-                    chat_id="c1",
-                    content="test",
-                )
-                await bus.publish_inbound(msg)
+            msg = BusInbound(
+                channel="stub",
+                sender_id="u1",
+                chat_id="c1",
+                content="test",
+            )
+            await bus.publish_inbound(msg)
 
-                task = asyncio.create_task(consumer.run())
-                outbound = await asyncio.wait_for(bus.consume_outbound(), timeout=5.0)
+            task = asyncio.create_task(consumer.run())
+            outbound = await asyncio.wait_for(bus.consume_outbound(), timeout=5.0)
 
-                assert outbound.content == "Only agent."
-                assert "[research]" not in outbound.content
+            assert outbound.content == "Only agent."
+            assert "[research]" not in outbound.content
 
-                await consumer.stop()
-                await task
-
-        _run(_test())
-
-    def test_missing_subagent_field_uses_unknown(self):
-        """Events without 'subagent' field are grouped under 'unknown'."""
-        events = [
-            {"type": "subagent_text", "content": "No agent name."},
-            {"type": "done", "content": ""},
-        ]
-        consumer, bus, fake_stream = _make_consumer(events)
-
-        async def _test():
-            with patch(
-                "EvoScientist.stream.events.stream_agent_events",
-                new=fake_stream,
-            ):
-                msg = BusInbound(
-                    channel="stub",
-                    sender_id="u1",
-                    chat_id="c1",
-                    content="test",
-                )
-                await bus.publish_inbound(msg)
-
-                task = asyncio.create_task(consumer.run())
-                outbound = await asyncio.wait_for(bus.consume_outbound(), timeout=5.0)
-
-                # Single agent (unknown), no prefix
-                assert outbound.content == "No agent name."
-
-                await consumer.stop()
-                await task
+            await consumer.stop()
+            await task
 
         _run(_test())
 
@@ -651,69 +676,32 @@ class TestConsumerSameNameInterleaved:
             },
             {"type": "done", "content": ""},
         ]
-        consumer, bus, fake_stream = _make_consumer(events)
+        consumer, bus = _make_consumer(events)
 
         async def _test():
-            with patch(
-                "EvoScientist.stream.events.stream_agent_events",
-                new=fake_stream,
-            ):
-                msg = BusInbound(
-                    channel="stub",
-                    sender_id="u1",
-                    chat_id="c1",
-                    content="test",
-                )
-                await bus.publish_inbound(msg)
+            msg = BusInbound(
+                channel="stub",
+                sender_id="u1",
+                chat_id="c1",
+                content="test",
+            )
+            await bus.publish_inbound(msg)
 
-                task = asyncio.create_task(consumer.run())
-                outbound = await asyncio.wait_for(bus.consume_outbound(), timeout=5.0)
+            task = asyncio.create_task(consumer.run())
+            outbound = await asyncio.wait_for(bus.consume_outbound(), timeout=5.0)
 
-                # Fixed: instances are now properly separated with numbered labels
-                assert (
-                    "[research-agent #1]: Instance-1 sentence A. Instance-1 sentence B."
-                    in outbound.content
-                )
-                assert (
-                    "[research-agent #2]: Instance-2 sentence X. Instance-2 sentence Y."
-                    in outbound.content
-                )
+            # Fixed: instances are now properly separated with numbered labels
+            assert (
+                "[research-agent #1]: Instance-1 sentence A. Instance-1 sentence B."
+                in outbound.content
+            )
+            assert (
+                "[research-agent #2]: Instance-2 sentence X. Instance-2 sentence Y."
+                in outbound.content
+            )
 
-                await consumer.stop()
-                await task
-
-        _run(_test())
-
-    def test_same_name_no_instance_id_still_concatenated(self):
-        """Without instance_id (legacy events), same-name chunks still merge into one buffer."""
-        events = [
-            {"type": "subagent_text", "subagent": "research-agent", "content": "A."},
-            {"type": "subagent_text", "subagent": "research-agent", "content": " B."},
-            {"type": "done", "content": ""},
-        ]
-        consumer, bus, fake_stream = _make_consumer(events)
-
-        async def _test():
-            with patch(
-                "EvoScientist.stream.events.stream_agent_events",
-                new=fake_stream,
-            ):
-                msg = BusInbound(
-                    channel="stub",
-                    sender_id="u1",
-                    chat_id="c1",
-                    content="test",
-                )
-                await bus.publish_inbound(msg)
-
-                task = asyncio.create_task(consumer.run())
-                outbound = await asyncio.wait_for(bus.consume_outbound(), timeout=5.0)
-
-                # Single instance (no instance_id), no prefix
-                assert outbound.content == "A. B."
-
-                await consumer.stop()
-                await task
+            await consumer.stop()
+            await task
 
         _run(_test())
 

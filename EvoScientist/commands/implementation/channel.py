@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+from typing import ClassVar
+
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from ..base import Command, CommandContext
+from ..base import Command, CommandContext, SubCommand
 from ..manager import manager
 
 
@@ -13,6 +15,18 @@ class ChannelCommand(Command):
 
     name = "/channel"
     description = "Configure messaging channels"
+    subcommands: ClassVar[list[SubCommand]] = [
+        SubCommand("status", "Show running channel status"),
+        SubCommand("stop", "Stop a running channel"),
+    ]
+
+    def needs_agent(self, args: list[str]) -> bool:
+        # ``status`` and ``stop`` are introspection / teardown; they
+        # must work even when the agent load is still in flight or has
+        # failed.  Only start/add flows feed ``ctx.agent`` into
+        # ``_start_channels_bus_mode``.
+        subcmd = args[0].lower() if args else ""
+        return subcmd not in {"status", "stop"}
 
     async def execute(self, ctx: CommandContext, args: list[str]) -> None:
         import EvoScientist.cli.channel as _ch_mod
@@ -63,10 +77,10 @@ class ChannelCommand(Command):
                 ctx.ui.append_system("No channels are running.", style="dim")
             else:
                 if target:
-                    _channels_stop(target)
+                    _channels_stop(target, runtime=ctx.channel_runtime)
                     ctx.ui.append_system(f"Channel '{target}' stopped.", style="green")
                 else:
-                    _channels_stop()
+                    _channels_stop(runtime=ctx.channel_runtime)
                     ctx.ui.append_system("All channels stopped.", style="green")
             return
 
@@ -90,6 +104,11 @@ class ChannelCommand(Command):
             ctx.ui.append_system(f"Adding channel(s): {', '.join(requested)}...")
             from ...cli.channel import _add_channel_to_running_bus
 
+            # Bind the runtime up-front so partial-success states (one
+            # channel attached, next one raises) still leave the bus
+            # observing the latest agent/thread refs.
+            if ctx.channel_runtime is not None:
+                ctx.channel_runtime.bind(ctx.agent, ctx.thread_id)
             try:
                 for ct in requested:
                     _add_channel_to_running_bus(ct, config, send_thinking=send_thinking)
@@ -123,6 +142,8 @@ class ChannelCommand(Command):
                 ctx.thread_id,
                 send_thinking=send_thinking,
             )
+            if ctx.channel_runtime is not None:
+                ctx.channel_runtime.bind(ctx.agent, ctx.thread_id)
 
             # Show status panel
             if _ch_mod._manager:

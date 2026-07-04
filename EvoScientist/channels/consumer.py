@@ -11,12 +11,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import uuid
 from collections import OrderedDict
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
 from typing import Any, TypeVar
 
+from ..gateway import GraphGateway, GraphRunInput, GraphTarget, RunRequest
 from .base import Channel
 from .bus import MessageBus
 from .bus.events import InboundMessage, OutboundMessage
@@ -118,7 +118,7 @@ def _should_auto_approve(action_requests: list[dict]) -> bool:
         return True
 
     try:
-        from ..config.settings import load_config
+        from ..config.settings import HITL_SHELL_TOOLS, load_config
 
         cfg = load_config()
     except Exception:
@@ -134,14 +134,10 @@ def _should_auto_approve(action_requests: list[dict]) -> bool:
     )
 
     for req in action_requests:
-        name = (
-            req.get("name", "") if isinstance(req, dict) else getattr(req, "name", "")
-        )
-        if name != "execute":
+        name = req.get("name", "")
+        if name not in HITL_SHELL_TOOLS:
             continue
-        args = (
-            req.get("args", {}) if isinstance(req, dict) else getattr(req, "args", {})
-        )
+        args = req.get("args", {})
         command = args.get("command", "") if isinstance(args, dict) else ""
         cmd = command.strip()
         if not any(cmd.startswith(prefix) for prefix in shell_allow_list):
@@ -149,16 +145,18 @@ def _should_auto_approve(action_requests: list[dict]) -> bool:
     return True
 
 
-def _format_approval_prompt(action_requests: list[dict]) -> str:
-    """Format an approval prompt as a text message for channel users."""
+def _format_approval_prompt(
+    action_requests: list[dict], *, with_buttons: bool = False
+) -> str:
+    """Format an approval prompt as a text message for channel users.
+
+    When *with_buttons* is True, the trailing "Reply: 1=Approve..."
+    instruction is dropped — the buttons replace the textual cue.
+    """
     lines = ["\u26a0\ufe0f Approval Required\n"]
     for i, req in enumerate(action_requests, 1):
-        name = (
-            req.get("name", "") if isinstance(req, dict) else getattr(req, "name", "")
-        )
-        args = (
-            req.get("args", {}) if isinstance(req, dict) else getattr(req, "args", {})
-        )
+        name = req.get("name", "")
+        args = req.get("args", {})
         if isinstance(args, dict):
             command = args.get("command", args.get("path", ""))
         else:
@@ -167,9 +165,10 @@ def _format_approval_prompt(action_requests: list[dict]) -> str:
             lines.append(f"  {i}. {name}: {command}")
         else:
             lines.append(f"  {i}. {name}")
-    lines.append("")
-    lines.append("Reply: 1=Approve, 2=Reject, 3=Approve all")
-    lines.append("(Auto-reject in 2 min if no reply)")
+    if not with_buttons:
+        lines.append("")
+        lines.append("Reply: 1=Approve, 2=Reject, 3=Approve all")
+        lines.append("(Auto-reject in 2 min if no reply)")
     return "\n".join(lines)
 
 
@@ -186,6 +185,25 @@ def _parse_approval_reply(text: str) -> str | None:
     if t in ("3", "a", "auto", "approve all"):
         return "auto"
     return None
+
+
+def _approval_prompt_metadata(
+    base_metadata: dict | None, *, with_buttons: bool
+) -> dict:
+    """Outbound metadata for the HITL approval prompt.
+
+    When *with_buttons* is True, attaches Approve/Reject/Auto buttons whose
+    values match ``_parse_approval_reply`` so a click flows through the same
+    path as a typed ``"1"``/``"2"``/``"3"`` reply.
+    """
+    metadata = dict(base_metadata or {})
+    if with_buttons:
+        metadata["buttons"] = [
+            {"text": "Approve", "value": "1", "type": "primary"},
+            {"text": "Reject", "value": "2", "type": "danger"},
+            {"text": "Approve all", "value": "3"},
+        ]
+    return metadata
 
 
 @dataclass
@@ -216,9 +234,11 @@ class InboundConsumer:
     manager:
         The ChannelManager (used to look up channel instances).
     agent:
-        The agent object (must support ``stream_agent_events``).
+        The local agent object used by local graph gateway targets.
     thread_id:
         Default thread ID for agent conversations.
+    graph_gateway:
+        Gateway used for thread creation and graph streaming.
     send_thinking:
         Whether to forward thinking messages to the channel.
     on_message_received:
@@ -249,6 +269,7 @@ class InboundConsumer:
         agent: Any,
         thread_id: str,
         *,
+        graph_gateway: GraphGateway,
         send_thinking: bool = False,
         on_message_received: Callable[[InboundMessage], None] | None = None,
         on_streaming_event: Callable[[dict], None] | None = None,
@@ -262,6 +283,7 @@ class InboundConsumer:
         self.manager = manager
         self.agent = agent
         self.thread_id = thread_id
+        self.graph_gateway = graph_gateway
         self.send_thinking = send_thinking
         self._on_message_received = on_message_received
         self._on_streaming_event = on_streaming_event
@@ -295,7 +317,7 @@ class InboundConsumer:
         # ask_user: pending reply per session_key
         self._pending_ask_user_replies: dict[str, _PendingAskUserReply] = {}
 
-    def _get_thread_id(self, sender_id: str) -> str:
+    async def _get_thread_id(self, sender_id: str) -> str:
         """Get or create a thread ID for the given sender.
 
         Uses LRU ordering: recently accessed senders are moved to the
@@ -311,7 +333,9 @@ class InboundConsumer:
         if self.thread_id:
             self._sessions[sender_id] = f"{self.thread_id}:{sender_id}"
         else:
-            self._sessions[sender_id] = str(uuid.uuid4())
+            self._sessions[sender_id] = await self.graph_gateway.create_thread(
+                GraphTarget(local_graph=self.agent)
+            )
         return self._sessions[sender_id]
 
     def _get_channel(self, channel_name: str) -> Channel | None:
@@ -405,7 +429,7 @@ class InboundConsumer:
                 pass
 
         channel = self._get_channel(msg.channel)
-        thread_id = self._get_thread_id(msg.sender_id)
+        thread_id = await self._get_thread_id(msg.sender_id)
         session_key = msg.session_key  # "channel:chat_id"
 
         # Lazily create per-chat lock; evict stale locks when too many
@@ -448,13 +472,15 @@ class InboundConsumer:
         session_key: str,
     ) -> None:
         """Stream agent events with HITL interrupt handling."""
-        from ..stream.events import stream_agent_events
+        from langgraph.types import Command
 
-        stream_input: Any = msg.content
+        stream_input: GraphRunInput = msg.content
 
         try:
             if channel:
                 await channel.start_typing(msg.chat_id)
+
+            _last_sent_thinking: str | None = None
 
             for _hitl_round in range(_MAX_HITL_ROUNDS):
                 final_content = ""
@@ -464,14 +490,38 @@ class InboundConsumer:
                 thinking_sent = False
                 interrupt_data: dict | None = None
 
+                async def _flush_thinking_buffer(
+                    buffer: list[str] = thinking_buffer,
+                ) -> bool:
+                    """Send the current thinking buffer, dedup by content."""
+                    nonlocal thinking_sent, _last_sent_thinking
+                    if not channel or thinking_sent or not buffer:
+                        return False
+
+                    full_thinking = "".join(buffer).rstrip()
+                    buffer.clear()
+                    if not full_thinking or full_thinking == _last_sent_thinking:
+                        return False
+
+                    await channel.send_thinking_message(
+                        msg.sender_id,
+                        full_thinking,
+                        msg.metadata,
+                    )
+                    thinking_sent = True
+                    _last_sent_thinking = full_thinking
+                    return True
+
                 async for event in _timeout_aiter(
-                    stream_agent_events(
-                        self.agent,
-                        stream_input,
-                        thread_id,
-                        media=msg.media or None
-                        if isinstance(stream_input, str)
-                        else None,
+                    self.graph_gateway.stream_events(
+                        RunRequest(
+                            message=stream_input,
+                            thread_id=thread_id,
+                            media=msg.media or None
+                            if isinstance(stream_input, str)
+                            else None,
+                            target=GraphTarget(local_graph=self.agent),
+                        )
                     ),
                     self._inference_timeout,
                 ):
@@ -492,16 +542,7 @@ class InboundConsumer:
                         if event.get("name") == "write_todos" and not todo_sent:
                             todos = event.get("args", {}).get("todos", [])
                             if todos and channel:
-                                if thinking_buffer and not thinking_sent:
-                                    full_thinking = "".join(thinking_buffer)
-                                    if full_thinking:
-                                        await channel.send_thinking_message(
-                                            msg.sender_id,
-                                            full_thinking,
-                                            msg.metadata,
-                                        )
-                                        thinking_sent = True
-                                    thinking_buffer.clear()
+                                await _flush_thinking_buffer()
                                 await channel.send_todo_message(
                                     msg.sender_id,
                                     _format_todo_list(todos),
@@ -514,7 +555,9 @@ class InboundConsumer:
 
                     elif event_type == "subagent_text":
                         sa_name = event.get("subagent", "unknown")
-                        instance_id = event.get("instance_id") or sa_name
+                        instance_id = event.get("instance_id")
+                        if not instance_id:
+                            continue
                         if instance_id not in subagent_text_buffers:
                             subagent_text_buffers[instance_id] = (sa_name, [])
                         subagent_text_buffers[instance_id][1].append(
@@ -533,14 +576,7 @@ class InboundConsumer:
                         break  # exit async for to handle ask_user
 
                 # Flush thinking
-                if thinking_buffer and not thinking_sent and channel:
-                    full_thinking = "".join(thinking_buffer)
-                    if full_thinking:
-                        await channel.send_thinking_message(
-                            msg.sender_id,
-                            full_thinking,
-                            msg.metadata,
-                        )
+                await _flush_thinking_buffer()
 
                 # No interrupt — normal completion
                 if interrupt_data is None:
@@ -569,7 +605,6 @@ class InboundConsumer:
                         interrupt_data,
                         session_key,
                     )
-                    from langgraph.types import Command  # type: ignore[import-untyped]
 
                     stream_input = Command(resume=result)
                     continue
@@ -580,8 +615,6 @@ class InboundConsumer:
 
                 # Session auto-approve (user previously chose "Approve all")
                 if session_key in self._auto_approve_sessions:
-                    from langgraph.types import Command  # type: ignore[import-untyped]
-
                     stream_input = Command(
                         resume={"decisions": [{"type": "approve"} for _ in range(n)]}
                     )
@@ -589,21 +622,27 @@ class InboundConsumer:
 
                 # Config auto-approve (auto_approve, non-execute, allow_list)
                 if _should_auto_approve(action_reqs):
-                    from langgraph.types import Command  # type: ignore[import-untyped]
-
                     stream_input = Command(
                         resume={"decisions": [{"type": "approve"} for _ in range(n)]}
                     )
                     continue
 
                 # Needs user approval — send prompt to channel
-                prompt_text = _format_approval_prompt(action_reqs)
+                has_buttons = (
+                    channel is not None and channel.capabilities.inline_buttons
+                )
+                prompt_text = _format_approval_prompt(
+                    action_reqs, with_buttons=has_buttons
+                )
+                approval_metadata = _approval_prompt_metadata(
+                    msg.metadata, with_buttons=has_buttons
+                )
                 await self.bus.publish_outbound(
                     OutboundMessage(
                         channel=msg.channel,
                         chat_id=msg.chat_id,
                         content=prompt_text,
-                        metadata=msg.metadata,
+                        metadata=approval_metadata,
                     )
                 )
 
@@ -615,34 +654,60 @@ class InboundConsumer:
                 )
                 self._pending_interrupts[session_key] = pending
 
+                timed_out = False
                 try:
                     await asyncio.wait_for(
                         pending.event.wait(),
                         timeout=_HITL_APPROVAL_TIMEOUT,
                     )
                 except TimeoutError:
-                    # Auto-approve on timeout
-                    pending.decision = "approve"
+                    timed_out = True
                 finally:
+                    # Unregister BEFORE any further await so a late reply can't flip
+                    # the decision back to approve during the notification round-trip.
                     self._pending_interrupts.pop(session_key, None)
 
-                decision = pending.decision or "approve"
-
-                if decision == "reject":
+                if timed_out:
+                    # Reject on timeout (fail-closed; matches cli/channel.py). Decision
+                    # is a local constant, not pending.decision, so it can't be
+                    # overwritten by a late reply after we unregistered above.
+                    decision = "reject"
                     await self.bus.publish_outbound(
                         OutboundMessage(
                             channel=msg.channel,
                             chat_id=msg.chat_id,
-                            content="Tool execution rejected.",
+                            content="⏰ Approval timed out. Action rejected.",
                             metadata=msg.metadata,
                         )
                     )
+                else:
+                    decision = pending.decision or "reject"
+
+                # Visible confirmation so the click/reply registers (QQ has no
+                # message recall API for C2C).  Only fires when the user
+                # actually responded — silent on timeout to avoid claiming
+                # the user approved when they just walked away.
+                if pending.event.is_set():
+                    feedback_text = {
+                        "approve": "\u2705 已批准",
+                        "auto": "\u2705 已批准（后续自动通过）",
+                        "reject": "\u274c 已拒绝",
+                    }.get(decision)
+                    if feedback_text:
+                        await self.bus.publish_outbound(
+                            OutboundMessage(
+                                channel=msg.channel,
+                                chat_id=msg.chat_id,
+                                content=feedback_text,
+                                metadata=msg.metadata,
+                            )
+                        )
+
+                if decision == "reject":
                     return
 
                 if decision == "auto":
                     self._auto_approve_sessions.add(session_key)
-
-                from langgraph.types import Command  # type: ignore[import-untyped]
 
                 stream_input = Command(
                     resume={"decisions": [{"type": "approve"} for _ in range(n)]}

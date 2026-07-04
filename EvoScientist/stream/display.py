@@ -6,31 +6,42 @@ Also provides the shared console and formatter globals.
 """
 
 import asyncio
+import inspect
 import logging
 import os
-import sys
+import re
+import threading
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from rich.console import Console, Group  # type: ignore[import-untyped]
+from rich.console import Group  # type: ignore[import-untyped]
 from rich.live import Live  # type: ignore[import-untyped]
 from rich.markdown import Markdown  # type: ignore[import-untyped]
 from rich.panel import Panel  # type: ignore[import-untyped]
 from rich.spinner import Spinner  # type: ignore[import-untyped]
 from rich.text import Text  # type: ignore[import-untyped]
 
+from ..gateway import GraphGateway, GraphRunInput, GraphTarget, RunRequest
 from ..paths import resolve_virtual_path
+from .console import console
 from .diff_format import build_edit_diff
-from .events import stream_agent_events
 from .formatter import ToolResultFormatter
 from .state import (
-    _INTERNAL_TOOLS,
     StreamState,
     SubAgentState,
     _build_todo_stats,
     _parse_todo_items,
 )
-from .utils import DisplayLimits, ToolStatus, format_tool_compact, is_success
+from .utils import (
+    DisplayLimits,
+    ToolStatus,
+    format_tool_compact,
+    format_tool_compact_with_result,
+    is_success,
+)
+
+if TYPE_CHECKING:
+    from langgraph.graph.state import CompiledStateGraph
 
 # ---------------------------------------------------------------------------
 # Shared globals
@@ -39,12 +50,142 @@ from .utils import DisplayLimits, ToolStatus, format_tool_compact, is_success
 # Media file extensions that should trigger on_file_write callback
 _MEDIA_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg", ".pdf"}
 
-console = Console(
-    legacy_windows=(sys.platform == "win32"),
-    no_color=os.getenv("NO_COLOR") is not None,
-)
+
+def _graph_target_for_local_agent(
+    agent: "CompiledStateGraph",
+    metadata: dict[str, object] | None = None,
+) -> GraphTarget:
+    workspace = None
+    if metadata is not None:
+        raw_workspace = metadata.get("workspace_dir")
+        if isinstance(raw_workspace, str) and raw_workspace:
+            workspace = raw_workspace
+    return GraphTarget(local_graph=agent, workspace_dir=workspace)
+
+
+# LLM output sometimes omits the CommonMark-required space after `#` (e.g.
+# "###文件系统"), which makes Rich render the line as raw text. The lookahead
+# `(?=[^ \t#\r\n])` requires a real non-excluded next char, so the helper is
+# idempotent and leaves bare `#` at EOS / CRLF boundaries alone.
+_HEADING_FIX_RE = re.compile(r"^(#{1,6})(?=[^ \t#\r\n])", flags=re.MULTILINE)
+
+
+def _fix_markdown_heading_spacing(text: str) -> str:
+    """Insert a space after `#`+ ATX heading markers missing one.
+
+    Apply to a display copy only — never write the result back into the
+    streaming buffer. Known limitation: `###define` at column zero inside
+    a fenced code block still gets a space (context-free regex).
+    """
+    return _HEADING_FIX_RE.sub(r"\1 ", text)
+
+
+def _split_response_for_display(
+    response_text: str,
+    narrated_response_end: int,
+) -> tuple[str, str]:
+    """Split cumulative response text into narrated prefix and answer suffix."""
+    boundary = max(0, min(len(response_text), narrated_response_end))
+    return response_text[:boundary], response_text[boundary:]
+
+
+def _clean_response_text(text: str) -> str:
+    """Trim a streamed response copy for display."""
+    clean = text.strip()
+    while clean.endswith("\n...") or clean.rstrip() == "...":
+        clean = clean.rstrip().removesuffix("...").rstrip()
+    return clean
+
+
+def _response_markdown_for_display(
+    text: str,
+    *,
+    response_markdown: Any = None,
+    full_response_text: str = "",
+) -> Any | None:
+    """Build Markdown for the answer text, reusing the full-response cache if valid."""
+    clean = _clean_response_text(text)
+    if not clean:
+        return None
+    if response_markdown is not None and text == full_response_text:
+        return response_markdown
+    return Markdown(_fix_markdown_heading_spacing(clean))
+
 
 formatter = ToolResultFormatter()
+
+
+# Stream-cancel events keyed by logical stream scope. Channel messages pass a
+# per-message scope so `/stop` only affects that message's run; scope-less
+# callers retain the legacy process-wide default event.
+_DEFAULT_STREAM_CANCEL_SCOPE = "__default__"
+_stream_cancel_lock = threading.Lock()
+_stream_cancel_events: dict[str, threading.Event] = {
+    _DEFAULT_STREAM_CANCEL_SCOPE: threading.Event()
+}
+# Backward-compat alias used by older tests and direct imports.
+_stream_cancel_event = _stream_cancel_events[_DEFAULT_STREAM_CANCEL_SCOPE]
+
+
+def _stream_cancel_scope_key(cancel_scope: str | None) -> str:
+    return cancel_scope or _DEFAULT_STREAM_CANCEL_SCOPE
+
+
+def _get_stream_cancel_event(
+    cancel_scope: str | None,
+    *,
+    create: bool = False,
+) -> threading.Event | None:
+    scope_key = _stream_cancel_scope_key(cancel_scope)
+    with _stream_cancel_lock:
+        event = _stream_cancel_events.get(scope_key)
+        if event is None and create:
+            event = threading.Event()
+            _stream_cancel_events[scope_key] = event
+        return event
+
+
+def request_stream_cancel(cancel_scope: str | None = None) -> bool:
+    """Signal a specific in-flight stream to terminate."""
+    event = _get_stream_cancel_event(cancel_scope, create=True)
+    already_requested = event.is_set()
+    event.set()
+    return not already_requested
+
+
+def is_stream_cancel_requested(cancel_scope: str | None = None) -> bool:
+    event = _get_stream_cancel_event(cancel_scope)
+    return event.is_set() if event is not None else False
+
+
+def clear_stream_cancel(cancel_scope: str | None = None) -> None:
+    """Clear a scope's stop signal without dropping the scope entry."""
+    event = _get_stream_cancel_event(cancel_scope)
+    if event is not None:
+        event.clear()
+
+
+def discard_stream_cancel(cancel_scope: str | None = None) -> None:
+    """Drop a scope's stop signal after the owning request is fully done."""
+    scope_key = _stream_cancel_scope_key(cancel_scope)
+    with _stream_cancel_lock:
+        if scope_key == _DEFAULT_STREAM_CANCEL_SCOPE:
+            _stream_cancel_events[scope_key].clear()
+        else:
+            _stream_cancel_events.pop(scope_key, None)
+
+
+def build_stopped_response_text(previous_text: str | None) -> tuple[str, str]:
+    """Normalize a cancelled response and return `(trimmed_previous, final_text)`."""
+    marker = "[Stopped.]"
+    current = (previous_text or "").rstrip()
+    if not current:
+        final_text = marker
+    elif current.endswith(marker):
+        final_text = current
+    else:
+        final_text = f"{current}\n{marker}"
+    return current, final_text
 
 
 # ---------------------------------------------------------------------------
@@ -174,26 +315,28 @@ def _render_tool_call_line(tc: dict, tr: dict | None) -> Text:
         style = "bold yellow" if not is_task else "bold cyan"
         indicator = "\u25b6" if is_task else ToolStatus.RUNNING.value
 
-    # Try to get display name from args first
-    tool_compact = format_tool_compact(tc["name"], tc.get("args"))
-
-    # If args were empty and we have a result, try to infer memory operations from result
-    tool_name = tc.get("name", "").lower()
-    if tool_name in ("write_file", "edit_file") and tr is not None:
-        result_content = tr.get("content", "")
-        if "/MEMORY.md" in result_content or "MEMORY.md" in result_content:
-            tool_compact = "Updating memory"
-    elif tool_name == "read_file" and tr is not None:
-        result_content = tr.get("content", "")
-        # read_file result doesn't contain path, check if args is empty and result looks like memory
-        args = tc.get("args") or {}
-        if not args.get("path") and "# EvoScientist Memory" in result_content:
-            tool_compact = "Reading memory"
+    tool_compact = format_tool_compact_with_result(
+        tc["name"],
+        tc.get("args"),
+        tr.get("content", "") if tr is not None else "",
+    )
 
     tool_text = Text()
     tool_text.append(f"{indicator} ", style=style)
     tool_text.append(tool_compact, style=style)
     return tool_text
+
+
+def _tool_result_for_call(
+    tool_results: list,
+    tool_call: dict,
+) -> dict | None:
+    """Match root tool results by DeepAgents tool_call_id."""
+    tool_id = tool_call["id"]
+    return next(
+        (result for result in tool_results if result["id"] == tool_id),
+        None,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -226,9 +369,6 @@ def _render_subagent_section(sa: "SubAgentState", compact: bool = False) -> list
             completed.append((tc, tr))
         else:
             pending.append(tc)
-
-    succeeded = sum(1 for _, tr in completed if tr.get("success", True))
-    _ = len(completed) - succeeded  # failed count, unused for now
 
     # Build display name
     display_name = f"Cooking with {sa.name}"
@@ -391,10 +531,14 @@ def create_streaming_display(
     final_show_thinking: bool = False,
     final_thinking_max_length: int = DisplayLimits.THINKING_FINAL,
     response_markdown: Any = None,
+    narrated_response_end: int = 0,
+    narration_segments: list[tuple[int, str]] | None = None,
     total_input_tokens: int = 0,
     total_output_tokens: int = 0,
     summarization_text: str = "",
+    is_summarizing: bool = False,
     selected_tools: list | None = None,
+    status_footer: Any | None = None,
 ) -> Any:
     """Create Rich display layout for streaming output.
 
@@ -409,6 +553,8 @@ def create_streaming_display(
     # Initial waiting state
     if is_waiting and not thinking_text and not response_text and not tool_calls:
         elements.append(Spinner("dots", text=" Thinking...", style="cyan"))
+        if status_footer is not None:
+            elements.append(status_footer)
         return Group(*elements)
 
     # Thinking panel
@@ -454,26 +600,90 @@ def create_streaming_display(
         )
 
     # Summarization panel (context was compressed by LangGraph middleware)
-    if summarization_text:
+    if is_summarizing and not summarization_text:
+        elements.append(
+            Panel(
+                Text("Summarizing...", style="dim italic"),
+                title="Context Summarizing...",
+                border_style="#f59e0b",
+                padding=(0, 1),
+            )
+        )
+    elif summarization_text:
         summary_display = summarization_text.rstrip()
         n = len(summary_display)
         char_label = f"{n / 1000:.1f}k chars" if n >= 1000 else f"{n:,} chars"
         if n > 300:
             summary_display = summary_display[:300] + " ..."
+        title = (
+            f"Context Summarizing... ({char_label})"
+            if is_summarizing
+            else f"Context Summarized ({char_label})"
+        )
         elements.append(
             Panel(
                 Text(summary_display, style="dim italic"),
-                title=f"Context Summarized ({char_label})",
+                title=title,
                 border_style="#f59e0b",
                 padding=(0, 1),
             )
         )
+
+    # Response text handling: keep the final answer behind pending tool calls.
+    _n_tools = len(tool_calls)
+    _n_done = min(len(tool_results), _n_tools)
+    has_pending_tools = _n_tools > _n_done
+    any_active_subagent = any(sa.is_active for sa in subagents)
+    is_processing_blocking = is_processing
+    all_done = (
+        not has_pending_tools and not any_active_subagent and not is_processing_blocking
+    )
+    _, answer_text = _split_response_for_display(
+        response_text,
+        narrated_response_end,
+    )
+    narration_by_tool: dict[int, list[str]] = {}
+    for tool_index, text in narration_segments or []:
+        if text.strip():
+            narration_by_tool.setdefault(tool_index, []).append(text)
+
+    def _append_narration_before_tool(tool_index: int) -> None:
+        for text in narration_by_tool.get(tool_index, []):
+            narration_markdown = _response_markdown_for_display(text)
+            if narration_markdown is not None:
+                elements.append(Text(""))  # blank separator
+                elements.append(narration_markdown)
+
+    def _find_task_subagent(tc: dict, shown_sa_ids: set[str]) -> SubAgentState | None:
+        tool_id = tc["id"]
+        for sa in subagents:
+            if sa.instance_id in shown_sa_ids:
+                continue
+            if sa.parent_tool_call_id == tool_id:
+                return sa
+        return None
+
+    def _append_task_entry(
+        tool_index: int,
+        tc: dict,
+        tr: dict | None,
+        *,
+        shown_sa_ids: set[str],
+        compact: bool,
+    ) -> None:
+        _append_narration_before_tool(tool_index)
+        elements.append(_render_tool_call_line(tc, tr))
+        matched_sa = _find_task_subagent(tc, shown_sa_ids)
+        if matched_sa is not None:
+            shown_sa_ids.add(matched_sa.instance_id)
+            elements.extend(_render_subagent_section(matched_sa, compact=compact))
 
     # Tool calls and results paired display
     # Collapse older completed tools to prevent overflow in Live mode
     # Task tool calls are ALWAYS visible (they represent sub-agent delegations)
     MAX_VISIBLE_TOOLS = 4
     MAX_VISIBLE_RUNNING = 3
+    shown_sa_ids: set[str] = set()
 
     if tool_calls:
         # Split into categories
@@ -482,28 +692,34 @@ def create_streaming_display(
         running_regular = []  # running non-task tools
 
         for i, tc in enumerate(tool_calls):
-            has_result = i < len(tool_results)
-            tr = tool_results[i] if has_result else None
+            tr = _tool_result_for_call(tool_results, tc)
+            has_result = tr is not None
             is_task = tc.get("name") == "task"
 
-            # Skip internal middleware tools
-            if tc.get("name") in _INTERNAL_TOOLS:
-                continue
-
             if is_task:
-                # Skip task calls with empty args (still streaming)
-                if tc.get("args"):
-                    task_tools.append((tc, tr))
+                task_tools.append((i, tc, tr))
             elif has_result:
-                completed_regular.append((tc, tr))
+                completed_regular.append((i, tc, tr))
             else:
-                running_regular.append((tc, None))
+                running_regular.append((i, tc, None))
 
         if is_final:
             # Final frame: show ALL tools expanded, no spinners, no collapsing
-            shown_sa_names: set[str] = set()
+            for tool_index, tc, tr in sorted(
+                completed_regular + running_regular + task_tools,
+                key=lambda item: item[0],
+            ):
+                if tc.get("name") == "task":
+                    _append_task_entry(
+                        tool_index,
+                        tc,
+                        tr,
+                        shown_sa_ids=shown_sa_ids,
+                        compact=True,
+                    )
+                    continue
 
-            for tc, tr in completed_regular:
+                _append_narration_before_tool(tool_index)
                 elements.append(_render_tool_call_line(tc, tr))
                 content = tr.get("content", "") if tr else ""
                 if tr and (not is_success(content) or tc.get("name") == "edit_file"):
@@ -515,25 +731,11 @@ def create_streaming_display(
                     )
                     elements.extend(result_elements)
 
-            # Task tools with compact sub-agent summaries
-            for tc, tr in task_tools:
-                elements.append(_render_tool_call_line(tc, tr))
-                sa_name = tc.get("args", {}).get("subagent_type", "")
-                task_desc = tc.get("args", {}).get("description", "")
-                matched_sa = None
-                for sa in subagents:
-                    if sa.name == sa_name or (
-                        task_desc and task_desc in (sa.description or "")
-                    ):
-                        matched_sa = sa
-                        break
-                if matched_sa:
-                    shown_sa_names.add(matched_sa.name)
-                    elements.extend(_render_subagent_section(matched_sa, compact=True))
-
             # Render any sub-agents not already shown via task tool calls
             for sa in subagents:
-                if sa.name not in shown_sa_names and (sa.tool_calls or sa.is_active):
+                if sa.instance_id not in shown_sa_ids and (
+                    sa.tool_calls or sa.is_active
+                ):
                     elements.extend(_render_subagent_section(sa, compact=True))
 
         else:
@@ -548,7 +750,9 @@ def create_streaming_display(
             visible = completed_regular[-slots:] if slots else []
 
             if hidden:
-                ok = sum(1 for _, tr in hidden if is_success(tr.get("content", "")))
+                for tool_index, _, _ in hidden:
+                    _append_narration_before_tool(tool_index)
+                ok = sum(1 for _, _, tr in hidden if is_success(tr.get("content", "")))
                 fail = len(hidden) - ok
                 summary = Text()
                 summary.append(f"\u2713 {ok} completed", style="dim green")
@@ -556,10 +760,42 @@ def create_streaming_display(
                     summary.append(f" | {fail} failed", style="dim red")
                 elements.append(summary)
 
-            for tc, tr in visible:
+            # --- Running regular tools (limit visible) ---
+            hidden_running = len(running_regular) - MAX_VISIBLE_RUNNING
+            if hidden_running > 0:
+                hidden_running_tools = running_regular[:-MAX_VISIBLE_RUNNING]
+                for tool_index, _, _ in hidden_running_tools:
+                    _append_narration_before_tool(tool_index)
+                summary = Text()
+                summary.append(
+                    f"\u25cf {hidden_running} more running...", style="dim yellow"
+                )
+                elements.append(summary)
+                running_regular = running_regular[-MAX_VISIBLE_RUNNING:]
+
+            for tool_index, tc, tr in sorted(
+                visible + running_regular + task_tools,
+                key=lambda item: item[0],
+            ):
+                if tc.get("name") == "task":
+                    matched_sa = _find_task_subagent(tc, shown_sa_ids)
+                    _append_task_entry(
+                        tool_index,
+                        tc,
+                        tr,
+                        shown_sa_ids=shown_sa_ids,
+                        compact=not matched_sa.is_active if matched_sa else True,
+                    )
+                    continue
+
+                _append_narration_before_tool(tool_index)
                 elements.append(_render_tool_call_line(tc, tr))
-                content = tr.get("content", "") if tr else ""
-                if tr and (not is_success(content) or tc.get("name") == "edit_file"):
+                if tr is None:
+                    elements.append(Spinner("dots", text=" Running...", style="yellow"))
+                    continue
+
+                content = tr.get("content", "")
+                if not is_success(content) or tc.get("name") == "edit_file":
                     result_elements = format_tool_result_compact(
                         tr["name"],
                         content,
@@ -568,36 +804,7 @@ def create_streaming_display(
                     )
                     elements.extend(result_elements)
 
-            # --- Running regular tools (limit visible) ---
-            hidden_running = len(running_regular) - MAX_VISIBLE_RUNNING
-            if hidden_running > 0:
-                summary = Text()
-                summary.append(
-                    f"\u25cf {hidden_running} more running...", style="dim yellow"
-                )
-                elements.append(summary)
-                running_regular = running_regular[-MAX_VISIBLE_RUNNING:]
-
-            for tc, tr in running_regular:
-                elements.append(_render_tool_call_line(tc, tr))
-                elements.append(Spinner("dots", text=" Running...", style="yellow"))
-
-            # Task tool calls are rendered as part of sub-agent sections below
-
-    # Response text handling — exclude internal tools (e.g. ExtractedMemory)
-    # from the "done" calculation so they don't block final Markdown rendering.
-    _n_visible = 0
-    _n_visible_done = 0
-    for i, tc in enumerate(tool_calls):
-        if tc.get("name") in _INTERNAL_TOOLS:
-            continue
-        _n_visible += 1
-        if i < len(tool_results):
-            _n_visible_done += 1
-    has_pending_tools = _n_visible > _n_visible_done
-    any_active_subagent = any(sa.is_active for sa in subagents)
-    has_used_tools = _n_visible > 0
-    all_done = not has_pending_tools and not any_active_subagent and not is_processing
+            # Remaining sub-agent sections are rendered below.
 
     if is_final:
         # Final frame: render todo panel + response (tools/subagents handled above).
@@ -608,14 +815,14 @@ def create_streaming_display(
             elements.append(Text(""))  # blank separator
             elements.append(_render_todo_panel(todo_items))
 
-        # Include response in final frame so it stays visible after Live exits
-        if response_text:
-            clean_response = response_text.strip()
-            while clean_response.endswith("\n...") or clean_response.rstrip() == "...":
-                clean_response = clean_response.rstrip().removesuffix("...").rstrip()
-            if clean_response:
-                elements.append(Text(""))  # blank separator
-                elements.append(response_markdown or Markdown(clean_response))
+        answer_markdown = _response_markdown_for_display(
+            answer_text,
+            response_markdown=response_markdown,
+            full_response_text=response_text,
+        )
+        if answer_markdown is not None:
+            elements.append(Text(""))  # blank separator
+            elements.append(answer_markdown)
 
         # Token usage stats (right-aligned)
         if total_input_tokens or total_output_tokens:
@@ -629,16 +836,6 @@ def create_streaming_display(
             stats.append("]", style="dim italic")
             elements.append(stats)
     else:
-        # Intermediate narration (tools still running) -- dim italic above Task List
-        if latest_text and has_used_tools and not all_done:
-            preview = latest_text.strip()
-            if preview:
-                last_line = preview.split("\n")[-1].strip()
-                if last_line:
-                    if len(last_line) > 60:
-                        last_line = last_line[:57] + "\u2026"
-                    elements.append(Text(f"    {last_line}", style="dim italic"))
-
         # Task List panel (persistent, updates on write_todos / read_todos)
         todo_items = todo_items or []
         if todo_items:
@@ -648,16 +845,11 @@ def create_streaming_display(
         # Sub-agent activity sections
         # Active: full bordered view; Completed: compact 1-line summary
         for sa in subagents:
-            if sa.tool_calls or sa.is_active:
+            if sa.instance_id not in shown_sa_ids and (sa.tool_calls or sa.is_active):
                 elements.extend(_render_subagent_section(sa, compact=not sa.is_active))
 
         # Processing state after tool execution
-        if (
-            is_processing
-            and not is_thinking
-            and not is_responding
-            and not response_text
-        ):
+        if is_processing and not is_thinking and not is_responding:
             # Check if any sub-agent is active
             any_active = any(sa.is_active for sa in subagents)
             if not any_active:
@@ -667,12 +859,36 @@ def create_streaming_display(
 
         # Stream response in real-time as tokens arrive (all tools done)
         if response_text and all_done:
-            elements.append(Text(""))  # blank separator
-            elements.append(response_markdown or Markdown(response_text))
+            answer_markdown = _response_markdown_for_display(
+                answer_text,
+                response_markdown=response_markdown,
+                full_response_text=response_text,
+            )
+            if answer_markdown is not None:
+                elements.append(Text(""))  # blank separator
+                elements.append(answer_markdown)
 
     if not elements:
-        return Group(Spinner("dots", text=" Processing...", style="cyan"))
+        elements.append(Spinner("dots", text=" Processing...", style="cyan"))
+    if status_footer is not None:
+        elements.append(status_footer)
+
     return Group(*elements)
+
+
+def resolve_final_status_footer(
+    interactive: bool,
+    status_footer_builder: Callable[[], Any] | None,
+) -> Any | None:
+    """Resolve the footer to keep in the last Live frame.
+
+    Interactive CLI sessions redraw prompt_toolkit's own bottom toolbar as soon
+    as Rich Live exits, so keeping the Rich footer in that final frame causes a
+    duplicate status bar.
+    """
+    if interactive:
+        return None
+    return status_footer_builder() if status_footer_builder else None
 
 
 # ---------------------------------------------------------------------------
@@ -717,33 +933,25 @@ def display_final_results(
         )
 
     if show_tools and state.tool_calls:
-        shown_sa_names: set[str] = set()
+        shown_sa_ids: set[str] = set()
 
-        for i, tc in enumerate(state.tool_calls):
-            has_result = i < len(state.tool_results)
-            tr = state.tool_results[i] if has_result else None
+        for tc in state.tool_calls:
+            tr = _tool_result_for_call(state.tool_results, tc)
+            has_result = tr is not None
             content = tr.get("content", "") if tr is not None else ""
             tool_name = tc.get("name", "")
             is_task = tool_name.lower() == "task"
 
-            # Skip internal middleware tools
-            if tool_name in _INTERNAL_TOOLS:
-                continue
-
             # Task tools: show delegation line + compact sub-agent summary
             if is_task:
                 console.print(_render_tool_call_line(tc, tr))
-                sa_name = tc.get("args", {}).get("subagent_type", "")
-                task_desc = tc.get("args", {}).get("description", "")
                 matched_sa = None
                 for sa in state.subagents:
-                    if sa.name == sa_name or (
-                        task_desc and task_desc in (sa.description or "")
-                    ):
+                    if sa.parent_tool_call_id == tc["id"]:
                         matched_sa = sa
                         break
                 if matched_sa:
-                    shown_sa_names.add(matched_sa.name)
+                    shown_sa_ids.add(matched_sa.instance_id)
                     for elem in _render_subagent_section(matched_sa, compact=True):
                         console.print(elem)
                 continue
@@ -762,7 +970,7 @@ def display_final_results(
 
         # Render any sub-agents not already shown via task tool calls
         for sa in state.subagents:
-            if sa.name not in shown_sa_names and (sa.tool_calls or sa.is_active):
+            if sa.instance_id not in shown_sa_ids and (sa.tool_calls or sa.is_active):
                 for elem in _render_subagent_section(sa, compact=True):
                     console.print(elem)
 
@@ -779,7 +987,11 @@ def display_final_results(
         while clean_response.endswith("\n...") or clean_response.rstrip() == "...":
             clean_response = clean_response.rstrip().removesuffix("...").rstrip()
         console.print()
-        console.print(Markdown(clean_response or state.response_text))
+        console.print(
+            Markdown(
+                _fix_markdown_heading_spacing(clean_response or state.response_text)
+            )
+        )
 
     # Token usage stats (right-aligned)
     if state.total_input_tokens or state.total_output_tokens:
@@ -835,7 +1047,7 @@ def _resolve_hitl_approval(
         return [{"type": "approve"} for _ in action_requests]
 
     # Config-level auto-approve
-    from ..config.settings import load_config
+    from ..config.settings import HITL_SHELL_TOOLS, load_config
 
     cfg = load_config()
     if cfg.auto_approve:
@@ -850,15 +1062,11 @@ def _resolve_hitl_approval(
 
     needs_prompt = False
     for req in action_requests:
-        name = (
-            req.get("name", "") if isinstance(req, dict) else getattr(req, "name", "")
-        )
-        args = (
-            req.get("args", {}) if isinstance(req, dict) else getattr(req, "args", {})
-        )
+        name = req.get("name", "")
+        args = req.get("args", {})
 
-        if name != "execute":
-            continue  # Non-execute tools auto-approve
+        if name not in HITL_SHELL_TOOLS:
+            continue  # Only shell-running tools need manual approval
 
         command = args.get("command", "") if isinstance(args, dict) else ""
         if not _matches_shell_allow_list(command, shell_allow_list):
@@ -879,26 +1087,27 @@ def _prompt_hitl_approval(action_requests: list) -> list[dict] | None:
     """Display approval prompt and get user decision.
 
     Returns list of decisions if approved, None if rejected.
+
+    Uses ``questionary.select()`` for arrow-key navigation, matching the
+    style used by ``_resolve_ask_user_prompt``. Imports are lazy so the
+    auto-approve / shell-allow-list fast paths in ``_resolve_hitl_approval``
+    don't pay for them.
     """
     global _session_auto_approve
+
+    import questionary  # type: ignore[import-untyped]
+
+    from ..cli.widgets.thread_selector import PICKER_STYLE as _PICKER_STYLE
 
     console.print()
     panel_text = Text()
     for i, req in enumerate(action_requests):
-        name = (
-            req.get("name", "") if isinstance(req, dict) else getattr(req, "name", "")
-        )
-        args = (
-            req.get("args", {}) if isinstance(req, dict) else getattr(req, "args", {})
-        )
+        name = req.get("name", "")
+        args = req.get("args", {})
         desc = format_tool_compact(name, args if isinstance(args, dict) else {})
         if panel_text.plain:
             panel_text.append("\n")
         panel_text.append(f"  {i + 1}. {desc}", style="yellow")
-    panel_text.append("\n\n")
-    panel_text.append(
-        "  [1] Approve  [2] Reject  [3] Approve all (session)", style="dim"
-    )
 
     console.print(
         Panel(
@@ -909,20 +1118,36 @@ def _prompt_hitl_approval(action_requests: list) -> list[dict] | None:
         )
     )
 
+    n = len(action_requests)
+    if n <= 1:
+        approve_label = "Approve"
+        reject_label = "Reject"
+    else:
+        approve_label = f"Approve all {n}"
+        reject_label = f"Reject all {n}"
+    auto_label = "Approve all (session)"
+
     try:
-        choice = input("  Choose [1/2/3, Enter=Approve]: ").strip() or "1"
+        selected = questionary.select(
+            "Approval required",
+            choices=[approve_label, reject_label, auto_label],
+            style=_PICKER_STYLE,
+        ).ask()
     except (EOFError, KeyboardInterrupt):
         console.print("[dim]  Rejected.[/dim]")
         return None
 
-    if choice == "1":
-        return [{"type": "approve"} for _ in action_requests]
-    elif choice == "3":
-        _session_auto_approve = True
-        return [{"type": "approve"} for _ in action_requests]
-    else:
+    if selected is None:  # Ctrl+C inside questionary
         console.print("[dim]  Rejected.[/dim]")
         return None
+
+    if selected == approve_label:
+        return [{"type": "approve"} for _ in action_requests]
+    if selected == auto_label:
+        _session_auto_approve = True
+        return [{"type": "approve"} for _ in action_requests]
+    console.print("[dim]  Rejected.[/dim]")
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -958,16 +1183,20 @@ def _get_event_loop() -> asyncio.AbstractEventLoop:
 def _resolve_ask_user_prompt(ask_user_data: dict) -> dict:
     """Interactive console Q&A for ask_user events.
 
-    Presents questions via ``prompt_toolkit.prompt()`` (not ``input()``)
-    for proper CJK IME support and styled prompts without cursor drift.
+    Presents multiple-choice questions with arrow-key navigation via
+    ``questionary.select()`` and free-text questions via
+    ``questionary.text()`` with required-field validation.  Matches the
+    questionary style used throughout the rest of the CLI.
     """
-    from prompt_toolkit import prompt as pt_prompt  # type: ignore[import-untyped]
-    from prompt_toolkit.formatted_text import HTML  # type: ignore[import-untyped]
+    import questionary  # type: ignore[import-untyped]
+
+    from ..cli.widgets.thread_selector import PICKER_STYLE as _PICKER_STYLE
 
     questions = ask_user_data.get("questions", [])
     if not questions:
         return {"answers": [], "status": "answered"}
 
+    total = len(questions)
     console.print()
     console.print(
         Panel(
@@ -984,43 +1213,65 @@ def _resolve_ask_user_prompt(ask_user_data: dict) -> dict:
             q_text = q.get("question", "")
             q_type = q.get("type", "text")
             required = q.get("required", True)
-            tag = " [dim](optional)[/dim]" if not required else ""
-            console.print(f"  [bold]{i + 1}. {q_text}[/bold]{tag}")
+            optional_suffix = " (optional)" if not required else ""
+            prompt_text = f"({i + 1}/{total}) {q_text}{optional_suffix}"
+
+            def _make_validator(is_required: bool):
+                def _validate(v: str) -> bool | str:
+                    if is_required and not v.strip():
+                        return "This field is required."
+                    return True
+
+                return _validate
 
             if q_type == "multiple_choice":
                 choices = q.get("choices", [])
-                for j, choice in enumerate(choices):
-                    label = choice.get("value", str(choice))
-                    letter = chr(ord("A") + j)
-                    console.print(Text(f"     {letter}. {label}", style="dim"))
-                other_letter = chr(ord("A") + len(choices))
-                console.print(
-                    Text(f"     {other_letter}. Other (type your answer)", style="dim")
-                )
+                choice_labels = [c.get("value", str(c)) for c in choices]
+                skip_label = "Skip"
+                if not required:
+                    choice_labels.append(skip_label)
+                other_label = "Other (type your answer)"
+                choice_labels.append(other_label)
 
-                letters = "/".join(chr(ord("A") + k) for k in range(len(choices) + 1))
-                raw = pt_prompt(
-                    HTML(f"  <b><style fg='#1565c0'>Choice [{letters}]:</style></b> ")
-                ).strip()
-                if raw.upper() == other_letter:
-                    raw = pt_prompt(
-                        HTML("  <b><style fg='#42a5f5'>&gt; Your answer:</style></b> ")
-                    ).strip()
-                    answers.append(raw)
-                elif len(raw) == 1 and raw.upper().isalpha():
-                    idx = ord(raw.upper()) - ord("A")
-                    if 0 <= idx < len(choices):
-                        answers.append(choices[idx].get("value", raw))
-                    else:
-                        answers.append(raw)
-                else:
-                    answers.append(raw)
+                selected = questionary.select(
+                    prompt_text,
+                    choices=choice_labels,
+                    style=_PICKER_STYLE,
+                ).ask()
+
+                if selected is None:  # Ctrl+C
+                    raise KeyboardInterrupt
+
+                if selected == skip_label:
+                    answers.append("")
+                    console.print()
+                    continue
+
+                if selected == other_label:
+                    selected = questionary.text(
+                        "Your answer:",
+                        validate=_make_validator(required),
+                        style=_PICKER_STYLE,
+                    ).ask()
+                    if selected is None:
+                        raise KeyboardInterrupt
+
+                answers.append(selected)
+
             else:
-                raw = pt_prompt(
-                    HTML("  <b><style fg='#42a5f5'>&gt; Answer:</style></b> ")
-                ).strip()
-                answers.append(raw)
+                answer = questionary.text(
+                    prompt_text,
+                    validate=_make_validator(required),
+                    style=_PICKER_STYLE,
+                ).ask()
+
+                if answer is None:  # Ctrl+C
+                    raise KeyboardInterrupt
+
+                answers.append(answer)
+
             console.print()
+
     except (EOFError, KeyboardInterrupt):
         console.print("[dim]  Cancelled.[/dim]")
         return {"status": "cancelled"}
@@ -1029,21 +1280,26 @@ def _resolve_ask_user_prompt(ask_user_data: dict) -> dict:
 
 
 def _run_streaming(
-    agent: Any,
-    message: Any,
+    agent: "CompiledStateGraph",
+    message: GraphRunInput,
     thread_id: str,
     show_thinking: bool,
     interactive: bool,
     on_thinking: Callable[[str], None] | None = None,
     on_todo: Callable[[list[dict]], None] | None = None,
     on_file_write: Callable[[str], None] | None = None,
-    metadata: dict | None = None,
+    on_stream_event: Callable[[str, Any], Any] | None = None,
+    status_footer_builder: Callable[[], Any] | None = None,
+    metadata: dict[str, object] | None = None,
     hitl_prompt_fn: Callable[[list], list[dict] | None] | None = None,
     ask_user_prompt_fn: Callable[[dict], dict] | None = None,
+    cancel_scope: str | None = None,
     *,
+    gateway: GraphGateway,
     _state: StreamState | None = None,
     _hitl_depth: int = 0,
     _media_sent: set[str] | None = None,
+    _sent_thinking_text: str | None = None,
 ) -> str:
     """Run async streaming and render with Rich Live display.
 
@@ -1056,42 +1312,67 @@ def _run_streaming(
         show_thinking: Whether to show thinking panel
         interactive: If True, use simplified final display (no panel)
         on_thinking: Optional sync callback receiving full thinking text.
-            Called once when thinking phase ends (transitions to tool/text)
-            and accumulated thinking >= 200 chars.
+            Called when thinking ends (transitions to tool/text) and
+            accumulated thinking >= 200 chars. Uses content-based
+            deduplication across resume/HITL cycles so the same thinking
+            is not replayed, but genuinely new thinking is still sent.
         on_todo: Optional sync callback receiving todo items list.
             Called once when write_todos tool_call is detected.
         on_file_write: Optional sync callback receiving the real filesystem path
             when the agent writes a media file (image/pdf) via write_file.
         metadata: Optional metadata dict forwarded to ``stream_agent_events``
             for LangGraph checkpoint persistence.
+        gateway: Graph/thread gateway supplied by the active runtime.
 
     Returns:
         The final response text.
     """
+    # Scope-less callers keep the legacy single-event semantics. Scoped
+    # callers use unique per-request scopes, so pre-start `/stop` must
+    # remain armed until this run consumes it.
+    if _state is None and cancel_scope is None:
+        clear_stream_cancel()
+
     state = _state if _state is not None else StreamState()
-    _thinking_sent = False
     _todo_sent = False
     if _media_sent is None:
         _media_sent = set()
     _MIN_THINKING_LEN = 200
 
+    def _stopped_response() -> str:
+        _, final_text = build_stopped_response_text(state.response_text)
+        state.response_text = final_text
+        return final_text
+
     async def _consume() -> None:
-        nonlocal _thinking_sent, _todo_sent
-        async for event in stream_agent_events(
-            agent, message, thread_id, metadata=metadata
+        nonlocal _sent_thinking_text, _todo_sent
+        async for event in gateway.stream_events(
+            RunRequest(
+                message=message,
+                thread_id=thread_id,
+                metadata=metadata,
+                target=_graph_target_for_local_agent(agent, metadata),
+            )
         ):
+            if is_stream_cancel_requested(cancel_scope):
+                _stopped_response()
+                return
             event_type = state.handle_event(event)
 
-            # Send thinking to channel when transitioning away from thinking
+            # Relay thinking to channel when transitioning away from
+            # thinking phase.  Uses content comparison so that replayed
+            # thinking after resume is skipped, but genuinely new
+            # thinking is still delivered.
             if (
                 on_thinking
-                and not _thinking_sent
-                and state.thinking_text
                 and event_type != "thinking"
+                and state.thinking_text
                 and len(state.thinking_text) >= _MIN_THINKING_LEN
             ):
-                on_thinking(state.thinking_text.rstrip())
-                _thinking_sent = True
+                current = state.thinking_text.rstrip()
+                if current != _sent_thinking_text:
+                    on_thinking(current)
+                    _sent_thinking_text = current
 
             # Send todo list to channel on first write_todos tool_call
             if (
@@ -1101,15 +1382,6 @@ def _run_streaming(
                 and event.get("name") == "write_todos"
                 and state.todo_items
             ):
-                # Flush thinking before todo if not sent yet
-                if (
-                    on_thinking
-                    and not _thinking_sent
-                    and state.thinking_text
-                    and len(state.thinking_text) >= _MIN_THINKING_LEN
-                ):
-                    on_thinking(state.thinking_text.rstrip())
-                    _thinking_sent = True
                 on_todo(state.todo_items)
                 _todo_sent = True
 
@@ -1161,167 +1433,221 @@ def _run_streaming(
                             _media_sent.add(rf_path)
                             on_file_write(real_path)
 
+            if on_stream_event is not None:
+                callback_result = on_stream_event(event_type, state)
+                if inspect.isawaitable(callback_result):
+                    await callback_result
+
             live.update(
                 create_streaming_display(
                     **state.get_display_args(),
                     show_thinking=show_thinking,
                     response_markdown=state.get_response_markdown(),
+                    status_footer=(
+                        status_footer_builder() if status_footer_builder else None
+                    ),
                 )
             )
 
-    with Live(
-        console=console,
-        auto_refresh=False,
-        transient=False,
-        vertical_overflow="visible",
-    ) as live:
-        live.update(create_streaming_display(is_waiting=True))
-        # Determine how to run the async streaming coroutine.
-        # - In TUI mode (Textual), there's already a running event loop;
-        #   nest_asyncio is needed to allow run_until_complete inside it.
-        # - In serve/CLI mode, the main thread has no running loop;
-        #   use a fresh event loop directly (no nest_asyncio needed or wanted,
-        #   since nest_asyncio.apply() patches globally and breaks the bus
-        #   thread's event loop Task-context detection).
-        try:
-            running_loop = asyncio.get_running_loop()
-        except RuntimeError:
-            running_loop = None
+    try:
+        if is_stream_cancel_requested(cancel_scope):
+            return _stopped_response()
 
-        if running_loop is not None:
-            # Already inside a running loop (TUI) — must use nest_asyncio.
-            # NOTE: nest_asyncio.apply() is global and irreversible within
-            # the process; avoid mixing TUI and serve modes in one process.
-            import nest_asyncio  # type: ignore[import-untyped]
-
-            nest_asyncio.apply()
-            loop = running_loop
-        else:
-            # No running loop (serve/CLI) — create a fresh one
+        with Live(
+            console=console,
+            auto_refresh=False,
+            transient=False,
+            vertical_overflow="visible",
+        ) as live:
+            live.update(
+                create_streaming_display(
+                    is_waiting=True,
+                    status_footer=(
+                        status_footer_builder() if status_footer_builder else None
+                    ),
+                )
+            )
+            # Determine how to run the async streaming coroutine.
+            # - In TUI mode (Textual), there's already a running event loop;
+            #   nest_asyncio is needed to allow run_until_complete inside it.
+            # - In serve/CLI mode, the main thread has no running loop;
+            #   use a fresh event loop directly (no nest_asyncio needed or wanted,
+            #   since nest_asyncio.apply() patches globally and breaks the bus
+            #   thread's event loop Task-context detection).
             try:
-                loop = _get_event_loop()
+                running_loop = asyncio.get_running_loop()
             except RuntimeError:
-                loop = _create_event_loop()
+                running_loop = None
 
-        async def _run_with_refresh() -> None:
-            async def _periodic_refresh() -> None:
+            if running_loop is not None:
+                # Already inside a running loop (TUI) — must use nest_asyncio.
+                # NOTE: nest_asyncio.apply() is global and irreversible within
+                # the process; avoid mixing TUI and serve modes in one process.
+                import nest_asyncio  # type: ignore[import-untyped]
+
+                nest_asyncio.apply()
+                loop = running_loop
+            else:
+                # No running loop (serve/CLI) — create a fresh one
                 try:
-                    while True:
-                        await asyncio.sleep(0.05)
-                        live.refresh()
-                except asyncio.CancelledError:
-                    pass
+                    loop = _get_event_loop()
+                except RuntimeError:
+                    loop = _create_event_loop()
 
-            refresh_task = asyncio.ensure_future(_periodic_refresh())
-            try:
-                await _consume()
-            finally:
-                refresh_task.cancel()
+            async def _run_with_refresh() -> None:
+                async def _periodic_refresh() -> None:
+                    try:
+                        while True:
+                            await asyncio.sleep(0.05)
+                            live.refresh()
+                    except asyncio.CancelledError:
+                        pass
+
+                refresh_task = asyncio.ensure_future(_periodic_refresh())
                 try:
-                    await refresh_task
-                except asyncio.CancelledError:
-                    pass
-                # Render clean final frame before Live exits (no spinners, expanded tools)
-                if (
-                    state.pending_interrupt is not None
-                    or state.pending_ask_user is not None
-                ):
-                    # Interrupted: render current state (not final) so it
-                    # looks continuous when prompt appears.
-                    final_display = create_streaming_display(
-                        **state.get_display_args(),
-                        show_thinking=show_thinking,
-                        response_markdown=state.get_response_markdown(),
-                    )
-                elif interactive:
-                    final_display = create_streaming_display(
-                        **state.get_display_args(),
-                        show_thinking=show_thinking,
-                        is_final=True,
-                        final_show_thinking=False,
-                        response_markdown=state.get_response_markdown(),
-                    )
-                else:
-                    final_display = create_streaming_display(
-                        **state.get_display_args(),
-                        show_thinking=show_thinking,
-                        is_final=True,
-                        final_show_thinking=True,
-                        final_thinking_max_length=DisplayLimits.THINKING_FINAL,
-                        response_markdown=state.get_response_markdown(),
-                    )
-                live.update(final_display)
-                live.refresh()
+                    await _consume()
+                finally:
+                    refresh_task.cancel()
+                    try:
+                        await refresh_task
+                    except asyncio.CancelledError:
+                        pass
+                    # Render clean final frame before Live exits (no spinners, expanded tools)
+                    if (
+                        state.pending_interrupt is not None
+                        or state.pending_ask_user is not None
+                    ):
+                        # Interrupted: render current state (not final) so it
+                        # looks continuous when prompt appears.
+                        final_display = create_streaming_display(
+                            **state.get_display_args(),
+                            show_thinking=show_thinking,
+                            response_markdown=state.get_response_markdown(),
+                            status_footer=resolve_final_status_footer(
+                                interactive, status_footer_builder
+                            ),
+                        )
+                    elif interactive:
+                        final_display = create_streaming_display(
+                            **state.get_display_args(),
+                            show_thinking=show_thinking,
+                            is_final=True,
+                            final_show_thinking=False,
+                            response_markdown=state.get_response_markdown(),
+                            status_footer=resolve_final_status_footer(
+                                interactive, status_footer_builder
+                            ),
+                        )
+                    else:
+                        final_display = create_streaming_display(
+                            **state.get_display_args(),
+                            show_thinking=show_thinking,
+                            is_final=True,
+                            final_show_thinking=True,
+                            final_thinking_max_length=DisplayLimits.THINKING_FINAL,
+                            response_markdown=state.get_response_markdown(),
+                            status_footer=resolve_final_status_footer(
+                                interactive, status_footer_builder
+                            ),
+                        )
+                    live.update(final_display)
+                    live.refresh()
 
-        loop.run_until_complete(_run_with_refresh())
+            loop.run_until_complete(_run_with_refresh())
 
-    # Flush any remaining thinking that wasn't sent during streaming
-    if on_thinking and not _thinking_sent and state.thinking_text:
-        if len(state.thinking_text) >= _MIN_THINKING_LEN:
-            on_thinking(state.thinking_text.rstrip())
+        # Flush any remaining thinking that wasn't sent during streaming.
+        if on_thinking and state.thinking_text:
+            current = state.thinking_text.rstrip()
+            if len(current) >= _MIN_THINKING_LEN and current != _sent_thinking_text:
+                on_thinking(current)
+                _sent_thinking_text = current
 
-    # ask_user: check before HITL (ask_user uses the same resume loop)
-    if state.pending_ask_user is not None and _hitl_depth < _MAX_HITL_ITERATIONS:
-        if ask_user_prompt_fn is not None:
-            result = ask_user_prompt_fn(state.pending_ask_user)
-        else:
-            result = _resolve_ask_user_prompt(state.pending_ask_user)
-        from langgraph.types import Command  # type: ignore[import-untyped]
-
-        state.pending_ask_user = None
-        return _run_streaming(
-            agent=agent,
-            message=Command(resume=result),
-            thread_id=thread_id,
-            show_thinking=show_thinking,
-            interactive=interactive,
-            on_thinking=on_thinking,
-            on_todo=on_todo,
-            on_file_write=on_file_write,
-            metadata=metadata,
-            hitl_prompt_fn=hitl_prompt_fn,
-            ask_user_prompt_fn=ask_user_prompt_fn,
-            _state=state,
-            _hitl_depth=_hitl_depth + 1,
-            _media_sent=_media_sent,
-        )
-
-    # HITL: check for pending interrupt and handle approval
-    if state.pending_interrupt is not None and _hitl_depth < _MAX_HITL_ITERATIONS:
-        decisions = _resolve_hitl_approval(
-            state.pending_interrupt,
-            prompt_fn=hitl_prompt_fn,
-        )
-        if decisions is not None:
+        # ask_user: check before HITL (ask_user uses the same resume loop)
+        if state.pending_ask_user is not None and _hitl_depth < _MAX_HITL_ITERATIONS:
+            if is_stream_cancel_requested(cancel_scope):
+                return _stopped_response()
+            if ask_user_prompt_fn is not None:
+                result = ask_user_prompt_fn(state.pending_ask_user)
+            else:
+                result = _resolve_ask_user_prompt(state.pending_ask_user)
             from langgraph.types import Command  # type: ignore[import-untyped]
 
-            state.pending_interrupt = None
+            state.pending_ask_user = None
+            state.thinking_text = ""  # reset accumulation for fresh round
+            if is_stream_cancel_requested(cancel_scope):
+                return _stopped_response()
             return _run_streaming(
                 agent=agent,
-                message=Command(resume={"decisions": decisions}),
+                message=Command(resume=result),
                 thread_id=thread_id,
                 show_thinking=show_thinking,
                 interactive=interactive,
                 on_thinking=on_thinking,
                 on_todo=on_todo,
                 on_file_write=on_file_write,
+                on_stream_event=on_stream_event,
+                status_footer_builder=status_footer_builder,
                 metadata=metadata,
                 hitl_prompt_fn=hitl_prompt_fn,
                 ask_user_prompt_fn=ask_user_prompt_fn,
+                cancel_scope=cancel_scope,
+                gateway=gateway,
                 _state=state,
                 _hitl_depth=_hitl_depth + 1,
                 _media_sent=_media_sent,
+                _sent_thinking_text=_sent_thinking_text,
             )
-    elif state.pending_interrupt is not None:
-        _logger.warning(
-            "HITL loop reached max iterations (%d), stopping",
-            _MAX_HITL_ITERATIONS,
-        )
 
-    # Everything (tools, thinking, todos, response) is already on screen
-    # from Live's final frame (transient=False). No need to re-print.
+        # HITL: check for pending interrupt and handle approval
+        if state.pending_interrupt is not None and _hitl_depth < _MAX_HITL_ITERATIONS:
+            if is_stream_cancel_requested(cancel_scope):
+                return _stopped_response()
+            decisions = _resolve_hitl_approval(
+                state.pending_interrupt,
+                prompt_fn=hitl_prompt_fn,
+            )
+            if is_stream_cancel_requested(cancel_scope):
+                return _stopped_response()
+            if decisions is not None:
+                from langgraph.types import Command  # type: ignore[import-untyped]
 
-    return (state.response_text or "").strip()
+                state.pending_interrupt = None
+                state.thinking_text = ""  # reset accumulation for fresh round
+                if is_stream_cancel_requested(cancel_scope):
+                    return _stopped_response()
+                return _run_streaming(
+                    agent=agent,
+                    message=Command(resume={"decisions": decisions}),
+                    thread_id=thread_id,
+                    show_thinking=show_thinking,
+                    interactive=interactive,
+                    on_thinking=on_thinking,
+                    on_todo=on_todo,
+                    on_file_write=on_file_write,
+                    on_stream_event=on_stream_event,
+                    status_footer_builder=status_footer_builder,
+                    metadata=metadata,
+                    hitl_prompt_fn=hitl_prompt_fn,
+                    ask_user_prompt_fn=ask_user_prompt_fn,
+                    cancel_scope=cancel_scope,
+                    gateway=gateway,
+                    _state=state,
+                    _hitl_depth=_hitl_depth + 1,
+                    _media_sent=_media_sent,
+                    _sent_thinking_text=_sent_thinking_text,
+                )
+        elif state.pending_interrupt is not None:
+            _logger.warning(
+                "HITL loop reached max iterations (%d), stopping",
+                _MAX_HITL_ITERATIONS,
+            )
+
+        # Everything (tools, thinking, todos, response) is already on screen
+        # from Live's final frame (transient=False). No need to re-print.
+
+        return (state.response_text or "").strip()
+    finally:
+        discard_stream_cancel(cancel_scope)
 
 
 # ---------------------------------------------------------------------------
@@ -1330,10 +1656,12 @@ def _run_streaming(
 
 
 async def _astream_to_console(
-    agent: Any,
+    agent: "CompiledStateGraph",
     message: str,
     thread_id: str,
     show_thinking: bool = True,
+    *,
+    gateway: GraphGateway,
 ) -> str:
     """Stream agent events to console using static prints (thread-safe, no Live).
 
@@ -1353,24 +1681,27 @@ async def _astream_to_console(
     """
     state = StreamState()
 
-    async for event in stream_agent_events(agent, message, thread_id):
+    async for event in gateway.stream_events(
+        RunRequest(
+            message=message,
+            thread_id=thread_id,
+            target=_graph_target_for_local_agent(agent),
+        )
+    ):
         etype = state.handle_event(event)
 
         # Only show subagent starts as real-time progress.
         # Full results rendered by display_final_results() after streaming.
         if etype == "subagent_start":
-            name = event.get("name", "sub-agent")
-            # Skip generic "sub-agent" — real name arrives later;
-            # static prints can't be overwritten like Live display.
-            if name and name != "sub-agent":
-                desc = event.get("description", "")
-                line = Text()
-                line.append("\u25b6 ", style="cyan bold")
-                line.append(f"Cooking with {name}", style="cyan bold")
-                if desc:
-                    short = desc[:50] + "\u2026" if len(desc) > 50 else desc
-                    line.append(f" \u2014 {short}", style="dim")
-                console.print(line)
+            name = event["name"]
+            desc = event.get("description", "")
+            line = Text()
+            line.append("\u25b6 ", style="cyan bold")
+            line.append(f"Cooking with {name}", style="cyan bold")
+            if desc:
+                short = desc[:50] + "\u2026" if len(desc) > 50 else desc
+                line.append(f" \u2014 {short}", style="dim")
+            console.print(line)
 
     # Final output (streaming layout: tools → Task List → subagents → response)
 
@@ -1397,10 +1728,10 @@ async def _astream_to_console(
         )
 
     # 1) Regular (non-task) tools — above Task List
-    for i, tc in enumerate(state.tool_calls):
+    for tc in state.tool_calls:
         if tc.get("name", "").lower() == "task":
             continue
-        tr = state.tool_results[i] if i < len(state.tool_results) else None
+        tr = _tool_result_for_call(state.tool_results, tc)
         console.print(_render_tool_call_line(tc, tr))
         if tr and not is_success(tr.get("content", "")):
             for elem in format_tool_result_compact(tr["name"], tr.get("content", "")):
@@ -1423,7 +1754,9 @@ async def _astream_to_console(
         while clean.endswith("\n...") or clean.rstrip() == "...":
             clean = clean.rstrip().removesuffix("...").rstrip()
         console.print()
-        console.print(Markdown(clean or state.response_text))
+        console.print(
+            Markdown(_fix_markdown_heading_spacing(clean or state.response_text))
+        )
         console.print()
 
     return (state.response_text or "").strip()

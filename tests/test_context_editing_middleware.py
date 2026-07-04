@@ -23,6 +23,20 @@ def test_compute_trigger_with_1m_profile():
     assert compute_context_editing_trigger(model) == 500_000  # 50%
 
 
+def test_compute_trigger_with_context_length_attr():
+    model = MagicMock(spec=["context_length", "profile"])
+    model.context_length = 1_000_000
+    model.profile = None
+    assert compute_context_editing_trigger(model) == 500_000  # 50%
+
+
+def test_compute_trigger_with_num_ctx():
+    model = MagicMock(spec=["num_ctx", "profile"])
+    model.num_ctx = 32_768
+    model.profile = None
+    assert compute_context_editing_trigger(model) == 16_384  # 50%
+
+
 def test_compute_trigger_without_profile():
     model = MagicMock()
     model.profile = None
@@ -100,12 +114,16 @@ def test_default_middleware_includes_context_editing(mock_config, mock_model, mo
     cfg = MagicMock()
     cfg.enable_ask_user = False
     cfg.auto_approve = False
+    cfg.auxiliary_model = ""
+    cfg.auxiliary_provider = ""
     mock_config.return_value = cfg
 
     from EvoScientist.EvoScientist import _get_default_middleware
 
     mw = _get_default_middleware()
-    assert isinstance(mw[0], ContextEditingMiddleware)
+    # ContextEditingMiddleware is present (its absolute position depends on
+    # other leading middlewares like ConfigurableModelMiddleware).
+    assert any(isinstance(m, ContextEditingMiddleware) for m in mw)
 
 
 @patch("EvoScientist.EvoScientist._ensure_chat_model")
@@ -132,6 +150,8 @@ def test_context_editing_before_overflow_mapper(mock_config, mock_model, mock_ts
     cfg = MagicMock()
     cfg.enable_ask_user = False
     cfg.auto_approve = False
+    cfg.auxiliary_model = ""
+    cfg.auxiliary_provider = ""
     mock_config.return_value = cfg
 
     from EvoScientist.EvoScientist import _get_default_middleware

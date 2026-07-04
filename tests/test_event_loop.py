@@ -3,7 +3,39 @@
 import asyncio
 from unittest.mock import Mock, patch
 
+import pytest
+
 from EvoScientist.stream.display import _create_event_loop, _get_event_loop
+from tests.fakes import FakeGraphGateway
+
+
+class _TrackingEventLoopPolicy(asyncio.DefaultEventLoopPolicy):
+    """Event loop policy that records loops created by one test."""
+
+    def __init__(self):
+        super().__init__()
+        self.created_loops: list[asyncio.AbstractEventLoop] = []
+
+    def new_event_loop(self) -> asyncio.AbstractEventLoop:
+        loop = super().new_event_loop()
+        self.created_loops.append(loop)
+        return loop
+
+
+@pytest.fixture(autouse=True)
+def isolated_event_loop_policy():
+    previous_policy = asyncio.get_event_loop_policy()
+    test_policy = _TrackingEventLoopPolicy()
+    asyncio.set_event_loop_policy(test_policy)
+    try:
+        yield
+    finally:
+        try:
+            for loop in test_policy.created_loops:
+                if not loop.is_closed():
+                    loop.close()
+        finally:
+            asyncio.set_event_loop_policy(previous_policy)
 
 
 class TestCreateEventLoop:
@@ -97,7 +129,7 @@ class TestMultipleStreamingCalls:
         # Mock agent that returns simple events
         mock_agent = Mock()
 
-        async def mock_stream(*args, **kwargs):
+        async def mock_stream(_request):
             """Mock event stream."""
             yield {"type": "text", "content": "test response"}
             yield {"type": "done", "response": "test response"}
@@ -110,38 +142,39 @@ class TestMultipleStreamingCalls:
         except RuntimeError:
             pass
 
-        # Patch the stream_agent_events function
-        with patch(
-            "EvoScientist.stream.display.stream_agent_events", side_effect=mock_stream
-        ):
-            # Patch Live to avoid terminal output during tests
-            with patch("EvoScientist.stream.display.Live"):
-                # First call
-                _run_streaming(
-                    agent=mock_agent,
-                    message="test message 1",
-                    thread_id="thread1",
-                    show_thinking=False,
-                    interactive=True,
-                )
+        gateway = FakeGraphGateway(stream=mock_stream)
 
-                # Second call - this would fail with "Event loop is closed" before the fix
-                _run_streaming(
-                    agent=mock_agent,
-                    message="test message 2",
-                    thread_id="thread1",
-                    show_thinking=False,
-                    interactive=True,
-                )
+        # Patch Live to avoid terminal output during tests
+        with patch("EvoScientist.stream.display.Live"):
+            # First call
+            _run_streaming(
+                agent=mock_agent,
+                message="test message 1",
+                thread_id="thread1",
+                show_thinking=False,
+                interactive=True,
+                gateway=gateway,
+            )
 
-                # Third call for good measure
-                _run_streaming(
-                    agent=mock_agent,
-                    message="test message 3",
-                    thread_id="thread1",
-                    show_thinking=False,
-                    interactive=True,
-                )
+            # Second call - this would fail with "Event loop is closed" before the fix
+            _run_streaming(
+                agent=mock_agent,
+                message="test message 2",
+                thread_id="thread1",
+                show_thinking=False,
+                interactive=True,
+                gateway=gateway,
+            )
+
+            # Third call for good measure
+            _run_streaming(
+                agent=mock_agent,
+                message="test message 3",
+                thread_id="thread1",
+                show_thinking=False,
+                interactive=True,
+                gateway=gateway,
+            )
 
     def test_loop_reused_across_calls(self):
         """Event loop should be reused across multiple calls."""
@@ -187,6 +220,96 @@ class TestMultipleStreamingCalls:
 
         # Cleanup
         loop2.close()
+
+    def test_recursive_streaming_does_not_resend_same_thinking(self):
+        """Resumed runs should not replay the original thinking to channels."""
+        from EvoScientist.stream.display import _run_streaming
+
+        mock_agent = Mock()
+        thinking = "Initial plan. " * 20
+        stream_calls = 0
+
+        async def mock_stream(_request):
+            nonlocal stream_calls
+            stream_calls += 1
+            if stream_calls == 1:
+                yield {"type": "thinking", "content": thinking}
+                yield {
+                    "type": "ask_user",
+                    "interrupt_id": "ask-1",
+                    "tool_call_id": "tc-1",
+                    "questions": [{"question": "Continue?"}],
+                }
+                return
+
+            yield {"type": "text", "content": "final answer"}
+            yield {"type": "done", "response": "final answer"}
+
+        sent_thinking: list[str] = []
+
+        with patch("EvoScientist.stream.display.Live"):
+            result = _run_streaming(
+                agent=mock_agent,
+                message="test message",
+                thread_id="thread1",
+                show_thinking=False,
+                interactive=True,
+                on_thinking=sent_thinking.append,
+                ask_user_prompt_fn=lambda _data: {
+                    "answers": ["yes"],
+                    "status": "answered",
+                },
+                gateway=FakeGraphGateway(stream=mock_stream),
+            )
+
+        assert result == "final answer"
+        assert sent_thinking == [thinking.rstrip()]
+
+    def test_recursive_streaming_sends_new_thinking_after_resume(self):
+        """Genuinely new thinking in resumed rounds should be relayed."""
+        from EvoScientist.stream.display import _run_streaming
+
+        mock_agent = Mock()
+        thinking_r1 = "Initial plan. " * 20
+        thinking_r2 = "Revised plan. " * 20
+        stream_calls = 0
+
+        async def mock_stream(_request):
+            nonlocal stream_calls
+            stream_calls += 1
+            if stream_calls == 1:
+                yield {"type": "thinking", "content": thinking_r1}
+                yield {
+                    "type": "ask_user",
+                    "interrupt_id": "ask-1",
+                    "tool_call_id": "tc-1",
+                    "questions": [{"question": "Continue?"}],
+                }
+                return
+
+            yield {"type": "thinking", "content": thinking_r2}
+            yield {"type": "text", "content": "final answer"}
+            yield {"type": "done", "response": "final answer"}
+
+        sent_thinking: list[str] = []
+
+        with patch("EvoScientist.stream.display.Live"):
+            result = _run_streaming(
+                agent=mock_agent,
+                message="test message",
+                thread_id="thread1",
+                show_thinking=False,
+                interactive=True,
+                on_thinking=sent_thinking.append,
+                ask_user_prompt_fn=lambda _data: {
+                    "answers": ["yes"],
+                    "status": "answered",
+                },
+                gateway=FakeGraphGateway(stream=mock_stream),
+            )
+
+        assert result == "final answer"
+        assert sent_thinking == [thinking_r1.rstrip(), thinking_r2.rstrip()]
 
 
 class TestEventLoopThreadSafety:

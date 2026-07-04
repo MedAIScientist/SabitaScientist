@@ -1,15 +1,68 @@
+# VCS
 .git
-.venv
-**/__pycache__
-**/*.pyc
-**/*.pyo
-.pytest_cache
-.ruff_cache
-*.egg-info
-.coverage
-.env
+.gitignore
+.gitattributes
+
+# CI / project meta (image doesn't need these)
+.github/
 docs/
-tests/
-EvoScientist/pm/frontend/node_modules/
+CONTRIBUTING.md
+README.zh-CN.md
+LICENSE
+
+# Editor / tooling state
+.vscode/
+.idea/
+.cursor/
+.codex/
+.claude/
+.agents/
+.cursorrules
+.ruff_cache/
+
+# Python build artifacts and caches
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
 build/
-.superpowers/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+
+# Tests aren't needed at runtime
+tests/
+
+# Notebooks
+*.ipynb
+.ipynb_checkpoints/
+
+# Local runtime data (must never leak into the image)
+.env
+.env.*
+!.env.example
+runs/
+workspace/
+skills/
+memory/
+memories/
+media/
+conversation_history/
+.deno_cache/
+.langgraph_api/
+large_tool_results/
+*.log
+botpy.log
+
+# Docker outputs themselves
+Dockerfile.*
+docker-compose*.override.yml
+
+# PM frontend dev dependencies
+EvoScientist/pm/frontend/node_modules/
+
+# OS
+.DS_Store

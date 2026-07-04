@@ -1,5 +1,27 @@
 from __future__ import annotations
 
-from . import channel, general, mcp, pm, session, skills
+from . import (
+    autoskills,
+    channel,
+    general,
+    mcp,
+    model,
+    model_fallback,
+    pm,
+    schedule,
+    session,
+    skills,
+)
 
-__all__ = ["channel", "general", "mcp", "pm", "session", "skills"]
+__all__ = [
+    "autoskills",
+    "channel",
+    "general",
+    "mcp",
+    "model",
+    "model_fallback",
+    "pm",
+    "schedule",
+    "session",
+    "skills",
+]

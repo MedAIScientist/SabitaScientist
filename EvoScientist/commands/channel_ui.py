@@ -1,13 +1,22 @@
 from __future__ import annotations
 
 import asyncio
-from typing import Any
+import logging
+from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING, Any
 
 from .base import CommandUI
+
+if TYPE_CHECKING:
+    from ..gateway import GraphGateway
+
+_logger = logging.getLogger(__name__)
 
 
 class ChannelCommandUI(CommandUI):
     """CommandUI implementation for messaging channels with output buffering."""
+
+    _TEXT_CHUNK_LIMIT = 3500
 
     @property
     def supports_interactive(self) -> bool:
@@ -16,23 +25,66 @@ class ChannelCommandUI(CommandUI):
     def __init__(
         self,
         channel_msg: Any,
+        *,
+        graph_gateway: GraphGateway,
         append_system_callback: Any = None,
-        start_new_session_callback: Any = None,
+        start_new_session_callback: Callable[[], Awaitable[None]] | None = None,
         handle_session_resume_callback: Any = None,
     ):
         self.msg = channel_msg
         self.append_system_callback = append_system_callback
         self.start_new_session_callback = start_new_session_callback
         self.handle_session_resume_callback = handle_session_resume_callback
+        self.graph_gateway = graph_gateway
         self._system_buffer: list[str] = []
 
-    def append_system(self, text: str, style: str = "dim") -> None:
-        if self.append_system_callback:
+    def _queue_system(
+        self,
+        text: str,
+        style: str = "dim",
+        *,
+        mirror_local: bool = True,
+    ) -> None:
+        if mirror_local and self.append_system_callback:
             self.append_system_callback(text, style)
-
         # Buffer the text for grouped delivery to the channel
         # We ignore style for grouping but keep it for individual lines if needed
         self._system_buffer.append(text)
+
+    def append_system(self, text: str, style: str = "dim") -> None:
+        self._queue_system(text, style)
+
+    @staticmethod
+    def _extract_message_text(message: Any) -> str:
+        content = getattr(message, "content", "") or ""
+        if isinstance(content, list):
+            parts = [
+                block.get("text", "")
+                for block in content
+                if isinstance(block, dict) and block.get("type") == "text"
+            ]
+            content = " ".join(parts) if parts else ""
+        return str(content).strip()
+
+    async def _send_text_chunks(self, text: str, *, mirror_local: bool = True) -> None:
+        """Flush long plain-text payloads in channel-safe chunks."""
+        text = (text or "").strip()
+        if not text:
+            return
+
+        pending = text
+        while pending:
+            chunk = pending[: self._TEXT_CHUNK_LIMIT]
+            if len(pending) > self._TEXT_CHUNK_LIMIT:
+                split_at = chunk.rfind("\n")
+                if split_at > 0:
+                    chunk = chunk[:split_at]
+            chunk = chunk.rstrip()
+            if not chunk:
+                chunk = pending[: self._TEXT_CHUNK_LIMIT]
+            self._queue_system(chunk, mirror_local=mirror_local)
+            await self.flush()
+            pending = pending[len(chunk) :].lstrip("\n")
 
     async def flush(self) -> None:
         """Send all buffered system messages as a single grouped message."""
@@ -129,9 +181,9 @@ class ChannelCommandUI(CommandUI):
     def force_quit(self) -> None:
         self.request_quit()
 
-    def start_new_session(self) -> None:
+    async def start_new_session(self) -> None:
         if self.start_new_session_callback:
-            self.start_new_session_callback()
+            await self.start_new_session_callback()
         else:
             self.append_system(
                 "New session requested. Please restart the channel link or use /new if supported."
@@ -140,5 +192,45 @@ class ChannelCommandUI(CommandUI):
     async def handle_session_resume(
         self, thread_id: str, workspace_dir: str | None = None
     ) -> None:
+        mirror_local = self.handle_session_resume_callback is None
         if self.handle_session_resume_callback:
             await self.handle_session_resume_callback(thread_id, workspace_dir)
+        lines = [f"Resumed session: {thread_id}"]
+        try:
+            messages = await self.graph_gateway.get_thread_messages(thread_id)
+        except Exception as exc:
+            _logger.exception(
+                "Failed to load saved history for resumed thread %s",
+                thread_id,
+            )
+            lines.append(f"(history unavailable: {exc})")
+            await self._send_text_chunks("\n".join(lines), mirror_local=mirror_local)
+            return
+
+        display = [m for m in messages if getattr(m, "type", None) in ("human", "ai")]
+
+        if not display:
+            if messages:
+                lines.append("No displayable messages in this session.")
+            else:
+                lines.append("No saved messages in this session.")
+            await self._send_text_chunks("\n".join(lines), mirror_local=mirror_local)
+            return
+
+        HISTORY_WINDOW = 10
+        if len(display) > HISTORY_WINDOW:
+            display = display[-HISTORY_WINDOW:]
+            lines.append(f"Conversation history (last {HISTORY_WINDOW} messages):")
+        else:
+            lines.append("Conversation history:")
+
+        for message in display:
+            text = self._extract_message_text(message)
+            if not text:
+                continue
+            if getattr(message, "type", None) == "human":
+                lines.append(f"User: {text}")
+            else:
+                lines.append(f"EvoScientist: {text}")
+
+        await self._send_text_chunks("\n".join(lines), mirror_local=mirror_local)

@@ -15,6 +15,7 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "create_cli_agent": (".EvoScientist", "create_cli_agent"),
     # Backends
     "CustomSandboxBackend": (".backends", "CustomSandboxBackend"),
+    "MemoryFilesystemBackend": (".backends", "MemoryFilesystemBackend"),
     "ReadOnlyFilesystemBackend": (".backends", "ReadOnlyFilesystemBackend"),
     # Configuration
     "EvoScientistConfig": (".config", "EvoScientistConfig"),
@@ -29,7 +30,6 @@ _EXPORTS: dict[str, tuple[str, str]] = {
     "DEFAULT_MODEL": (".llm", "DEFAULT_MODEL"),
     # Prompts
     "get_system_prompt": (".prompts", "get_system_prompt"),
-    "RESEARCHER_INSTRUCTIONS": (".prompts", "RESEARCHER_INSTRUCTIONS"),
     # Tools
     "tavily_search": (".tools", "tavily_search"),
     "think_tool": (".tools", "think_tool"),

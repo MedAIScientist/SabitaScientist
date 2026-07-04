@@ -3,8 +3,12 @@
 import os
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ..paths import new_run_dir
+
+if TYPE_CHECKING:
+    from langgraph.graph.state import CompiledStateGraph
 
 
 def _shorten_path(path: str) -> str:
@@ -58,7 +62,14 @@ def _create_session_workspace(name: str | None = None) -> str:
     return workspace_dir
 
 
-def _load_agent(workspace_dir: str | None = None, checkpointer=None, config=None):
+def _load_agent(
+    workspace_dir: str | None = None,
+    checkpointer=None,
+    config=None,
+    chat_model=None,
+    *,
+    on_mcp_progress=None,
+) -> "CompiledStateGraph":
     """Load the CLI agent with optional persistent checkpointer.
 
     Args:
@@ -67,9 +78,18 @@ def _load_agent(workspace_dir: str | None = None, checkpointer=None, config=None
             Falls back to ``InMemorySaver`` when ``None``.
         config: Optional pre-loaded ``EvoScientistConfig``.  Forwarded to
             ``create_cli_agent`` to avoid double config loading.
+        chat_model: Optional pre-built chat model.  Forwarded to
+            ``create_cli_agent``; combined with an explicit ``config`` it
+            selects the pure (no module-global write) build path.
+        on_mcp_progress: Optional per-server MCP progress callback.
+            Signature ``(event, server_name, detail) -> None``.
     """
     from ..EvoScientist import create_cli_agent
 
     return create_cli_agent(
-        workspace_dir=workspace_dir, checkpointer=checkpointer, config=config
+        workspace_dir=workspace_dir,
+        checkpointer=checkpointer,
+        config=config,
+        chat_model=chat_model,
+        on_mcp_progress=on_mcp_progress,
     )
