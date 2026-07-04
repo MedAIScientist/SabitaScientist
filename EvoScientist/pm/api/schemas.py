@@ -463,6 +463,21 @@ class ReviewAssignmentRequest(BaseModel):
     round: int = 1
 
 
+class ComputeResourceCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=128)
+    backend_type: str = Field(pattern="^(local|ssh|slurm)$")
+    config: dict = {}
+
+
+class ComputeRunRequest(BaseModel):
+    resource_id: str
+    project_id: str
+    experiment_id: str | None = None
+    command: str = Field(min_length=1, max_length=4096)
+    work_dir: str | None = None
+    env: dict[str, str] | None = None
+
+
 # ── Templates ──────────────────────────────────────────────────────────────────
 
 

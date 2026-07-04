@@ -17,7 +17,9 @@ from .routes import (
     attachments,
     audit,
     auth,
+    auth_oidc,
     bibliography,
+    compute,
     dashboard,
     dependencies,
     drafting,
@@ -63,6 +65,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         return {"status": "ok"}
 
     app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+    app.include_router(auth_oidc.router, prefix="/api/v1", tags=["auth-oidc"])
     app.include_router(users.router, prefix="/api/v1/users", tags=["users"])
     app.include_router(projects.router, prefix="/api/v1/projects", tags=["projects"])
     app.include_router(tasks.router, prefix="/api/v1/projects", tags=["tasks"])
@@ -91,6 +94,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     app.include_router(bibliography.router, prefix="/api/v1", tags=["bibliography"])
     app.include_router(literature_review.router, prefix="/api/v1", tags=["literature"])
     app.include_router(peer_review.router, prefix="/api/v1", tags=["peer-review"])
+    app.include_router(compute.router, prefix="/api/v1", tags=["compute"])
     app.include_router(
         publications.router, prefix="/api/v1/publications", tags=["publications"]
     )
