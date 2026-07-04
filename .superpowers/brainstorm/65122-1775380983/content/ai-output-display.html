@@ -1,0 +1,134 @@
+<h2>AI RUNS tab — output display style</h2>
+<p class="subtitle">The 340px TaskDetail drawer with AI RUNS tab selected. How should streaming output look?</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:monospace;font-size:11px;background:#070b12;border-radius:6px;overflow:hidden;border:1px solid rgba(100,140,200,0.15);width:200px;margin:0 auto">
+        <!-- Tab header -->
+        <div style="padding:6px 8px 0;background:#0a1220">
+          <div style="font-size:9px;color:#f1f5f9;font-weight:600;margin-bottom:4px">Run gel electrophoresis</div>
+          <div style="display:flex;border-bottom:1px solid rgba(100,140,200,0.12)">
+            <div style="padding:3px 8px;font-size:8px;color:#475569;border-bottom:2px solid transparent">DETAILS</div>
+            <div style="padding:3px 8px;font-size:8px;color:#22d3ee;font-weight:700;border-bottom:2px solid #22d3ee">⬡ AI RUNS</div>
+          </div>
+        </div>
+        <!-- Tab content: terminal-style log -->
+        <div style="padding:8px;background:#0a1220">
+          <!-- Agent chips -->
+          <div style="display:flex;gap:3px;margin-bottom:6px;flex-wrap:wrap">
+            <div style="background:rgba(34,211,238,0.12);border:1px solid rgba(34,211,238,0.3);border-radius:3px;padding:2px 5px;font-size:7px;color:#22d3ee;font-weight:700">🔬 RESEARCH</div>
+            <div style="background:rgba(100,140,200,0.04);border:1px solid rgba(100,140,200,0.1);border-radius:3px;padding:2px 5px;font-size:7px;color:#475569">⚙ CODE</div>
+            <div style="background:rgba(100,140,200,0.04);border:1px solid rgba(100,140,200,0.1);border-radius:3px;padding:2px 5px;font-size:7px;color:#475569">📊 ANALYSIS</div>
+            <div style="background:rgba(100,140,200,0.04);border:1px solid rgba(100,140,200,0.1);border-radius:3px;padding:2px 5px;font-size:7px;color:#475569">✍ WRITING</div>
+          </div>
+          <!-- Prompt field -->
+          <div style="background:#070b12;border:1px solid rgba(34,211,238,0.15);border-radius:3px;padding:4px;font-size:8px;color:#94a3b8;margin-bottom:5px;height:28px;overflow:hidden">Search for gel electrophoresis protocols for CRISPR-Cas9 verification…</div>
+          <div style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.25);border-radius:3px;padding:3px 0;text-align:center;color:#22d3ee;font-size:8px;font-weight:700;margin-bottom:6px">▶ RUN</div>
+          <!-- Terminal log output -->
+          <div style="background:#050810;border:1px solid rgba(100,140,200,0.1);border-radius:3px;padding:5px;height:90px;overflow:hidden">
+            <div style="font-size:7px;color:#334155;font-weight:700;letter-spacing:0.1em;margin-bottom:3px">RUN #2 · RESEARCH · 2m ago</div>
+            <div style="font-size:8px;color:#22d3ee;font-family:monospace;line-height:1.5">$ Searching protocols…</div>
+            <div style="font-size:8px;color:#64748b;font-family:monospace;line-height:1.5">→ Found 3 agarose gel sources</div>
+            <div style="font-size:8px;color:#64748b;font-family:monospace;line-height:1.5">→ Recommending 1% TAE buffer</div>
+            <div style="font-size:8px;color:#10b981;font-family:monospace;line-height:1.5">✓ Complete. Saved to notes.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Terminal log style</h3>
+      <p>Output streams as monospace terminal lines with prefixes (→, ✓, $). Each line appears as the agent produces it. Feels like watching a lab instrument run. Previous runs collapsible below.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:monospace;font-size:11px;background:#070b12;border-radius:6px;overflow:hidden;border:1px solid rgba(100,140,200,0.15);width:200px;margin:0 auto">
+        <!-- Tab header -->
+        <div style="padding:6px 8px 0;background:#0a1220">
+          <div style="font-size:9px;color:#f1f5f9;font-weight:600;margin-bottom:4px">Run gel electrophoresis</div>
+          <div style="display:flex;border-bottom:1px solid rgba(100,140,200,0.12)">
+            <div style="padding:3px 8px;font-size:8px;color:#475569;border-bottom:2px solid transparent">DETAILS</div>
+            <div style="padding:3px 8px;font-size:8px;color:#22d3ee;font-weight:700;border-bottom:2px solid #22d3ee">⬡ AI RUNS</div>
+          </div>
+        </div>
+        <div style="padding:8px;background:#0a1220">
+          <!-- Agent + Run button -->
+          <div style="display:flex;gap:3px;margin-bottom:5px;flex-wrap:wrap">
+            <div style="background:rgba(34,211,238,0.12);border:1px solid rgba(34,211,238,0.3);border-radius:3px;padding:2px 5px;font-size:7px;color:#22d3ee;font-weight:700">🔬 RESEARCH</div>
+            <div style="background:rgba(100,140,200,0.04);border:1px solid rgba(100,140,200,0.1);border-radius:3px;padding:2px 5px;font-size:7px;color:#475569">⚙ CODE</div>
+            <div style="background:rgba(100,140,200,0.04);border:1px solid rgba(100,140,200,0.1);border-radius:3px;padding:2px 5px;font-size:7px;color:#475569">📊 ANALYSIS</div>
+            <div style="background:rgba(100,140,200,0.04);border:1px solid rgba(100,140,200,0.1);border-radius:3px;padding:2px 5px;font-size:7px;color:#475569">✍ WRITING</div>
+          </div>
+          <div style="background:#070b12;border:1px solid rgba(34,211,238,0.15);border-radius:3px;padding:4px;font-size:8px;color:#94a3b8;margin-bottom:4px;height:24px;overflow:hidden">Search for gel electrophoresis protocols…</div>
+          <div style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.25);border-radius:3px;padding:3px 0;text-align:center;color:#22d3ee;font-size:8px;font-weight:700;margin-bottom:6px">▶ RUN</div>
+          <!-- Chat bubble output -->
+          <div style="display:flex;flex-direction:column;gap:3px">
+            <div style="font-size:7px;color:#334155;font-weight:700;letter-spacing:0.08em;margin-bottom:1px">RUN #2 · RESEARCH · 2m ago</div>
+            <!-- Agent bubble -->
+            <div style="background:rgba(34,211,238,0.06);border:1px solid rgba(34,211,238,0.12);border-radius:0 4px 4px 4px;padding:4px 5px;font-size:8px;color:#94a3b8;line-height:1.4">
+              Found 3 protocols. Recommend 1% agarose in TAE buffer at 100V for 45min. Band visibility optimal with SYBR Green staining.
+            </div>
+            <div style="display:flex;justify-content:flex-end">
+              <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.15);border-radius:3px;padding:1px 5px;font-size:7px;color:#10b981">✓ SAVED</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Chat bubble style</h3>
+      <p>Agent output renders as a chat message bubble. Clean prose, easy to read. Run history appears as a stack of previous bubbles. Feels like a conversation with a lab assistant.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:monospace;font-size:11px;background:#070b12;border-radius:6px;overflow:hidden;border:1px solid rgba(100,140,200,0.15);width:200px;margin:0 auto">
+        <!-- Tab header -->
+        <div style="padding:6px 8px 0;background:#0a1220">
+          <div style="font-size:9px;color:#f1f5f9;font-weight:600;margin-bottom:4px">Run gel electrophoresis</div>
+          <div style="display:flex;border-bottom:1px solid rgba(100,140,200,0.12)">
+            <div style="padding:3px 8px;font-size:8px;color:#475569;border-bottom:2px solid transparent">DETAILS</div>
+            <div style="padding:3px 8px;font-size:8px;color:#22d3ee;font-weight:700;border-bottom:2px solid #22d3ee">⬡ AI RUNS</div>
+          </div>
+        </div>
+        <div style="padding:8px;background:#0a1220">
+          <div style="display:flex;gap:3px;margin-bottom:5px;flex-wrap:wrap">
+            <div style="background:rgba(34,211,238,0.12);border:1px solid rgba(34,211,238,0.3);border-radius:3px;padding:2px 5px;font-size:7px;color:#22d3ee;font-weight:700">🔬 RESEARCH</div>
+            <div style="background:rgba(100,140,200,0.04);border:1px solid rgba(100,140,200,0.1);border-radius:3px;padding:2px 5px;font-size:7px;color:#475569">⚙ CODE</div>
+            <div style="background:rgba(100,140,200,0.04);border:1px solid rgba(100,140,200,0.1);border-radius:3px;padding:2px 5px;font-size:7px;color:#475569">📊 ANALYSIS</div>
+            <div style="background:rgba(100,140,200,0.04);border:1px solid rgba(100,140,200,0.1);border-radius:3px;padding:2px 5px;font-size:7px;color:#475569">✍ WRITING</div>
+          </div>
+          <div style="background:#070b12;border:1px solid rgba(34,211,238,0.15);border-radius:3px;padding:4px;font-size:8px;color:#94a3b8;margin-bottom:4px;height:24px;overflow:hidden">Search for gel electrophoresis protocols…</div>
+          <div style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.25);border-radius:3px;padding:3px 0;text-align:center;color:#22d3ee;font-size:8px;font-weight:700;margin-bottom:6px">▶ RUN</div>
+          <!-- Run card result -->
+          <div style="border:1px solid rgba(16,185,129,0.18);border-radius:4px;overflow:hidden">
+            <div style="background:rgba(16,185,129,0.06);padding:4px 6px;display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <span style="font-size:7px;color:#10b981;font-weight:700">✓ RESEARCH RUN</span>
+                <span style="font-size:7px;color:#334155;margin-left:4px">2m ago · 48s</span>
+              </div>
+              <span style="font-size:7px;color:#475569;cursor:pointer">▼</span>
+            </div>
+            <!-- Expanded result card body -->
+            <div style="padding:4px 6px;background:#070b12">
+              <div style="font-size:8px;color:#94a3b8;line-height:1.4;margin-bottom:3px">Found 3 protocols. Recommend 1% agarose in TAE at 100V for 45min.</div>
+              <div style="display:flex;gap:3px">
+                <div style="background:rgba(34,211,238,0.06);border:1px solid rgba(34,211,238,0.15);border-radius:2px;padding:1px 4px;font-size:7px;color:#22d3ee">📋 Copy</div>
+                <div style="background:rgba(34,211,238,0.06);border:1px solid rgba(34,211,238,0.15);border-radius:2px;padding:1px 4px;font-size:7px;color:#22d3ee">💬 Add to notes</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Collapsible result cards</h3>
+      <p>Each run produces a result card (collapsed by default, expand to read). Cards show agent type, duration, status badge. Actions: Copy output, Add to Lab Notes. Run history = stack of cards.</p>
+    </div>
+  </div>
+
+</div>

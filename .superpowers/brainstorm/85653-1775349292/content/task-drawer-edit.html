@@ -1,0 +1,95 @@
+<h2>Task detail drawer — editing fields</h2>
+<p class="subtitle">The drawer currently shows status/priority as read-only badges. How should editing work?</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:monospace;font-size:11px;background:#0d1526;border-radius:6px;overflow:hidden;border:1px solid rgba(100,140,200,0.15);display:flex;justify-content:flex-end">
+        <div style="width:190px;background:#0d1526;border-left:1px solid rgba(100,140,200,0.12);padding:12px">
+          <!-- header with edit toggle -->
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+            <div style="font-size:11px;font-weight:600;color:#f1f5f9;flex:1;padding-right:8px">Implement baseline model</div>
+            <div style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.25);border-radius:4px;padding:2px 7px;color:#22d3ee;font-size:8px;font-weight:700;cursor:pointer;white-space:nowrap">EDIT ✎</div>
+          </div>
+          <!-- read-only badges -->
+          <div style="display:flex;gap:5px;margin-bottom:10px">
+            <span style="padding:2px 7px;border-radius:3px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.22);color:#f59e0b;font-size:8px;font-weight:700">IN PROGRESS</span>
+            <span style="padding:2px 7px;border-radius:3px;background:rgba(244,63,94,0.08);border:1px solid rgba(244,63,94,0.22);color:#f43f5e;font-size:8px;font-weight:700">HIGH</span>
+          </div>
+          <div style="height:1px;background:rgba(100,140,200,0.07);margin-bottom:8px"></div>
+          <!-- description -->
+          <div style="font-size:9px;color:#94a3b8;line-height:1.5;margin-bottom:8px">Run experiments on CIFAR-10 using the transformer architecture with default hyperparameters.</div>
+          <!-- comments section -->
+          <div style="font-size:8px;color:#3d4e64;font-weight:700;letter-spacing:0.1em;margin-bottom:5px">COMMENTS · 2</div>
+          <div style="background:rgba(17,30,53,0.6);border-radius:4px;padding:6px;font-size:9px;color:#94a3b8">Initial setup done…</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — EDIT button toggles edit mode</h3>
+      <p>Drawer is read-only by default (current behavior). An "EDIT ✎" button in the header switches all fields to editable inputs. Save/Cancel appear at the bottom.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:monospace;font-size:11px;background:#0d1526;border-radius:6px;overflow:hidden;border:1px solid rgba(100,140,200,0.15);display:flex;justify-content:flex-end">
+        <div style="width:190px;background:#0d1526;border-left:1px solid rgba(100,140,200,0.12);padding:12px">
+          <!-- title (click to edit) -->
+          <div style="font-size:11px;font-weight:600;color:#f1f5f9;margin-bottom:8px;padding:3px 5px;border-radius:3px;border:1px dashed transparent;cursor:text" onmouseenter="this.style.borderColor='rgba(34,211,238,0.25)'" onmouseleave="this.style.borderColor='transparent'">
+            Implement baseline model
+            <span style="font-size:8px;color:#334155;margin-left:4px">✎</span>
+          </div>
+          <!-- status badge (click to cycle) -->
+          <div style="display:flex;gap:5px;margin-bottom:10px">
+            <span style="padding:2px 7px;border-radius:3px;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);color:#f59e0b;font-size:8px;font-weight:700;cursor:pointer" title="click to change">IN PROGRESS ▾</span>
+            <span style="padding:2px 7px;border-radius:3px;background:rgba(244,63,94,0.12);border:1px solid rgba(244,63,94,0.3);color:#f43f5e;font-size:8px;font-weight:700;cursor:pointer" title="click to change">HIGH ▾</span>
+          </div>
+          <div style="height:1px;background:rgba(100,140,200,0.07);margin-bottom:8px"></div>
+          <!-- description click-to-edit -->
+          <div style="font-size:9px;color:#94a3b8;line-height:1.5;margin-bottom:8px;padding:3px 5px;border-radius:3px;border:1px dashed rgba(34,211,238,0.2);cursor:text">
+            Run experiments on CIFAR-10…
+            <span style="font-size:8px;color:#334155;margin-left:2px">✎</span>
+          </div>
+          <div style="font-size:8px;color:#3d4e64;font-weight:700;letter-spacing:0.1em;margin-bottom:5px">COMMENTS · 2</div>
+          <div style="background:rgba(17,30,53,0.6);border-radius:4px;padding:6px;font-size:9px;color:#94a3b8">Initial setup done…</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Click-to-edit each field individually</h3>
+      <p>Every field has a subtle dashed hover border + ✎ hint. Click any field to edit it in-place. Status/priority are dropdowns. Each saves on blur. No mode switching.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:monospace;font-size:11px;background:#0d1526;border-radius:6px;overflow:hidden;border:1px solid rgba(100,140,200,0.15);display:flex;justify-content:flex-end">
+        <div style="width:190px;background:#0d1526;border-left:1px solid rgba(100,140,200,0.12);padding:12px">
+          <!-- always-editable form -->
+          <div style="font-size:8px;color:#3d4e64;margin-bottom:2px;letter-spacing:0.1em">TITLE</div>
+          <div style="background:#070b12;border:1px solid rgba(100,140,200,0.14);border-radius:4px;padding:4px 7px;color:#f1f5f9;font-size:10px;margin-bottom:6px">Implement baseline model</div>
+          <div style="display:flex;gap:5px;margin-bottom:6px">
+            <div style="flex:1">
+              <div style="font-size:8px;color:#3d4e64;margin-bottom:2px;letter-spacing:0.1em">STATUS</div>
+              <div style="background:#070b12;border:1px solid rgba(100,140,200,0.14);border-radius:4px;padding:3px 6px;color:#f59e0b;font-size:9px">In Progress ▾</div>
+            </div>
+            <div style="flex:1">
+              <div style="font-size:8px;color:#3d4e64;margin-bottom:2px;letter-spacing:0.1em">PRIORITY</div>
+              <div style="background:#070b12;border:1px solid rgba(100,140,200,0.14);border-radius:4px;padding:3px 6px;color:#f43f5e;font-size:9px">High ▾</div>
+            </div>
+          </div>
+          <div style="font-size:8px;color:#3d4e64;margin-bottom:2px;letter-spacing:0.1em">DESCRIPTION</div>
+          <div style="background:#070b12;border:1px solid rgba(100,140,200,0.14);border-radius:4px;padding:5px 7px;color:#94a3b8;font-size:9px;margin-bottom:6px;min-height:32px">Run experiments on CIFAR-10…</div>
+          <div style="background:rgba(34,211,238,0.12);border:1px solid rgba(34,211,238,0.28);border-radius:4px;padding:4px;text-align:center;color:#22d3ee;font-size:8px;font-weight:700">SAVE CHANGES</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Always-editable form</h3>
+      <p>The drawer is a form at all times. All fields (title, status, priority, deadline, description, assignee) are always inputs/selects. One SAVE CHANGES button at the bottom.</p>
+    </div>
+  </div>
+
+</div>

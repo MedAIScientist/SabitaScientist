@@ -1,0 +1,118 @@
+<h2>Drag-and-drop: drop zone feedback</h2>
+<p class="subtitle">When dragging a task card, how should the target column signal it's ready to receive?</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:monospace;font-size:11px;background:#0d1526;border-radius:6px;overflow:hidden;border:1px solid rgba(100,140,200,0.15);padding:8px;display:flex;gap:8px">
+        <!-- source column, card being lifted -->
+        <div style="flex:1;background:#0d1526;border-top:2px solid #22d3ee;border-radius:0 0 6px 6px;padding:6px">
+          <div style="color:#22d3ee;font-size:9px;font-weight:700;margin-bottom:5px">TODO · 3</div>
+          <!-- dragging card (semi-transparent) -->
+          <div style="background:#111e35;border-radius:4px;padding:5px;margin-bottom:4px;border:1px solid rgba(100,140,200,0.1);opacity:0.35;transform:rotate(2deg)">
+            <div style="color:#dde5f0;font-size:9px">Data preprocessing</div>
+          </div>
+          <div style="background:#111e35;border-radius:4px;padding:5px;border:1px solid rgba(100,140,200,0.1)">
+            <div style="color:#dde5f0;font-size:9px">Write tests</div>
+          </div>
+        </div>
+        <!-- target column: glow border -->
+        <div style="flex:1;background:#0f1d38;border-top:2px solid #f59e0b;border-radius:0 0 6px 6px;padding:6px;border:2px solid rgba(245,158,11,0.55);box-shadow:0 0 12px rgba(245,158,11,0.2)">
+          <div style="color:#f59e0b;font-size:9px;font-weight:700;margin-bottom:5px">IN PROGRESS · 2</div>
+          <!-- ghost placeholder slot -->
+          <div style="height:32px;border:1px dashed rgba(245,158,11,0.4);border-radius:4px;margin-bottom:4px;background:rgba(245,158,11,0.05)"></div>
+          <div style="background:#111e35;border-radius:4px;padding:5px;border:1px solid rgba(100,140,200,0.1)">
+            <div style="color:#dde5f0;font-size:9px">Collect dataset</div>
+          </div>
+        </div>
+        <div style="flex:1;background:#0d1526;border-top:2px solid #10b981;border-radius:0 0 6px 6px;padding:6px">
+          <div style="color:#10b981;font-size:9px;font-weight:700;margin-bottom:5px">DONE · 4</div>
+          <div style="background:#111e35;border-radius:4px;padding:5px;border:1px solid rgba(100,140,200,0.1)">
+            <div style="color:#dde5f0;font-size:9px">Literature review</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Column glow + ghost placeholder</h3>
+      <p>The target column pulses with an amber glow border. A ghost slot (dashed rectangle) shows exactly where the card will land. Dragged card dims in source.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:monospace;font-size:11px;background:#0d1526;border-radius:6px;overflow:hidden;border:1px solid rgba(100,140,200,0.15);padding:8px;display:flex;gap:8px">
+        <div style="flex:1;background:#0d1526;border-top:2px solid #22d3ee;border-radius:0 0 6px 6px;padding:6px">
+          <div style="color:#22d3ee;font-size:9px;font-weight:700;margin-bottom:5px">TODO · 3</div>
+          <div style="background:#111e35;border-radius:4px;padding:5px;margin-bottom:4px;border:1px solid rgba(100,140,200,0.1);opacity:0.35">
+            <div style="color:#dde5f0;font-size:9px">Data preprocessing</div>
+          </div>
+          <div style="background:#111e35;border-radius:4px;padding:5px;border:1px solid rgba(100,140,200,0.1)">
+            <div style="color:#dde5f0;font-size:9px">Write tests</div>
+          </div>
+        </div>
+        <!-- target column: solid background fill -->
+        <div style="flex:1;background:rgba(245,158,11,0.08);border-top:2px solid #f59e0b;border-radius:0 0 6px 6px;padding:6px">
+          <div style="color:#f59e0b;font-size:9px;font-weight:700;margin-bottom:5px">IN PROGRESS · 2 + 1</div>
+          <!-- insert indicator: horizontal line -->
+          <div style="height:2px;background:#f59e0b;border-radius:2px;margin-bottom:4px;box-shadow:0 0 6px rgba(245,158,11,0.5)"></div>
+          <div style="background:#111e35;border-radius:4px;padding:5px;margin-bottom:4px;border:1px solid rgba(100,140,200,0.1)">
+            <div style="color:#dde5f0;font-size:9px">Collect dataset</div>
+          </div>
+        </div>
+        <div style="flex:1;background:#0d1526;border-top:2px solid #10b981;border-radius:0 0 6px 6px;padding:6px">
+          <div style="color:#10b981;font-size:9px;font-weight:700;margin-bottom:5px">DONE · 4</div>
+          <div style="background:#111e35;border-radius:4px;padding:5px;border:1px solid rgba(100,140,200,0.1)">
+            <div style="color:#dde5f0;font-size:9px">Literature review</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Background tint + insertion line</h3>
+      <p>Target column gets a subtle background tint in its accent color. A glowing horizontal line shows the exact insertion point between cards. Count badge updates live.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:monospace;font-size:11px;background:#0d1526;border-radius:6px;overflow:hidden;border:1px solid rgba(100,140,200,0.15);padding:8px;display:flex;gap:8px">
+        <div style="flex:1;background:#0d1526;border-top:2px solid #22d3ee;border-radius:0 0 6px 6px;padding:6px">
+          <div style="color:#22d3ee;font-size:9px;font-weight:700;margin-bottom:5px">TODO · 3</div>
+          <div style="background:#111e35;border-radius:4px;padding:5px;margin-bottom:4px;border:1px solid rgba(100,140,200,0.1);opacity:0.35">
+            <div style="color:#dde5f0;font-size:9px">Data preprocessing</div>
+          </div>
+          <div style="background:#111e35;border-radius:4px;padding:5px;border:1px solid rgba(100,140,200,0.1)">
+            <div style="color:#dde5f0;font-size:9px">Write tests</div>
+          </div>
+        </div>
+        <!-- target column: just header label changes + full ghost card -->
+        <div style="flex:1;background:#0d1526;border-top:2px solid #f59e0b;border-radius:0 0 6px 6px;padding:6px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+            <div style="color:#f59e0b;font-size:9px;font-weight:700">IN PROGRESS</div>
+            <div style="color:#f59e0b;font-size:8px;background:rgba(245,158,11,0.15);border-radius:8px;padding:1px 5px">DROP HERE</div>
+          </div>
+          <!-- ghost card (full opacity outline) -->
+          <div style="background:rgba(245,158,11,0.06);border:1px dashed rgba(245,158,11,0.4);border-radius:4px;padding:5px;margin-bottom:4px">
+            <div style="color:rgba(245,158,11,0.5);font-size:9px">Data preprocessing</div>
+          </div>
+          <div style="background:#111e35;border-radius:4px;padding:5px;border:1px solid rgba(100,140,200,0.1)">
+            <div style="color:#dde5f0;font-size:9px">Collect dataset</div>
+          </div>
+        </div>
+        <div style="flex:1;background:#0d1526;border-top:2px solid #10b981;border-radius:0 0 6px 6px;padding:6px">
+          <div style="color:#10b981;font-size:9px;font-weight:700;margin-bottom:5px">DONE · 4</div>
+          <div style="background:#111e35;border-radius:4px;padding:5px;border:1px solid rgba(100,140,200,0.1)">
+            <div style="color:#dde5f0;font-size:9px">Literature review</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Ghost card preview + "DROP HERE" badge</h3>
+      <p>A ghost copy of the dragged card appears at the top of the target column with a "DROP HERE" badge. Shows exactly what the card will look like after dropping.</p>
+    </div>
+  </div>
+
+</div>

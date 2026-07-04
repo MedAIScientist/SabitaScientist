@@ -231,6 +231,7 @@ _MIGRATIONS = [
     "ALTER TABLE admissions ADD COLUMN aid_notes TEXT",
     "ALTER TABLE admissions ADD COLUMN aid_at TEXT",
     "ALTER TABLE projects ADD COLUMN lab_id TEXT REFERENCES labs(id) ON DELETE SET NULL",
+    "ALTER TABLE experiment_assists ADD COLUMN agent_type TEXT NOT NULL DEFAULT 'writing'",
 ]
 
 

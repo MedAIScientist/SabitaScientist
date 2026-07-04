@@ -480,13 +480,14 @@ def _build_base_kwargs(
 ):
     """Build agent kwargs *without* MCP (fast, no subprocess spawning)."""
     from .tools import skill_manager, tavily_search, think_tool
+    from .tools.pm_tools import PM_TOOLS
     from .utils import load_subagents
 
     cfg = cfg if cfg is not None else _ensure_config()
     tool_registry = {"think_tool": think_tool}
     if os.environ.get("TAVILY_API_KEY"):
         tool_registry["tavily_search"] = tavily_search
-    base_tools = [think_tool, skill_manager]
+    base_tools = [think_tool, skill_manager, *PM_TOOLS]
 
     subs = load_subagents(
         SUBAGENTS_CONFIG,
@@ -532,6 +533,7 @@ def load_mcp_and_build_kwargs(
             ``_ensure_chat_model()`` (which would write module globals).
     """
     from .tools import skill_manager, tavily_search, think_tool
+    from .tools.pm_tools import PM_TOOLS
     from .utils import load_subagents
 
     cfg = cfg if cfg is not None else _ensure_config()
@@ -548,7 +550,7 @@ def load_mcp_and_build_kwargs(
     tool_registry = {"think_tool": think_tool}
     if os.environ.get("TAVILY_API_KEY"):
         tool_registry["tavily_search"] = tavily_search
-    base_tools = [think_tool, skill_manager]
+    base_tools = [think_tool, skill_manager, *PM_TOOLS]
 
     # Fresh tool registry — start from base tools + MCP tools
     registry = dict(tool_registry)

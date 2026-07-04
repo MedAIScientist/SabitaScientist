@@ -1,0 +1,159 @@
+<h2>Section 4 — Frontend: AI RUNS tab (all three states)</h2>
+<p class="subtitle">340px TaskDetail drawer with ⬡ AI RUNS tab selected. Does this look right?</p>
+
+<div class="split">
+
+  <div class="mockup">
+    <div class="mockup-header">State 1 — Idle (ready to run)</div>
+    <div class="mockup-body" style="padding:0">
+      <div style="font-family:monospace;font-size:11px;background:#070b12;width:200px;margin:0 auto">
+        <!-- Tab bar -->
+        <div style="padding:6px 8px 0;background:#0a1220;border-bottom:1px solid rgba(100,140,200,0.1)">
+          <div style="font-size:9px;color:#f1f5f9;font-weight:600;margin-bottom:1px">Run gel electrophoresis assay</div>
+          <div style="font-size:8px;color:#475569;margin-bottom:4px">CRISPR Knockout Study</div>
+          <div style="display:flex">
+            <div style="padding:3px 8px;font-size:8px;color:#475569;border-bottom:2px solid transparent;cursor:pointer">DETAILS</div>
+            <div style="padding:3px 8px;font-size:8px;color:#22d3ee;font-weight:700;border-bottom:2px solid #22d3ee">⬡ AI RUNS</div>
+          </div>
+        </div>
+        <!-- AI tab body -->
+        <div style="padding:10px 8px;background:#0a1220">
+          <!-- Agent picker -->
+          <div style="font-size:7px;color:#334155;letter-spacing:0.1em;font-weight:700;margin-bottom:4px">SELECT AGENT</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-bottom:8px">
+            <div style="background:rgba(34,211,238,0.08);border:1px solid rgba(34,211,238,0.25);border-radius:3px;padding:4px 5px;cursor:pointer">
+              <div style="font-size:8px;color:#22d3ee;font-weight:700">🔬 Research</div>
+              <div style="font-size:7px;color:#334155;margin-top:1px">Find protocols & methods</div>
+            </div>
+            <div style="background:rgba(100,140,200,0.04);border:1px solid rgba(100,140,200,0.1);border-radius:3px;padding:4px 5px;cursor:pointer">
+              <div style="font-size:8px;color:#64748b;font-weight:700">⚙ Code</div>
+              <div style="font-size:7px;color:#334155;margin-top:1px">Implement scripts</div>
+            </div>
+            <div style="background:rgba(100,140,200,0.04);border:1px solid rgba(100,140,200,0.1);border-radius:3px;padding:4px 5px;cursor:pointer">
+              <div style="font-size:8px;color:#64748b;font-weight:700">📊 Analysis</div>
+              <div style="font-size:7px;color:#334155;margin-top:1px">Metrics & plots</div>
+            </div>
+            <div style="background:rgba(100,140,200,0.04);border:1px solid rgba(100,140,200,0.1);border-radius:3px;padding:4px 5px;cursor:pointer">
+              <div style="font-size:8px;color:#64748b;font-weight:700">✍ Writing</div>
+              <div style="font-size:7px;color:#334155;margin-top:1px">Draft report</div>
+            </div>
+          </div>
+          <!-- Prompt -->
+          <div style="font-size:7px;color:#334155;letter-spacing:0.1em;font-weight:700;margin-bottom:3px">PROMPT</div>
+          <div style="background:#070b12;border:1px solid rgba(34,211,238,0.18);border-radius:3px;padding:5px;font-size:8px;color:#94a3b8;line-height:1.5;margin-bottom:6px;min-height:40px">Search for gel electrophoresis protocols for CRISPR-Cas9 knockout verification. Band separation 200–800bp.</div>
+          <!-- Run button -->
+          <div style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.28);border-radius:3px;padding:5px 0;text-align:center;color:#22d3ee;font-size:8px;font-weight:700;letter-spacing:0.08em;cursor:pointer;margin-bottom:8px">▶ RUN EVOSCIENTIST</div>
+          <!-- Empty history -->
+          <div style="font-size:7px;color:#1e2d3d;letter-spacing:0.1em;font-weight:700;text-align:center;margin-top:4px">NO PREVIOUS RUNS</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">State 2 — Running (streaming output)</div>
+    <div class="mockup-body" style="padding:0">
+      <div style="font-family:monospace;font-size:11px;background:#070b12;width:200px;margin:0 auto">
+        <div style="padding:6px 8px 0;background:#0a1220;border-bottom:1px solid rgba(100,140,200,0.1)">
+          <div style="font-size:9px;color:#f1f5f9;font-weight:600;margin-bottom:1px">Run gel electrophoresis assay</div>
+          <div style="font-size:8px;color:#475569;margin-bottom:4px">CRISPR Knockout Study</div>
+          <div style="display:flex">
+            <div style="padding:3px 8px;font-size:8px;color:#475569;border-bottom:2px solid transparent">DETAILS</div>
+            <div style="padding:3px 8px;font-size:8px;color:#22d3ee;font-weight:700;border-bottom:2px solid #22d3ee">⬡ AI RUNS</div>
+          </div>
+        </div>
+        <div style="padding:10px 8px;background:#0a1220">
+          <!-- Active run card (streaming) -->
+          <div style="border:1px solid rgba(34,211,238,0.2);border-radius:4px;overflow:hidden;margin-bottom:6px">
+            <div style="background:rgba(34,211,238,0.06);padding:4px 6px;display:flex;justify-content:space-between;align-items:center">
+              <div style="display:flex;align-items:center;gap:4px">
+                <div style="width:5px;height:5px;background:#22d3ee;border-radius:50%;animation:pulse 1s infinite"></div>
+                <span style="font-size:7px;color:#22d3ee;font-weight:700">🔬 RESEARCH · RUNNING</span>
+              </div>
+              <div style="background:rgba(244,63,94,0.08);border:1px solid rgba(244,63,94,0.2);border-radius:2px;padding:1px 4px;font-size:7px;color:#f43f5e;cursor:pointer">■ STOP</div>
+            </div>
+            <!-- Streaming output -->
+            <div style="padding:5px 6px;background:#050810;min-height:80px">
+              <div style="font-size:8px;color:#64748b;font-family:monospace;line-height:1.6">
+                <span style="color:#475569">Searching protocols for gel electrophoresis…</span><br/>
+                <span style="color:#64748b">→ Querying protocol databases</span><br/>
+                <span style="color:#64748b">→ Found 3 relevant protocols</span><br/>
+                <span style="color:#94a3b8">Evaluating TAE vs TBE buffer systems for fragment range 200–800bp…</span><br/>
+                <span style="color:#22d3ee">▋</span>
+              </div>
+            </div>
+          </div>
+          <!-- Disabled run button while running -->
+          <div style="background:rgba(100,140,200,0.04);border:1px solid rgba(100,140,200,0.1);border-radius:3px;padding:5px 0;text-align:center;color:#1e2d3d;font-size:8px;font-weight:700;letter-spacing:0.08em">▶ RUN EVOSCIENTIST</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="mockup" style="margin-top:12px">
+  <div class="mockup-header">State 3 — Complete (result card + run history)</div>
+  <div class="mockup-body" style="padding:0">
+    <div style="font-family:monospace;font-size:11px;background:#070b12;width:200px;margin:0 auto">
+      <div style="padding:6px 8px 0;background:#0a1220;border-bottom:1px solid rgba(100,140,200,0.1)">
+        <div style="font-size:9px;color:#f1f5f9;font-weight:600;margin-bottom:1px">Run gel electrophoresis assay</div>
+        <div style="font-size:8px;color:#475569;margin-bottom:4px">CRISPR Knockout Study</div>
+        <div style="display:flex">
+          <div style="padding:3px 8px;font-size:8px;color:#475569;border-bottom:2px solid transparent">DETAILS</div>
+          <div style="padding:3px 8px;font-size:8px;color:#22d3ee;font-weight:700;border-bottom:2px solid #22d3ee">⬡ AI RUNS</div>
+        </div>
+      </div>
+      <div style="padding:10px 8px;background:#0a1220">
+        <!-- Agent + Run button (re-enabled) -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-bottom:6px">
+          <div style="background:rgba(34,211,238,0.08);border:1px solid rgba(34,211,238,0.25);border-radius:3px;padding:3px 5px">
+            <div style="font-size:7px;color:#22d3ee;font-weight:700">🔬 Research</div>
+          </div>
+          <div style="background:rgba(100,140,200,0.04);border:1px solid rgba(100,140,200,0.1);border-radius:3px;padding:3px 5px">
+            <div style="font-size:7px;color:#475569;font-weight:700">⚙ Code</div>
+          </div>
+          <div style="background:rgba(100,140,200,0.04);border:1px solid rgba(100,140,200,0.1);border-radius:3px;padding:3px 5px">
+            <div style="font-size:7px;color:#475569;font-weight:700">📊 Analysis</div>
+          </div>
+          <div style="background:rgba(100,140,200,0.04);border:1px solid rgba(100,140,200,0.1);border-radius:3px;padding:3px 5px">
+            <div style="font-size:7px;color:#475569;font-weight:700">✍ Writing</div>
+          </div>
+        </div>
+        <div style="background:rgba(34,211,238,0.08);border:1px solid rgba(34,211,238,0.22);border-radius:3px;padding:4px 0;text-align:center;color:#22d3ee;font-size:8px;font-weight:700;letter-spacing:0.08em;cursor:pointer;margin-bottom:8px">▶ RUN AGAIN</div>
+
+        <!-- Run history heading -->
+        <div style="font-size:7px;color:#334155;letter-spacing:0.1em;font-weight:700;margin-bottom:4px">RUN HISTORY · 2 RUNS</div>
+
+        <!-- Latest run card (expanded) -->
+        <div style="border:1px solid rgba(16,185,129,0.2);border-radius:4px;overflow:hidden;margin-bottom:4px">
+          <div style="background:rgba(16,185,129,0.06);padding:4px 6px;display:flex;justify-content:space-between;align-items:center;cursor:pointer">
+            <div>
+              <span style="font-size:7px;color:#10b981;font-weight:700">✓ RESEARCH</span>
+              <span style="font-size:7px;color:#334155;margin-left:4px">2m ago · 48s</span>
+            </div>
+            <span style="font-size:8px;color:#475569">▲</span>
+          </div>
+          <div style="padding:5px 6px;background:#070b12">
+            <div style="font-size:8px;color:#94a3b8;line-height:1.5;margin-bottom:4px">Recommend 1% agarose in TAE buffer at 100V for 45min. SYBR Green staining for optimal band visibility at 200–800bp range.</div>
+            <div style="display:flex;gap:3px">
+              <div style="background:rgba(34,211,238,0.06);border:1px solid rgba(34,211,238,0.15);border-radius:2px;padding:1px 5px;font-size:7px;color:#22d3ee;cursor:pointer">📋 Copy</div>
+              <div style="background:rgba(34,211,238,0.06);border:1px solid rgba(34,211,238,0.15);border-radius:2px;padding:1px 5px;font-size:7px;color:#22d3ee;cursor:pointer">💬 Add to Notes</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Older run card (collapsed) -->
+        <div style="border:1px solid rgba(100,140,200,0.1);border-radius:4px;overflow:hidden">
+          <div style="background:rgba(100,140,200,0.04);padding:4px 6px;display:flex;justify-content:space-between;align-items:center;cursor:pointer">
+            <div>
+              <span style="font-size:7px;color:#475569;font-weight:700">✓ RESEARCH</span>
+              <span style="font-size:7px;color:#1e2d3d;margin-left:4px">yesterday · 62s</span>
+            </div>
+            <span style="font-size:8px;color:#334155">▼</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

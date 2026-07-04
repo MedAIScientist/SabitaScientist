@@ -42,6 +42,7 @@ def _assist_to_response(a) -> AssistResponse:
         status=a.status,
         output=a.output,
         error=a.error,
+        agent_type=a.agent_type if hasattr(a, 'agent_type') and a.agent_type else "writing",
         target_field=a.target_field,
         created_by=a.created_by,
         created_at=a.created_at,
@@ -133,15 +134,15 @@ def _build_prompt(prompt: str, context_json: str) -> str:
     return "\n".join(lines)
 
 
-async def _notify_runner(assist_id: str, full_prompt: str, workspace_dir: str) -> None:
-    """Fire-and-forget: tell the runner to start the writing agent."""
+async def _notify_runner(assist_id: str, agent_type: str, full_prompt: str, workspace_dir: str) -> None:
+    """Fire-and-forget: tell the runner to start the agent."""
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             await client.post(
                 f"{RUNNER_URL}/runs",
                 json={
                     "run_id": assist_id,
-                    "agent_type": "writing",
+                    "agent_type": agent_type,
                     "prompt": full_prompt,
                     "workspace_dir": workspace_dir,
                 },
@@ -179,6 +180,7 @@ async def create_experiment_assist(
         project_id=project_id,
         prompt=body.prompt,
         context_json=context_json,
+        agent_type=body.agent_type,
         target_field=body.target_field,
         created_by=current_user.id,
     )
@@ -188,7 +190,7 @@ async def create_experiment_assist(
     )
     workspace_dir = str(Path(workspace_base) / "assists" / assist.id)
 
-    background_tasks.add_task(_notify_runner, assist.id, full_prompt, workspace_dir)
+    background_tasks.add_task(_notify_runner, assist.id, body.agent_type, full_prompt, workspace_dir)
     return _assist_to_response(assist)
 
 

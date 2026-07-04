@@ -22,6 +22,7 @@ def _row_to_assist(row: sqlite3.Row) -> ExperimentAssist:
         status=row["status"],
         output=row["output"],
         error=row["error"],
+        agent_type=row.get("agent_type", "writing"),
         target_field=row["target_field"],
         created_by=row["created_by"],
         created_at=row["created_at"],
@@ -35,8 +36,9 @@ def create_assist(
     project_id: str,
     prompt: str,
     context_json: str,
-    target_field: str | None,
-    created_by: str,
+    agent_type: str = "writing",
+    target_field: str | None = None,
+    created_by: str = "agent",
 ) -> ExperimentAssist:
     """Insert a new assist record with status 'pending' and return it."""
     assist_id = uuid.uuid4().hex
@@ -45,10 +47,10 @@ def create_assist(
         conn.execute(
             """INSERT INTO experiment_assists
                (id, experiment_id, project_id, prompt, context_json,
-                status, target_field, created_by, created_at)
-               VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)""",
+                status, agent_type, target_field, created_by, created_at)
+               VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)""",
             (assist_id, experiment_id, project_id, prompt, context_json,
-             target_field, created_by, now),
+             agent_type, target_field, created_by, now),
         )
     return ExperimentAssist(
         id=assist_id,
@@ -57,6 +59,7 @@ def create_assist(
         prompt=prompt,
         context_json=context_json,
         status="pending",
+        agent_type=agent_type,
         target_field=target_field,
         created_by=created_by,
         created_at=now,

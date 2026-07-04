@@ -1,0 +1,120 @@
+<h2>Group A — Board UX: Filter bar placement</h2>
+<p class="subtitle">Where should search/filter controls live on the kanban board?</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:monospace;font-size:11px;background:#0d1526;border-radius:6px;overflow:hidden;border:1px solid rgba(100,140,200,0.15)">
+        <!-- header -->
+        <div style="height:36px;background:#0a1220;border-bottom:1px solid rgba(100,140,200,0.1);display:flex;align-items:center;padding:0 12px;gap:10px">
+          <span style="color:#475569;font-size:12px">←</span>
+          <span style="color:#22d3ee;font-weight:600">Project Alpha</span>
+          <!-- filter in header -->
+          <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+            <div style="background:#111e35;border:1px solid rgba(100,140,200,0.15);border-radius:4px;padding:3px 8px;color:#475569;font-size:10px">🔍 Filter…</div>
+            <div style="background:#111e35;border:1px solid rgba(100,140,200,0.15);border-radius:4px;padding:3px 8px;color:#475569;font-size:10px">Priority ▾</div>
+            <div style="background:#111e35;border:1px solid rgba(100,140,200,0.15);border-radius:4px;padding:3px 8px;color:#475569;font-size:10px">Sort ▾</div>
+          </div>
+        </div>
+        <!-- columns preview -->
+        <div style="display:flex;gap:8px;padding:8px">
+          <div style="flex:1;background:#0d1526;border-top:2px solid #22d3ee;border-radius:0 0 6px 6px;padding:6px">
+            <div style="color:#22d3ee;font-size:9px;font-weight:700;margin-bottom:5px">TODO · 3</div>
+            <div style="background:#111e35;border-radius:4px;padding:5px;margin-bottom:4px;border:1px solid rgba(100,140,200,0.1)"><div style="color:#dde5f0;font-size:9px">Implement baseline model</div></div>
+            <div style="background:#111e35;border-radius:4px;padding:5px;margin-bottom:4px;border:1px solid rgba(100,140,200,0.1)"><div style="color:#dde5f0;font-size:9px">Write unit tests</div></div>
+          </div>
+          <div style="flex:1;background:#0d1526;border-top:2px solid #f59e0b;border-radius:0 0 6px 6px;padding:6px">
+            <div style="color:#f59e0b;font-size:9px;font-weight:700;margin-bottom:5px">IN PROGRESS · 2</div>
+            <div style="background:#111e35;border-radius:4px;padding:5px;margin-bottom:4px;border:1px solid rgba(100,140,200,0.1)"><div style="color:#dde5f0;font-size:9px">Data preprocessing</div></div>
+          </div>
+          <div style="flex:1;background:#0d1526;border-top:2px solid #10b981;border-radius:0 0 6px 6px;padding:6px">
+            <div style="color:#10b981;font-size:9px;font-weight:700;margin-bottom:5px">DONE · 4</div>
+            <div style="background:#111e35;border-radius:4px;padding:5px;margin-bottom:4px;border:1px solid rgba(100,140,200,0.1)"><div style="color:#dde5f0;font-size:9px">Literature review</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Filters in the header bar</h3>
+      <p>Search box + priority dropdown + sort button live in the sticky header alongside the project name. Always visible, zero vertical space used.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:monospace;font-size:11px;background:#0d1526;border-radius:6px;overflow:hidden;border:1px solid rgba(100,140,200,0.15)">
+        <!-- header -->
+        <div style="height:36px;background:#0a1220;border-bottom:1px solid rgba(100,140,200,0.1);display:flex;align-items:center;padding:0 12px;gap:10px">
+          <span style="color:#475569;font-size:12px">←</span>
+          <span style="color:#22d3ee;font-weight:600">Project Alpha</span>
+        </div>
+        <!-- filter toolbar below header -->
+        <div style="padding:6px 8px;background:#080f1c;border-bottom:1px solid rgba(100,140,200,0.08);display:flex;gap:6px;align-items:center">
+          <div style="flex:1;background:#0d1526;border:1px solid rgba(34,211,238,0.2);border-radius:4px;padding:3px 8px;color:#475569;font-size:10px">🔍 Search tasks…</div>
+          <div style="background:#0d1526;border:1px solid rgba(100,140,200,0.12);border-radius:4px;padding:3px 8px;color:#475569;font-size:10px">▸ HIGH</div>
+          <div style="background:#0d1526;border:1px solid rgba(100,140,200,0.12);border-radius:4px;padding:3px 8px;color:#475569;font-size:10px">Sort ▾</div>
+          <div style="background:#0d1526;border:1px solid rgba(100,140,200,0.12);border-radius:4px;padding:3px 8px;color:#475569;font-size:10px">Assignee ▾</div>
+        </div>
+        <!-- columns preview -->
+        <div style="display:flex;gap:8px;padding:8px">
+          <div style="flex:1;background:#0d1526;border-top:2px solid #22d3ee;border-radius:0 0 6px 6px;padding:6px">
+            <div style="color:#22d3ee;font-size:9px;font-weight:700;margin-bottom:5px">TODO · 3</div>
+            <div style="background:#111e35;border-radius:4px;padding:5px;margin-bottom:4px;border:1px solid rgba(100,140,200,0.1)"><div style="color:#dde5f0;font-size:9px">Implement baseline model</div></div>
+            <div style="background:#111e35;border-radius:4px;padding:5px;border:1px solid rgba(100,140,200,0.1)"><div style="color:#dde5f0;font-size:9px">Write unit tests</div></div>
+          </div>
+          <div style="flex:1;background:#0d1526;border-top:2px solid #f59e0b;border-radius:0 0 6px 6px;padding:6px">
+            <div style="color:#f59e0b;font-size:9px;font-weight:700;margin-bottom:5px">IN PROGRESS · 2</div>
+            <div style="background:#111e35;border-radius:4px;padding:5px;border:1px solid rgba(100,140,200,0.1)"><div style="color:#dde5f0;font-size:9px">Data preprocessing</div></div>
+          </div>
+          <div style="flex:1;background:#0d1526;border-top:2px solid #10b981;border-radius:0 0 6px 6px;padding:6px">
+            <div style="color:#10b981;font-size:9px;font-weight:700;margin-bottom:5px">DONE · 4</div>
+            <div style="background:#111e35;border-radius:4px;padding:5px;border:1px solid rgba(100,140,200,0.1)"><div style="color:#dde5f0;font-size:9px">Literature review</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Dedicated filter toolbar</h3>
+      <p>A second row below the header acts as a full filter bar with a wider search input + priority chips + sort + assignee filter. More space, more controls.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:monospace;font-size:11px;background:#0d1526;border-radius:6px;overflow:hidden;border:1px solid rgba(100,140,200,0.15)">
+        <!-- header -->
+        <div style="height:36px;background:#0a1220;border-bottom:1px solid rgba(100,140,200,0.1);display:flex;align-items:center;padding:0 12px;gap:10px">
+          <span style="color:#475569;font-size:12px">←</span>
+          <span style="color:#22d3ee;font-weight:600">Project Alpha</span>
+          <div style="margin-left:auto;background:#111e35;border:1px solid rgba(100,140,200,0.15);border-radius:4px;padding:3px 8px;color:#475569;font-size:10px">⚙ Filters</div>
+        </div>
+        <!-- columns preview - filter panel slides in from right -->
+        <div style="display:flex;gap:0">
+          <div style="flex:1;display:flex;gap:8px;padding:8px">
+            <div style="flex:1;background:#0d1526;border-top:2px solid #22d3ee;border-radius:0 0 6px 6px;padding:6px">
+              <div style="color:#22d3ee;font-size:9px;font-weight:700;margin-bottom:5px">TODO · 3</div>
+              <div style="background:#111e35;border-radius:4px;padding:5px;margin-bottom:4px;border:1px solid rgba(100,140,200,0.1)"><div style="color:#dde5f0;font-size:9px">Baseline model</div></div>
+            </div>
+            <div style="flex:1;background:#0d1526;border-top:2px solid #f59e0b;border-radius:0 0 6px 6px;padding:6px">
+              <div style="color:#f59e0b;font-size:9px;font-weight:700;margin-bottom:5px">IN PROGRESS · 2</div>
+              <div style="background:#111e35;border-radius:4px;padding:5px;border:1px solid rgba(100,140,200,0.1)"><div style="color:#dde5f0;font-size:9px">Data preprocessing</div></div>
+            </div>
+          </div>
+          <!-- filter panel -->
+          <div style="width:90px;background:#080f1c;border-left:1px solid rgba(34,211,238,0.15);padding:8px">
+            <div style="color:#22d3ee;font-size:9px;font-weight:700;margin-bottom:6px">FILTERS</div>
+            <div style="color:#475569;font-size:8px;margin-bottom:3px">PRIORITY</div>
+            <div style="background:#111e35;border-radius:3px;padding:2px 5px;color:#f43f5e;font-size:8px;margin-bottom:2px">● HIGH</div>
+            <div style="background:#111e35;border-radius:3px;padding:2px 5px;color:#f59e0b;font-size:8px;margin-bottom:6px">● MED</div>
+            <div style="color:#475569;font-size:8px;margin-bottom:3px">SEARCH</div>
+            <div style="background:#111e35;border:1px solid rgba(100,140,200,0.1);border-radius:3px;padding:2px 5px;color:#334155;font-size:8px">type…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Collapsible side panel</h3>
+      <p>A "Filters" button in the header opens a slim right-side panel (like the task drawer). Hidden by default, doesn't consume vertical space, but reduces board width when open.</p>
+    </div>
+  </div>
+</div>

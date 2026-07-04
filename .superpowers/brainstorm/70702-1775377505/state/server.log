@@ -1,0 +1,4 @@
+{"type":"server-started","port":60028,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:60028","screen_dir":"/Users/akaplan/Documents/Academic_Research/EvoScientist/.superpowers/brainstorm/70702-1775377505/content","state_dir":"/Users/akaplan/Documents/Academic_Research/EvoScientist/.superpowers/brainstorm/70702-1775377505/state"}
+{"type":"screen-added","file":"/Users/akaplan/Documents/Academic_Research/EvoScientist/.superpowers/brainstorm/70702-1775377505/content/project-settings-location.html"}
+{"type":"screen-added","file":"/Users/akaplan/Documents/Academic_Research/EvoScientist/.superpowers/brainstorm/70702-1775377505/content/waiting-1.html"}
+{"type":"server-stopped","reason":"idle timeout"}

@@ -1,0 +1,148 @@
+<h2>Project settings — where do they live?</h2>
+<p class="subtitle">Edit project name/description, manage members, delete project — where should these be accessible?</p>
+
+<div class="cards">
+
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:monospace;font-size:11px;background:#070b12;border-radius:6px;overflow:hidden;border:1px solid rgba(100,140,200,0.15)">
+        <!-- Projects list header -->
+        <div style="padding:8px 12px;border-bottom:1px solid rgba(100,140,200,0.08);display:flex;justify-content:space-between;align-items:center">
+          <span style="color:#22d3ee;font-size:10px;font-weight:700">Research Projects</span>
+          <span style="background:rgba(34,211,238,0.08);border:1px solid rgba(34,211,238,0.18);color:#22d3ee;font-size:8px;padding:2px 7px;border-radius:3px">+ NEW PROJECT</span>
+        </div>
+        <!-- Project row with hover actions -->
+        <div style="padding:8px 12px;border-left:3px solid #22d3ee;background:rgba(17,30,53,0.85);display:flex;align-items:center;gap:8px">
+          <div style="flex:1">
+            <div style="color:#e2e8f0;font-size:11px;font-weight:600">CRISPR Knockout Study</div>
+            <div style="color:#3d4e64;font-size:9px;margin-top:2px">Gene editing efficiency analysis</div>
+          </div>
+          <div style="display:flex;gap:4px;align-items:center">
+            <span style="color:#334155;font-size:9px;font-family:monospace">3 MEMBERS</span>
+            <!-- hover icons -->
+            <div style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.22);border-radius:3px;padding:2px 5px;color:#22d3ee;font-size:9px">✎</div>
+            <div style="background:rgba(244,63,94,0.08);border:1px solid rgba(244,63,94,0.2);border-radius:3px;padding:2px 5px;color:#f43f5e;font-size:9px">✕</div>
+          </div>
+        </div>
+        <!-- Normal row -->
+        <div style="padding:8px 12px;border-left:3px solid #f59e0b;background:rgba(13,21,38,0.6);display:flex;align-items:center;gap:8px;opacity:0.6">
+          <div style="flex:1">
+            <div style="color:#e2e8f0;font-size:11px;font-weight:600">Protein Folding Assay</div>
+          </div>
+          <span style="color:#334155;font-size:9px;font-family:monospace">2 MEMBERS →</span>
+        </div>
+        <!-- Inline edit form expanded -->
+        <div style="padding:8px 12px;background:rgba(7,11,18,0.8);border-top:1px solid rgba(34,211,238,0.12)">
+          <div style="font-size:8px;color:#3d4e64;letter-spacing:0.1em;margin-bottom:3px">EDIT PROJECT</div>
+          <input placeholder="Project name" value="CRISPR Knockout Study" style="width:100%;background:#0d1526;border:1px solid rgba(34,211,238,0.2);border-radius:3px;color:#f1f5f9;padding:3px 6px;font-size:10px;box-sizing:border-box;margin-bottom:5px" readonly/>
+          <div style="display:flex;gap:5px">
+            <div style="background:rgba(34,211,238,0.12);border:1px solid rgba(34,211,238,0.28);color:#22d3ee;border-radius:3px;padding:3px 8px;font-size:8px;font-weight:700;cursor:pointer">SAVE</div>
+            <div style="background:rgba(100,140,200,0.06);border:1px solid rgba(100,140,200,0.12);color:#475569;border-radius:3px;padding:3px 7px;font-size:8px;cursor:pointer">CANCEL</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>A — Actions inline on the Projects list</h3>
+      <p>Hover a project row to reveal ✎ edit and ✕ delete icons. Edit expands inline below the row. Member management is accessed from the Board's header. Clean separation: project-level settings here, members there.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:monospace;font-size:11px;background:#070b12;border-radius:6px;overflow:hidden;border:1px solid rgba(100,140,200,0.15);display:flex">
+        <!-- Board left side -->
+        <div style="flex:1;padding:8px;min-width:0">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div>
+              <div style="color:#f1f5f9;font-size:10px;font-weight:700">CRISPR Knockout Study</div>
+              <div style="color:#3d4e64;font-size:8px">Kanban Board</div>
+            </div>
+            <!-- Settings icon in board header -->
+            <div style="background:rgba(100,140,200,0.08);border:1px solid rgba(100,140,200,0.15);border-radius:4px;padding:3px 7px;color:#64748b;font-size:9px;cursor:pointer">⚙ Settings</div>
+          </div>
+          <!-- Mini board columns -->
+          <div style="display:flex;gap:6px">
+            <div style="flex:1;background:rgba(34,211,238,0.05);border:1px solid rgba(34,211,238,0.12);border-radius:4px;padding:6px">
+              <div style="font-size:8px;color:#22d3ee;font-weight:700;margin-bottom:4px">PLANNED</div>
+              <div style="background:#111e35;border-radius:3px;padding:4px;font-size:8px;color:#94a3b8">Prepare samples</div>
+            </div>
+            <div style="flex:1;background:rgba(245,158,11,0.05);border:1px solid rgba(245,158,11,0.12);border-radius:4px;padding:6px">
+              <div style="font-size:8px;color:#f59e0b;font-weight:700;margin-bottom:4px">IN PROGRESS</div>
+              <div style="background:#111e35;border-radius:3px;padding:4px;font-size:8px;color:#94a3b8">Run assay</div>
+            </div>
+            <div style="flex:1;background:rgba(16,185,129,0.05);border:1px solid rgba(16,185,129,0.12);border-radius:4px;padding:6px">
+              <div style="font-size:8px;color:#10b981;font-weight:700;margin-bottom:4px">COMPLETE</div>
+            </div>
+          </div>
+        </div>
+        <!-- Settings panel -->
+        <div style="width:140px;background:#0a1220;border-left:1px solid rgba(100,140,200,0.12);padding:10px">
+          <div style="font-size:8px;color:#22d3ee;font-weight:700;letter-spacing:0.08em;margin-bottom:8px">PROJECT SETTINGS</div>
+          <div style="font-size:8px;color:#3d4e64;margin-bottom:2px;letter-spacing:0.1em">NAME</div>
+          <div style="background:#070b12;border:1px solid rgba(100,140,200,0.14);border-radius:3px;padding:3px 5px;color:#f1f5f9;font-size:9px;margin-bottom:8px">CRISPR Knockout…</div>
+          <div style="font-size:8px;color:#3d4e64;margin-bottom:4px;letter-spacing:0.1em">MEMBERS · 3</div>
+          <div style="display:flex;flex-direction:column;gap:3px;margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(17,30,53,0.6);border-radius:3px;padding:3px 5px">
+              <span style="font-size:8px;color:#94a3b8">Dr. Chen</span>
+              <span style="font-size:7px;color:#22d3ee">OWNER</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;background:rgba(17,30,53,0.6);border-radius:3px;padding:3px 5px">
+              <span style="font-size:8px;color:#94a3b8">lab_tech_01</span>
+              <span style="font-size:7px;color:#475569">EDITOR ✕</span>
+            </div>
+          </div>
+          <div style="background:rgba(244,63,94,0.08);border:1px solid rgba(244,63,94,0.18);border-radius:3px;padding:3px 0;text-align:center;color:#f43f5e;font-size:8px;font-weight:700">DELETE PROJECT</div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>B — Unified ⚙ Settings panel inside the Board</h3>
+      <p>A "Settings" button in the Board header slides open a right panel with everything: edit name/description, manage members (list, add, change role, remove), and delete project. The Projects list stays read-only.</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-image">
+      <div style="font-family:monospace;font-size:11px;background:#070b12;border-radius:6px;overflow:hidden;border:1px solid rgba(100,140,200,0.15)">
+        <!-- Projects page with separate ⚙ icon -->
+        <div style="padding:8px 12px;border-bottom:1px solid rgba(100,140,200,0.08);display:flex;justify-content:space-between">
+          <span style="color:#22d3ee;font-size:10px;font-weight:700">Research Projects</span>
+          <span style="background:rgba(34,211,238,0.08);border:1px solid rgba(34,211,238,0.18);color:#22d3ee;font-size:8px;padding:2px 7px;border-radius:3px">+ NEW PROJECT</span>
+        </div>
+        <div style="padding:8px 12px;border-left:3px solid #22d3ee;background:rgba(17,30,53,0.85);display:flex;align-items:center;gap:8px">
+          <div style="flex:1">
+            <div style="color:#e2e8f0;font-size:11px;font-weight:600">CRISPR Knockout Study</div>
+            <div style="color:#3d4e64;font-size:9px;margin-top:2px">3 members · 8 tasks</div>
+          </div>
+          <div style="display:flex;gap:5px">
+            <div style="background:rgba(100,140,200,0.08);border:1px solid rgba(100,140,200,0.15);border-radius:3px;padding:2px 6px;color:#64748b;font-size:9px;cursor:pointer">⚙</div>
+            <div style="color:#334155;font-size:13px">→</div>
+          </div>
+        </div>
+        <!-- Separate settings page/route mockup -->
+        <div style="padding:8px 12px;background:rgba(7,11,18,0.9);border-top:1px solid rgba(100,140,200,0.08)">
+          <div style="font-size:8px;color:#22d3ee;letter-spacing:0.1em;margin-bottom:6px">⚙ PROJECT SETTINGS PAGE</div>
+          <div style="display:flex;gap:10px">
+            <div style="flex:1;background:rgba(13,21,38,0.8);border-radius:4px;padding:6px">
+              <div style="font-size:8px;color:#3d4e64;margin-bottom:3px">PROJECT DETAILS</div>
+              <div style="background:#0d1526;border:1px solid rgba(100,140,200,0.14);border-radius:3px;padding:3px 5px;color:#f1f5f9;font-size:9px;margin-bottom:4px">CRISPR Knockout…</div>
+              <div style="background:rgba(34,211,238,0.1);border:1px solid rgba(34,211,238,0.22);border-radius:3px;padding:2px 0;text-align:center;color:#22d3ee;font-size:8px;font-weight:700">SAVE</div>
+            </div>
+            <div style="flex:1;background:rgba(13,21,38,0.8);border-radius:4px;padding:6px">
+              <div style="font-size:8px;color:#3d4e64;margin-bottom:3px">MEMBERS</div>
+              <div style="font-size:8px;color:#94a3b8;margin-bottom:2px">Dr. Chen · OWNER</div>
+              <div style="font-size:8px;color:#94a3b8;margin-bottom:4px">lab_tech_01 · EDITOR ✕</div>
+              <div style="background:rgba(100,140,200,0.06);border:1px solid rgba(100,140,200,0.12);border-radius:3px;padding:2px 0;text-align:center;color:#475569;font-size:8px">+ ADD MEMBER</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card-body">
+      <h3>C — Dedicated project settings page</h3>
+      <p>A ⚙ icon on each project row in the list links to a dedicated <code>/projects/{id}/settings</code> route with two sections: Project Details (edit name/description, delete) and Members (list, add, change role, remove).</p>
+    </div>
+  </div>
+
+</div>

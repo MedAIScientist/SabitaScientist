@@ -109,7 +109,7 @@ export const api = {
   createAssist: (
     projectId: string,
     expId: string,
-    data: { prompt: string; target_field?: string | null }
+    data: { prompt: string; agent_type?: string; target_field?: string | null }
   ) => request<Assist>('POST', `/projects/${projectId}/experiments/${expId}/assist`, data),
   listAssists: (projectId: string, expId: string) =>
     request<Assist[]>('GET', `/projects/${projectId}/experiments/${expId}/assists`),

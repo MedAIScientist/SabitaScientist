@@ -28,6 +28,7 @@ export function AiAssistPanel({
   const qc = useQueryClient()
   const [prompt, setPrompt] = useState('')
   const [target, setTarget] = useState<TargetOption>('hypothesis')
+  const [agentType, setAgentType] = useState<string>('writing')
   const [activeAssistId, setActiveAssistId] = useState<string | null>(null)
   const [appliedText, setAppliedText] = useState<string | null>(null)
 
@@ -40,6 +41,7 @@ export function AiAssistPanel({
   const createMutation = useMutation({
     mutationFn: () => api.createAssist(projectId, experiment.id, {
       prompt,
+      agent_type: agentType,
       target_field: target === 'result_body' ? 'entry_body' : target,
     }),
     onSuccess: (assist: Assist) => {
@@ -111,6 +113,35 @@ export function AiAssistPanel({
                   border: `1px solid ${target === opt.value ? `${accent}44` : 'var(--border)'}`,
                   borderRadius: 3, padding: '5px 8px',
                   color: target === opt.value ? accent : 'var(--text-3)',
+                  fontSize: 15, fontFamily: 'var(--font-mono)', cursor: 'pointer',
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Agent type selector */}
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 16, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontWeight: 700, marginBottom: 5 }}>
+            AI AGENT
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+            {[
+              { value: 'writing', label: '✍ Writing', color: '#a78bfa' },
+              { value: 'research', label: '🔬 Research', color: '#6366f1' },
+              { value: 'code', label: '💻 Code', color: '#10b981' },
+              { value: 'data_analysis', label: '📊 Analysis', color: '#f59e0b' },
+            ].map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => setAgentType(opt.value)}
+                style={{
+                  background: agentType === opt.value ? `${opt.color}14` : 'var(--surface-input)',
+                  border: `1px solid ${agentType === opt.value ? `${opt.color}44` : 'var(--border)'}`,
+                  borderRadius: 3, padding: '5px 8px',
+                  color: agentType === opt.value ? opt.color : 'var(--text-3)',
                   fontSize: 15, fontFamily: 'var(--font-mono)', cursor: 'pointer',
                 }}
               >

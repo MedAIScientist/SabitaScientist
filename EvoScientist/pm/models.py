@@ -116,7 +116,8 @@ class ExperimentAssist:
     created_at: str
     output: str | None = None
     error: str | None = None
-    target_field: str | None = None   # 'hypothesis'|'protocol'|'entry_body'|None
+    agent_type: str = "writing"      # 'research'|'code'|'data_analysis'|'writing'
+    target_field: str | None = None  # 'hypothesis'|'protocol'|'entry_body'|None
     finished_at: str | None = None
 
 

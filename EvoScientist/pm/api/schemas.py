@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
+
+AgentType = Literal["research", "code", "data_analysis", "writing"]
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
@@ -379,6 +383,7 @@ class ErrorResponse(BaseModel):
 
 class AssistCreate(BaseModel):
     prompt: str = Field(min_length=1, max_length=4096)
+    agent_type: AgentType = "writing"
     target_field: str | None = Field(
         default=None,
         pattern="^(hypothesis|protocol|entry_body)$",
@@ -393,6 +398,7 @@ class AssistResponse(BaseModel):
     status: str
     output: str | None
     error: str | None
+    agent_type: str = "writing"
     target_field: str | None
     created_by: str
     created_at: str
