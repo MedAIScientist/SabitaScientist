@@ -5,6 +5,15 @@ ARG NODE_IMAGE=node:24-trixie-slim@sha256:735dd688da64d22ebd9dd374b3e7e5a8746356
 
 FROM ${NODE_IMAGE} AS nodejs
 
+# ---------- Frontend builder (PM dashboard React app) ----------
+FROM node:20-slim AS frontend-builder
+
+WORKDIR /frontend
+COPY EvoScientist/pm/frontend/package*.json ./
+RUN npm ci --silent
+COPY EvoScientist/pm/frontend/ ./
+RUN npm run build
+
 # ---------- Builder ----------
 FROM ${BASE_IMAGE} AS builder
 
@@ -18,12 +27,16 @@ WORKDIR /src
 COPY pyproject.toml uv.lock README.md ./
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project --no-dev \
-        --extra all-channels
+        --extra pm --extra all-channels
 
 COPY EvoScientist ./EvoScientist
+
+# Overlay the freshly-built frontend dist
+COPY --from=frontend-builder /frontend/dist ./EvoScientist/pm/frontend/dist
+
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-editable \
-        --extra all-channels
+        --extra pm --extra all-channels
 
 # ---------- Runtime ----------
 FROM ${BASE_IMAGE} AS runtime
@@ -71,5 +84,7 @@ LABEL org.opencontainers.image.title="EvoScientist" \
       org.opencontainers.image.source="https://github.com/EvoScientist/EvoScientist" \
       org.opencontainers.image.documentation="https://github.com/EvoScientist/EvoScientist#-docker" \
       org.opencontainers.image.licenses="Apache-2.0"
+
+EXPOSE 7860 8001
 
 ENTRYPOINT ["tini", "--", "evosci"]

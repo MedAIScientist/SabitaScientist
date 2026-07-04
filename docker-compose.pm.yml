@@ -1,0 +1,39 @@
+# PM dashboard + Garage S3 override for docker-compose.yml.
+# Usage: docker compose -f docker-compose.yml -f docker-compose.pm.yml up -d
+services:
+  evoscientist:
+    ports:
+      - "80:7860"     # PM dashboard
+      - "8001:8001"   # Runner service
+    depends_on:
+      garage:
+        condition: service_healthy
+    environment:
+      - EVOSCIENTIST_PM_DB=/data/pm.db
+      - GARAGE_S3_ENDPOINT=${GARAGE_S3_ENDPOINT:-http://garage:3900}
+      - GARAGE_ACCESS_KEY=${GARAGE_ACCESS_KEY:-}
+      - GARAGE_SECRET_KEY=${GARAGE_SECRET_KEY:-}
+      - GARAGE_BUCKET=${GARAGE_BUCKET:-evoscientist}
+    volumes:
+      - evoscientist-data:/data
+
+  garage:
+    image: dxflrs/garage:v1.0.1
+    ports:
+      - "3900:3900"
+    environment:
+      - GARAGE_CONFIG_FILE=/etc/garage.toml
+    volumes:
+      - garage-data:/data
+      - ./garage.toml:/etc/garage.toml:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3900"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  evoscientist-data:
+  garage-data:
