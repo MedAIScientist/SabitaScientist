@@ -1,7 +1,7 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api, Project, Task, Experiment } from '../api'
+import { api, Project, Task, Experiment, Template } from '../api'
 import { useAuth } from '../auth'
 import { useTheme } from '../theme'
 
@@ -218,6 +218,19 @@ export function Projects() {
   const [newDesc, setNewDesc] = useState('')
   const [creating, setCreating] = useState(false)
 
+  // Template wizard state
+  const [showTemplateWizard, setShowTemplateWizard] = useState(false)
+  const [templates, setTemplates] = useState<Template[]>([])
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
+  const [templateProjectName, setTemplateProjectName] = useState('')
+  const [creatingFromTemplate, setCreatingFromTemplate] = useState(false)
+
+  useEffect(() => {
+    if (showTemplateWizard) {
+      api.listTemplates().then(setTemplates).catch(() => {})
+    }
+  }, [showTemplateWizard])
+
   const { data: projects = [], isLoading } = useQuery({
     queryKey: ['projects'],
     queryFn: api.listProjects,
@@ -380,22 +393,184 @@ export function Projects() {
             </div>
           </form>
         ) : (
-          <button
-            onClick={() => setCreating(true)}
-            style={{
-              padding: '9px 18px', cursor: 'pointer',
-              background: 'rgba(255,128,21,0.07)',
-              border: '1px solid rgba(255,128,21,0.18)',
-              borderRadius: 7, color: '#ff8015',
-              fontSize: 16, fontWeight: 700, letterSpacing: '0.08em',
-              transition: 'background 0.14s',
-              fontFamily: 'var(--font-mono)',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,128,21,0.13)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,128,21,0.07)' }}
-          >+ NEW PROJECT</button>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              onClick={() => setCreating(true)}
+              style={{
+                padding: '9px 18px', cursor: 'pointer',
+                background: 'rgba(255,128,21,0.07)',
+                border: '1px solid rgba(255,128,21,0.18)',
+                borderRadius: 7, color: '#ff8015',
+                fontSize: 16, fontWeight: 700, letterSpacing: '0.08em',
+                transition: 'background 0.14s',
+                fontFamily: 'var(--font-mono)',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,128,21,0.13)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,128,21,0.07)' }}
+            >+ NEW PROJECT</button>
+            <button
+              onClick={() => { setShowTemplateWizard(true); setSelectedTemplate(null); setTemplateProjectName('') }}
+              style={{
+                padding: '9px 18px', cursor: 'pointer',
+                background: 'rgba(139,92,246,0.07)',
+                border: '1px solid rgba(139,92,246,0.18)',
+                borderRadius: 7, color: '#a78bfa',
+                fontSize: 16, fontWeight: 700, letterSpacing: '0.08em',
+                transition: 'background 0.14s',
+                fontFamily: 'var(--font-mono)',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(139,92,246,0.13)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(139,92,246,0.07)' }}
+            >🧬 FROM TEMPLATE</button>
+          </div>
         )}
       </div>
+
+      {/* ── Template wizard modal ── */}
+      {showTemplateWizard && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 50,
+          background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }} onClick={() => !creatingFromTemplate && setShowTemplateWizard(false)}>
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'var(--surface-panel)',
+              border: '1px solid var(--border)',
+              borderRadius: 14, padding: '32px 36px',
+              width: 580, maxHeight: '80vh', overflowY: 'auto',
+              animation: 'fadeInUp 0.2s ease',
+            }}
+          >
+            {!selectedTemplate ? (
+              <>
+                <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>
+                  PROJECT TEMPLATES
+                </div>
+                <div style={{ fontSize: 18, color: 'var(--text-dim)', marginBottom: 24 }}>
+                  Choose a template to pre-populate phases, tasks, and experiment types.
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {templates.map(t => (
+                    <div
+                      key={t.id}
+                      onClick={() => { setSelectedTemplate(t); setTemplateProjectName(t.name) }}
+                      style={{
+                        background: 'var(--surface-card)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 10, padding: '16px 20px',
+                        cursor: 'pointer', transition: 'border-color 0.15s, background 0.15s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(139,92,246,0.3)'; e.currentTarget.style.background = 'var(--surface-card-hover)' }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--surface-card)' }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ fontSize: 32 }}>{t.icon}</div>
+                        <div>
+                          <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--text-heading)' }}>{t.name}</div>
+                          <div style={{ fontSize: 17, color: 'var(--text-2)', marginTop: 2 }}>{t.description}</div>
+                          <div style={{ fontSize: 15, color: 'var(--text-dim)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>
+                            {t.phases.length} phases · {t.tasks.length} tasks · {t.experiment_types.length} experiment types
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={() => setShowTemplateWizard(false)}
+                  style={{
+                    marginTop: 20, padding: '9px 18px', cursor: 'pointer',
+                    background: 'transparent', border: '1px solid var(--border)',
+                    borderRadius: 7, color: 'var(--text-muted)',
+                    fontSize: 18, fontFamily: 'var(--font-mono)',
+                  }}
+                >CANCEL</button>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)', marginBottom: 10 }}>
+                  {selectedTemplate.icon} {selectedTemplate.name}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <label style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>PROJECT NAME *</label>
+                    <input
+                      autoFocus value={templateProjectName}
+                      onChange={e => setTemplateProjectName(e.target.value)}
+                      placeholder="My Research Project"
+                      style={{
+                        padding: '9px 12px', background: 'var(--surface-input)',
+                        border: '1px solid var(--border)', borderRadius: 7,
+                        color: 'var(--text)', fontSize: 22, outline: 'none',
+                      }}
+                    />
+                  </div>
+
+                  {/* Preview */}
+                  <div style={{ background: 'var(--surface-2)', borderRadius: 8, padding: 14 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginBottom: 8, letterSpacing: '0.06em' }}>PHASES</div>
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      {selectedTemplate.phases.map(p => (
+                        <span key={p.name} style={{
+                          fontSize: 15, fontFamily: 'var(--font-mono)', padding: '2px 8px',
+                          borderRadius: 4, background: `${p.color}18`, color: p.color,
+                          border: `1px solid ${p.color}30`,
+                        }}>{p.name}</span>
+                      ))}
+                    </div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', margin: '10px 0 6px', letterSpacing: '0.06em' }}>TASKS ({selectedTemplate.tasks.length})</div>
+                    <div style={{ fontSize: 17, color: 'var(--text-2)' }}>
+                      {selectedTemplate.tasks.slice(0, 4).map(t => t.title).join(' · ')}
+                      {selectedTemplate.tasks.length > 4 ? ' …' : ''}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    onClick={async () => {
+                      setCreatingFromTemplate(true)
+                      try {
+                        await api.createProjectFromTemplate({
+                          template_id: selectedTemplate.id,
+                          name: templateProjectName,
+                        })
+                        queryClient.invalidateQueries({ queryKey: ['projects'] })
+                        setShowTemplateWizard(false)
+                        setSelectedTemplate(null)
+                      } catch (err: unknown) {
+                        alert(err instanceof Error ? err.message : 'Create failed')
+                      } finally {
+                        setCreatingFromTemplate(false)
+                      }
+                    }}
+                    disabled={creatingFromTemplate || !templateProjectName.trim()}
+                    style={{
+                      padding: '9px 24px', cursor: 'pointer',
+                      background: creatingFromTemplate ? 'rgba(139,92,246,0.07)' : 'rgba(139,92,246,0.12)',
+                      border: '1px solid rgba(139,92,246,0.28)',
+                      borderRadius: 7, color: '#a78bfa',
+                      fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                    }}
+                  >{creatingFromTemplate ? 'CREATING…' : 'CREATE PROJECT'}</button>
+                  <button
+                    onClick={() => setSelectedTemplate(null)}
+                    disabled={creatingFromTemplate}
+                    style={{
+                      padding: '9px 18px', cursor: 'pointer',
+                      background: 'transparent', border: '1px solid var(--border)',
+                      borderRadius: 7, color: 'var(--text-muted)',
+                      fontSize: 18, fontFamily: 'var(--font-mono)',
+                    }}
+                  >BACK</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

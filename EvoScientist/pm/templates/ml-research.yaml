@@ -1,0 +1,101 @@
+id: ml-research
+name: ML / AI Research
+description: Machine learning research pipeline from problem definition to paper
+domain: ml-research
+icon: 🤖
+
+phases:
+  - name: Problem Definition
+    color: "#6366f1"
+    position: 0
+  - name: Data Preparation
+    color: "#8b5cf6"
+    position: 1
+  - name: Baseline
+    color: "#a855f7"
+    position: 2
+  - name: Model Development
+    color: "#ec4899"
+    position: 3
+  - name: Evaluation
+    color: "#f43f5e"
+    position: 4
+  - name: Paper Writing
+    color: "#ff8015"
+    position: 5
+
+experiment_types:
+  - name: Hyperparameter Tuning
+    description: Systematic search over hyperparameter space
+    protocol_template: |
+      ## Hyperparameter Tuning
+      - Search method: ___
+      - Parameter space: ___
+      - Budget: ___
+      - Metric: ___
+  - name: Ablation Study
+    description: Component-wise removal to measure contribution
+    protocol_template: |
+      ## Ablation Study
+      - Baseline model: ___
+      - Components to ablate: ___
+      - Evaluation metric: ___
+      - Statistical test: ___
+  - name: Cross-Validation
+    description: K-fold or stratified cross-validation
+    protocol_template: |
+      ## Cross-Validation
+      - Number of folds: ___
+      - Stratification: ___
+      - Metric per fold: ___
+      - Aggregate statistic: ___
+  - name: Benchmarking
+    description: Compare against existing methods on standard benchmarks
+    protocol_template: |
+      ## Benchmarking
+      - Datasets: ___
+      - Baselines: ___
+      - Metrics: ___
+      - Compute budget: ___
+  - name: Feature Analysis
+    description: Feature importance and selection experiments
+    protocol_template: |
+      ## Feature Analysis
+      - Feature set: ___
+      - Importance method: ___
+      - Selection criterion: ___
+      - Dimensionality reduction: ___
+
+tasks:
+  - title: Define problem and scope
+    description: Formalize the problem, success metrics, and constraints
+    phase: Problem Definition
+    priority: high
+  - title: Review related work
+    description: Survey existing methods, datasets, and benchmarks
+    phase: Problem Definition
+    priority: high
+  - title: Curate and preprocess dataset
+    description: Collect, clean, split, and augment data
+    phase: Data Preparation
+    priority: high
+  - title: Implement baseline
+    description: Reproduce existing methods to establish baseline performance
+    phase: Baseline
+    priority: high
+  - title: Implement proposed method
+    description: Build the novel model or algorithm
+    phase: Model Development
+    priority: high
+  - title: Run evaluation experiments
+    description: Execute benchmark, ablation, and analysis experiments
+    phase: Evaluation
+    priority: high
+  - title: Analyze and visualize results
+    description: Generate figures, tables, and statistical comparisons
+    phase: Evaluation
+    priority: high
+  - title: Write paper
+    description: Draft conference/workshop paper with results
+    phase: Paper Writing
+    priority: high

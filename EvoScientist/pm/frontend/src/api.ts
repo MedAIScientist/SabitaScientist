@@ -303,6 +303,12 @@ export interface DependenciesListResponse {
   removeLabMember: (labId: string, userId: string) =>
     request<void>('DELETE', `/labs/${labId}/members/${userId}`),
 
+  // ── Templates ──────────────────────────────────────────────────────────────
+  listTemplates: () => request<Template[]>('GET', '/templates'),
+  getTemplate: (id: string) => request<Template>('GET', `/templates/${id}`),
+  createProjectFromTemplate: (data: { template_id: string; name: string; description?: string; lab_id?: string }) =>
+    request<Project>('POST', '/templates/from-template', data),
+
   // ── Phases ────────────────────────────────────────────────────────────────────
 
 export async function listPhases(projectId: string, token: string): Promise<ProjectPhase[]> {
@@ -540,4 +546,11 @@ export interface AdmissionImportResponse {
   imported: number
   skipped: number
   admission_ids: string[]
+}
+
+export interface Template {
+  id: string; name: string; description: string; domain: string; icon: string
+  phases: { name: string; color: string; position: number }[]
+  experiment_types: { name: string; description: string }[]
+  tasks: { title: string; description: string; phase: string; priority: string }[]
 }

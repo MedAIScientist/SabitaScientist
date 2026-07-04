@@ -1,0 +1,109 @@
+id: life-science
+name: Life Science Research
+description: Standard wet-lab research pipeline from literature review through publication
+domain: life-science
+icon: 🧬
+
+phases:
+  - name: Literature Review
+    color: "#6366f1"
+    position: 0
+  - name: Hypothesis
+    color: "#8b5cf6"
+    position: 1
+  - name: Protocol Design
+    color: "#a855f7"
+    position: 2
+  - name: Experiment
+    color: "#ec4899"
+    position: 3
+  - name: Data Analysis
+    color: "#f43f5e"
+    position: 4
+  - name: Publication
+    color: "#ff8015"
+    position: 5
+
+experiment_types:
+  - name: PCR
+    description: Polymerase chain reaction amplification
+    protocol_template: |
+      ## PCR Protocol
+      - Template DNA: ___
+      - Primers: ___
+      - Polymerase: ___
+      - Cycling conditions: ___
+  - name: Western Blot
+    description: Protein detection via antibody binding
+    protocol_template: |
+      ## Western Blot Protocol
+      - Sample preparation: ___
+      - Gel percentage: ___
+      - Primary antibody: ___
+      - Secondary antibody: ___
+  - name: Cell Culture
+    description: Mammalian cell culture maintenance and assays
+    protocol_template: |
+      ## Cell Culture Protocol
+      - Cell line: ___
+      - Medium: ___
+      - Passaging schedule: ___
+      - Assay: ___
+  - name: Microscopy
+    description: Fluorescence and brightfield imaging
+    protocol_template: |
+      ## Microscopy Protocol
+      - Microscope: ___
+      - Objective: ___
+      - Fluorophores: ___
+      - Acquisition settings: ___
+  - name: Sequencing
+    description: Next-generation sequencing library prep and analysis
+    protocol_template: |
+      ## Sequencing Protocol
+      - Library type: ___
+      - Sequencing platform: ___
+      - Coverage target: ___
+      - Analysis pipeline: ___
+  - name: ELISA
+    description: Enzyme-linked immunosorbent assay
+    protocol_template: |
+      ## ELISA Protocol
+      - Target antigen: ___
+      - Capture antibody: ___
+      - Detection antibody: ___
+      - Standard curve: ___
+
+tasks:
+  - title: Literature search and review
+    description: Search PubMed, Google Scholar, and Web of Science for relevant papers
+    phase: Literature Review
+    priority: high
+  - title: Define research question
+    description: Formulate clear, testable research question based on literature gaps
+    phase: Literature Review
+    priority: high
+  - title: Draft hypothesis
+    description: Write falsifiable hypothesis with predicted outcomes
+    phase: Hypothesis
+    priority: high
+  - title: Design experimental protocol
+    description: Write detailed step-by-step protocol with controls and replicates
+    phase: Protocol Design
+    priority: high
+  - title: Prepare materials and reagents
+    description: Order supplies, prepare buffers, validate reagents
+    phase: Protocol Design
+    priority: medium
+  - title: Run experiment
+    description: Execute the experimental protocol and collect raw data
+    phase: Experiment
+    priority: high
+  - title: Analyze results
+    description: Statistical analysis, figure generation, interpretation
+    phase: Data Analysis
+    priority: high
+  - title: Write manuscript
+    description: Draft paper sections with figures and references
+    phase: Publication
+    priority: high

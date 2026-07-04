@@ -326,6 +326,45 @@ class AddLabMemberRequest(BaseModel):
     role: str = Field(pattern="^(pi|postdoc|phd|ms|visitor)$")
 
 
+# ── Templates ──────────────────────────────────────────────────────────────────
+
+
+class TemplatePhase(BaseModel):
+    name: str
+    color: str
+    position: int
+
+
+class TemplateExperimentType(BaseModel):
+    name: str
+    description: str
+
+
+class TemplateTask(BaseModel):
+    title: str
+    description: str
+    phase: str
+    priority: str
+
+
+class TemplateResponse(BaseModel):
+    id: str
+    name: str
+    description: str
+    domain: str
+    icon: str
+    phases: list[TemplatePhase]
+    experiment_types: list[TemplateExperimentType]
+    tasks: list[TemplateTask]
+
+
+class ProjectFromTemplateRequest(BaseModel):
+    template_id: str
+    name: str = Field(min_length=1, max_length=128)
+    description: str | None = None
+    lab_id: str | None = None
+
+
 # ── Errors ────────────────────────────────────────────────────────────────────
 
 

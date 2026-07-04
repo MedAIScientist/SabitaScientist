@@ -1,0 +1,101 @@
+id: medical
+name: Medical / Clinical Research
+description: Clinical research pipeline from IRB through manuscript submission
+domain: medical
+icon: 🏥
+
+phases:
+  - name: IRB & Ethics
+    color: "#ef4444"
+    position: 0
+  - name: Study Design
+    color: "#f97316"
+    position: 1
+  - name: Recruitment
+    color: "#eab308"
+    position: 2
+  - name: Data Collection
+    color: "#22c55e"
+    position: 3
+  - name: Statistical Analysis
+    color: "#14b8a6"
+    position: 4
+  - name: Manuscript
+    color: "#6366f1"
+    position: 5
+
+experiment_types:
+  - name: Clinical Trial
+    description: Interventional study with human participants
+    protocol_template: |
+      ## Clinical Trial Protocol
+      - Trial phase: ___
+      - Sample size: ___
+      - Inclusion criteria: ___
+      - Exclusion criteria: ___
+      - Primary endpoint: ___
+      - Secondary endpoints: ___
+  - name: Cohort Study
+    description: Observational study following a group over time
+    protocol_template: |
+      ## Cohort Study Protocol
+      - Cohort definition: ___
+      - Exposure: ___
+      - Outcome measures: ___
+      - Follow-up duration: ___
+      - Confounding variables: ___
+  - name: Case-Control
+    description: Retrospective comparison of cases vs controls
+    protocol_template: |
+      ## Case-Control Protocol
+      - Case definition: ___
+      - Control selection: ___
+      - Matching criteria: ___
+      - Exposure assessment: ___
+  - name: Meta-Analysis
+    description: Systematic review with quantitative synthesis
+    protocol_template: |
+      ## Meta-Analysis Protocol
+      - Search strategy: ___
+      - Inclusion criteria: ___
+      - Quality assessment tool: ___
+      - Effect measure: ___
+      - Heterogeneity assessment: ___
+  - name: Survey Study
+    description: Cross-sectional data collection via questionnaires
+    protocol_template: |
+      ## Survey Protocol
+      - Population: ___
+      - Sampling method: ___
+      - Instrument: ___
+      - Response rate target: ___
+
+tasks:
+  - title: Prepare IRB application
+    description: Complete ethics review application with study protocol and consent forms
+    phase: IRB & Ethics
+    priority: high
+  - title: Design study protocol
+    description: Write detailed study protocol with sample size calculation
+    phase: Study Design
+    priority: high
+  - title: Develop case report forms
+    description: Create data collection instruments and CRFs
+    phase: Study Design
+    priority: medium
+  - title: Recruit participants
+    description: Screen, enroll, and consent study participants
+    phase: Recruitment
+    priority: high
+  - title: Collect data
+    description: Gather clinical data per protocol
+    phase: Data Collection
+    priority: high
+  - title: Perform statistical analysis
+    description: Run planned analyses, generate tables and figures
+    phase: Statistical Analysis
+    priority: high
+  - title: Draft manuscript
+    description: Write manuscript following STROBE/CONSORT guidelines
+    phase: Manuscript
+    priority: high
