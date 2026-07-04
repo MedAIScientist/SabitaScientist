@@ -306,6 +306,30 @@ export function Board() {
           >
             🧪 RESEARCH
           </button>
+          <button
+            onClick={async () => {
+              const type = prompt('Grant type (nih_r01 / nsf / erc / wellcome / general):', 'general')
+              if (!type) return
+              try {
+                const r = await api.draftGrantProposal(projectId!, type.trim())
+                alert(`Grant proposal started! View at /publications/${r.publication_id}`)
+                navigate(`/publications/${r.publication_id}`)
+              } catch (e: unknown) {
+                alert(e instanceof Error ? e.message : 'Failed')
+              }
+            }}
+            style={{
+              background: 'rgba(16,185,129,0.08)',
+              border: '1px solid rgba(16,185,129,0.18)',
+              color: '#64748b',
+              fontFamily: 'var(--font-mono)', fontSize: 16,
+              padding: '5px 12px', borderRadius: 4, cursor: 'pointer', letterSpacing: '0.08em',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#10b981'; e.currentTarget.style.borderColor = 'rgba(16,185,129,0.35)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(16,185,129,0.18)' }}
+          >
+            💰 GRANT
+          </button>
           {isOwner && (
             <button
               onClick={() => setSettingsPanelOpen(true)}

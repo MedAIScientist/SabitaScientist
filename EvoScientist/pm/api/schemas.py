@@ -469,6 +469,10 @@ class ComputeResourceCreate(BaseModel):
     config: dict = {}
 
 
+class GrantWriterRequest(BaseModel):
+    grant_type: str = Field(default="general", pattern="^(nih_r01|nsf|erc|wellcome|general)$")
+
+
 class ComputeRunRequest(BaseModel):
     resource_id: str
     project_id: str

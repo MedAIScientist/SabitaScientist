@@ -22,6 +22,7 @@ import { LabsPage }           from './pages/LabsPage'
 import { LabDetail }          from './pages/LabDetail'
 import { AdminDashboard }     from './pages/AdminDashboard'
 import { AnalyticsPage }      from './pages/AnalyticsPage'
+import { ImpactPage }         from './pages/ImpactPage'
 import { PublicationsPage }   from './pages/PublicationsPage'
 import { PublicationDetail }  from './pages/PublicationDetail'
 
@@ -57,6 +58,7 @@ function App() {
         <Route path="/admissions/:id"   element={<PrivateRoute><AdmissionDetail /></PrivateRoute>} />
         <Route path="/labs"            element={<PrivateRoute><LabsPage /></PrivateRoute>} />
         <Route path="/labs/:id"        element={<PrivateRoute><LabDetail /></PrivateRoute>} />
+        <Route path="/labs/:id/impact" element={<PrivateRoute><ImpactPage /></PrivateRoute>} />
         <Route path="/admin"           element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
         <Route path="/analytics"       element={<PrivateRoute><AnalyticsPage /></PrivateRoute>} />
         <Route path="/publications"    element={<PrivateRoute><PublicationsPage /></PrivateRoute>} />

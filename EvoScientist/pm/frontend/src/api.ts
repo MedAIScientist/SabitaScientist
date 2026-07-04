@@ -360,6 +360,18 @@ export interface DependenciesListResponse {
   verifyCitations: (projectId: string, citations: string) =>
     request<{ status: string; message: string }>('POST', `/projects/${projectId}/verify-citations`, { citations }),
 
+  // ── AI Grant Writer ──────────────────────────────────────────────────────
+  draftGrantProposal: (projectId: string, grantType: string) =>
+    request<{ status: string; publication_id: string }>('POST', `/projects/${projectId}/grant-proposal`, { grant_type: grantType }),
+
+  // ── Auto Figures ──────────────────────────────────────────────────────────
+  generateFigures: (projectId: string, expId: string) =>
+    request<{ status: string; experiment_id: string }>('POST', `/projects/${projectId}/experiments/${expId}/generate-figures`),
+
+  // ── Research Impact ───────────────────────────────────────────────────────
+  labResearchImpact: (labId: string) =>
+    request<LabImpact>('GET', `/labs/${labId}/research-impact`),
+
   // ── Templates ──────────────────────────────────────────────────────────────
   listTemplates: () => request<Template[]>('GET', '/templates'),
   getTemplate: (id: string) => request<Template>('GET', `/templates/${id}`),
@@ -619,6 +631,15 @@ export interface Version {
 export interface Review {
   id: string; publication_id: string; reviewer_name: string | null
   comments: string | null; decision: string | null; round: number; created_at: string
+}
+
+export interface LabImpact {
+  lab_id: string; lab_name: string; total_publications: number
+  s2_matched: number; total_citations: number; h_index: number
+  average_citations_per_paper: number; member_count: number
+  publications_by_status: Record<string, number>
+  publications: { title: string; status: string; citations: number; influential_citations: number; venue: string; year: number; fields: string[]; is_open_access: boolean }[]
+  members: { user_id: string; role: string }[]
 }
 
 export interface Template {

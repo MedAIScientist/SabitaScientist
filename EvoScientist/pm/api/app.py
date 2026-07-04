@@ -13,6 +13,7 @@ from ..db import create_schema
 from .audit_middleware import AuditMiddleware
 from .routes import (
     admissions,
+    ai_tools,
     assists,
     attachments,
     audit,
@@ -95,6 +96,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     app.include_router(literature_review.router, prefix="/api/v1", tags=["literature"])
     app.include_router(peer_review.router, prefix="/api/v1", tags=["peer-review"])
     app.include_router(compute.router, prefix="/api/v1", tags=["compute"])
+    app.include_router(ai_tools.router, prefix="/api/v1", tags=["ai-tools"])
     app.include_router(
         publications.router, prefix="/api/v1/publications", tags=["publications"]
     )

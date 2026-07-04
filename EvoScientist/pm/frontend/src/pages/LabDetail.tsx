@@ -123,6 +123,13 @@ export function LabDetail() {
             <span style={{ color: '#ff8015', fontSize: 21, fontFamily: 'var(--font-mono)' }}>{lab.name}</span>
           </div>
         </div>
+        <button onClick={() => navigate(`/labs/${id}/impact`)} style={{
+          cursor: 'pointer', padding: '7px 14px',
+          background: 'rgba(99,102,241,0.1)',
+          border: '1px solid rgba(99,102,241,0.3)',
+          borderRadius: 7, color: '#6366f1',
+          fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', marginRight: 8,
+        }}>📊 IMPACT</button>
         <button onClick={() => setEditing(e => !e)} style={{
           cursor: 'pointer', padding: '7px 16px',
           background: 'rgba(255,128,21,0.1)',
