@@ -5,6 +5,7 @@ const NAV_ITEMS = [
   { path: '/projects', label: 'PROJECTS' },
   { path: '/labs', label: 'LABS' },
   { path: '/publications', label: 'PAPERS' },
+  { path: '/analytics', label: 'ANALYTICS' },
   { path: '/admissions', label: 'ADMISSIONS' },
   { path: '/users', label: 'USERS', adminOnly: true },
   { path: '/admin', label: 'ADMIN', adminOnly: true },

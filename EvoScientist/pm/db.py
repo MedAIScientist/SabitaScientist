@@ -266,6 +266,21 @@ CREATE INDEX IF NOT EXISTS idx_publications_status ON publications(status);
 CREATE INDEX IF NOT EXISTS idx_pub_versions_pub ON publication_versions(publication_id);
 CREATE INDEX IF NOT EXISTS idx_pub_reviews_pub ON publication_reviews(publication_id);
 
+CREATE TABLE IF NOT EXISTS audit_log (
+    id           TEXT PRIMARY KEY,
+    user_id      TEXT REFERENCES users(id) ON DELETE SET NULL,
+    action       TEXT NOT NULL,
+    entity_type  TEXT NOT NULL,
+    entity_id    TEXT,
+    details      TEXT,
+    ip_address   TEXT,
+    created_at   TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_log(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at);
+
 CREATE INDEX IF NOT EXISTS idx_admissions_status ON admissions(status);
 CREATE INDEX IF NOT EXISTS idx_admissions_form_id ON admissions(form_submission_id);
 """

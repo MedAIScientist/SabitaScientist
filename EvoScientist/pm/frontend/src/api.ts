@@ -330,6 +330,10 @@ export interface DependenciesListResponse {
     reviewer_name?: string; comments?: string; decision?: string; round?: number
   }) => request<Review>('POST', `/publications/${pubId}/reviews`, data),
 
+  // ── Drafting ──────────────────────────────────────────────────────────────
+  draftPaper: (projectId: string) =>
+    request<{ publication_id: string; status: string; message: string }>('POST', `/projects/${projectId}/draft-paper`),
+
   // ── Templates ──────────────────────────────────────────────────────────────
   listTemplates: () => request<Template[]>('GET', '/templates'),
   getTemplate: (id: string) => request<Template>('GET', `/templates/${id}`),

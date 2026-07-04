@@ -216,6 +216,18 @@ class PublicationReview:
 
 
 @dataclass
+class AuditLogEntry:
+    id: str
+    user_id: str | None
+    action: str
+    entity_type: str
+    entity_id: str | None
+    details: str | None
+    ip_address: str | None
+    created_at: str
+
+
+@dataclass
 class Admission:
     id: str
     applicant_name: str

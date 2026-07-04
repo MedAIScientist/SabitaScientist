@@ -14,9 +14,11 @@ from .routes import (
     admissions,
     assists,
     attachments,
+    audit,
     auth,
     dashboard,
     dependencies,
+    drafting,
     experiments,
     labs,
     phases,
@@ -76,6 +78,8 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     )
     app.include_router(labs.router, prefix="/api/v1/labs", tags=["labs"])
     app.include_router(templates.router, prefix="/api/v1/templates", tags=["templates"])
+    app.include_router(drafting.router, prefix="/api/v1", tags=["drafting"])
+    app.include_router(audit.router, prefix="/api/v1", tags=["audit"])
     app.include_router(dashboard.router, prefix="/api/v1", tags=["dashboard"])
     app.include_router(
         publications.router, prefix="/api/v1/publications", tags=["publications"]

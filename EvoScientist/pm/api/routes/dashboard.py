@@ -102,6 +102,38 @@ def pi_stats(current_user: User = Depends(get_current_user)):
             ],
         })
 
+    # Task status breakdown
+    with get_db(db) as conn:
+        task_statuses = conn.execute(
+            f"""SELECT t.status, COUNT(*) as cnt
+                FROM tasks t JOIN projects p ON t.project_id = p.id
+                WHERE p.lab_id IN ({placeholders}) AND p.archived_at IS NULL
+                GROUP BY t.status""",
+            lab_ids,
+        ).fetchall()
+        exp_statuses = conn.execute(
+            f"""SELECT e.status, COUNT(*) as cnt
+                FROM experiments e JOIN projects p ON e.project_id = p.id
+                WHERE p.lab_id IN ({placeholders}) AND p.archived_at IS NULL
+                GROUP BY e.status""",
+            lab_ids,
+        ).fetchall()
+        pub_counts = conn.execute(
+            f"""SELECT status, COUNT(*) as cnt
+                FROM publications
+                WHERE project_id IN (SELECT id FROM projects WHERE lab_id IN ({placeholders}))
+                GROUP BY status""",
+            lab_ids,
+        ).fetchall()
+        pub_over_time = conn.execute(
+            f"""SELECT strftime('%Y-%m', created_at) as month, COUNT(*) as cnt
+                FROM publications
+                WHERE project_id IN (SELECT id FROM projects WHERE lab_id IN ({placeholders}))
+                  AND status IN ('published', 'accepted')
+                GROUP BY month ORDER BY month""",
+            lab_ids,
+        ).fetchall()
+
     return {
         "labs": lab_list,
         "total_tasks": task_count,
@@ -109,5 +141,11 @@ def pi_stats(current_user: User = Depends(get_current_user)):
         "recent_projects": [
             {"id": r["id"], "name": r["name"], "created_at": r["created_at"]}
             for r in projects
+        ],
+        "task_statuses": {r["status"]: r["cnt"] for r in task_statuses},
+        "experiment_statuses": {r["status"]: r["cnt"] for r in exp_statuses},
+        "publication_statuses": {r["status"]: r["cnt"] for r in pub_counts},
+        "publications_over_time": [
+            {"month": r["month"], "count": r["cnt"]} for r in pub_over_time
         ],
     }

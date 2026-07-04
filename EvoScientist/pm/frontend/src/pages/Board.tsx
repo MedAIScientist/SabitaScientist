@@ -260,6 +260,32 @@ export function Board() {
           >
             📊 REPORT
           </button>
+          <button
+            onClick={async () => {
+              try {
+                const result = await api.draftPaper(projectId!)
+                alert(`Paper draft started! Publication ID: ${result.publication_id}`)
+                navigate(`/publications/${result.publication_id}`)
+              } catch (e: unknown) {
+                alert(e instanceof Error ? e.message : 'Draft failed')
+              }
+            }}
+            style={{
+              background: 'rgba(99,102,241,0.08)',
+              border: '1px solid rgba(99,102,241,0.18)',
+              color: '#64748b',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 16,
+              padding: '5px 12px',
+              borderRadius: 4,
+              cursor: 'pointer',
+              letterSpacing: '0.08em',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#a78bfa'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.35)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.18)' }}
+          >
+            ✍ DRAFT PAPER
+          </button>
           {isOwner && (
             <button
               onClick={() => setSettingsPanelOpen(true)}
