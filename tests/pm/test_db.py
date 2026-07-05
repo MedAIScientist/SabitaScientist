@@ -27,6 +27,7 @@ def test_create_schema_creates_all_tables(tmp_path: Path) -> None:
         "publications", "publication_versions", "publication_reviews",
         "publication_experiments",
         "audit_log",
+        "grants", "conferences", "irb_approvals", "lab_wiki_pages",
     }
 
 
@@ -37,7 +38,7 @@ def test_create_schema_is_idempotent(tmp_path: Path) -> None:
 
     conn = sqlite3.connect(db_path)
     cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    assert len(cur.fetchall()) == 22
+    assert len(cur.fetchall()) == 26
     conn.close()
 
 

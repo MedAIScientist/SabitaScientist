@@ -130,6 +130,13 @@ export function LabDetail() {
           borderRadius: 7, color: '#6366f1',
           fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', marginRight: 8,
         }}>📊 IMPACT</button>
+        <button onClick={() => navigate(`/labs/${id}/wiki`)} style={{
+          cursor: 'pointer', padding: '7px 14px',
+          background: 'rgba(16,185,129,0.1)',
+          border: '1px solid rgba(16,185,129,0.3)',
+          borderRadius: 7, color: '#10b981',
+          fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', marginRight: 8,
+        }}>📖 WIKI</button>
         <button onClick={() => setEditing(e => !e)} style={{
           cursor: 'pointer', padding: '7px 16px',
           background: 'rgba(255,128,21,0.1)',

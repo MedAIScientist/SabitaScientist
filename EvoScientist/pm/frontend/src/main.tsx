@@ -23,6 +23,12 @@ import { LabDetail }          from './pages/LabDetail'
 import { AdminDashboard }     from './pages/AdminDashboard'
 import { AnalyticsPage }      from './pages/AnalyticsPage'
 import { ImpactPage }         from './pages/ImpactPage'
+import { GrantsPage }         from './pages/GrantsPage'
+import { GrantDetail }        from './pages/GrantDetail'
+import { ConferencesPage }    from './pages/ConferencesPage'
+import { IRBPage }            from './pages/IRBPage'
+import { WikiPages }          from './pages/WikiPages'
+import { WikiPageView }       from './pages/WikiPageView'
 import { PublicationsPage }   from './pages/PublicationsPage'
 import { PublicationDetail }  from './pages/PublicationDetail'
 
@@ -61,6 +67,12 @@ function App() {
         <Route path="/labs/:id/impact" element={<PrivateRoute><ImpactPage /></PrivateRoute>} />
         <Route path="/admin"           element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
         <Route path="/analytics"       element={<PrivateRoute><AnalyticsPage /></PrivateRoute>} />
+        <Route path="/grants"          element={<PrivateRoute><GrantsPage /></PrivateRoute>} />
+        <Route path="/grants/:id"      element={<PrivateRoute><GrantDetail /></PrivateRoute>} />
+        <Route path="/conferences"     element={<PrivateRoute><ConferencesPage /></PrivateRoute>} />
+        <Route path="/irb"             element={<PrivateRoute><IRBPage /></PrivateRoute>} />
+        <Route path="/labs/:id/wiki"   element={<PrivateRoute><WikiPages /></PrivateRoute>} />
+        <Route path="/labs/:id/wiki/:slug" element={<PrivateRoute><WikiPageView /></PrivateRoute>} />
         <Route path="/publications"    element={<PrivateRoute><PublicationsPage /></PrivateRoute>} />
         <Route path="/publications/:id" element={<PrivateRoute><PublicationDetail /></PrivateRoute>} />
         {!needsSetup && <Route path="*" element={<Navigate to="/projects" replace />} />}

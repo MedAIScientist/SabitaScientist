@@ -11,6 +11,7 @@ from fastapi.staticfiles import StaticFiles
 
 from ..db import create_schema
 from .audit_middleware import AuditMiddleware
+from .rate_limiter import RateLimitMiddleware
 from .routes import (
     admissions,
     ai_tools,
@@ -21,11 +22,14 @@ from .routes import (
     auth_oidc,
     bibliography,
     compute,
+    conferences,
     dashboard,
     dependencies,
     drafting,
     experiments,
     export_routes,
+    grants,
+    irb,
     labs,
     literature_review,
     peer_review,
@@ -33,9 +37,11 @@ from .routes import (
     projects,
     publications,
     runs,
+    search,
     tasks,
     templates,
     users,
+    wiki,
 )
 
 _FRONTEND_DIST = Path(__file__).parent.parent / "frontend" / "dist"
@@ -59,6 +65,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.add_middleware(RateLimitMiddleware, max_requests=200, window_seconds=60)
     app.add_middleware(AuditMiddleware)
 
     @app.get("/api/v1/health", tags=["health"], include_in_schema=False)
@@ -97,6 +104,11 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     app.include_router(peer_review.router, prefix="/api/v1", tags=["peer-review"])
     app.include_router(compute.router, prefix="/api/v1", tags=["compute"])
     app.include_router(ai_tools.router, prefix="/api/v1", tags=["ai-tools"])
+    app.include_router(grants.router, prefix="/api/v1/grants", tags=["grants"])
+    app.include_router(conferences.router, prefix="/api/v1/conferences", tags=["conferences"])
+    app.include_router(irb.router, prefix="/api/v1/irb", tags=["irb"])
+    app.include_router(wiki.router, prefix="/api/v1", tags=["wiki"])
+    app.include_router(search.router, prefix="/api/v1", tags=["search"])
     app.include_router(
         publications.router, prefix="/api/v1/publications", tags=["publications"]
     )

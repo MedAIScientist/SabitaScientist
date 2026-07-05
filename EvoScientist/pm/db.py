@@ -292,6 +292,89 @@ CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_log(user_id);
 CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_log(entity_type, entity_id);
 CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at);
 
+CREATE TABLE IF NOT EXISTS grants (
+    id              TEXT PRIMARY KEY,
+    lab_id          TEXT REFERENCES labs(id) ON DELETE SET NULL,
+    project_id      TEXT REFERENCES projects(id) ON DELETE SET NULL,
+    title           TEXT NOT NULL,
+    funder          TEXT NOT NULL,
+    amount_requested REAL,
+    amount_awarded  REAL,
+    currency        TEXT NOT NULL DEFAULT 'TRY',
+    status          TEXT NOT NULL DEFAULT 'draft'
+                    CHECK(status IN ('draft','submitted','under_review','awarded','rejected','active','closed')),
+    submitted_at    TEXT,
+    awarded_at      TEXT,
+    start_date      TEXT,
+    end_date        TEXT,
+    description     TEXT,
+    pi_id           TEXT REFERENCES users(id) ON DELETE SET NULL,
+    created_by      TEXT NOT NULL REFERENCES users(id),
+    created_at      TEXT NOT NULL,
+    updated_at      TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS conferences (
+    id              TEXT PRIMARY KEY,
+    project_id      TEXT REFERENCES projects(id) ON DELETE SET NULL,
+    publication_id  TEXT REFERENCES publications(id) ON DELETE SET NULL,
+    name            TEXT NOT NULL,
+    venue           TEXT,
+    location        TEXT,
+    deadline        TEXT,
+    submission_date TEXT,
+    decision_date   TEXT,
+    status          TEXT NOT NULL DEFAULT 'draft'
+                    CHECK(status IN ('draft','submitted','under_review','accepted','rejected','presented')),
+    presentation_type TEXT DEFAULT 'poster'
+                    CHECK(presentation_type IN ('poster','oral','spotlight','workshop','demo')),
+    travel_funding  REAL,
+    travel_notes    TEXT,
+    url             TEXT,
+    notes           TEXT,
+    created_by      TEXT NOT NULL REFERENCES users(id),
+    created_at      TEXT NOT NULL,
+    updated_at      TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS irb_approvals (
+    id              TEXT PRIMARY KEY,
+    project_id      TEXT REFERENCES projects(id) ON DELETE CASCADE,
+    institution     TEXT NOT NULL,
+    protocol_number TEXT NOT NULL,
+    title           TEXT NOT NULL,
+    status          TEXT NOT NULL DEFAULT 'draft'
+                    CHECK(status IN ('draft','submitted','approved','rejected','expired','closed')),
+    approval_date   TEXT,
+    expiry_date     TEXT,
+    renewal_date    TEXT,
+    documents       TEXT DEFAULT '[]',
+    notes           TEXT,
+    created_by      TEXT NOT NULL REFERENCES users(id),
+    created_at      TEXT NOT NULL,
+    updated_at      TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS lab_wiki_pages (
+    id              TEXT PRIMARY KEY,
+    lab_id          TEXT NOT NULL REFERENCES labs(id) ON DELETE CASCADE,
+    title           TEXT NOT NULL,
+    slug            TEXT NOT NULL,
+    content         TEXT NOT NULL DEFAULT '',
+    tags            TEXT DEFAULT '[]',
+    created_by      TEXT NOT NULL REFERENCES users(id),
+    created_at      TEXT NOT NULL,
+    updated_at      TEXT NOT NULL,
+    UNIQUE(lab_id, slug)
+);
+
+CREATE INDEX IF NOT EXISTS idx_grants_lab ON grants(lab_id);
+CREATE INDEX IF NOT EXISTS idx_grants_status ON grants(status);
+CREATE INDEX IF NOT EXISTS idx_conferences_project ON conferences(project_id);
+CREATE INDEX IF NOT EXISTS idx_conferences_status ON conferences(status);
+CREATE INDEX IF NOT EXISTS idx_irb_project ON irb_approvals(project_id);
+CREATE INDEX IF NOT EXISTS idx_wiki_lab ON lab_wiki_pages(lab_id);
+
 CREATE INDEX IF NOT EXISTS idx_admissions_status ON admissions(status);
 CREATE INDEX IF NOT EXISTS idx_admissions_form_id ON admissions(form_submission_id);
 """

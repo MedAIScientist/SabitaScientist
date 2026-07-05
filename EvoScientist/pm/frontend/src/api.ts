@@ -379,6 +379,52 @@ export interface DependenciesListResponse {
   labResearchImpact: (labId: string) =>
     request<LabImpact>('GET', `/labs/${labId}/research-impact`),
 
+  // ── Grants ────────────────────────────────────────────────────────────────
+  listGrants: (labId?: string, status?: string, offset = 0, limit = 50) => {
+    const p = new URLSearchParams()
+    if (labId) p.set('lab_id', labId)
+    if (status) p.set('status', status)
+    p.set('offset', String(offset)); p.set('limit', String(limit))
+    return request<Grant_[]>('GET', `/grants?${p}`)
+  },
+  createGrant: (data: Record<string, unknown>) => request('POST', '/grants', data),
+  getGrant: (id: string) => request<Grant_>('GET', `/grants/${id}`),
+  updateGrant: (id: string, data: Record<string, unknown>) => request('PUT', `/grants/${id}`, data),
+  deleteGrant: (id: string) => request<void>('DELETE', `/grants/${id}`),
+
+  // ── Conferences ─────────────────────────────────────────────────────────
+  listConferences: (projectId?: string, status?: string) => {
+    const p = new URLSearchParams()
+    if (projectId) p.set('project_id', projectId)
+    if (status) p.set('status', status)
+    return request<Conference_[]>('GET', `/conferences?${p}`)
+  },
+  createConference: (data: Record<string, unknown>) => request('POST', '/conferences', data),
+  getConference: (id: string) => request<Conference_>('GET', `/conferences/${id}`),
+  updateConference: (id: string, data: Record<string, unknown>) => request('PUT', `/conferences/${id}`, data),
+
+  // ── IRB ──────────────────────────────────────────────────────────────────
+  listIrbs: (projectId?: string, status?: string) => {
+    const p = new URLSearchParams()
+    if (projectId) p.set('project_id', projectId)
+    if (status) p.set('status', status)
+    return request<IRB_[]>('GET', `/irb?${p}`)
+  },
+  createIrb: (data: Record<string, unknown>) => request('POST', '/irb', data),
+  getIrb: (id: string) => request<IRB_>('GET', `/irb/${id}`),
+  updateIrb: (id: string, data: Record<string, unknown>) => request('PUT', `/irb/${id}`, data),
+
+  // ── Wiki ─────────────────────────────────────────────────────────────────
+  listWikiPages: (labId: string) => request<WikiPage_[]>('GET', `/labs/${labId}/wiki`),
+  createWikiPage: (labId: string, data: { title: string; content?: string; tags?: string[] }) =>
+    request('POST', `/labs/${labId}/wiki`, data),
+  getWikiPage: (labId: string, pageId: string) => request<WikiPage_>('GET', `/labs/${labId}/wiki/${pageId}`),
+  updateWikiPage: (labId: string, pageId: string, data: { content?: string; title?: string; tags?: string[] }) =>
+    request('PUT', `/labs/${labId}/wiki/${pageId}`, data),
+
+  // ── Global Search ────────────────────────────────────────────────────────
+  globalSearch: (q: string) => request<SearchResults>('GET', `/search?q=${encodeURIComponent(q)}`),
+
   // ── Templates ──────────────────────────────────────────────────────────────
   listTemplates: () => request<Template[]>('GET', '/templates'),
   getTemplate: (id: string) => request<Template>('GET', `/templates/${id}`),
@@ -655,6 +701,12 @@ export interface Pipeline {
   linked_experiments: { experiment_id: string; name: string; status: string; hypothesis: string | null; section: string | null; entry_count: number }[]
   pipeline_stages: { stage: string; status: string; name?: string; id?: string; date?: string; count?: number; reviews?: number }[]
 }
+
+export interface Grant_ { id: string; title: string; funder: string; amount_awarded: number | null; currency: string; status: string; submitted_at: string | null; start_date: string | null; end_date: string | null; project_id: string | null; lab_id: string | null; created_at: string }
+export interface Conference_ { id: string; name: string; venue: string | null; deadline: string | null; status: string; presentation_type: string; decision_date: string | null }
+export interface IRB_ { id: string; title: string; institution: string; protocol_number: string; status: string; approval_date: string | null; expiry_date: string | null }
+export interface WikiPage_ { id: string; title: string; slug: string; content?: string; tags?: string[]; updated_at: string }
+export interface SearchResults { projects: { id: string; name: string; type: string }[]; tasks: { id: string; title: string; project_id: string; type: string }[]; experiments: { id: string; name: string; project_id: string; type: string }[]; publications: { id: string; title: string; type: string }[] }
 
 export interface Template {
   id: string; name: string; description: string; domain: string; icon: string

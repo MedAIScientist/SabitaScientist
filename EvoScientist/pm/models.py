@@ -228,6 +228,81 @@ class AuditLogEntry:
 
 
 @dataclass
+class Grant:
+    id: str
+    title: str
+    funder: str
+    status: str
+    created_by: str
+    created_at: str
+    updated_at: str
+    lab_id: str | None = None
+    project_id: str | None = None
+    amount_requested: float | None = None
+    amount_awarded: float | None = None
+    currency: str = "TRY"
+    submitted_at: str | None = None
+    awarded_at: str | None = None
+    start_date: str | None = None
+    end_date: str | None = None
+    description: str | None = None
+    pi_id: str | None = None
+
+
+@dataclass
+class Conference:
+    id: str
+    name: str
+    status: str
+    presentation_type: str
+    created_by: str
+    created_at: str
+    updated_at: str
+    project_id: str | None = None
+    publication_id: str | None = None
+    venue: str | None = None
+    location: str | None = None
+    deadline: str | None = None
+    submission_date: str | None = None
+    decision_date: str | None = None
+    travel_funding: float | None = None
+    travel_notes: str | None = None
+    url: str | None = None
+    notes: str | None = None
+
+
+@dataclass
+class IRBApproval:
+    id: str
+    project_id: str
+    institution: str
+    protocol_number: str
+    title: str
+    status: str
+    created_by: str
+    created_at: str
+    updated_at: str
+    approval_date: str | None = None
+    expiry_date: str | None = None
+    renewal_date: str | None = None
+    documents: list[str] | None = None
+    notes: str | None = None
+
+
+@dataclass
+class LabWikiPage:
+    id: str
+    lab_id: str
+    title: str
+    slug: str
+    content: str
+    created_by: str
+    created_at: str
+    updated_at: str
+    tags: list[str] | None = None
+
+
+@dataclass
 class Admission:
     id: str
     applicant_name: str
