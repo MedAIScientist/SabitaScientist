@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api, Publication_, Version, Review } from '../api'
+import { api, Publication_, Version, Review, Pipeline } from '../api'
 
 const STATUS_OPTIONS = ['draft', 'submitted', 'reviewing', 'accepted', 'published', 'rejected']
 const STATUS_COLORS: Record<string, string> = {
@@ -75,6 +75,12 @@ export function PublicationDetail() {
     enabled: Boolean(pub?.project_id),
   })
 
+  const { data: pipeline } = useQuery({
+    queryKey: ['pipeline', id],
+    queryFn: () => api.getPublicationPipeline(id!),
+    enabled: Boolean(id),
+  })
+
   const updateMutation = useMutation({
     mutationFn: (data: Record<string, unknown>) => api.updatePublication(id!, data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['publication', id] }); setEditing(false) },
@@ -130,6 +136,12 @@ export function PublicationDetail() {
       qc.invalidateQueries({ queryKey: ['versions', id] })
       setAiTab(null); setReviewerComments('')
     },
+  })
+
+  const linkExpMutation = useMutation({
+    mutationFn: ({ expId, section }: { expId: string; section?: string }) =>
+      api.linkExperimentToPub(id!, expId, section),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['pipeline', id] }),
   })
 
   if (isLoading || !pub) return (
@@ -226,10 +238,92 @@ export function PublicationDetail() {
             </div>
           )}
 
-          {!editing && (pub.venue || pub.doi) && (
+          {!editing && (pub.venue || pub.doi || pub.project_name) && (
             <div style={{ display: 'flex', gap: 20, marginBottom: 20, fontSize: 16, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+              {pub.project_name && <span>Project: {pub.project_name}</span>}
               {pub.venue && <span>Venue: {pub.venue}</span>}
               {pub.doi && <span>DOI: {pub.doi}</span>}
+            </div>
+          )}
+
+          {/* Pipeline visualization */}
+          {pipeline && pipeline.pipeline_stages && (
+            <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 20px', marginBottom: 20 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)', marginBottom: 12, letterSpacing: '0.06em' }}>
+                📋 PUBLICATION PIPELINE
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                {pipeline.pipeline_stages.map((stage, i) => {
+                  const stageColors: Record<string, string> = {
+                    done: '#10b981', active: '#f59e0b', pending: '#6b7280', none: '#374151',
+                  }
+                  const stageLabels: Record<string, string> = {
+                    project: '📁 Project', experiments: '🔬 Experiments', draft: '✍ Draft',
+                    submitted: '📤 Submitted', review: '👁 Review', accepted: '✅ Accepted',
+                    published: '📰 Published',
+                  }
+                  const color = stageColors[stage.status] || '#6b7280'
+                  return (
+                    <React.Fragment key={stage.stage}>
+                      <div style={{
+                        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+                      }}>
+                        <div style={{
+                          width: 32, height: 32, borderRadius: '50%',
+                          background: `${color}20`, border: `2px solid ${color}`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 14, fontWeight: 700, color, fontFamily: 'var(--font-mono)',
+                        }}>
+                          {stage.status === 'done' ? '✓' : stage.status === 'active' ? '●' : stage.status === 'none' ? '–' : '○'}
+                        </div>
+                        <span style={{ fontSize: 12, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', textAlign: 'center', maxWidth: 80 }}>
+                          {stageLabels[stage.stage] || stage.stage}
+                        </span>
+                      </div>
+                      {i < pipeline.pipeline_stages.length - 1 && (
+                        <div style={{
+                          flex: 1, minWidth: 16, height: 2,
+                          background: stage.status === 'done' ? '#10b981' : 'var(--border)',
+                          marginBottom: 20,
+                        }} />
+                      )}
+                    </React.Fragment>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Linked experiments */}
+          {pipeline && pipeline.linked_experiments && pipeline.linked_experiments.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)', marginBottom: 8 }}>
+                🔗 LINKED EXPERIMENTS ({pipeline.linked_experiments.length})
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {pipeline.linked_experiments.map(exp => (
+                  <div key={exp.experiment_id} style={{
+                    background: 'var(--surface-card)', border: '1px solid var(--border)',
+                    borderRadius: 8, padding: '10px 14px',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  }}>
+                    <div>
+                      <span style={{ fontSize: 17, fontWeight: 500, color: 'var(--text-heading)' }}>{exp.name}</span>
+                      {exp.section && <span style={{ fontSize: 14, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginLeft: 8 }}>({exp.section})</span>}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <span style={{
+                        fontSize: 13, fontFamily: 'var(--font-mono)', fontWeight: 700,
+                        color: exp.status === 'completed' ? '#10b981' : exp.status === 'running' ? '#ff8015' : '#f59e0b',
+                        padding: '1px 6px', borderRadius: 3, background: 'var(--surface-input)',
+                      }}>{exp.status.toUpperCase()}</span>
+                      <span style={{ fontSize: 14, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+                        {exp.entry_count} entries
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
@@ -294,7 +388,7 @@ export function PublicationDetail() {
                           background: 'var(--surface-input)', borderRadius: 6, padding: '8px 12px',
                         }}>
                           <span style={{ fontSize: 16, color: 'var(--text-2)' }}>{exp.name}</span>
-                          <div style={{ display: 'flex', gap: 4 }}>
+                          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                             {['results', 'methods', 'discussion'].map(sec => (
                               <button key={sec}
                                 onClick={() => draftFromExpMutation.mutate({ expId: exp.id, section: sec })}
@@ -305,6 +399,17 @@ export function PublicationDetail() {
                                 }}
                               >{sec}</button>
                             ))}
+                            <button
+                              onClick={async () => {
+                                try { await api.linkExperimentToPub(id!, exp.id); qc.invalidateQueries({ queryKey: ['pipeline', id] }) }
+                                catch (e) { alert(e instanceof Error ? e.message : 'Failed') }
+                              }}
+                              style={{
+                                cursor: 'pointer', padding: '2px 7px', fontSize: 12, fontFamily: 'var(--font-mono)',
+                                background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)',
+                                borderRadius: 3, color: '#10b981', fontWeight: 700,
+                              }}
+                            >🔗 link</button>
                           </div>
                         </div>
                       ))}

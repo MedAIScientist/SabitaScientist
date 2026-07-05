@@ -1,8 +1,7 @@
 import React, { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, Publication_ } from '../api'
-import { useAuth } from '../auth'
 
 const STATUS_COLORS: Record<string, string> = {
   draft: '#6b7280', submitted: '#6366f1', reviewing: '#f59e0b',
@@ -11,6 +10,8 @@ const STATUS_COLORS: Record<string, string> = {
 
 export function PublicationsPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const projectFilter = searchParams.get('project_id')
   const qc = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [newTitle, setNewTitle] = useState('')
@@ -18,8 +19,8 @@ export function PublicationsPage() {
   const [newVenueType, setNewVenueType] = useState('journal')
 
   const { data: pubs = [], isLoading } = useQuery({
-    queryKey: ['publications'],
-    queryFn: () => api.listPublications(),
+    queryKey: ['publications', projectFilter],
+    queryFn: () => api.listPublications(projectFilter || undefined),
   })
 
   const createMutation = useMutation({
@@ -117,6 +118,7 @@ export function PublicationsPage() {
                     </div>
                     <div style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
                       {p.authors?.length ? `${p.authors.length} author${p.authors.length > 1 ? 's' : ''}` : 'No authors'} ·
+                      {p.project_name ? `${p.project_name} · ` : ''}
                       created {new Date(p.created_at).toLocaleDateString()}
                     </div>
                   </div>

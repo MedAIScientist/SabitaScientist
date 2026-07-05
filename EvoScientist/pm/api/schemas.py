@@ -358,6 +358,7 @@ class PublicationUpdate(BaseModel):
 class PublicationResponse(BaseModel):
     id: str
     project_id: str | None
+    project_name: str | None = None
     title: str
     venue: str | None
     venue_type: str
@@ -372,6 +373,12 @@ class PublicationResponse(BaseModel):
     created_by: str
     created_at: str
     updated_at: str
+    linked_experiments: list[dict] = []
+
+
+class PublicationLinkExperimentRequest(BaseModel):
+    experiment_id: str
+    section: str | None = None
 
 
 class VersionCreate(BaseModel):

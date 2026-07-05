@@ -193,6 +193,52 @@ def list_reviews(db_path: Path, publication_id: str) -> list[PublicationReview]:
     ]
 
 
+def link_experiment(db_path: Path, publication_id: str, experiment_id: str, section: str | None = None) -> None:
+    """Link an experiment to a publication (e.g., this experiment contributed to this paper)."""
+    now = datetime.now(UTC).isoformat()
+    with get_db(db_path) as conn:
+        conn.execute(
+            "INSERT OR IGNORE INTO publication_experiments (publication_id, experiment_id, section, linked_at) VALUES (?, ?, ?, ?)",
+            (publication_id, experiment_id, section, now),
+        )
+
+
+def unlink_experiment(db_path: Path, publication_id: str, experiment_id: str) -> bool:
+    """Remove an experiment-publication link."""
+    with get_db(db_path) as conn:
+        cur = conn.execute(
+            "DELETE FROM publication_experiments WHERE publication_id = ? AND experiment_id = ?",
+            (publication_id, experiment_id),
+        )
+    return cur.rowcount > 0
+
+
+def list_linked_experiments(db_path: Path, publication_id: str) -> list[dict]:
+    """Return experiments linked to a publication, with experiment name and section."""
+    with get_db(db_path) as conn:
+        rows = conn.execute(
+            """SELECT pe.experiment_id, pe.section, e.name as experiment_name
+               FROM publication_experiments pe
+               JOIN experiments e ON pe.experiment_id = e.id
+               WHERE pe.publication_id = ?
+               ORDER BY e.created_at DESC""",
+            (publication_id,),
+        ).fetchall()
+    return [
+        {"experiment_id": r["experiment_id"], "section": r["section"], "experiment_name": r["experiment_name"]}
+        for r in rows
+    ]
+
+
+def get_project_name_for_publication(db_path: Path, project_id: str | None) -> str | None:
+    """Get the project name for a publication's project_id."""
+    if not project_id:
+        return None
+    with get_db(db_path) as conn:
+        row = conn.execute("SELECT name FROM projects WHERE id = ?", (project_id,)).fetchone()
+    return row["name"] if row else None
+
+
 def _row_to_publication(row) -> Publication:
     return Publication(
         id=row["id"],

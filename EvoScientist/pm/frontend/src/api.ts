@@ -330,6 +330,13 @@ export interface DependenciesListResponse {
     reviewer_name?: string; comments?: string; decision?: string; round?: number
   }) => request<Review>('POST', `/publications/${pubId}/reviews`, data),
 
+  // ── Publication Pipeline ─────────────────────────────────────────────────
+  linkExperimentToPub: (pubId: string, experimentId: string, section?: string) =>
+    request<Publication_>('POST', `/publications/${pubId}/link-experiment`, { experiment_id: experimentId, section }),
+  unlinkExperimentFromPub: (pubId: string, experimentId: string) =>
+    request<Publication_>('DELETE', `/publications/${pubId}/link-experiment/${experimentId}`),
+  getPublicationPipeline: (pubId: string) => request<Pipeline>('GET', `/publications/${pubId}/pipeline`),
+
   // ── Drafting ──────────────────────────────────────────────────────────────
   draftPaper: (projectId: string) =>
     request<{ publication_id: string; status: string }>('POST', `/projects/${projectId}/draft-paper`),
@@ -640,6 +647,13 @@ export interface LabImpact {
   publications_by_status: Record<string, number>
   publications: { title: string; status: string; citations: number; influential_citations: number; venue: string; year: number; fields: string[]; is_open_access: boolean }[]
   members: { user_id: string; role: string }[]
+}
+
+export interface Pipeline {
+  publication_id: string; title: string; status: string
+  project: { id: string; name: string; description: string } | null
+  linked_experiments: { experiment_id: string; name: string; status: string; hypothesis: string | null; section: string | null; entry_count: number }[]
+  pipeline_stages: { stage: string; status: string; name?: string; id?: string; date?: string; count?: number; reviews?: number }[]
 }
 
 export interface Template {

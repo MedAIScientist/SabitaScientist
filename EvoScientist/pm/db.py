@@ -263,6 +263,17 @@ CREATE TABLE IF NOT EXISTS publication_reviews (
 
 CREATE INDEX IF NOT EXISTS idx_publications_project ON publications(project_id);
 CREATE INDEX IF NOT EXISTS idx_publications_status ON publications(status);
+CREATE TABLE IF NOT EXISTS publication_experiments (
+    publication_id  TEXT NOT NULL REFERENCES publications(id) ON DELETE CASCADE,
+    experiment_id   TEXT NOT NULL REFERENCES experiments(id) ON DELETE CASCADE,
+    section         TEXT,
+    linked_at       TEXT NOT NULL,
+    PRIMARY KEY (publication_id, experiment_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pub_exp_pub ON publication_experiments(publication_id);
+CREATE INDEX IF NOT EXISTS idx_pub_exp_exp ON publication_experiments(experiment_id);
+
 CREATE INDEX IF NOT EXISTS idx_pub_versions_pub ON publication_versions(publication_id);
 CREATE INDEX IF NOT EXISTS idx_pub_reviews_pub ON publication_reviews(publication_id);
 

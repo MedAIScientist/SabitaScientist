@@ -330,6 +330,20 @@ export function Board() {
           >
             💰 GRANT
           </button>
+          <button
+            onClick={() => navigate(`/publications?project_id=${projectId}`)}
+            style={{
+              background: 'rgba(236,72,153,0.08)',
+              border: '1px solid rgba(236,72,153,0.18)',
+              color: '#64748b',
+              fontFamily: 'var(--font-mono)', fontSize: 16,
+              padding: '5px 12px', borderRadius: 4, cursor: 'pointer', letterSpacing: '0.08em',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#ec4899'; e.currentTarget.style.borderColor = 'rgba(236,72,153,0.35)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(236,72,153,0.18)' }}
+          >
+            📄 PAPERS
+          </button>
           {isOwner && (
             <button
               onClick={() => setSettingsPanelOpen(true)}
