@@ -1,6 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../auth'
 import { ProjectSettingsPanel } from '../ProjectSettingsPanel'
@@ -8,6 +8,7 @@ import type { Project } from '../../api'
 
 vi.mock('@tanstack/react-query', () => ({
   useMutation: vi.fn(),
+  useQuery: vi.fn(),
   useQueryClient: vi.fn(),
 }))
 vi.mock('react-router-dom', () => ({
@@ -15,6 +16,12 @@ vi.mock('react-router-dom', () => ({
 }))
 vi.mock('../../auth', () => ({
   useAuth: vi.fn(),
+}))
+// PhaseManager is a child section with its own buttons and mutations; mock it out
+// so this suite isolates ProjectSettingsPanel (avoids a second SAVE button and
+// extra useMutation calls that would shift the spy mapping below).
+vi.mock('../PhaseManager', () => ({
+  PhaseManager: () => null,
 }))
 vi.mock('../../api', () => ({
   api: {
@@ -28,6 +35,7 @@ vi.mock('../../api', () => ({
 }))
 
 const mockedUseMutation = vi.mocked(useMutation)
+const mockedUseQuery = vi.mocked(useQuery)
 const mockedUseQueryClient = vi.mocked(useQueryClient)
 const mockedUseNavigate = vi.mocked(useNavigate)
 const mockedUseAuth = vi.mocked(useAuth)
@@ -87,6 +95,7 @@ beforeEach(() => {
   mockedUseAuth.mockReturnValue({ username: 'dr_chen', isAdmin: false, token: 'tok', login: vi.fn(), logout: vi.fn() })
   mockedUseNavigate.mockReturnValue(vi.fn())
   mockedUseQueryClient.mockReturnValue({ invalidateQueries: vi.fn() } as any)
+  mockedUseQuery.mockReturnValue({ data: [], isLoading: false } as any)
 })
 
 describe('ProjectSettingsPanel', () => {

@@ -46,13 +46,6 @@ def _make_app(tmp_db: Path) -> TestClient:
 
 
 @pytest.fixture
-def tmp_db(tmp_path: Path) -> Path:
-    db_path = tmp_path / "test.db"
-    create_schema(db_path)
-    return db_path
-
-
-@pytest.fixture
 def auth_client(tmp_db: Path):
     """Return a TestClient with a valid auth token and project/experiment/entry IDs."""
     app = _make_app(tmp_db)

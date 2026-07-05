@@ -12,13 +12,6 @@ from EvoScientist.pm.db import create_schema
 
 
 @pytest.fixture
-def tmp_db(tmp_path: Path) -> Path:
-    db = tmp_path / "test.db"
-    create_schema(db)
-    return db
-
-
-@pytest.fixture
 def app(tmp_db: Path):
     import EvoScientist.pm.api.deps as deps_mod
     import EvoScientist.pm.crud.users as users_mod

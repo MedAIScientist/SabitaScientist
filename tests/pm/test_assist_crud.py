@@ -59,7 +59,7 @@ def test_create_assist(db_path):
 
 
 def test_get_assist(db_path):
-    a = create_assist(db_path, "e1", "p1", "p", "{}", None, "u1")
+    a = create_assist(db_path, "e1", "p1", "p", "{}", target_field=None, created_by="u1")
     fetched = get_assist(db_path, a.id)
     assert fetched is not None
     assert fetched.id == a.id
@@ -70,8 +70,8 @@ def test_get_assist_not_found(db_path):
 
 
 def test_list_assists_for_experiment(db_path):
-    create_assist(db_path, "e1", "p1", "p1", "{}", None, "u1")
-    create_assist(db_path, "e1", "p1", "p2", "{}", None, "u1")
+    create_assist(db_path, "e1", "p1", "p1", "{}", target_field=None, created_by="u1")
+    create_assist(db_path, "e1", "p1", "p2", "{}", target_field=None, created_by="u1")
     results = list_assists_for_experiment(db_path, "e1")
     assert len(results) == 2
     # newest first
@@ -79,14 +79,14 @@ def test_list_assists_for_experiment(db_path):
 
 
 def test_update_assist_status(db_path):
-    a = create_assist(db_path, "e1", "p1", "p", "{}", None, "u1")
+    a = create_assist(db_path, "e1", "p1", "p", "{}", target_field=None, created_by="u1")
     update_assist_status(db_path, a.id, "running")
     fetched = get_assist(db_path, a.id)
     assert fetched.status == "running"
 
 
 def test_update_assist_output(db_path):
-    a = create_assist(db_path, "e1", "p1", "p", "{}", None, "u1")
+    a = create_assist(db_path, "e1", "p1", "p", "{}", target_field=None, created_by="u1")
     update_assist_output(db_path, a.id, "done", "Generated text")
     fetched = get_assist(db_path, a.id)
     assert fetched.status == "done"
@@ -95,7 +95,7 @@ def test_update_assist_output(db_path):
 
 
 def test_update_assist_status_terminal(db_path):
-    a = create_assist(db_path, "e1", "p1", "p", "{}", None, "u1")
+    a = create_assist(db_path, "e1", "p1", "p", "{}", target_field=None, created_by="u1")
     update_assist_status(db_path, a.id, "done")
     fetched = get_assist(db_path, a.id)
     assert fetched.status == "done"
@@ -104,7 +104,7 @@ def test_update_assist_status_terminal(db_path):
 
 def test_cascade_delete(db_path):
     """Deleting experiment should cascade-delete its assists."""
-    a = create_assist(db_path, "e1", "p1", "p", "{}", None, "u1")
+    a = create_assist(db_path, "e1", "p1", "p", "{}", target_field=None, created_by="u1")
     import sqlite3
     conn = sqlite3.connect(db_path)
     conn.execute("PRAGMA foreign_keys = ON")

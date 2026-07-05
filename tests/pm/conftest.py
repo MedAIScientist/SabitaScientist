@@ -12,10 +12,15 @@ from EvoScientist.pm.auth import hash_password
 
 
 @pytest.fixture
-def tmp_db(tmp_path: Path) -> Path:
-    """Return path to a fresh temporary projects.db."""
+def tmp_db(tmp_path: Path, monkeypatch) -> Path:
+    """Return path to a fresh temporary projects.db.
+
+    Sets EVOSCIENTIST_PM_DB so get_db_path() resolves to the temp DB in every
+    module (routes, audit_helper, crud) without per-module patching.
+    """
     db_path = tmp_path / "projects.db"
     create_schema(db_path)
+    monkeypatch.setenv("EVOSCIENTIST_PM_DB", str(db_path))
     return db_path
 
 
