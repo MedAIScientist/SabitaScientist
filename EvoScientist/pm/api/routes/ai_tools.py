@@ -221,7 +221,7 @@ async def _run_figure_generator(exp_id: str, user_id: str, run_id: str, prompt: 
     text = await _run_agent(run_id, prompt, workspace_dir, agent_type="data_analysis")
     if text:
         db = get_db_path()
-        create_entry(db, experiment_id=exp_id, type="result",
+        create_entry(db, experiment_id=exp_id, entry_type="result",
                      title="AI-Generated Figures & Analysis",
                      body=text, author_id=user_id)
 

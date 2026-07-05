@@ -183,112 +183,6 @@ export const api = {
 
   grantAid: (admissionId: string, data: { aid_percentage: number; notes?: string | null }) =>
     request<Admission>('POST', `/admissions/${admissionId}/financial-aid`, data),
-}
-
-export interface UserRecord {
-  id: string; username: string; email: string | null; is_admin: boolean; created_at: string
-}
-
-export interface Project {
-  id: string; name: string; description: string | null
-  created_by: string; created_at: string; archived_at: string | null
-  members: Member[]
-}
-export interface Member { user_id: string; username: string; role: string; added_at: string }
-export interface Lab {
-  id: string; name: string; pi_id: string | null
-  department: string; university: string
-  created_at: string; updated_at: string
-  members: LabMember_[]
-}
-export interface LabMember_ { user_id: string; username: string; role: string; joined_at: string }
-export interface Task {
-  id: string; project_id: string; title: string; description: string | null
-  assignee_id: string | null; status: 'todo' | 'in_progress' | 'done'
-  priority: 'high' | 'medium' | 'low'; deadline: string | null
-  session_id: string | null; created_by: string; created_at: string; updated_at: string
-  phase_id?: string | null
-  blocked_by?: string[]
-}
-export interface Comment { id: string; task_id: string; author_id: string | null; body: string; created_at: string }
-export interface Run {
-  id: string
-  task_id: string
-  project_id: string
-  agent_type: 'research' | 'code' | 'data_analysis' | 'writing'
-  prompt: string
-  status: 'pending' | 'running' | 'done' | 'failed' | 'cancelled'
-  output: string | null
-  error: string | null
-  started_at: string | null
-  finished_at: string | null
-  created_by: string
-  created_at: string
-}
-
-export interface Experiment {
-  id: string
-  project_id: string
-  name: string
-  hypothesis: string | null
-  protocol: string | null
-  status: 'planned' | 'running' | 'completed'
-  tags: string[]
-  deadline: string | null
-  phase_id?: string | null
-  created_by: string
-  created_at: string
-  updated_at: string
-}
-
-export interface ExperimentEntry {
-  id: string
-  experiment_id: string
-  type: 'note' | 'result'
-  title: string
-  body: string
-  author_id: string | null
-  created_at: string
-  updated_at: string
-}
-
-export interface Assist {
-  id: string
-  experiment_id: string
-  project_id: string
-  prompt: string
-  status: 'pending' | 'running' | 'done' | 'failed' | 'cancelled'
-  output: string | null
-  error: string | null
-  target_field: 'hypothesis' | 'protocol' | 'entry_body' | null
-  created_by: string
-  created_at: string
-  finished_at: string | null
-}
-
-export interface ProjectPhase {
-  id: string
-  project_id: string
-  name: string
-  color: string
-  position: number
-  target_date: string | null
-  created_by: string
-  created_at: string
-}
-
-export interface TaskDependency {
-  task_id: string
-  depends_on_id: string
-  dep_type: 'hard' | 'soft'
-  created_by: string
-  created_at: string
-}
-
-export interface DependenciesListResponse {
-  dependencies: TaskDependency[]
-  dependents: TaskDependency[]
-}
 
   // ── Labs ─────────────────────────────────────────────────────────────────────
   listLabs: () => request<Lab[]>('GET', '/labs'),
@@ -430,8 +324,114 @@ export interface DependenciesListResponse {
   getTemplate: (id: string) => request<Template>('GET', `/templates/${id}`),
   createProjectFromTemplate: (data: { template_id: string; name: string; description?: string; lab_id?: string }) =>
     request<Project>('POST', '/templates/from-template', data),
+}
 
-  // ── Phases ────────────────────────────────────────────────────────────────────
+export interface UserRecord {
+  id: string; username: string; email: string | null; is_admin: boolean; created_at: string
+}
+
+export interface Project {
+  id: string; name: string; description: string | null
+  created_by: string; created_at: string; archived_at: string | null
+  members: Member[]
+}
+export interface Member { user_id: string; username: string; role: string; added_at: string }
+export interface Lab {
+  id: string; name: string; pi_id: string | null
+  department: string; university: string
+  created_at: string; updated_at: string
+  members: LabMember_[]
+}
+export interface LabMember_ { user_id: string; username: string; role: string; joined_at: string }
+export interface Task {
+  id: string; project_id: string; title: string; description: string | null
+  assignee_id: string | null; status: 'todo' | 'in_progress' | 'done'
+  priority: 'high' | 'medium' | 'low'; deadline: string | null
+  session_id: string | null; created_by: string; created_at: string; updated_at: string
+  phase_id?: string | null
+  blocked_by?: string[]
+}
+export interface Comment { id: string; task_id: string; author_id: string | null; body: string; created_at: string }
+export interface Run {
+  id: string
+  task_id: string
+  project_id: string
+  agent_type: 'research' | 'code' | 'data_analysis' | 'writing'
+  prompt: string
+  status: 'pending' | 'running' | 'done' | 'failed' | 'cancelled'
+  output: string | null
+  error: string | null
+  started_at: string | null
+  finished_at: string | null
+  created_by: string
+  created_at: string
+}
+
+export interface Experiment {
+  id: string
+  project_id: string
+  name: string
+  hypothesis: string | null
+  protocol: string | null
+  status: 'planned' | 'running' | 'completed'
+  tags: string[]
+  deadline: string | null
+  phase_id?: string | null
+  created_by: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ExperimentEntry {
+  id: string
+  experiment_id: string
+  type: 'note' | 'result'
+  title: string
+  body: string
+  author_id: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface Assist {
+  id: string
+  experiment_id: string
+  project_id: string
+  prompt: string
+  status: 'pending' | 'running' | 'done' | 'failed' | 'cancelled'
+  output: string | null
+  error: string | null
+  target_field: 'hypothesis' | 'protocol' | 'entry_body' | null
+  created_by: string
+  created_at: string
+  finished_at: string | null
+}
+
+export interface ProjectPhase {
+  id: string
+  project_id: string
+  name: string
+  color: string
+  position: number
+  target_date: string | null
+  created_by: string
+  created_at: string
+}
+
+export interface TaskDependency {
+  task_id: string
+  depends_on_id: string
+  dep_type: 'hard' | 'soft'
+  created_by: string
+  created_at: string
+}
+
+export interface DependenciesListResponse {
+  dependencies: TaskDependency[]
+  dependents: TaskDependency[]
+}
+
+// ── Phases ────────────────────────────────────────────────────────────────────
 
 export async function listPhases(projectId: string, token: string): Promise<ProjectPhase[]> {
   const resp = await fetch(`${BASE}/projects/${projectId}/phases`, {
@@ -671,7 +671,7 @@ export interface AdmissionImportResponse {
 }
 
 export interface Publication_ {
-  id: string; project_id: string | null; title: string; venue: string | null
+  id: string; project_id: string | null; project_name?: string | null; title: string; venue: string | null
   venue_type: string; authors: { name?: string; email?: string }[]; status: string
   doi: string | null; url: string | null; abstract: string | null
   submitted_at: string | null; accepted_at: string | null; published_at: string | null

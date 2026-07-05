@@ -225,7 +225,7 @@ async def draft_section(
         notes=f"AI drafted section: {body.section} ({body.style}) — in progress",
     )
 
-    background_tasks.add_task(_run_section_and_save, pub_id, body.section, run_id, prompt, workspace_dir)
+    background_tasks.add_task(_run_section_and_save, pub_id, body.section, run_id, prompt, workspace_dir, current_user.id)
 
     return {
         "publication_id": pub_id,
@@ -235,7 +235,7 @@ async def draft_section(
     }
 
 
-async def _run_section_and_save(pub_id: str, section: str, run_id: str, prompt: str, workspace_dir: str) -> None:
+async def _run_section_and_save(pub_id: str, section: str, run_id: str, prompt: str, workspace_dir: str, user_id: str) -> None:
     text = await _run_agent_and_get_output(run_id, prompt, workspace_dir)
     if text:
         db = get_db_path()
@@ -248,7 +248,7 @@ async def _run_section_and_save(pub_id: str, section: str, run_id: str, prompt: 
         from ...crud.publications import create_version
         create_version(
             db, pub_id,
-            created_by="agent",
+            created_by=user_id,
             notes=f"AI-generated {section} ({pub_id})",
         )
 
@@ -291,7 +291,7 @@ async def draft_from_experiment(
     workspace_dir = str(Path(workspace_base) / "sections" / f"exp-{experiment_id}")
     run_id = f"exp-{experiment_id}-{section}"
 
-    background_tasks.add_task(_run_section_and_save, pub.id, section, run_id, prompt, workspace_dir)
+    background_tasks.add_task(_run_section_and_save, pub.id, section, run_id, prompt, workspace_dir, current_user.id)
 
     return {
         "publication_id": pub.id,
@@ -378,7 +378,7 @@ async def respond_to_reviewers(
     run_id = f"response-{pub_id}"
 
     background_tasks.add_task(
-        _run_response_and_save, pub_id, body.reviewer_comments, run_id, prompt, workspace_dir,
+        _run_response_and_save, pub_id, body.reviewer_comments, run_id, prompt, workspace_dir, current_user.id,
     )
 
     return {
@@ -387,14 +387,14 @@ async def respond_to_reviewers(
     }
 
 
-async def _run_response_and_save(pub_id: str, comments: str, run_id: str, prompt: str, workspace_dir: str) -> None:
+async def _run_response_and_save(pub_id: str, comments: str, run_id: str, prompt: str, workspace_dir: str, user_id: str) -> None:
     text = await _run_agent_and_get_output(run_id, prompt, workspace_dir)
     if text:
         db = get_db_path()
         from ...crud.publications import create_version
         create_version(
             db, pub_id,
-            created_by="agent",
+            created_by=user_id,
             notes=f"AI-generated reviewer response ({len(comments)} chars of comments)",
         )
 
@@ -500,7 +500,7 @@ async def _save_hypothesis_output(
     if text:
         db = get_db_path()
         exp = create_experiment(db, project_id=project_id, name=f"Hypothesis: {topic[:80]}", created_by=user_id)
-        create_entry(db, experiment_id=exp.id, type="result", title=f"AI-Generated Hypotheses for: {topic}", body=text, author_id=user_id)
+        create_entry(db, experiment_id=exp.id, entry_type="result", title=f"AI-Generated Hypotheses for: {topic}", body=text, author_id=user_id)
 
 
 # ── Research Ideation ──────────────────────────────────────────────────────────
@@ -556,7 +556,7 @@ async def _save_ideation_output(
     if text:
         db = get_db_path()
         exp = create_experiment(db, project_id=project_id, name=f"Ideation: {topic[:80]}", created_by=user_id, status="planned")
-        create_entry(db, experiment_id=exp.id, type="result", title=f"Research Ideas for: {topic}", body=text, author_id=user_id)
+        create_entry(db, experiment_id=exp.id, entry_type="result", title=f"Research Ideas for: {topic}", body=text, author_id=user_id)
 
 
 # ── Methodology Validation ─────────────────────────────────────────────────────
@@ -605,7 +605,7 @@ async def _save_validation_output(project_id: str, user_id: str, run_id: str, pr
     if text:
         db = get_db_path()
         exp = create_experiment(db, project_id=project_id, name="Methodology Review", created_by=user_id)
-        create_entry(db, experiment_id=exp.id, type="result", title="Methodology Validation Report", body=text, author_id=user_id)
+        create_entry(db, experiment_id=exp.id, entry_type="result", title="Methodology Validation Report", body=text, author_id=user_id)
 
 
 # ── Citation Verification ──────────────────────────────────────────────────────
@@ -711,7 +711,7 @@ async def _save_citation_output(project_id: str, user_id: str, run_id: str, prom
         db = get_db_path()
         exp = create_experiment(db, project_id=project_id, name="Citation Review", created_by=user_id)
         # Save AI analysis as the main entry
-        create_entry(db, experiment_id=exp.id, type="result", title="Citation Verification Report — AI Analysis", body=text, author_id=user_id)
+        create_entry(db, experiment_id=exp.id, entry_type="result", title="Citation Verification Report — AI Analysis", body=text, author_id=user_id)
         # Save raw DB results as a note
         if raw_results:
-            create_entry(db, experiment_id=exp.id, type="note", title="Raw Database Results", body=raw_results, author_id=user_id)
+            create_entry(db, experiment_id=exp.id, entry_type="note", title="Raw Database Results", body=raw_results, author_id=user_id)

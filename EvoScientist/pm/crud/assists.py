@@ -22,7 +22,7 @@ def _row_to_assist(row: sqlite3.Row) -> ExperimentAssist:
         status=row["status"],
         output=row["output"],
         error=row["error"],
-        agent_type=row.get("agent_type", "writing"),
+        agent_type=row["agent_type"],
         target_field=row["target_field"],
         created_by=row["created_by"],
         created_at=row["created_at"],

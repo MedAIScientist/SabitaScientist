@@ -43,7 +43,7 @@ def get_project(db_path: Path, project_id: str) -> Project | None:
     """Return Project by id, or None."""
     with get_db(db_path) as conn:
         row = conn.execute(
-            "SELECT id, name, description, created_by, created_at, archived_at FROM projects WHERE id = ?",
+            "SELECT id, name, description, created_by, created_at, archived_at, lab_id FROM projects WHERE id = ?",
             (project_id,),
         ).fetchone()
     return _row_to_project(row) if row else None
@@ -53,7 +53,7 @@ def list_projects_for_user(
     db_path: Path, user_id: str, lab_id: str | None = None
 ) -> list[Project]:
     """Return all non-archived projects the user is a member of, optionally filtered by lab."""
-    query = """SELECT p.id, p.name, p.description, p.created_by, p.created_at, p.archived_at
+    query = """SELECT p.id, p.name, p.description, p.created_by, p.created_at, p.archived_at, p.lab_id
                FROM projects p
                JOIN project_members pm ON p.id = pm.project_id
                WHERE pm.user_id = ? AND p.archived_at IS NULL"""

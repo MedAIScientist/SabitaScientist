@@ -113,6 +113,6 @@ async def _run_lit_review(
         text = "".join(accumulated)
         if text:
             exp = create_experiment(db, project_id=project_id, name=f"Literature Review: {topic[:80]}", created_by=user_id)
-            create_entry(db, experiment_id=exp.id, type="result", title=f"Literature Review — {topic}", body=text, author_id=user_id)
+            create_entry(db, experiment_id=exp.id, entry_type="result", title=f"Literature Review — {topic}", body=text, author_id=user_id)
     except Exception:
         pass
