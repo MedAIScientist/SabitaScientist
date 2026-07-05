@@ -355,6 +355,88 @@ docker build -t evoscientist:dev .
 
 <p align="right"><a href="#top">🔝Back to top</a></p>
 
+---
+
+## 🏫 Research Project Management (PM) Dashboard
+
+The **PM Dashboard** is a full-stack web application (FastAPI + SQLite + React SPA) for running a multi-tenant university research ecosystem. It integrates with EvoScientist's AI agents for automated paper drafting, literature review, hypothesis generation, and more.
+
+### Quick Start
+
+```bash
+# Install with PM dependencies
+uv sync --extra pm
+
+# Start the dashboard (PM API + Runner Service)
+EvoSci dashboard --host 0.0.0.0
+
+# Or with Docker (full stack including Garage S3)
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.pm.yml up -d
+```
+
+### Features
+
+| Domain | Features |
+|--------|----------|
+| **Labs** | Multi-tenant labs with PI/postdoc/phd/ms/visitor roles |
+| **Projects** | Kanban boards, tasks, phases, dependencies, bulk actions |
+| **Experiments** | Hypothesis, protocol, entries (notes/results), AI assists |
+| **Publications** | Paper lifecycle: draft → submit → review → accept → publish |
+| **Grants** | Track TÜBİTAK, TÜSEB, NIH, NSF, ERC, Wellcome proposals |
+| **Conferences** | Submission deadlines, presentation types, travel funds |
+| **IRB** | Ethics approvals, protocol tracking, expiry/renewal dates |
+| **Admissions** | Applicant intake, review workflow, financial aid |
+| **Lab Wiki** | Markdown knowledge base with slug routing |
+
+### AI-Powered Research Tools
+
+| Tool | What it does |
+|------|-------------|
+| **Paper Drafting** | Full paper, individual sections, multiple writing styles |
+| **Grant Writer** | Generates proposals for TÜBİTAK, TÜSEB, NIH, NSF, ERC, Wellcome |
+| **Hypothesis Generator** | 3-5 testable hypotheses from research topic |
+| **Research Ideation** | Novel research directions with feasibility assessment |
+| **Literature Review** | Structured review with web search via research agent |
+| **Methodology Validation** | Reviews proposed methods for flaws and improvements |
+| **Citation Verification** | Checks citations against Semantic Scholar database |
+| **Figure Generator** | Publication-quality plots from experiment data via data-analysis agent |
+
+### API Overview (~50 Endpoints)
+
+```
+/auth     Login, logout, OIDC (Microsoft 365 SSO)
+/users    User CRUD
+/projects Project CRUD + member management
+/labs     Lab CRUD + member roles
+/tasks    Task CRUD + comments
+/experiments  Experiment CRUD + entries + task linking
+/publications Publication CRUD + versions + reviews + pipeline
+/grants   Grant tracking (amounts, funder, status)
+/conferences  Conference submission tracking
+/irb      Ethics approval tracking
+/templates Project templates from YAML
+/admissions   Applicant intake + Excel import
+/wiki     Lab wiki markdown pages
+/search   Global search across all entities
+/export   CSV export for projects, tasks, publications
+/compute  SLURM/SSH/local compute backends
+/audit    Audit log (auto-logged via middleware)
+/drafting AI paper drafting (sections, revision, reviewer response)
+```
+
+### Configuration
+
+| Environment Variable | Purpose |
+|---|---|
+| `EVOSCIENTIST_PM_DB` | PM database path (default: `~/.config/evoscientist/projects.db`) |
+| `RUNNER_URL` | Agent runner URL (default: `http://127.0.0.1:8001`) |
+| `OIDC_CLIENT_ID/SECRET/TENANT` | Microsoft 365 SSO |
+| `PM_SMTP_HOST/USER/PASS` | Email notifications |
+| `S2_DB_PATH` | Semantic Scholar database for citation verification |
+| `GARAGE_S3_ENDPOINT/ACCESS_KEY/SECRET_KEY/BUCKET` | S3-compatible object storage |
+
+<hr />
+
 ## 🔑 Configuration
 
 The easiest way to configure API keys is the interactive wizard:
