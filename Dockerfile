@@ -6,7 +6,7 @@ ARG NODE_IMAGE=node:24-trixie-slim@sha256:735dd688da64d22ebd9dd374b3e7e5a8746356
 FROM ${NODE_IMAGE} AS nodejs
 
 # ---------- Frontend builder (PM dashboard React app) ----------
-FROM node:20-slim AS frontend-builder
+FROM node:26-slim AS frontend-builder
 
 WORKDIR /frontend
 COPY EvoScientist/pm/frontend/package*.json ./
