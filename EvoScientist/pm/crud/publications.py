@@ -62,6 +62,8 @@ def list_publications(
     db_path: Path,
     project_id: str | None = None,
     status: str | None = None,
+    offset: int = 0,
+    limit: int = 100,
 ) -> list[Publication]:
     query = "SELECT * FROM publications WHERE 1=1"
     params: list = []
@@ -71,7 +73,8 @@ def list_publications(
     if status:
         query += " AND status = ?"
         params.append(status)
-    query += " ORDER BY updated_at DESC"
+    query += " ORDER BY updated_at DESC LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
     with get_db(db_path) as conn:
         rows = conn.execute(query, params).fetchall()
     return [_row_to_publication(r) for r in rows]
@@ -111,6 +114,7 @@ def create_version(
     publication_id: str,
     created_by: str,
     notes: str | None = None,
+    file_path: str | None = None,
 ) -> PublicationVersion:
     ver_id = uuid.uuid4().hex
     now = datetime.now(UTC).isoformat()
@@ -122,14 +126,15 @@ def create_version(
         new_ver = max_ver + 1
         conn.execute(
             """INSERT INTO publication_versions
-               (id, publication_id, version, notes, created_by, created_at)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (ver_id, publication_id, new_ver, notes, created_by, now),
+               (id, publication_id, version, file_path, notes, created_by, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (ver_id, publication_id, new_ver, file_path, notes, created_by, now),
         )
     return PublicationVersion(
         id=ver_id,
         publication_id=publication_id,
         version=new_ver,
+        file_path=file_path,
         notes=notes,
         created_by=created_by,
         created_at=now,

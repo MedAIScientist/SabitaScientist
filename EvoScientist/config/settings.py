@@ -388,6 +388,33 @@ class EvoScientistConfig:
     # Shared webhook port (0 = disabled)
     shared_webhook_port: int = 9000
 
+    # ── PM (Project Management) module settings ────────────────────────────
+    pm_db_path: str = ""                # Override PM SQLite DB path
+    pm_runner_url: str = "http://127.0.0.1:8001"  # PM agent runner URL
+    pm_base_url: str = "http://localhost:7860"    # PM web UI base URL
+    pm_cors_origins: str = "*"          # Comma-separated CORS origins (empty=*, set for specific)
+    pm_docs_enabled: bool = True        # Enable /api/docs Swagger UI
+    pm_runner_model: str = "mixtral-8x7b-32768"  # Groq model for agent runner
+    pm_smtp_from: str = "noreply@evoscientist.local"  # PM notification sender
+    pm_max_upload_mb: int = 50          # Max attachment upload size (MB)
+
+    # PM — S3/Garage object storage
+    pm_garage_s3_endpoint: str = "http://localhost:3900"
+    pm_garage_access_key: str = ""
+    pm_garage_secret_key: str = ""
+    pm_garage_bucket: str = "evoscientist"
+
+    # PM — OIDC (Microsoft 365 SSO)
+    pm_oidc_client_id: str = ""
+    pm_oidc_client_secret: str = ""
+    pm_oidc_tenant_id: str = "common"
+    pm_oidc_redirect_uri: str = "http://localhost:7860/api/v1/auth/oidc/callback"
+    pm_oidc_scope: str = "openid email profile"
+    pm_oidc_issuer_url: str = ""
+
+    # PM — Semantic Scholar citation DB
+    pm_s2_db_path: str = ""
+
     # HITL (Human-in-the-Loop) Settings
     auto_approve: bool = False  # Auto-approve all tool executions without prompting
     auto_mode: bool = False  # Run unattended: imply auto_approve and disable ask_user
@@ -771,6 +798,26 @@ _ENV_MAPPINGS = {
     "memory_skill_synthesis_mode": "EVOSCIENTIST_MEMORY_SKILL_SYNTHESIS_MODE",
     "memory_skill_synthesis_cadence": "EVOSCIENTIST_MEMORY_SKILL_SYNTHESIS_CADENCE",
     "memory_skill_synthesis_time": "EVOSCIENTIST_MEMORY_SKILL_SYNTHESIS_TIME",
+    # PM module env var mappings (backward compat with existing EVOSCIENTIST_PM_DB)
+    "pm_db_path": "EVOSCIENTIST_PM_DB",
+    "pm_runner_url": "PM_RUNNER_URL",
+    "pm_base_url": "PM_BASE_URL",
+    "pm_cors_origins": "PM_CORS_ORIGINS",
+    "pm_docs_enabled": "PM_DOCS_ENABLED",
+    "pm_runner_model": "PM_RUNNER_MODEL",
+    "pm_smtp_from": "PM_SMTP_FROM",
+    "pm_max_upload_mb": "PM_MAX_UPLOAD_MB",
+    "pm_garage_s3_endpoint": "GARAGE_S3_ENDPOINT",
+    "pm_garage_access_key": "GARAGE_ACCESS_KEY",
+    "pm_garage_secret_key": "GARAGE_SECRET_KEY",
+    "pm_garage_bucket": "GARAGE_BUCKET",
+    "pm_oidc_client_id": "OIDC_CLIENT_ID",
+    "pm_oidc_client_secret": "OIDC_CLIENT_SECRET",
+    "pm_oidc_tenant_id": "OIDC_TENANT_ID",
+    "pm_oidc_redirect_uri": "OIDC_REDIRECT_URI",
+    "pm_oidc_scope": "OIDC_SCOPE",
+    "pm_oidc_issuer_url": "OIDC_ISSUER_URL",
+    "pm_s2_db_path": "S2_DB_PATH",
 }
 
 

@@ -50,9 +50,9 @@ def get_project(db_path: Path, project_id: str) -> Project | None:
 
 
 def list_projects_for_user(
-    db_path: Path, user_id: str, lab_id: str | None = None
+    db_path: Path, user_id: str, lab_id: str | None = None, offset: int = 0, limit: int = 100
 ) -> list[Project]:
-    """Return all non-archived projects the user is a member of, optionally filtered by lab."""
+    """Return non-archived projects the user is a member of, optionally filtered by lab."""
     query = """SELECT p.id, p.name, p.description, p.created_by, p.created_at, p.archived_at, p.lab_id
                FROM projects p
                JOIN project_members pm ON p.id = pm.project_id
@@ -61,7 +61,8 @@ def list_projects_for_user(
     if lab_id:
         query += " AND p.lab_id = ?"
         params.append(lab_id)
-    query += " ORDER BY p.created_at DESC"
+    query += " ORDER BY p.created_at DESC LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
     with get_db(db_path) as conn:
         rows = conn.execute(query, params).fetchall()
     return [_row_to_project(r) for r in rows]

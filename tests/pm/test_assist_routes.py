@@ -35,10 +35,12 @@ def auth_client(tmp_path: Path):
     import EvoScientist.pm.crud.projects as proj_crud
     import EvoScientist.pm.crud.tasks as tasks_crud
     import EvoScientist.pm.crud.users as users_crud
+    import EvoScientist.pm.api.audit_middleware as audit_mod
 
     for mod in [
         deps_mod, assists_mod, auth_r, exp_r, proj_r, runs_r, tasks_r, users_r,
         assists_crud, entries_crud, exp_crud, proj_crud, tasks_crud, users_crud,
+        audit_mod,
     ]:
         if hasattr(mod, "get_db_path"):
             mod.get_db_path = lambda: db_path
@@ -153,7 +155,7 @@ def test_create_assist_not_member(auth_client):
             "/api/v1/projects/p2/experiments/e2/assist",
             json={"prompt": "x"},
         )
-    assert resp.status_code == 403
+    assert resp.status_code == 404
 
 
 def test_cancel_assist(auth_client):

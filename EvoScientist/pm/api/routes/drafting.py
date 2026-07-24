@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
-import os
+import time
 from pathlib import Path
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 
+from ....paths import RUNS_DIR
+from ..._evoscientist import get_runner_url
 from ...crud.experiment_entries import create_entry, list_entries
 from ...crud.experiments import (
     create_experiment,
@@ -17,7 +19,13 @@ from ...crud.experiments import (
     list_linked_tasks,
 )
 from ...crud.projects import get_project
-from ...crud.publications import get_publication, update_publication
+from ...crud.publications import (
+    create_publication,
+    create_version,
+    get_publication,
+    list_publications,
+    update_publication,
+)
 from ...db import get_db_path
 from ...models import User
 from ..deps import get_current_user, require_project_role
@@ -32,7 +40,7 @@ from ..schemas import (
 )
 
 router = APIRouter()
-RUNNER_URL = os.getenv("RUNNER_URL", "http://127.0.0.1:8001")
+RUNNER_URL = get_runner_url()
 
 SECTION_PROMPTS = {
     "abstract": """You are a scientific writing assistant. Based on the context below, write a concise **Abstract** (150-250 words). Include: background, objective, methods, key results, and conclusion. Be specific with numbers where available.""",
@@ -105,6 +113,14 @@ def _build_publication_context(pub_id: str) -> str:
                             parts.append(f"\n#### {e.title} ({e.type})")
                             parts.append(body)
     return "\n".join(parts)
+
+
+def _save_section_file(workspace_dir: str, section: str, text: str) -> str:
+    """Save generated section text to a file and return the file path."""
+    path = Path(workspace_dir) / f"{section}.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+    return str(path)
 
 
 def _build_section_prompt(context: str, section: str, style: str) -> str:
@@ -214,11 +230,9 @@ async def draft_section(
     context = _build_publication_context(pub_id)
     prompt = _build_section_prompt(context, body.section, body.style)
 
-    workspace_base = os.getenv("EVOSCIENTIST_WORKSPACE_DIR", str(Path.home() / "evoscientist" / "runs"))
-    workspace_dir = str(Path(workspace_base) / "sections" / f"{pub_id}-{body.section}")
+    workspace_dir = str(RUNS_DIR / "sections" / f"{pub_id}-{body.section}")
     run_id = f"section-{pub_id}-{body.section}"
 
-    from ...crud.publications import create_version
     create_version(
         get_db_path(), pub_id,
         created_by=current_user.id,
@@ -239,17 +253,12 @@ async def _run_section_and_save(pub_id: str, section: str, run_id: str, prompt: 
     text = await _run_agent_and_get_output(run_id, prompt, workspace_dir)
     if text:
         db = get_db_path()
-        pub = get_publication(db, pub_id)
-        existing = pub.abstract or ""
-        if section == "abstract":
-            # Save section content as additional context — append to abstract as a marker
-            new_abstract = f"{existing}\n\n--- AI-generated {section} ---\n{text[:800]}"
-            update_publication(db, pub_id, abstract=new_abstract.strip())
-        from ...crud.publications import create_version
+        file_path = _save_section_file(workspace_dir, section, text)
         create_version(
             db, pub_id,
             created_by=user_id,
-            notes=f"AI-generated {section} ({pub_id})",
+            file_path=file_path,
+            notes=f"AI-generated {section} ({len(text)} chars)",
         )
 
 
@@ -276,7 +285,6 @@ async def draft_from_experiment(
     context = _build_experiment_context(experiment_id)
 
     # Find or create a publication linked to this project
-    from ...crud.publications import create_publication, list_publications
     pubs = list_publications(db, project_id=project_id)
     pub = pubs[0] if pubs else create_publication(
         db,
@@ -287,8 +295,7 @@ async def draft_from_experiment(
     )
 
     prompt = _build_section_prompt(context, section, style)
-    workspace_base = os.getenv("EVOSCIENTIST_WORKSPACE_DIR", str(Path.home() / "evoscientist" / "runs"))
-    workspace_dir = str(Path(workspace_base) / "sections" / f"exp-{experiment_id}")
+    workspace_dir = str(RUNS_DIR / "sections" / f"exp-{experiment_id}")
     run_id = f"exp-{experiment_id}-{section}"
 
     background_tasks.add_task(_run_section_and_save, pub.id, section, run_id, prompt, workspace_dir, current_user.id)
@@ -324,11 +331,9 @@ async def revise_publication(
 
     prompt = _build_revise_prompt(current_text, body.instructions)
 
-    workspace_base = os.getenv("EVOSCIENTIST_WORKSPACE_DIR", str(Path.home() / "evoscientist" / "runs"))
-    workspace_dir = str(Path(workspace_base) / "revisions" / pub_id)
+    workspace_dir = str(RUNS_DIR / "revisions" / pub_id)
     run_id = f"revise-{pub_id}"
 
-    from ...crud.publications import create_version
     create_version(
         get_db_path(), pub_id,
         created_by=current_user.id,
@@ -347,10 +352,13 @@ async def _run_revision_and_save(pub_id: str, run_id: str, prompt: str, workspac
     text = await _run_agent_and_get_output(run_id, prompt, workspace_dir)
     if text:
         db = get_db_path()
-        pub = get_publication(db, pub_id)
-        existing_abstract = pub.abstract or ""
-        new_abstract = f"{existing_abstract}\n\n--- AI Revision ---\n{text[:800]}"
-        update_publication(db, pub_id, abstract=new_abstract.strip())
+        file_path = _save_section_file(workspace_dir, "revision", text)
+        create_version(
+            db, pub_id,
+            created_by="system",
+            file_path=file_path,
+            notes=f"AI revision ({len(text)} chars)",
+        )
 
 
 # ── Reviewer response ─────────────────────────────────────────────────────────
@@ -373,8 +381,7 @@ async def respond_to_reviewers(
     context = _build_publication_context(pub_id)
     prompt = _build_review_response_prompt(body.reviewer_comments, context)
 
-    workspace_base = os.getenv("EVOSCIENTIST_WORKSPACE_DIR", str(Path.home() / "evoscientist" / "runs"))
-    workspace_dir = str(Path(workspace_base) / "responses" / pub_id)
+    workspace_dir = str(RUNS_DIR / "responses" / pub_id)
     run_id = f"response-{pub_id}"
 
     background_tasks.add_task(
@@ -391,10 +398,11 @@ async def _run_response_and_save(pub_id: str, comments: str, run_id: str, prompt
     text = await _run_agent_and_get_output(run_id, prompt, workspace_dir)
     if text:
         db = get_db_path()
-        from ...crud.publications import create_version
+        file_path = _save_section_file(workspace_dir, "reviewer-response", text)
         create_version(
             db, pub_id,
             created_by=user_id,
+            file_path=file_path,
             notes=f"AI-generated reviewer response ({len(comments)} chars of comments)",
         )
 
@@ -411,7 +419,6 @@ async def draft_paper_from_project(
     current_user: User = Depends(require_project_role("owner", "editor")),
 ):
     """Collect project experiment data and dispatch the writing agent to draft a complete paper."""
-    from ...crud.publications import create_publication
     from .drafting_helpers import _build_draft_prompt, _build_project_context
 
     context = _build_project_context(project_id)
@@ -430,8 +437,7 @@ async def draft_paper_from_project(
         abstract="AI-generated draft (in progress).",
     )
 
-    workspace_base = os.getenv("EVOSCIENTIST_WORKSPACE_DIR", str(Path.home() / "evoscientist" / "runs"))
-    workspace_dir = str(Path(workspace_base) / "drafts" / pub.id)
+    workspace_dir = str(RUNS_DIR / "drafts" / pub.id)
     background_tasks.add_task(_run_draft_agent, pub.id, prompt, workspace_dir)
 
     return {
@@ -441,11 +447,16 @@ async def draft_paper_from_project(
 
 
 async def _run_draft_agent(pub_id: str, prompt: str, workspace_dir: str) -> None:
-    from ...crud.publications import update_publication as _up
     text = await _run_agent_and_get_output(f"draft-{pub_id}", prompt, workspace_dir)
     if text:
-        abstract = text[:500].strip()
-        _up(get_db_path(), pub_id, abstract=abstract, status="draft")
+        file_path = _save_section_file(workspace_dir, "full-draft", text)
+        update_publication(get_db_path(), pub_id, abstract=text[:2000].strip(), status="draft")
+        create_version(
+            get_db_path(), pub_id,
+            created_by="system",
+            file_path=file_path,
+            notes=f"Full AI-generated draft ({len(text)} chars)",
+        )
 
 
 # ── Hypothesis Generation ──────────────────────────────────────────────────────
@@ -484,9 +495,8 @@ async def generate_hypothesis(
         raise HTTPException(status_code=404, detail="Project not found")
 
     prompt = _HYPOTHESIS_PROMPT.format(topic=body.topic, context=body.context or project.description or "(none provided)")
-    run_id = f"hypothesis-{project_id}-{__import__('time').time():.0f}"
-    workspace_base = os.getenv("EVOSCIENTIST_WORKSPACE_DIR", str(Path.home() / "evoscientist" / "runs"))
-    workspace_dir = str(Path(workspace_base) / "research" / run_id)
+    run_id = f"hypothesis-{project_id}-{time.time():.0f}"
+    workspace_dir = str(RUNS_DIR / "research" / run_id)
 
     background_tasks.add_task(_save_hypothesis_output, project_id, current_user.id, run_id, prompt, workspace_dir, body.topic)
 
@@ -540,9 +550,8 @@ async def research_ideation(
         raise HTTPException(status_code=404, detail="Project not found")
 
     prompt = _IDEATION_PROMPT.format(topic=body.topic, focus_area=body.focus_area or "general", count=body.count)
-    run_id = f"ideation-{project_id}-{__import__('time').time():.0f}"
-    workspace_base = os.getenv("EVOSCIENTIST_WORKSPACE_DIR", str(Path.home() / "evoscientist" / "runs"))
-    workspace_dir = str(Path(workspace_base) / "research" / run_id)
+    run_id = f"ideation-{project_id}-{time.time():.0f}"
+    workspace_dir = str(RUNS_DIR / "research" / run_id)
 
     background_tasks.add_task(_save_ideation_output, project_id, current_user.id, run_id, prompt, workspace_dir, body.topic)
 
@@ -591,9 +600,8 @@ async def validate_methodology(
         raise HTTPException(status_code=404, detail="Project not found")
 
     prompt = _VALIDATION_PROMPT.format(methods=body.proposed_methods)
-    run_id = f"validation-{project_id}-{__import__('time').time():.0f}"
-    workspace_base = os.getenv("EVOSCIENTIST_WORKSPACE_DIR", str(Path.home() / "evoscientist" / "runs"))
-    workspace_dir = str(Path(workspace_base) / "research" / run_id)
+    run_id = f"validation-{project_id}-{time.time():.0f}"
+    workspace_dir = str(RUNS_DIR / "research" / run_id)
 
     background_tasks.add_task(_save_validation_output, project_id, current_user.id, run_id, prompt, workspace_dir)
 
@@ -651,9 +659,8 @@ async def verify_citations(
     db_context = _format_s2_results(s2_results)
 
     prompt = _CITATION_PROMPT.format(db_results=db_context, citations=body.citations)
-    run_id = f"citation-{project_id}-{__import__('time').time():.0f}"
-    workspace_base = os.getenv("EVOSCIENTIST_WORKSPACE_DIR", str(Path.home() / "evoscientist" / "runs"))
-    workspace_dir = str(Path(workspace_base) / "research" / run_id)
+    run_id = f"citation-{project_id}-{time.time():.0f}"
+    workspace_dir = str(RUNS_DIR / "research" / run_id)
 
     # If S2 DB is available, save the raw results too
     if s2_results.get("available"):

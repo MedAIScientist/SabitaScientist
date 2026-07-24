@@ -11,7 +11,6 @@ from ...crud import admissions as crud
 from ...crud.users import get_user_by_id
 from ...db import get_db_path
 from ...models import User
-from ...notifications import notify_admission_review
 from ..deps import get_current_user, require_admin
 from ..schemas import (
     AdmissionAcceptRequest,
@@ -56,10 +55,12 @@ def _to_response(a) -> AdmissionResponse:
 @router.get("/admissions", response_model=list[AdmissionResponse])
 def list_admissions(
     status: str | None = Query(default=None, pattern="^(submitted|reviewing|accepted|rejected)$"),
+    offset: int = Query(default=0, ge=0),
+    limit: int = Query(default=100, ge=1, le=500),
     current_user: User = Depends(get_current_user),
 ):
     db = get_db_path()
-    items = crud.list_admissions(db, status=status)
+    items = crud.list_admissions(db, status=status, offset=offset, limit=limit)
     return [_to_response(a) for a in items]
 
 

@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
+import re
 import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
 from ..db import get_db
 from ..models import Admission
-from .projects import create_project
 
 
 def _row_to_admission(row) -> Admission:
@@ -80,17 +80,18 @@ def get_admission(db_path: Path, admission_id: str) -> Admission | None:
 
 
 def list_admissions(
-    db_path: Path, status: str | None = None
+    db_path: Path, status: str | None = None, offset: int = 0, limit: int = 100
 ) -> list[Admission]:
     with get_db(db_path) as conn:
         if status:
             rows = conn.execute(
-                "SELECT * FROM admissions WHERE status = ? ORDER BY created_at DESC",
-                (status,),
+                "SELECT * FROM admissions WHERE status = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                (status, limit, offset),
             ).fetchall()
         else:
             rows = conn.execute(
-                "SELECT * FROM admissions ORDER BY created_at DESC"
+                "SELECT * FROM admissions ORDER BY created_at DESC LIMIT ? OFFSET ?",
+                (limit, offset),
             ).fetchall()
     return [_row_to_admission(r) for r in rows]
 
@@ -135,23 +136,25 @@ def accept_admission(db_path: Path, admission_id: str, notes: str | None = None)
     admission = get_admission(db_path, admission_id)
     if admission is None:
         raise ValueError(f"Admission {admission_id!r} not found")
-    reviewer_id = admission.reviewer_id
     now = datetime.now(UTC).isoformat()
-
-    project = create_project(
-        db_path,
-        name=f"{admission.applicant_name}",
-        created_by=reviewer_id,
-        description=admission.comments,
-    )
+    created_by = admission.reviewer_id or admission.created_by or "unknown"
 
     with get_db(db_path) as conn:
+        project_id = uuid.uuid4().hex
+        conn.execute(
+            "INSERT INTO projects (id, name, description, created_by, created_at) VALUES (?, ?, ?, ?, ?)",
+            (project_id, f"{admission.applicant_name}", admission.comments, created_by, now),
+        )
+        conn.execute(
+            "INSERT INTO project_members (project_id, user_id, role, added_at) VALUES (?, ?, ?, ?)",
+            (project_id, created_by, "owner", now),
+        )
         conn.execute(
             """UPDATE admissions
                SET status = 'accepted', review_notes = ?,
                    reviewed_at = ?, created_project_id = ?, updated_at = ?
                WHERE id = ?""",
-            (notes, now, project.id, now, admission_id),
+            (notes, now, project_id, now, admission_id),
         )
     return get_admission(db_path, admission_id)
 
@@ -188,20 +191,40 @@ def admission_exists_by_form_id(db_path: Path, form_submission_id: int) -> bool:
     return row is not None
 
 
+_CONTROL_CHARS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
+
+
 def _cell_str(value) -> str:
     if value is None:
         return ""
-    return str(value).strip()
+    cleaned = _CONTROL_CHARS.sub("", str(value).strip())
+    return cleaned[:_MAX_CELL_LENGTH]
+
+
+_XLSX_MAGIC = b"PK\x03\x04"
+_MAX_EXCEL_ROWS = 10_000
+_MAX_CELL_LENGTH = 2048
+
+
+def _validate_excel_file(file_path: Path) -> None:
+    """Validate that *file_path* is a genuine .xlsx file."""
+    with open(file_path, "rb") as f:
+        header = f.read(4)
+    if header != _XLSX_MAGIC:
+        raise ValueError("File is not a valid .xlsx file (magic bytes mismatch)")
 
 
 def import_from_excel(db_path: Path, file_path: Path) -> dict:
     """Parse an Excel file and create admission records. Returns import stats."""
+    _validate_excel_file(file_path)
     import openpyxl
 
     wb = openpyxl.load_workbook(file_path, read_only=True, data_only=True)
     ws = wb.active
 
     rows = list(ws.iter_rows(min_row=2, values_only=True))
+    if len(rows) > _MAX_EXCEL_ROWS:
+        raise ValueError(f"Excel file has {len(rows)} data rows, exceeds maximum of {_MAX_EXCEL_ROWS}")
     now = datetime.now(UTC).isoformat()
     imported = 0
     skipped = 0

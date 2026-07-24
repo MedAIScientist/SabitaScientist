@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import os
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
+
+from ..paths import DATA_DIR
 
 _SCHEMA = """
 PRAGMA foreign_keys = ON;
@@ -44,7 +47,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     status        TEXT NOT NULL DEFAULT 'todo'
                   CHECK(status IN ('todo', 'in_progress', 'done')),
     priority      TEXT NOT NULL DEFAULT 'medium'
-                  CHECK(priority IN ('high', 'medium', 'low')),
+                  CHECK(priority IN ('critical', 'high', 'medium', 'low')),
     deadline      TEXT,
     session_id    TEXT,
     created_by    TEXT REFERENCES users(id),
@@ -90,7 +93,7 @@ CREATE TABLE IF NOT EXISTS experiments (
     hypothesis  TEXT,
     protocol    TEXT,
     status      TEXT NOT NULL DEFAULT 'planned'
-                CHECK(status IN ('planned', 'running', 'completed')),
+                CHECK(status IN ('planned', 'running', 'completed', 'abandoned')),
     tags        TEXT NOT NULL DEFAULT '[]',
     deadline    TEXT,
     created_by  TEXT NOT NULL REFERENCES users(id),
@@ -166,7 +169,8 @@ CREATE TABLE IF NOT EXISTS attachments (
     content_type  TEXT NOT NULL,
     size_bytes    INTEGER NOT NULL,
     uploaded_by   TEXT REFERENCES users(id) ON DELETE SET NULL,
-    created_at    TEXT NOT NULL
+    created_at    TEXT NOT NULL,
+    classification TEXT NOT NULL DEFAULT 'unclassified'
 );
 
 CREATE INDEX IF NOT EXISTS idx_attachments_entry ON attachments(entry_id);
@@ -212,7 +216,7 @@ CREATE TABLE IF NOT EXISTS labs (
 CREATE TABLE IF NOT EXISTS lab_members (
     lab_id    TEXT NOT NULL REFERENCES labs(id) ON DELETE CASCADE,
     user_id   TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    role      TEXT NOT NULL CHECK(role IN ('pi', 'postdoc', 'phd', 'ms', 'visitor')),
+    role      TEXT NOT NULL CHECK(role IN ('pi', 'postdoc', 'phd', 'ms', 'visitor', 'technician', 'admin')),
     joined_at TEXT NOT NULL,
     PRIMARY KEY (lab_id, user_id)
 );
@@ -377,6 +381,151 @@ CREATE INDEX IF NOT EXISTS idx_wiki_lab ON lab_wiki_pages(lab_id);
 
 CREATE INDEX IF NOT EXISTS idx_admissions_status ON admissions(status);
 CREATE INDEX IF NOT EXISTS idx_admissions_form_id ON admissions(form_submission_id);
+
+-- De-identification pipelines
+CREATE TABLE IF NOT EXISTS deid_pipelines (
+    id              TEXT PRIMARY KEY,
+    project_id      TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    name            TEXT NOT NULL,
+    description     TEXT,
+    pipeline_type   TEXT NOT NULL CHECK(pipeline_type IN ('dicom','ehr','text','image','generic')),
+    config_json     TEXT NOT NULL DEFAULT '{}',
+    created_by      TEXT NOT NULL REFERENCES users(id),
+    created_at      TEXT NOT NULL,
+    updated_at      TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS deid_pipeline_runs (
+    id              TEXT PRIMARY KEY,
+    pipeline_id     TEXT NOT NULL REFERENCES deid_pipelines(id) ON DELETE CASCADE,
+    project_id      TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    irb_id          TEXT REFERENCES irb_approvals(id),
+    input_location  TEXT NOT NULL,
+    output_location TEXT NOT NULL,
+    status          TEXT NOT NULL DEFAULT 'pending'
+                    CHECK(status IN ('pending','running','completed','failed','verified')),
+    input_size_bytes    INTEGER,
+    output_size_bytes   INTEGER,
+    records_processed   INTEGER,
+    phi_fields_removed  TEXT DEFAULT '[]',
+    verification_status TEXT CHECK(verification_status IN ('pending','passed','failed')),
+    verification_notes  TEXT,
+    error           TEXT,
+    started_at      TEXT,
+    completed_at    TEXT,
+    created_by      TEXT NOT NULL REFERENCES users(id),
+    created_at      TEXT NOT NULL
+);
+
+-- Sandboxes
+CREATE TABLE IF NOT EXISTS sandboxes (
+    id              TEXT PRIMARY KEY,
+    project_id      TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    irb_id          TEXT REFERENCES irb_approvals(id),
+    name            TEXT NOT NULL,
+    status          TEXT NOT NULL DEFAULT 'provisioning'
+                    CHECK(status IN ('provisioning','active','expiring','expired','terminated')),
+    spec_json       TEXT NOT NULL DEFAULT '{}',
+    network_rules_json  TEXT DEFAULT '[]',
+    storage_quota_bytes INTEGER,
+    access_url      TEXT,
+    provisioned_at  TEXT,
+    expires_at      TEXT,
+    terminated_at   TEXT,
+    created_by      TEXT NOT NULL REFERENCES users(id),
+    created_at      TEXT NOT NULL,
+    updated_at      TEXT NOT NULL
+);
+
+-- Export requests
+CREATE TABLE IF NOT EXISTS export_requests (
+    id              TEXT PRIMARY KEY,
+    project_id      TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    sandbox_id      TEXT REFERENCES sandboxes(id),
+    requested_by    TEXT NOT NULL REFERENCES users(id),
+    reviewed_by     TEXT REFERENCES users(id),
+    status          TEXT NOT NULL DEFAULT 'pending'
+                    CHECK(status IN ('pending','approved','rejected')),
+    file_name       TEXT NOT NULL,
+    file_type       TEXT NOT NULL CHECK(file_type IN ('model_weights','aggregate_figure','coefficient_table','annotation_stats','documentation','other')),
+    file_size_bytes INTEGER,
+    description     TEXT,
+    justification   TEXT,
+    reviewer_notes  TEXT,
+    reviewed_at     TEXT,
+    created_at      TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_deid_pipeline_project ON deid_pipelines(project_id);
+CREATE INDEX IF NOT EXISTS idx_deid_runs_pipeline ON deid_pipeline_runs(pipeline_id);
+CREATE INDEX IF NOT EXISTS idx_deid_runs_status ON deid_pipeline_runs(status);
+CREATE INDEX IF NOT EXISTS idx_sandboxes_project ON sandboxes(project_id);
+CREATE INDEX IF NOT EXISTS idx_sandboxes_status ON sandboxes(status);
+CREATE INDEX IF NOT EXISTS idx_sandboxes_irb ON sandboxes(irb_id);
+CREATE INDEX IF NOT EXISTS idx_export_requests_project ON export_requests(project_id);
+CREATE INDEX IF NOT EXISTS idx_export_requests_status ON export_requests(status);
+
+-- Task history (audit trail for status changes)
+CREATE TABLE IF NOT EXISTS task_history (
+    id              TEXT PRIMARY KEY,
+    task_id         TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+    changed_by      TEXT REFERENCES users(id),
+    from_status     TEXT,
+    to_status       TEXT,
+    change_type     TEXT NOT NULL DEFAULT 'status'
+                    CHECK(change_type IN ('status', 'assignee', 'priority', 'phase', 'other')),
+    comment         TEXT,
+    created_at      TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_history_task ON task_history(task_id);
+
+-- CVAT project links
+CREATE TABLE IF NOT EXISTS cvat_projects (
+    id              TEXT PRIMARY KEY,
+    project_id      TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    cvat_id         INTEGER NOT NULL,
+    name            TEXT NOT NULL,
+    labels_json     TEXT DEFAULT '[]',
+    status          TEXT NOT NULL DEFAULT 'created'
+                    CHECK(status IN ('created', 'importing', 'annotating', 'reviewing', 'exported', 'completed')),
+    num_images      INTEGER DEFAULT 0,
+    num_annotations INTEGER DEFAULT 0,
+    export_format   TEXT DEFAULT 'COCO 1.0',
+    export_key      TEXT,
+    created_by      TEXT NOT NULL REFERENCES users(id),
+    created_at      TEXT NOT NULL,
+    updated_at      TEXT NOT NULL
+);
+
+-- WebKnossos dataset links
+CREATE TABLE IF NOT EXISTS webknossos_datasets (
+    id              TEXT PRIMARY KEY,
+    project_id      TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    wk_id           TEXT,
+    name            TEXT NOT NULL,
+    directory_name  TEXT NOT NULL,
+    status          TEXT NOT NULL DEFAULT 'imported'
+                    CHECK(status IN ('imported', 'segmenting', 'proofreading', 'completed', 'archived')),
+    voxel_count     TEXT,
+    segmentation_status TEXT DEFAULT 'pending',
+    num_skeletons   INTEGER DEFAULT 0,
+    num_volumes     INTEGER DEFAULT 0,
+    created_by      TEXT NOT NULL REFERENCES users(id),
+    created_at      TEXT NOT NULL,
+    updated_at      TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_cvat_project ON cvat_projects(project_id);
+CREATE INDEX IF NOT EXISTS idx_webknossos_project ON webknossos_datasets(project_id);
+
+-- Per-IP rate-limit tracking (SQLite-backed for multi-worker support)
+CREATE TABLE IF NOT EXISTS rate_limits (
+    ip           TEXT NOT NULL,
+    requested_at REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_rate_limits_ip ON rate_limits(ip);
+CREATE INDEX IF NOT EXISTS idx_rate_limits_time ON rate_limits(requested_at);
 """
 
 _MIGRATIONS = [
@@ -387,6 +536,9 @@ _MIGRATIONS = [
     "ALTER TABLE admissions ADD COLUMN aid_at TEXT",
     "ALTER TABLE projects ADD COLUMN lab_id TEXT REFERENCES labs(id) ON DELETE SET NULL",
     "ALTER TABLE experiment_assists ADD COLUMN agent_type TEXT NOT NULL DEFAULT 'writing'",
+    "ALTER TABLE attachments ADD COLUMN classification TEXT NOT NULL DEFAULT 'unclassified'",
+    "ALTER TABLE sandboxes ADD COLUMN terminated_by TEXT REFERENCES users(id)",
+    "ALTER TABLE irb_approvals ADD COLUMN sandbox_id TEXT REFERENCES sandboxes(id)",
 ]
 
 
@@ -394,16 +546,15 @@ def get_db_path() -> Path:
     """Return path to the PM SQLite database, creating parent dirs.
 
     Override with ``EVOSCIENTIST_PM_DB`` env var (e.g. ``/data/pm.db`` in Docker).
+    Falls back to ``DATA_DIR / "projects.db"``.
     """
-    import os
     env_path = os.environ.get("EVOSCIENTIST_PM_DB")
     if env_path:
         path = Path(env_path)
         path.parent.mkdir(parents=True, exist_ok=True)
         return path
-    db_dir = Path.home() / ".config" / "evoscientist"
-    db_dir.mkdir(parents=True, exist_ok=True)
-    return db_dir / "projects.db"
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    return DATA_DIR / "projects.db"
 
 
 def create_schema(db_path: Path | None = None) -> None:

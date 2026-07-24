@@ -73,6 +73,8 @@ def list_tasks(
     status: str | None = None,
     assignee_id: str | None = None,
     priority: str | None = None,
+    offset: int = 0,
+    limit: int = 100,
 ) -> list[Task]:
     """Return tasks for a project, with optional filters."""
     query = "SELECT * FROM tasks WHERE project_id = ?"
@@ -86,7 +88,8 @@ def list_tasks(
     if priority:
         query += " AND priority = ?"
         params.append(priority)
-    query += " ORDER BY created_at ASC"
+    query += " ORDER BY created_at ASC LIMIT ? OFFSET ?"
+    params.extend([limit, offset])
     with get_db(db_path) as conn:
         rows = conn.execute(query, params).fetchall()
     return [_row_to_task(r) for r in rows]

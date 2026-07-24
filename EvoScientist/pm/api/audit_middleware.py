@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -10,6 +11,8 @@ from starlette.responses import Response
 
 from ..crud.audit import log_action as _log_action
 from ..db import get_db_path
+
+logger = logging.getLogger(__name__)
 
 
 class AuditMiddleware(BaseHTTPMiddleware):
@@ -71,5 +74,5 @@ class AuditMiddleware(BaseHTTPMiddleware):
                 details=details,
                 ip_address=ip,
             )
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Audit log failed for %s %s: %s", request.method, request.url.path, exc)

@@ -51,13 +51,17 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
 
 
 def require_project_role(*allowed_roles: str):
-    """Return a dependency that checks the caller's role in a project."""
+    """Return a dependency that checks the caller's role in a project.
+
+    Returns 404 for non-members (same as "project not found") to avoid leaking
+    project existence to unauthenticated or non-member users.
+    """
 
     def _dep(project_id: str, current_user: User = Depends(get_current_user)) -> User:
         role = get_member_role(get_db_path(), project_id, current_user.id)
         if role is None:
             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN, detail="Not a project member"
+                status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
             )
         if role not in allowed_roles:
             raise HTTPException(

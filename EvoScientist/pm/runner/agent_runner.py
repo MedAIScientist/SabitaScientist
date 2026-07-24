@@ -1,37 +1,115 @@
-"""Asyncio task registry for EvoScientist agent runs with queue-based SSE streaming."""
+"""Asyncio task registry for Groq-backed agent runs with queue-based SSE streaming.
+
+Replaces the previous LangGraph-based agent runner with direct Groq API calls
+via httpx streaming. Records observations via ``EvoScientist.memory`` when
+runs complete.
+"""
+
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import os
+from collections.abc import AsyncGenerator
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import AsyncGenerator
+
+import httpx
 
 logger = logging.getLogger(__name__)
 
+_GROQ_BASE_URL = "https://api.groq.com/openai/v1"
+
 # Per-run asyncio queues: run_id → Queue of {type, data} dicts
-# None sentinel in the queue signals end of stream.
 _run_queues: dict[str, asyncio.Queue[dict | None]] = {}
 _run_tasks: dict[str, asyncio.Task] = {}
+_orphan_cleanup_done = False
 
-# Prompt prefixes guide the main agent to delegate to the correct sub-agent
+
+def _cancel_orphaned_runs(db_path: str | None = None) -> None:
+    """Mark any ``running`` or ``pending`` runs as ``failed`` — they died with the last server."""
+    global _orphan_cleanup_done
+    if _orphan_cleanup_done:
+        return
+    _orphan_cleanup_done = True
+    try:
+        from ..db import get_db
+
+        if not db_path:
+            from ..db import get_db_path
+            db_path = str(get_db_path())
+        from pathlib import Path as _Path
+        with get_db(_Path(db_path)) as conn:
+            for status in ("running", "pending"):
+                cur = conn.execute(
+                    "UPDATE runs SET status = 'failed', error = ?, finished_at = ? WHERE status = ?",
+                    ("Server restarted — run cancelled", datetime.now(UTC).isoformat(), status),
+                )
+                if cur.rowcount:
+                    logger.info("Cancelled %d orphaned %s run(s) after restart", cur.rowcount, status)
+    except Exception as exc:
+        logger.debug("Orphaned-run cleanup skipped: %s", exc)
+
+
+_cancel_orphaned_runs()
+
 AGENT_PROMPTS: dict[str, str] = {
     "research": (
-        "Use the research-agent sub-agent to complete the following task. "
+        "You are a research agent. Complete the following task. "
         "Return concise, actionable findings with sources.\n\nTask: "
     ),
     "code": (
-        "Use the code-agent sub-agent to implement the following. "
+        "You are a code agent. Implement the following. "
         "Write clean, reproducible code with minimal dependencies.\n\nTask: "
     ),
     "data_analysis": (
-        "Use the data-analysis-agent sub-agent to analyze and report on the following. "
+        "You are a data analysis agent. Analyze and report on the following. "
         "Include statistics and produce publication-ready figures where appropriate.\n\nTask: "
     ),
     "writing": (
-        "Use the writing-agent sub-agent to draft a paper-ready Markdown report for the following. "
+        "You are a writing agent. Draft a paper-ready Markdown report for the following. "
         "Do not fabricate results or citations.\n\nTask: "
     ),
 }
+
+_SYSTEM_PROMPTS: dict[str, str] = {
+    "research": (
+        "You are a thorough research agent. Provide well-structured findings "
+        "with clear reasoning. Be precise and cite sources where possible."
+    ),
+    "code": (
+        "You are a skilled software engineer. Write clean, well-structured "
+        "code that solves the given problem. Include necessary imports and "
+        "follow best practices."
+    ),
+    "data_analysis": (
+        "You are a data scientist. Analyze data rigorously with appropriate "
+        "statistical methods. Present results clearly with numbers, tables, "
+        "and clear interpretations."
+    ),
+    "writing": (
+        "You are an academic writer. Produce well-structured, publication-ready "
+        "text. Use clear prose and proper academic tone. Never fabricate "
+        "results or citations."
+    ),
+}
+
+def _get_model() -> str:
+    try:
+        from ...config.settings import get_effective_config
+        return get_effective_config().pm_runner_model or "mixtral-8x7b-32768"
+    except Exception:
+        return "mixtral-8x7b-32768"
+
+
+def _get_groq_api_key() -> str:
+    key = os.environ.get("GROQ_API_KEY", "")
+    if not key:
+        raise RuntimeError(
+            "GROQ_API_KEY environment variable is required for the Groq runner"
+        )
+    return key
 
 
 async def start_run(
@@ -53,53 +131,84 @@ async def _run_agent(
     workspace_dir: str,
     queue: asyncio.Queue,
 ) -> None:
-    """Execute the agent and push token/status events into the queue."""
-    # Lazy import so runner can start without loading the full EvoScientist stack
-    from langchain_core.messages import AIMessage, AIMessageChunk
+    """Execute via Groq API streaming, record observations, push events."""
+    from ...memory.observations.store import record_observation_file
+    from ...memory.project import resolve_project_id
+    from ...memory.types import MemoryScope, MemorySourceType, MemoryType
 
-    from EvoScientist.EvoScientist import create_cli_agent
-
-    prefix = AGENT_PROMPTS.get(agent_type, "")
-    full_prompt = f"{prefix}{prompt}"
+    prefix = AGENT_PROMPTS.get(agent_type, prompt)
+    system_prompt = _SYSTEM_PROMPTS.get(agent_type, "")
+    full_prompt = f"{prefix}{prompt}" if prefix != prompt else prompt
 
     Path(workspace_dir).mkdir(parents=True, exist_ok=True)
 
+    api_key = _get_groq_api_key()
+    accumulated_text: list[str] = []
+
     try:
-        agent = create_cli_agent(workspace_dir=workspace_dir)
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "model": _get_model(),
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": full_prompt},
+            ],
+            "stream": True,
+            "temperature": 0.3,
+            "max_tokens": 4096,
+        }
 
-        async for chunk in agent.astream(
-            {"messages": [{"role": "user", "content": full_prompt}]},
-            config={"configurable": {"thread_id": run_id}},
-            stream_mode=["messages", "updates"],
-            subgraphs=True,
-        ):
-            if not isinstance(chunk, tuple) or len(chunk) != 3:
-                continue
-            _, mode_str, data = chunk
-            if mode_str != "messages":
-                continue
-            msg = data[0] if isinstance(data, tuple) and len(data) >= 1 else None
-            if msg is None:
-                continue
-            if not isinstance(msg, (AIMessage, AIMessageChunk)):
-                continue
-
-            raw = msg.content
-            if isinstance(raw, str):
-                text = raw
-            elif isinstance(raw, list):
-                text = "".join(
-                    b.get("text", "") if isinstance(b, dict) else ""
-                    for b in raw
-                )
-            else:
-                text = ""
-
-            # Skip empty chunks and tool-selector JSON
-            if text and not text.lstrip().startswith('{"tools":'):
-                await queue.put({"type": "token", "data": text})
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(120.0, connect=30.0)
+        ) as client:
+            async with client.stream(
+                "POST",
+                f"{_GROQ_BASE_URL}/chat/completions",
+                headers=headers,
+                json=payload,
+            ) as resp:
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    data_str = line[6:].strip()
+                    if data_str == "[DONE]":
+                        continue
+                    try:
+                        chunk = json.loads(data_str)
+                        delta = chunk.get("choices", [{}])[0].get("delta", {})
+                        content = delta.get("content", "")
+                        if content:
+                            accumulated_text.append(content)
+                            await queue.put({"type": "token", "data": content})
+                    except json.JSONDecodeError:
+                        continue
 
         await queue.put({"type": "status", "data": "done"})
+
+        # Record observation via EvoScientist.memory
+        output_text = "".join(accumulated_text)
+        if output_text.strip():
+            try:
+                mem_dir = Path(workspace_dir) / ".memory"
+                project_id = resolve_project_id(workspace=workspace_dir)
+                record_observation_file(
+                    memory_dir=str(mem_dir),
+                    project_id=project_id,
+                    memory_type=MemoryType.SEMANTIC,
+                    summary=f"PM agent run: {run_id}",
+                    observation=output_text[:2000],
+                    why_it_matters=f"{agent_type} agent output for project {project_id}",
+                    scope=MemoryScope.PROJECT,
+                    source_type=MemorySourceType.TURN,
+                    source_session_id=run_id,
+                    source_agent=agent_type,
+                )
+            except Exception as obs_err:
+                logger.debug("Observation recording skipped: %s", obs_err)
 
     except asyncio.CancelledError:
         await queue.put({"type": "status", "data": "cancelled"})
@@ -109,7 +218,6 @@ async def _run_agent(
         await queue.put({"type": "status", "data": "failed"})
     finally:
         _run_tasks.pop(run_id, None)
-        # Leave queue in _run_queues briefly so streaming client can drain it
 
 
 async def stream_events(run_id: str) -> AsyncGenerator[dict, None]:

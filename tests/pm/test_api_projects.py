@@ -53,4 +53,4 @@ def test_nonmember_gets_403(client, tmp_db, admin_token) -> None:
 
     outsider_token = client.post("/api/v1/auth/login", json={"username": "outsider", "password": "op"}).json()["token"]
     resp = client.get(f"/api/v1/projects/{project_id}", headers={"Authorization": f"Bearer {outsider_token}"})
-    assert resp.status_code == 403
+    assert resp.status_code == 404

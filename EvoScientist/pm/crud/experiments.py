@@ -62,12 +62,14 @@ def get_experiment(db_path: Path, exp_id: str) -> Experiment | None:
     return _row_to_experiment(row) if row else None
 
 
-def list_experiments(db_path: Path, project_id: str) -> list[Experiment]:
-    """Return all experiments for a project, newest first."""
+def list_experiments(
+    db_path: Path, project_id: str, offset: int = 0, limit: int = 100
+) -> list[Experiment]:
+    """Return experiments for a project, newest first."""
     with get_db(db_path) as conn:
         rows = conn.execute(
-            "SELECT * FROM experiments WHERE project_id = ? ORDER BY created_at DESC",
-            (project_id,),
+            "SELECT * FROM experiments WHERE project_id = ? ORDER BY created_at DESC LIMIT ? OFFSET ?",
+            (project_id, limit, offset),
         ).fetchall()
     return [_row_to_experiment(r) for r in rows]
 
