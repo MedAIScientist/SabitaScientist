@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "skills": {
+    "experiment-iterative-coder": {
+      "source": "evoscientist/evoskills",
+      "sourceType": "github",
+      "skillPath": "skills/experiment-iterative-coder/SKILL.md",
+      "computedHash": "6aa72a614366e19f3e649644be58f38c2b667902b0074bd9f89e05728a5956d3"
+    },
+    "experiment-pipeline": {
+      "source": "evoscientist/evoskills",
+      "sourceType": "github",
+      "skillPath": "skills/experiment-pipeline/SKILL.md",
+      "computedHash": "6887f2ddda768de674671376de7bc1922102e00c890123016bbfc00741737960"
+    },
+    "paper-planning": {
+      "source": "evoscientist/evoskills",
+      "sourceType": "github",
+      "skillPath": "skills/paper-planning/SKILL.md",
+      "computedHash": "935db37bc96f24a4e75f7dc0a5cf2d67be319662e2518ca21992c4ed95420a2f"
+    },
+    "paper-rebuttal": {
+      "source": "evoscientist/evoskills",
+      "sourceType": "github",
+      "skillPath": "skills/paper-rebuttal/SKILL.md",
+      "computedHash": "25141052a6665cd3e70c4c69508a16e7c5d8c070b3c3cfa25a71145a3cdb244b"
+    },
+    "paper-review": {
+      "source": "evoscientist/evoskills",
+      "sourceType": "github",
+      "skillPath": "skills/paper-review/SKILL.md",
+      "computedHash": "6001c6956eb20fb793160e005fc49742f3e9fca32c0285698f3fa270e75a77f5"
+    },
+    "paper-writing": {
+      "source": "evoscientist/evoskills",
+      "sourceType": "github",
+      "skillPath": "skills/paper-writing/SKILL.md",
+      "computedHash": "d534f7a286d8f2f27dc7439c2e2413a42a2f4fe186fca4f6847e5ec1bcccc01e"
+    },
+    "research-ideation": {
+      "source": "evoscientist/evoskills",
+      "sourceType": "github",
+      "skillPath": "skills/research-ideation/SKILL.md",
+      "computedHash": "a9912a9df38f33ebc96d3cdef5cbe5e8d5f87c09d9e996d3831179d8c16e299c"
+    }
+  }
+}

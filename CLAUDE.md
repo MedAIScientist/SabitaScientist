@@ -28,14 +28,17 @@ EvoSci onboard                  # interactive config wizard
 
 ## PM Module Architecture
 
-The **Project Management (PM) module** lives at `EvoScientist/pm/` — a full-stack FastAPI + SQLite + React SPA for running a university research ecosystem.
+The **Project Management (PM) module** lives at `EvoScientist/pm/` — a full-stack FastAPI + SQLite + React SPA for running a university research ecosystem. It is deeply integrated with EvoScientist's own infrastructure: paths, config, LLM, tools, memory, sessions, prompts, gateway, and langgraph dev.
 
 ```
 pm/
-  api/              # ~50 FastAPI endpoints across 22 route files
+  _evoscientist.py  # Bridge: EvoScientist paths, config, env resolution
+  _ai.py            # Direct LLM via get_chat_model() + skills + memory + tools
+  api/              # ~65 FastAPI endpoints across 30 route files
     routes/         # Auth, projects, tasks, experiments, publications,
     |               # labs, grants, conferences, IRB, wiki, search, audit,
-    |               # drafting, ai_tools, compute, peer_review, bibliography
+    |               # drafting, ai_tools, compute, peer_review, bibliography,
+    |               # mcp, memory_routes, middleware_routes, dashboard
     audit_middleware.py   # Auto-logs all mutations
     rate_limiter.py       # 200 req/min per IP
     soft_delete.py        # Soft delete helpers
@@ -43,14 +46,15 @@ pm/
   compute/          # SLURM / SSH / Local compute backends
   s2/               # Semantic Scholar DB queries for citation verification
   runner/           # Async agent runner with SSE streaming
-  frontend/         # 27 React pages (Vite + TypeScript)
+                    # Uses get_checkpointer() for persistence + memory recording
+  frontend/         # 29+ React pages (Vite + TypeScript)
   templates/        # YAML project templates (life-science, medical, ml-research)
-  db.py             # 26 tables, 7 migrations
+  db.py             # 26 tables, 7 migrations (path via EvoScientist.paths.DATA_DIR)
   models.py         # 25+ dataclasses
-  notifications.py  # SMTP email notifications
-  oidc.py           # Microsoft O365 SSO / Azure AD OIDC
+  notifications.py  # Email via EvoScientistConfig (email_smtp_*)
+  oidc.py           # Microsoft O365 SSO via EvoScientistConfig (pm_oidc_*)
   auth.py           # bcrypt + token auth
-  storage.py        # S3-compatible object storage (Garage)
+  storage.py        # S3-compatible object storage via EvoScientistConfig
 ```
 
 ### Database — 26 tables
@@ -65,7 +69,7 @@ pm/
 | Pipeline | project_phases, task_dependencies, attachments |
 | Admin | audit_log, admissions |
 
-### API Endpoints (~50)
+### API Endpoints (~65)
 
 | Prefix | Routes | Features |
 |---|---|---|
@@ -80,64 +84,150 @@ pm/
 | `/templates` | List + from-template | Domain project templates |
 | `/admissions` | List + import + review | Applicant pipeline |
 | `/search` | Global search | Across all entities |
+| `/wiki` | CRUD | Lab wiki pages |
 | `/audit/logs` | List (admin) | Audit trail |
 | `/admin/stats` | System stats | Cross-lab analytics |
 | `/pi/stats` | Lab analytics | Mentorship + publications |
 | `/export/*` | CSV/JSON | Data export |
+| `/mcp/*` | Marketplace + installed | MCP server management |
+| `/memory/*` | Observations + search + workers + skills | EvoScientist memory subsystem |
+| `/middleware/available` | List | Agent middleware catalog |
+| `/system/health` | Health check | LangGraph dev + skills status |
 
 ### AI-Powered Features
 
-| Endpoint | Agent | What it does |
+| Endpoint | Backend | What it does |
 |---|---|---|
-| `POST /projects/{id}/draft-paper` | writing | Full paper from project context |
-| `POST /publications/{id}/draft-section` | writing | Abstract, intro, methods, results, etc. |
-| `POST /projects/{id}/grant-proposal` | writing | NIH R01, NSF, TÜBİTAK 1001, etc. |
-| `POST /projects/{id}/generate-hypothesis` | research | 3-5 testable hypotheses |
-| `POST /projects/{id}/research-ideation` | research | Novel research directions |
-| `POST /projects/{id}/validate-methodology` | research | Methods review |
-| `POST /projects/{id}/verify-citations` | research + S2 DB | Citation verification |
-| `POST /projects/{id}/literature-review` | research | Structured lit review |
-| `POST /projects/{id}/experiments/{id}/generate-figures` | data_analysis | Publication-quality figures |
-| `POST /publications/{id}/respond-to-reviewers` | writing | Reviewer response letter |
-| `POST /publications/{id}/revise` | writing | Revise existing text |
-| `POST /publications/{id}/generate-ai-review` | research | AI peer review |
+| `POST /projects/{id}/draft-paper` | runner / direct LLM | Full paper from project context |
+| `POST /publications/{id}/draft-section` | runner / direct LLM | Abstract, intro, methods, results, etc. |
+| `POST /projects/{id}/grant-proposal` | **direct LLM** via `get_chat_model()` + `ml-paper-writing` skill | NIH R01, NSF, TÜBİTAK 1001, etc. |
+| `POST /projects/{id}/generate-hypothesis` | runner | 3-5 testable hypotheses |
+| `POST /projects/{id}/research-ideation` | runner | Novel research directions |
+| `POST /projects/{id}/validate-methodology` | runner | Methods review |
+| `POST /projects/{id}/verify-citations` | runner + S2 DB | Citation verification |
+| `POST /projects/{id}/literature-review` | runner | Structured lit review |
+| `POST /projects/{id}/experiments/{id}/generate-figures` | **direct LLM** via `get_chat_model()` | Publication-quality figures |
+| `POST /publications/{id}/respond-to-reviewers` | runner | Reviewer response letter |
+| `POST /publications/{id}/revise` | runner | Revise existing text |
+| `POST /publications/{id}/generate-ai-review` | runner | AI peer review |
+
+All AI endpoints can optionally load EvoScientist skill SKILL.md files for guidance.
+Direct LLM endpoints use `EvoScientist.llm.get_chat_model()` (200+ models, provider routing).
+
+### EvoScientist Integration Points
+
+| EvoScientist module | PM integration | What it provides |
+|---|---|---|
+| `paths.py` | `pm/_evoscientist.py` | DATA_DIR, WORKSPACE_ROOT, RUNS_DIR |
+| `config/settings.py` | `pm/_evoscientist.py` | 16 PM config fields, `get_effective_config()` |
+| `llm/models.py` | `pm/_ai.py` | `get_chat_model()` for direct LLM access |
+| `prompts.py` | `pm/_ai.py` | WRITING_GUIDELINES, REPORT_TEMPLATE |
+| `tools/search.py` | `pm/_ai.py` | `tavily_search()` for web research |
+| `tools/think.py` | `pm/_ai.py` | `think_tool()` for structured reasoning |
+| `memory/` | `pm/runner/agent_runner.py`, `pm/_ai.py` | `record_observation_file()`, `search_observation_files()`, `build_observation_index_context()` |
+| `gateway/local.py` | `pm/runner/agent_runner.py` | `LocalThreadStore` for thread ID generation |
+| `sessions.py` | `pm/runner/agent_runner.py` | `get_checkpointer()` for persistent agent checkpoints |
+| `langgraph_dev/` | `pm/api/routes/dashboard.py` | `is_langgraph_dev_running()` for health checks |
+| `mcp/` | `pm/api/routes/mcp.py` | `install_mcp_server()`, `fetch_marketplace_index()` |
+
+### Frontend Pages (29+)
+
+| Route | Page | Features |
+|---|---|---|
+| `/projects` | Projects | List, create, manage projects |
+| `/projects/:id` | Board | Kanban board with tasks, phases |
+| `/projects/:id/experiments` | ExperimentsPage | Experiment CRUD, entries |
+| `/projects/:id/report` | ProjectReportPage | Per-project report |
+| `/labs` | LabsPage | Multi-tenant lab management |
+| `/labs/:id` | LabDetail | Lab members, projects |
+| `/labs/:id/impact` | ImpactPage | Research impact (S2 citations) |
+| `/labs/:id/wiki` | WikiPages | Lab wiki |
+| `/labs/:id/wiki/:slug` | WikiPageView | Wiki page content |
+| `/publications` | PublicationsPage | Paper lifecycle |
+| `/publications/:id` | PublicationDetail | Versions, reviews, AI drafting |
+| `/grants` | GrantsPage | Grant tracking |
+| `/grants/:id` | GrantDetail | Grant details |
+| `/conferences` | ConferencesPage | Conference deadlines |
+| `/irb` | IRBPage | Ethics approvals |
+| `/admissions` | AdmissionsPage | Applicant pipeline |
+| `/admissions/:id` | AdmissionDetail | Review, aid decisions |
+| `/mcp` | MCPPage | Browse marketplace, install/remove |
+| `/memory` | MemoryPage | Search/record/link observations |
+| `/health` | SystemHealthPage | LangGraph dev, skills, runner status |
+| `/analytics` | AnalyticsPage | Cross-lab stats |
+| `/admin` | AdminDashboard | System-wide admin |
+| `/users` | UsersPage | User CRUD |
+| `/profile` | ProfilePage | User settings |
+| `/reports` | GlobalReportPage | Aggregate reports |
 
 ### PM Tools (Agent Access)
 
-9 tools registered in the EvoScientist agent (`tools/pm_tools.py`) allowing AI to create projects, tasks, experiments, and entries directly.
+9 tools registered in the EvoScientist agent (`tools/pm_tools.py`) allowing AI to create projects, tasks, experiments, and entries directly. Agent runs in PM also record observations to `EvoScientist.memory` for cross-session context.
 
 ### Configuration
 
-| Env Var | Purpose |
-|---|---|
-| `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` | Microsoft 365 SSO |
-| `OIDC_TENANT_ID` | Azure AD tenant |
-| `PM_SMTP_HOST`, `PM_SMTP_USER`, `PM_SMTP_PASS` | Email notifications |
-| `S2_DB_PATH` | Semantic Scholar database |
-| `RUNNER_URL` | Agent runner URL (default: :8001) |
-| `EVOSCIENTIST_PM_DB` | PM database path |
-| `GARAGE_S3_ENDPOINT` | S3-compatible storage |
+All PM configuration is managed through `EvoScientistConfig` (added to `config/settings.py` with `_ENV_MAPPINGS`). Legacy env vars still work via mappings.
+
+| Config Field | Env Var | Purpose |
+|---|---|---|
+| `pm_db_path` | `EVOSCIENTIST_PM_DB` | PM SQLite DB path |
+| `pm_runner_url` | — | Agent runner URL (default: :8001) |
+| `pm_base_url` | `PM_BASE_URL` | PM web UI base URL |
+| `pm_smtp_from` | `PM_SMTP_FROM` | Notification sender address |
+| `pm_max_upload_mb` | `PM_MAX_UPLOAD_MB` | Max attachment upload size |
+| `pm_garage_*` | `GARAGE_*` | S3/Garage object storage |
+| `pm_oidc_*` | `OIDC_*` | Microsoft 365 SSO |
+| `pm_s2_db_path` | `S2_DB_PATH` | Semantic Scholar citation DB |
+| `email_smtp_*` | — | Shared EvoScientist email settings |
 
 ### Deployment
 
+Production server: `medaiadm@10.150.145.10` — domain `https://medai.medipol.edu.tr`
+Uses Docker Compose on bare metal (no Swarm/K8s). Three containers: `evoscientist`, `evoscientist-garage`, `evoscientist-nginx`.
+
+**IMPORTANT — deploy ONLY via the deploy script. Never run ad-hoc Docker commands.**
+
 ```bash
-# Build and run full stack
-docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.pm.yml up -d
-
-# With SSL
-docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.pm.yml -f deploy/docker-compose.ssl.yml up -d
-
-# One-command setup on a fresh VPS
-bash deploy/setup.sh
+# Deploy to production (syncs code → builds Docker → restarts container)
+./deploy/deploy.sh medaiadm@10.150.145.10
 ```
+
+The deploy script handles:
+1. **Rsync** — syncs source code (excluding .git, node_modules, .venv, .env, etc.)
+2. **SSL check** — verifies certs at `deploy/nginx/ssl/`
+3. **Docker build** — builds `evoscientist:prod` image (uses cache, no `--no-cache`)
+4. **Deploy** — recreates evoscientist container (garage + nginx stay up), waits for healthy
+
+**Services:**
+
+| Container | Image | Ports |
+|-----------|-------|-------|
+| evoscientist | evoscientist:prod | 7860 (API + SPA), 8001 (runner) |
+| evoscientist-garage | dxflrs/garage:v1.0.1 | 3900 (S3) |
+| evoscientist-nginx | nginx:alpine | 80 → 443 → evoscientist:7860 |
+
+**Compose file:** `deploy/docker-compose.prod.yml` (single unified file)
+
+**Data volumes:** `evoscientist-prod-data` (/data with pm.db + workspaces), `evoscientist-home`
+
+**Secrets:** `.env` at project root + `deploy/.env` (deploy overrides root). SSL certs at `deploy/nginx/ssl/`.
+
+**OIDC / Microsoft SSO:** Azure App with Client ID `991f879e-3b91-4d8f-850d-0b2ad468c976`. Redirect URI must match `https://medai.medipol.edu.tr/api/v1/auth/oidc/callback`.
+
+**Skills:** EvoScientist skills installed at `skills/` on the server (from `evoscientist/evoskills`).
+
+**Troubleshooting:**
+- Check health: `curl -sk https://medai.medipol.edu.tr/api/v1/health`
+- View logs: `docker logs evoscientist`
+- DB query: `docker exec evoscientist python3 -c "import sqlite3; c=sqlite3.connect('/data/pm.db')"`
 
 ### Adding a new entity
 
 1. Add CREATE TABLE to `db.py` _SCHEMA + migration to _MIGRATIONS
 2. Add @dataclass to `models.py`
 3. Add Pydantic schemas to `api/schemas.py`
-4. Create `crud/{entity}.py` with direct SQL functions
-5. Create `api/routes/{entity}.py` with FastAPI routes
+4. Create `crud/{entity}.py` with direct SQL functions (use explicit named params + `_row_to_*()` helpers)
+5. Create `api/routes/{entity}.py` with FastAPI routes (use Pydantic schemas + `response_model=` + `log_action()`)
 6. Wire in `api/app.py`
 7. Create frontend page in `pm/frontend/src/pages/`
 8. Add route in `main.tsx`

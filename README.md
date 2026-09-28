@@ -359,7 +359,7 @@ docker build -t evoscientist:dev .
 
 ## 🏫 Research Project Management (PM) Dashboard
 
-The **PM Dashboard** is a full-stack web application (FastAPI + SQLite + React SPA) for running a multi-tenant university research ecosystem. It integrates with EvoScientist's AI agents for automated paper drafting, literature review, hypothesis generation, and more.
+The **PM Dashboard** is a full-stack web application (FastAPI + SQLite + React SPA) for running a multi-tenant university research ecosystem. It is deeply integrated with EvoScientist's own infrastructure — `paths.py`, `config/settings.py`, `llm/models.py`, `prompts.py`, `tools/`, `memory/`, `gateway/`, `sessions.py`, `langgraph_dev/`, and `mcp/`.
 
 ### Quick Start
 
@@ -387,24 +387,30 @@ docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.pm.yml up -
 | **IRB** | Ethics approvals, protocol tracking, expiry/renewal dates |
 | **Admissions** | Applicant intake, review workflow, financial aid |
 | **Lab Wiki** | Markdown knowledge base with slug routing |
+| **MCP Servers** | Browse marketplace, install/remove MCP servers |
+| **Memory Browser** | Search/record/link EvoScientist observations per project |
+| **System Health** | LangGraph dev status, skills count, runner status |
 
 ### AI-Powered Research Tools
 
-| Tool | What it does |
-|------|-------------|
-| **Paper Drafting** | Full paper, individual sections, multiple writing styles |
-| **Grant Writer** | Generates proposals for TÜBİTAK, TÜSEB, NIH, NSF, ERC, Wellcome |
-| **Hypothesis Generator** | 3-5 testable hypotheses from research topic |
-| **Research Ideation** | Novel research directions with feasibility assessment |
-| **Literature Review** | Structured review with web search via research agent |
-| **Methodology Validation** | Reviews proposed methods for flaws and improvements |
-| **Citation Verification** | Checks citations against Semantic Scholar database |
-| **Figure Generator** | Publication-quality plots from experiment data via data-analysis agent |
+| Tool | Backend | What it does |
+|------|---------|-------------|
+| **Paper Drafting** | EvoScientist agent runner | Full paper, individual sections, multiple writing styles |
+| **Grant Writer** | **Direct `get_chat_model()`** + `ml-paper-writing` skill | Generates proposals for TÜBİTAK, TÜSEB, NIH, NSF, ERC, Wellcome |
+| **Figure Generator** | **Direct `get_chat_model()`** | Publication-quality plots from experiment data |
+| **Hypothesis Generator** | Agent runner | 3-5 testable hypotheses from research topic |
+| **Research Ideation** | Agent runner | Novel research directions with feasibility assessment |
+| **Literature Review** | Agent runner | Structured review with web search via research agent |
+| **Methodology Validation** | Agent runner | Reviews proposed methods for flaws and improvements |
+| **Citation Verification** | Agent runner + S2 DB | Checks citations against Semantic Scholar database |
+| **System Health** | `langgraph_dev.manager` | LangGraph dev, skills, memory worker status |
 
-### API Overview (~50 Endpoints)
+All AI endpoints integrate with EvoScientist's full model registry (200+ models, provider routing, thinking/reasoning modes).
+
+### API Overview (~65 Endpoints)
 
 ```
-/auth     Login, logout, OIDC (Microsoft 365 SSO)
+/auth     Login, logout, OIDC (Microsoft 365 SSO via EvoScientistConfig)
 /users    User CRUD
 /projects Project CRUD + member management
 /labs     Lab CRUD + member roles
@@ -422,18 +428,55 @@ docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.pm.yml up -
 /compute  SLURM/SSH/local compute backends
 /audit    Audit log (auto-logged via middleware)
 /drafting AI paper drafting (sections, revision, reviewer response)
+/mcp      MCP server marketplace, install, remove
+/memory   Observations search, record, link, workers, autoskill proposals
+/middleware Agent middleware catalog
+/system   System health check (langgraph dev, skills)
+/health   (UI page) Health dashboard
 ```
+
+### Frontend Pages (29+)
+
+| Route | Page |
+|---|---|
+| `/projects` | Project list |
+| `/projects/:id` | Kanban board |
+| `/projects/:id/experiments` | Experiments |
+| `/projects/:id/report` | Per-project report |
+| `/labs` | Lab management |
+| `/labs/:id` | Lab details |
+| `/labs/:id/impact` | Research impact |
+| `/labs/:id/wiki` | Lab wiki |
+| `/publications` | Publication list |
+| `/publications/:id` | Publication detail |
+| `/grants` | Grant tracking |
+| `/grants/:id` | Grant detail |
+| `/conferences` | Conference deadlines |
+| `/irb` | Ethics approvals |
+| `/admissions` | Applicant pipeline |
+| `/mcp` | MCP server marketplace |
+| `/memory` | Observation search/record |
+| `/health` | System health dashboard |
+| `/analytics` | Cross-lab analytics |
+| `/admin` | System-wide admin |
+| `/users` | User management |
+| `/reports` | Aggregate reports |
 
 ### Configuration
 
-| Environment Variable | Purpose |
-|---|---|
-| `EVOSCIENTIST_PM_DB` | PM database path (default: `~/.config/evoscientist/projects.db`) |
-| `RUNNER_URL` | Agent runner URL (default: `http://127.0.0.1:8001`) |
-| `OIDC_CLIENT_ID/SECRET/TENANT` | Microsoft 365 SSO |
-| `PM_SMTP_HOST/USER/PASS` | Email notifications |
-| `S2_DB_PATH` | Semantic Scholar database for citation verification |
-| `GARAGE_S3_ENDPOINT/ACCESS_KEY/SECRET_KEY/BUCKET` | S3-compatible object storage |
+All PM configuration is managed through `EvoScientistConfig` (`config/settings.py`) with env-var overrides via `_ENV_MAPPINGS`:
+
+| Config Field | Env Var | Purpose |
+|---|---|---|
+| `pm_db_path` | `EVOSCIENTIST_PM_DB` | PM database path (default: `~/.evoscientist/projects.db`) |
+| `pm_runner_url` | — | Agent runner URL (default: `http://127.0.0.1:8001`) |
+| `pm_base_url` | `PM_BASE_URL` | PM web UI base URL |
+| `pm_smtp_from` | `PM_SMTP_FROM` | Notification sender |
+| `pm_max_upload_mb` | `PM_MAX_UPLOAD_MB` | Attachment size limit |
+| `pm_garage_*` | `GARAGE_*` | S3-compatible object storage |
+| `pm_oidc_*` | `OIDC_*` | Microsoft 365 SSO |
+| `pm_s2_db_path` | `S2_DB_PATH` | Semantic Scholar DB |
+| `email_smtp_*` | — | Shared email settings |
 
 <hr />
 
