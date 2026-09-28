@@ -38,6 +38,7 @@ dependencies = [
     "filelock>=3.16",
     "lazy-loader>=0.5",
     "markdownify>=1.2",
+    "markdown>=3.7",
     "nest-asyncio>=1.6",
     "tzlocal>=5.0",
     "langchain-mcp-adapters>=0.2",
@@ -122,6 +123,8 @@ EvoScientist = [
     "langgraph_dev/*.json",
     "skills/**/*",
     "pm/frontend/dist/**/*",
+    "pm/templates/*.yaml",
+    "docs/**/*",
 ]
 
 [tool.pytest.ini_options]

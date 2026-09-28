@@ -14,7 +14,7 @@ from ..db import create_schema
 from .audit_middleware import AuditMiddleware
 from .rate_limiter import RateLimitMiddleware
 from .routes import (
-    admissions,
+    # admissions,
     ai_tools,
     assists,
     attachments,
@@ -27,7 +27,9 @@ from .routes import (
     conferences,
     copilot,
     cvat,
+    cvat_provision,
     dashboard,
+    datasets,
     dependencies,
     drafting,
     experiments,
@@ -35,6 +37,7 @@ from .routes import (
     exports,
     grants,
     help,
+    integrations,
     irb,
     labs,
     literature_review,
@@ -129,6 +132,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     app.include_router(exports.router, prefix="/api/v1", tags=["exports"])
     app.include_router(bulk.router, prefix="/api/v1", tags=["bulk"])
     app.include_router(task_history.router, prefix="/api/v1", tags=["task-history"])
+    app.include_router(cvat_provision.router, prefix="/api/v1", tags=["cvat"])
     app.include_router(cvat.router, prefix="/api/v1", tags=["cvat"])
     app.include_router(webknossos.router, prefix="/api/v1", tags=["webknossos"])
     app.include_router(patents.router, prefix="/api/v1", tags=["patents"])
@@ -145,16 +149,18 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     app.include_router(grants.router, prefix="/api/v1/grants", tags=["grants"])
     app.include_router(help.router, prefix="/api/v1", tags=["help"])
     app.include_router(copilot.router, prefix="/api/v1", tags=["copilot"])
+    app.include_router(integrations.router, prefix="/api/v1", tags=["integrations"])
     app.include_router(conferences.router, prefix="/api/v1/conferences", tags=["conferences"])
     app.include_router(irb.router, prefix="/api/v1/irb", tags=["irb"])
+    app.include_router(datasets.router, prefix="/api/v1/datasets", tags=["datasets"])
     app.include_router(wiki.router, prefix="/api/v1", tags=["wiki"])
     app.include_router(search.router, prefix="/api/v1", tags=["search"])
     app.include_router(
         publications.router, prefix="/api/v1/publications", tags=["publications"]
     )
-    app.include_router(
-        admissions.router, prefix="/api/v1", tags=["admissions"]
-    )
+    # app.include_router(
+    #     admissions.router, prefix="/api/v1", tags=["admissions"]
+    # )
 
     # Serve React SPA — only if the dist folder exists (i.e., frontend has been built)
     if _FRONTEND_DIST.exists():
@@ -166,6 +172,9 @@ def create_app(db_path: Path | None = None) -> FastAPI:
 
         @app.api_route("/{full_path:path}", methods=["GET"], include_in_schema=False)
         async def serve_spa(full_path: str):
+            if full_path.startswith("api/"):
+                from fastapi.responses import JSONResponse
+                return JSONResponse(status_code=404, content={"detail": "Not found"})
             file_path = _FRONTEND_DIST / full_path
             if file_path.exists() and file_path.is_file():
                 return FileResponse(str(file_path))

@@ -156,6 +156,12 @@ def accept_admission(db_path: Path, admission_id: str, notes: str | None = None)
                WHERE id = ?""",
             (notes, now, project_id, now, admission_id),
         )
+    # Accepting an admission creates a project and an owner membership with raw SQL, so it
+    # bypasses crud.projects entirely — it needs the same announcement or the new owner's
+    # notebook cannot open anything granted to their project.
+    from ..platform_push import announce_new_project
+
+    announce_new_project(db_path, project_id, created_by)
     return get_admission(db_path, admission_id)
 
 

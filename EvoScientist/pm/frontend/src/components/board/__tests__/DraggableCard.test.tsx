@@ -33,7 +33,7 @@ describe('DraggableCard checkbox', () => {
     render(
       <DraggableCard
         task={TASK} col={COL} idx={0} activeTaskId={null}
-        onCardClick={vi.fn()} onEditClick={vi.fn()} members={[]}
+        onCardClick={vi.fn()} members={[]}
         isSelected={true} onToggleSelect={vi.fn()}
       />
     )
@@ -45,7 +45,7 @@ describe('DraggableCard checkbox', () => {
     const { container } = render(
       <DraggableCard
         task={TASK} col={COL} idx={0} activeTaskId={null}
-        onCardClick={vi.fn()} onEditClick={vi.fn()} members={[]}
+        onCardClick={vi.fn()} members={[]}
         isSelected={false} onToggleSelect={vi.fn()}
       />
     )
@@ -60,7 +60,7 @@ describe('DraggableCard checkbox', () => {
     render(
       <DraggableCard
         task={TASK} col={COL} idx={0} activeTaskId={null}
-        onCardClick={vi.fn()} onEditClick={vi.fn()} members={[]}
+        onCardClick={vi.fn()} members={[]}
         isSelected={true} onToggleSelect={onToggleSelect}
       />
     )
@@ -73,7 +73,7 @@ describe('DraggableCard checkbox', () => {
     render(
       <DraggableCard
         task={TASK} col={COL} idx={0} activeTaskId={null}
-        onCardClick={onCardClick} onEditClick={vi.fn()} members={[]}
+        onCardClick={onCardClick} members={[]}
         isSelected={true} onToggleSelect={vi.fn()}
       />
     )

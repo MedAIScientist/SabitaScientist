@@ -1,32 +1,36 @@
 """Attachment upload/download endpoints for experiment entries."""
+
 from __future__ import annotations
 
 import asyncio
-import os
 import uuid
 from io import BytesIO
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from fastapi.responses import RedirectResponse
 
+from ..._evoscientist import get_max_upload_bytes
 from ...crud.attachments import (
     create_attachment,
     delete_attachment,
     get_attachment,
     list_attachments,
+    update_attachment_classification,
 )
 from ...crud.experiment_entries import get_entry
+from ...crud.experiment_metrics import create_metrics, delete_metrics_for_attachment
 from ...crud.experiments import get_experiment
 from ...db import get_db, get_db_path
+from ...metrics_csv import is_parseable, parse_metrics_csv
 from ...models import User
 from ...storage import delete_object, generate_presigned_url, upload_file
 from ..deps import get_current_user, require_project_role
-from ..schemas import AttachmentResponse
+from ..schemas import AttachmentClassifyRequest, AttachmentResponse
 
 router = APIRouter()
 global_router = APIRouter()
 
-_MAX_BYTES = int(os.environ.get("MAX_UPLOAD_MB", "50")) * 1024 * 1024
+_MAX_BYTES = get_max_upload_bytes()
 
 _ALLOWED_MIME_PREFIXES = (
     "image/",
@@ -51,8 +55,9 @@ def _check_entry(project_id: str, exp_id: str, entry_id: str):
     return entry
 
 
-def _to_response(a) -> AttachmentResponse:
+def _to_response(a, metrics_parsed: int = 0) -> AttachmentResponse:
     return AttachmentResponse(
+        metrics_parsed=metrics_parsed,
         id=a.id,
         entry_id=a.entry_id,
         filename=a.filename,
@@ -98,7 +103,9 @@ async def upload_attachment(
     key = f"entries/{entry_id}/{uuid.uuid4()}/{filename}"
 
     loop = asyncio.get_event_loop()
-    await loop.run_in_executor(None, lambda: upload_file(BytesIO(data), key, content_type))
+    await loop.run_in_executor(
+        None, lambda: upload_file(BytesIO(data), key, content_type)
+    )
 
     with get_db() as db:
         attachment = create_attachment(
@@ -111,7 +118,41 @@ async def upload_attachment(
             user_id=current_user.id,
         )
 
-    return _to_response(attachment)
+    metrics_parsed = _extract_metrics(data, filename, content_type, exp_id, attachment.id, current_user.id)
+    return _to_response(attachment, metrics_parsed)
+
+
+def _extract_metrics(
+    data: bytes,
+    filename: str,
+    content_type: str,
+    exp_id: str,
+    attachment_id: str,
+    user_id: str,
+) -> int:
+    """Record metrics from a results table upload. Returns how many were stored.
+
+    A file that will not decode or parse simply yields zero metrics — the upload
+    still succeeds, and the drafting context reports that no numbers exist rather
+    than guessing at them.
+    """
+    if not is_parseable(filename, content_type):
+        return 0
+    try:
+        text = data.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return 0
+    metrics = parse_metrics_csv(text)
+    if not metrics:
+        return 0
+    create_metrics(
+        get_db_path(),
+        experiment_id=exp_id,
+        metrics=metrics,
+        recorded_by=user_id,
+        source_attachment_id=attachment_id,
+    )
+    return len(metrics)
 
 
 @router.get(
@@ -132,6 +173,9 @@ def list_entry_attachments(
     return [_to_response(a) for a in attachments]
 
 
+_BLOCKED_CLASSIFICATIONS = frozenset({"raw_phi"})
+
+
 @global_router.get(
     "/attachments/{attachment_id}/download",
     summary="Redirect to presigned S3 download URL",
@@ -141,13 +185,50 @@ def download_attachment(
     attachment_id: str,
     current_user: User = Depends(get_current_user),
 ):
-    """Return a 302 redirect to a presigned download URL."""
+    """Return a 302 redirect to a presigned download URL.
+
+    Attachments classified as ``raw_phi`` cannot be downloaded directly.
+    Submit an export request instead.
+    """
     with get_db() as db:
         attachment = get_attachment(db, attachment_id)
     if not attachment:
         raise HTTPException(status_code=404, detail="Attachment not found")
+    if attachment.classification in _BLOCKED_CLASSIFICATIONS:
+        raise HTTPException(
+            status_code=403,
+            detail="This file contains protected patient data and cannot be "
+            "downloaded. Submit an export request through the project's "
+            "export-requests endpoint for approval.",
+        )
     url = generate_presigned_url(attachment.s3_key)
     return RedirectResponse(url=url, status_code=302)
+
+
+@global_router.put(
+    "/attachments/{attachment_id}/classify",
+    response_model=AttachmentResponse,
+    summary="Set data classification on an attachment",
+)
+def classify_attachment(
+    attachment_id: str,
+    body: AttachmentClassifyRequest,
+    current_user: User = Depends(require_project_role("owner", "editor")),
+):
+    """Update the data classification label on an attachment.
+
+    Values: ``unclassified``, ``raw_phi``, ``de_identified``,
+    ``aggregate``, ``model_weights``, ``public``.
+    """
+    with get_db() as db:
+        attachment = get_attachment(db, attachment_id)
+    if not attachment:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+    with get_db() as db:
+        updated = update_attachment_classification(
+            db, attachment_id, body.classification
+        )
+    return _to_response(updated)
 
 
 @global_router.delete(
@@ -165,5 +246,8 @@ def delete_attachment_endpoint(
     if not attachment:
         raise HTTPException(status_code=404, detail="Attachment not found")
     delete_object(attachment.s3_key)
+    # Metrics must not outlive the file they were read from, or a paper could
+    # cite numbers whose source no longer exists.
+    delete_metrics_for_attachment(get_db_path(), attachment_id)
     with get_db() as db:
         delete_attachment(db, attachment_id)

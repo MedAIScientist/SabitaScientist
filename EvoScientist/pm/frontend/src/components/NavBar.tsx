@@ -2,16 +2,18 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { api } from '../api'
+import { CopilotPanel } from './CopilotPanel'
 
 const NAV_ITEMS = [
   { path: '/projects', label: 'PROJECTS' },
   { path: '/labs', label: 'LABS' },
   { path: '/publications', label: 'PAPERS' },
   { path: '/grants', label: 'GRANTS' },
-  { path: '/analytics', label: 'ANALYTICS' },
-  { path: '/admissions', label: 'ADMISSIONS' },
+  { path: '/apps', label: 'APPS' },
   { path: '/users', label: 'USERS', adminOnly: true },
   { path: '/admin', label: 'ADMIN', adminOnly: true },
+  { path: '/help', label: 'HELP' },
+  { path: '/settings', label: 'SETTINGS' },
 ]
 
 export function NavBar() {
@@ -21,6 +23,7 @@ export function NavBar() {
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<any>(null)
+  const [copilotOpen, setCopilotOpen] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -41,7 +44,7 @@ export function NavBar() {
     catch { setSearchResults(null) }
   }
 
-  return (
+  return (<>
     <div style={{
       height: 48,
       background: 'var(--surface-header)',
@@ -50,7 +53,7 @@ export function NavBar() {
       padding: '0 28px', gap: 4,
       position: 'sticky', top: 0, zIndex: 20,
     }}>
-      <img src="/sabita.jpg" alt="SABITA" style={{ height: 22, borderRadius: 3, marginRight: 8 }} />
+      <img src="/medipolLogo.png" alt="Medipol" style={{ height: 22, borderRadius: 3, marginRight: 8 }} />
       {NAV_ITEMS.filter(item => !item.adminOnly || isAdmin).map(item => {
         const active = location.pathname.startsWith(item.path)
         return (
@@ -67,6 +70,7 @@ export function NavBar() {
           >{item.label}</button>
         )
       })}
+
       <div style={{ flex: 1 }} />
       <div ref={searchRef} style={{ position: 'relative' }}>
         <input
@@ -111,6 +115,13 @@ export function NavBar() {
           </div>
         )}
       </div>
+      <button onClick={() => setCopilotOpen(o => !o)} style={{
+        padding: '3px 10px', cursor: 'pointer', fontSize: 14, fontFamily: 'var(--font-mono)',
+        background: copilotOpen ? 'rgba(255,128,21,0.12)' : 'transparent',
+        border: copilotOpen ? '1px solid rgba(255,128,21,0.25)' : '1px solid var(--border)',
+        borderRadius: 4, color: copilotOpen ? '#ff8015' : 'var(--text-muted)',
+        marginRight: 6,
+      }}>{copilotOpen ? 'COPILOT ✕' : '🤖 AI'}</button>
       <span style={{ fontSize: 14, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginLeft: 8 }}>
         {username}
       </span>
@@ -120,5 +131,6 @@ export function NavBar() {
         borderRadius: 4, color: 'var(--text-muted)',
       }}>LOG OUT</button>
     </div>
-  )
+    {copilotOpen && <CopilotPanel onClose={() => setCopilotOpen(false)} />}
+  </>)
 }

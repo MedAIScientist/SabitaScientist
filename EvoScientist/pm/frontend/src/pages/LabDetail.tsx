@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api, Lab } from '../api'
 import { useAuth } from '../auth'
 
+console.log('LabDetail MOUNTED v2')
 export function LabDetail() {
   const { id } = useParams<{ id: string }>()
   const { token, isAdmin } = useAuth()
@@ -22,8 +23,33 @@ export function LabDetail() {
   const [addRole, setAddRole] = useState('phd')
   const [addError, setAddError] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
+  const [userSearch, setUserSearch] = useState('')
+  const [userResults, setUserResults] = useState<{ id: string; username: string }[]>([])
+  const [searching, setSearching] = useState(false)
+  const searchRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { load() }, [id, token])
+
+  useEffect(() => {
+    if (userSearch.length < 1) { setUserResults([]); return }
+    setSearching(true)
+    const t = setTimeout(async () => {
+      try {
+        const res = await api.searchUsers(userSearch)
+        setUserResults(res)
+      } catch { setUserResults([]) }
+      setSearching(false)
+    }, 200)
+    return () => clearTimeout(t)
+  }, [userSearch])
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) setUserResults([])
+    }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [])
 
   async function load() {
     if (!id || !token) return
@@ -101,6 +127,11 @@ export function LabDetail() {
     </div>
   )
 
+  // The API says whether this caller may edit the lab and its roster (a 'pi'/
+  // 'admin' member, or a platform admin). Without it the controls below only
+  // produce 403s, so they stay hidden.
+  const canManage = lab.can_manage || isAdmin
+
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
       <div style={{
@@ -117,7 +148,7 @@ export function LabDetail() {
             color: 'var(--text-muted)', padding: '3px 9px', fontSize: 22, lineHeight: 1,
           }}>←</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <img src="/sabita.jpg" alt="SABITA" style={{ height: 26, borderRadius: 4 }} />
+            <img src="/medipolLogo.png" alt="Medipol" style={{ height: 26, borderRadius: 4 }} />
             <span style={{ color: 'var(--text-dim)', fontSize: 20, fontFamily: 'var(--font-mono)' }}>/labs</span>
             <span style={{ color: 'var(--text-dim)', fontSize: 20 }}>/</span>
             <span style={{ color: '#ff8015', fontSize: 21, fontFamily: 'var(--font-mono)' }}>{lab.name}</span>
@@ -137,13 +168,15 @@ export function LabDetail() {
           borderRadius: 7, color: '#10b981',
           fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', marginRight: 8,
         }}>📖 WIKI</button>
-        <button onClick={() => setEditing(e => !e)} style={{
-          cursor: 'pointer', padding: '7px 16px',
-          background: 'rgba(255,128,21,0.1)',
-          border: '1px solid rgba(255,128,21,0.3)',
-          borderRadius: 7, color: '#ff8015',
-          fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em',
-        }}>{editing ? 'CANCEL' : 'EDIT'}</button>
+        {canManage && (
+          <button onClick={() => setEditing(e => !e)} style={{
+            cursor: 'pointer', padding: '7px 16px',
+            background: 'rgba(255,128,21,0.1)',
+            border: '1px solid rgba(255,128,21,0.3)',
+            borderRadius: 7, color: '#ff8015',
+            fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em',
+          }}>{editing ? 'CANCEL' : 'EDIT'}</button>
+        )}
       </div>
 
       <div style={{ maxWidth: 680, margin: '0 auto', padding: '32px 28px' }}>
@@ -152,7 +185,7 @@ export function LabDetail() {
           background: 'var(--surface-card)', border: '1px solid var(--border)',
           borderRadius: 10, padding: 24, marginBottom: 28,
         }}>
-          {editing ? (
+          {editing && canManage ? (
             <form onSubmit={handleUpdate}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
                 <div>
@@ -195,7 +228,7 @@ export function LabDetail() {
               </div>
               <div style={{ display: 'flex', gap: 24, color: 'var(--text-2)', fontSize: 18, fontFamily: 'var(--font-mono)' }}>
                 <span>PI: {lab.pi_id ? lab.members.find(m => m.role === 'pi')?.username ?? lab.pi_id : '—'}</span>
-                <span>{lab.members.length} member{lab.members.length !== 1 ? 's' : ''}</span>
+                <span>{lab.member_count} member{lab.member_count !== 1 ? 's' : ''}</span>
               </div>
             </>
           )}
@@ -204,17 +237,19 @@ export function LabDetail() {
         {/* Members */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <div style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', letterSpacing: '0.08em' }}>
-            MEMBERS ({lab.members.length})
+            MEMBERS ({lab.member_count})
           </div>
-          <button onClick={() => { setShowAdd(true); setAddError(null) }} style={{
-            cursor: 'pointer', padding: '5px 12px',
-            background: 'rgba(255,128,21,0.1)',
-            border: '1px solid rgba(255,128,21,0.3)', borderRadius: 6, color: '#ff8015',
-            fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)',
-          }}>+ ADD</button>
+          {canManage && (
+            <button onClick={() => { setShowAdd(true); setAddError(null) }} style={{
+              cursor: 'pointer', padding: '5px 12px',
+              background: 'rgba(255,128,21,0.1)',
+              border: '1px solid rgba(255,128,21,0.3)', borderRadius: 6, color: '#ff8015',
+              fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)',
+            }}>+ ADD</button>
+          )}
         </div>
 
-        {showAdd && (
+        {showAdd && canManage && (
           <form onSubmit={handleAddMember} style={{
             background: 'var(--surface-card)', border: '1px solid rgba(255,128,21,0.2)',
             borderRadius: 10, padding: '16px 20px', marginBottom: 12,
@@ -223,9 +258,37 @@ export function LabDetail() {
               <div style={{ color: '#f43f5e', marginBottom: 10, fontSize: 17 }}>{addError}</div>
             )}
             <div style={{ display: 'flex', gap: 10, alignItems: 'end' }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dim)', marginBottom: 4, fontFamily: 'var(--font-mono)' }}>USER ID</div>
-                <input value={addUserId} onChange={e => setAddUserId(e.target.value)} required placeholder="user_id" style={inputStyle} />
+              <div style={{ flex: 1, position: 'relative' }} ref={searchRef}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dim)', marginBottom: 4, fontFamily: 'var(--font-mono)' }}>USER</div>
+                <input
+                  value={addUserId || userSearch}
+                  onChange={e => { setUserSearch(e.target.value); setAddUserId('') }}
+                  onFocus={() => { if (userSearch.length >= 1) { api.searchUsers(userSearch).then(setUserResults).catch(() => {}) } }}
+                  required placeholder="Search username…"
+                  style={inputStyle}
+                />
+                {userResults.length > 0 && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10,
+                    background: 'var(--surface-panel)', border: '1px solid var(--border)',
+                    borderRadius: 6, marginTop: 2, maxHeight: 200, overflowY: 'auto',
+                  }}>
+                    {userResults.map(u => (
+                      <div key={u.id} onClick={() => {
+                        setAddUserId(u.id)
+                        setUserSearch(u.username)
+                        setUserResults([])
+                      }} style={{
+                        padding: '8px 12px', cursor: 'pointer', fontSize: 17, color: 'var(--text)',
+                        borderBottom: '1px solid var(--border-subtle)',
+                        transition: 'background 0.1s',
+                      }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-input)' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                      >{u.username} <span style={{ color: 'var(--text-dim)', fontSize: 14 }}>{u.id}</span></div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div style={{ width: 140 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dim)', marginBottom: 4, fontFamily: 'var(--font-mono)' }}>ROLE</div>
@@ -283,15 +346,22 @@ export function LabDetail() {
                   border: `1px solid ${roleColors[m.role] || '#6b7280'}30`,
                   borderRadius: 4, padding: '2px 8px', letterSpacing: '0.06em',
                 }}>{m.role.toUpperCase()}</span>
-                <button onClick={() => handleRemoveMember(m.user_id)} style={{
-                  cursor: 'pointer', padding: '4px 10px',
-                  background: 'rgba(244,63,94,0.06)',
-                  border: '1px solid rgba(244,63,94,0.15)', borderRadius: 5, color: '#f43f5e',
-                  fontSize: 15, fontFamily: 'var(--font-mono)',
-                }}>×</button>
+                {canManage && (
+                  <button onClick={() => handleRemoveMember(m.user_id)} style={{
+                    cursor: 'pointer', padding: '4px 10px',
+                    background: 'rgba(244,63,94,0.06)',
+                    border: '1px solid rgba(244,63,94,0.15)', borderRadius: 5, color: '#f43f5e',
+                    fontSize: 15, fontFamily: 'var(--font-mono)',
+                  }}>×</button>
+                )}
               </div>
             </div>
           ))}
+          {lab.members.length === 0 && lab.member_count > 0 && (
+            <div style={{ color: 'var(--text-dim)', fontSize: 17, fontFamily: 'var(--font-mono)' }}>
+              ROSTER VISIBLE TO LAB MEMBERS ONLY
+            </div>
+          )}
         </div>
       </div>
     </div>

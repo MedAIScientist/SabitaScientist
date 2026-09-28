@@ -5,10 +5,10 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import UTC, datetime
-from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from ....paths import DATA_DIR
 from ...compute.base import ComputeResource, get_backend
 from ...crud.experiment_entries import create_entry
 from ...crud.experiments import get_experiment
@@ -19,7 +19,7 @@ from ..deps import get_current_user, require_project_role
 from ..schemas import ComputeResourceCreate, ComputeRunRequest
 
 router = APIRouter()
-_db_resource_path = Path.home() / ".config" / "evoscientist" / "compute_resources.json"
+_db_resource_path = DATA_DIR / "compute_resources.json"
 
 
 def _load_resources() -> list[ComputeResource]:

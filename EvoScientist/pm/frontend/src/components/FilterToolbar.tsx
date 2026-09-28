@@ -38,21 +38,23 @@ const labelStyle: React.CSSProperties = {
   whiteSpace: 'nowrap',
 }
 
-type ChipAccent = { high: string; medium: string; low: string }
+type ChipAccent = Record<Task['priority'], string>
 
 const CHIP_ACCENTS: ChipAccent = {
+  critical: '#ef4444',
   high: '#f43f5e',
   medium: '#f59e0b',
   low: '#22c55e',
 }
 
 const CHIP_LABELS: Record<Task['priority'], string> = {
-  high: 'CRIT',
+  critical: 'CRIT',
+  high: 'HIGH',
   medium: 'NORM',
   low: 'ROUT',
 }
 
-const PRIORITIES: Task['priority'][] = ['high', 'medium', 'low']
+const PRIORITIES: Task['priority'][] = ['critical', 'high', 'medium', 'low']
 
 function chipStyle(priority: Task['priority'], active: boolean): React.CSSProperties {
   const accent = CHIP_ACCENTS[priority]

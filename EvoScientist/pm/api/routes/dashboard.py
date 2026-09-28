@@ -1,15 +1,39 @@
-"""Admin and PI dashboard endpoints for cross-lab analytics."""
+"""Admin and PI dashboard endpoints for cross-lab analytics & EvoScientist system health."""
 
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
-from ...crud.labs import list_labs, list_members
+from ...crud.labs import list_labs, list_labs_where_pi, list_members
 from ...db import get_db, get_db_path
 from ...models import User
 from ..deps import get_current_user, require_admin
 
 router = APIRouter()
+
+
+@router.get("/system/health")
+def system_health(current_user: User = Depends(get_current_user)):
+    """EvoScientist system health — Groq, skills count.
+
+    Returns the status of EvoScientist's runtime infrastructure so the PM
+    dashboard can display real-time system health indicators.
+    """
+    import os
+
+    groq_key = os.environ.get("GROQ_API_KEY", "")
+    skills = 0
+    try:
+        from ....paths import GLOBAL_SKILLS_DIR, USER_SKILLS_DIR
+        for base in (USER_SKILLS_DIR, GLOBAL_SKILLS_DIR):
+            if base.exists() and base.is_dir():
+                skills += sum(1 for e in base.iterdir() if e.is_dir() and (e / "SKILL.md").exists())
+    except Exception:
+        skills = -1
+    return {
+        "groq": {"configured": bool(groq_key), "model": "mixtral-8x7b-32768"},
+        "skills_available": skills,
+    }
 
 
 @router.get("/admin/stats")
@@ -19,10 +43,16 @@ def admin_stats(current_user: User = Depends(require_admin)):
     with get_db(db) as conn:
         lab_count = conn.execute("SELECT COUNT(*) FROM labs").fetchone()[0]
         user_count = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
-        project_count = conn.execute("SELECT COUNT(*) FROM projects WHERE archived_at IS NULL").fetchone()[0]
+        project_count = conn.execute(
+            "SELECT COUNT(*) FROM projects WHERE archived_at IS NULL"
+        ).fetchone()[0]
         task_count = conn.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
-        experiment_count = conn.execute("SELECT COUNT(*) FROM experiments").fetchone()[0]
-        assist_count = conn.execute("SELECT COUNT(*) FROM experiment_assists").fetchone()[0]
+        experiment_count = conn.execute("SELECT COUNT(*) FROM experiments").fetchone()[
+            0
+        ]
+        assist_count = conn.execute(
+            "SELECT COUNT(*) FROM experiment_assists"
+        ).fetchone()[0]
         admission_count = conn.execute("SELECT COUNT(*) FROM admissions").fetchone()[0]
 
         labs = list_labs(db)
@@ -30,19 +60,22 @@ def admin_stats(current_user: User = Depends(require_admin)):
         for lab in labs:
             with get_db(db) as conn2:
                 proj_count = conn2.execute(
-                    "SELECT COUNT(*) FROM projects WHERE lab_id = ? AND archived_at IS NULL", (lab.id,)
+                    "SELECT COUNT(*) FROM projects WHERE lab_id = ? AND archived_at IS NULL",
+                    (lab.id,),
                 ).fetchone()[0]
                 member_count = conn2.execute(
-                    "SELECT COUNT(*) FROM lab_members WHERE lab_id = ?", (lab.id,)
+                    "SELECT COUNT(*) FROM lab_members WHERE lab_id = ? AND ended_at IS NULL", (lab.id,)
                 ).fetchone()[0]
-            lab_details.append({
-                "id": lab.id,
-                "name": lab.name,
-                "department": lab.department,
-                "university": lab.university,
-                "member_count": member_count,
-                "project_count": proj_count,
-            })
+            lab_details.append(
+                {
+                    "id": lab.id,
+                    "name": lab.name,
+                    "department": lab.department,
+                    "university": lab.university,
+                    "member_count": member_count,
+                    "project_count": proj_count,
+                }
+            )
 
     return {
         "labs": lab_count,
@@ -60,18 +93,31 @@ def admin_stats(current_user: User = Depends(require_admin)):
 def pi_stats(current_user: User = Depends(get_current_user)):
     """Dashboard statistics for a PI — labs they lead, projects, recent activity."""
     db = get_db_path()
-    labs = [lab for lab in list_labs(db) if lab.pi_id == current_user.id or current_user.is_admin]
-    if not labs:
-        labs = list_labs(db)
+    # A platform admin sees every lab; everybody else sees only the labs they
+    # actually lead — matched by labs.pi_id OR a 'pi'/'admin' lab_members row,
+    # since labs created before pi_id was set on creation have pi_id NULL.
+    # There is deliberately no "nothing matched -> all labs" fallback here: it
+    # leaked platform-wide statistics to any authenticated user.
+    labs = (
+        list_labs(db) if current_user.is_admin else list_labs_where_pi(db, current_user.id)
+    )
 
     lab_ids = [lab.id for lab in labs]
     if not lab_ids:
+        # Lead nothing, see nothing — but keep the full response shape with
+        # zeroed counts so the dashboard UI renders an empty state instead of
+        # breaking on missing keys.
         return {
             "labs": [],
             "total_projects": 0,
             "total_tasks": 0,
             "total_experiments": 0,
             "recent_projects": [],
+            "task_statuses": {},
+            "experiment_statuses": {},
+            "publication_statuses": {},
+            "publications_over_time": [],
+            "mentorship": {},
         }
 
     placeholders = ",".join("?" for _ in lab_ids)
@@ -92,15 +138,15 @@ def pi_stats(current_user: User = Depends(get_current_user)):
     lab_list = []
     for lab in labs:
         members = list_members(db, lab.id)
-        lab_list.append({
-            "id": lab.id,
-            "name": lab.name,
-            "department": lab.department,
-            "member_count": len(members),
-            "members": [
-                {"user_id": m.user_id, "role": m.role} for m in members
-            ],
-        })
+        lab_list.append(
+            {
+                "id": lab.id,
+                "name": lab.name,
+                "department": lab.department,
+                "member_count": len(members),
+                "members": [{"user_id": m.user_id, "role": m.role} for m in members],
+            }
+        )
 
     # Task status breakdown
     with get_db(db) as conn:
@@ -154,9 +200,7 @@ def pi_stats(current_user: User = Depends(get_current_user)):
             mentorship[lab.id] = {
                 "lab_name": lab.name,
                 "member_count": len(members),
-                "publications_by_member": {
-                    r["created_by"]: r["cnt"] for r in co_pubs
-                },
+                "publications_by_member": {r["created_by"]: r["cnt"] for r in co_pubs},
                 "roles": {m.user_id: m.role for m in members},
             }
 

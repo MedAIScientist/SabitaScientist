@@ -4,9 +4,9 @@ import { Task } from '../api'
 export type SortKey = 'created' | 'deadline' | 'priority'
 export type PrioritySet = Set<Task['priority']>
 
-const ALL_PRIORITIES: Task['priority'][] = ['high', 'medium', 'low']
+const ALL_PRIORITIES: Task['priority'][] = ['critical', 'high', 'medium', 'low']
 const ALL_PRIORITIES_SET: PrioritySet = new Set(ALL_PRIORITIES)
-const PRIORITY_ORDER: Record<Task['priority'], number> = { high: 0, medium: 1, low: 2 }
+const PRIORITY_ORDER: Record<Task['priority'], number> = { critical: 0, high: 1, medium: 2, low: 3 }
 
 export function useTaskFilters(tasks: Task[]) {
   const [search, setSearch] = useState('')

@@ -32,6 +32,12 @@ class UserCreate(BaseModel):
     email: str | None = None
 
 
+class UserUpdate(BaseModel):
+    username: str | None = None
+    email: str | None = None
+    is_admin: bool | None = None
+
+
 class UserResponse(BaseModel):
     id: str
     username: str
@@ -98,7 +104,7 @@ class TaskCreate(BaseModel):
     title: str = Field(min_length=1, max_length=256)
     description: str | None = None
     assignee_id: str | None = None
-    priority: str = Field(default="medium", pattern="^(high|medium|low)$")
+    priority: str = Field(default="medium", pattern="^(critical|high|medium|low)$")
     deadline: str | None = None  # ISO date YYYY-MM-DD
     session_id: str | None = None
 
@@ -108,7 +114,7 @@ class TaskUpdate(BaseModel):
     description: str | None = None
     assignee_id: str | None = None
     status: str | None = Field(default=None, pattern="^(todo|in_progress|done)$")
-    priority: str | None = Field(default=None, pattern="^(high|medium|low)$")
+    priority: str | None = Field(default=None, pattern="^(critical|high|medium|low)$")
     deadline: str | None = None
     session_id: str | None = None
 
@@ -128,6 +134,7 @@ class TaskResponse(BaseModel):
     updated_at: str
     phase_id: str | None = None
     blocked_by: list[str] = []
+    linked_experiment_count: int = 0
 
 
 class CommentCreate(BaseModel):
@@ -200,6 +207,7 @@ class ExperimentResponse(BaseModel):
     created_at: str
     updated_at: str
     phase_id: str | None = None
+    linked_task_count: int = 0
 
 
 class ExperimentEntryCreate(BaseModel):
@@ -211,6 +219,29 @@ class ExperimentEntryCreate(BaseModel):
 class ExperimentEntryUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=200)
     body: str | None = None
+
+
+class ExperimentMetricCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    value: float
+    unit: str | None = Field(default=None, max_length=40)
+    split: str | None = Field(default=None, max_length=120)
+    n: int | None = Field(default=None, ge=0)
+    stderr: float | None = Field(default=None, ge=0)
+
+
+class ExperimentMetricResponse(BaseModel):
+    id: str
+    experiment_id: str
+    name: str
+    value: float
+    unit: str | None
+    split: str | None
+    n: int | None
+    stderr: float | None
+    source_attachment_id: str | None
+    recorded_by: str | None
+    created_at: str
 
 
 class ExperimentEntryResponse(BaseModel):
@@ -228,6 +259,7 @@ class ExperimentEntryResponse(BaseModel):
 
 
 class AttachmentResponse(BaseModel):
+    metrics_parsed: int = 0
     id: str
     entry_id: str
     filename: str
@@ -235,6 +267,7 @@ class AttachmentResponse(BaseModel):
     size_bytes: int
     uploaded_by: str | None
     created_at: str
+    classification: str = "unclassified"
     download_url: str  # presigned S3 URL
 
 
@@ -322,11 +355,25 @@ class LabResponse(BaseModel):
     university: str
     created_at: str
     updated_at: str
+    # Empty for a caller who is neither a member of this lab nor a platform admin
+    # — a roster is who works where, not public information. Always a list, never
+    # null: the live UI calls .find()/.length/.map() on it unguarded.
     members: list[LabMemberResponse] = []
+    # Always the true size, so a client can show how big a lab is without being
+    # told who is in it.
+    member_count: int = 0
+    # Whether this caller may use the lab's management controls — the same test
+    # require_lab_role("pi", "admin") applies, so the UI can hide buttons that
+    # would only come back 403.
+    can_manage: bool = False
 
 
 class AddLabMemberRequest(BaseModel):
     user_id: str
+    role: str = Field(pattern="^(pi|postdoc|phd|ms|visitor)$")
+
+
+class UpdateLabMemberRoleRequest(BaseModel):
     role: str = Field(pattern="^(pi|postdoc|phd|ms|visitor)$")
 
 
@@ -337,7 +384,9 @@ class PublicationCreate(BaseModel):
     title: str = Field(min_length=1, max_length=512)
     project_id: str | None = None
     venue: str | None = None
-    venue_type: str = Field(default="journal", pattern="^(journal|conference|preprint|other)$")
+    venue_type: str = Field(
+        default="journal", pattern="^(journal|conference|preprint|other)$"
+    )
     authors: list[dict] = []
     abstract: str | None = None
     doi: str | None = None
@@ -347,12 +396,17 @@ class PublicationCreate(BaseModel):
 class PublicationUpdate(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=512)
     venue: str | None = None
-    venue_type: str | None = Field(default=None, pattern="^(journal|conference|preprint|other)$")
+    venue_type: str | None = Field(
+        default=None, pattern="^(journal|conference|preprint|other)$"
+    )
     authors: list[dict] | None = None
     abstract: str | None = None
     doi: str | None = None
     url: str | None = None
-    status: str | None = Field(default=None, pattern="^(draft|submitted|reviewing|accepted|published|rejected)$")
+    status: str | None = Field(
+        default=None,
+        pattern="^(draft|submitted|reviewing|accepted|published|rejected)$",
+    )
 
 
 class PublicationResponse(BaseModel):
@@ -383,6 +437,8 @@ class PublicationLinkExperimentRequest(BaseModel):
 
 class VersionCreate(BaseModel):
     notes: str | None = None
+    content: str | None = None
+    section: str | None = None
 
 
 class VersionResponse(BaseModel):
@@ -393,19 +449,40 @@ class VersionResponse(BaseModel):
     notes: str | None
     created_by: str
     created_at: str
+    section: str | None = None
+    generated_by: str | None = None
+    model: str | None = None
+    prompt_hash: str | None = None
+    content_length: int = 0
+    # Populated only by the single-version endpoint; listing many full drafts
+    # would make the versions payload unbounded.
+    content: str | None = None
+
+
+class AIDisclosureResponse(BaseModel):
+    publication_id: str
+    statement: str
+    ai_version_count: int
+    human_version_count: int
+    models_used: list[str]
+    sections: list[str]
 
 
 class ReviewCreate(BaseModel):
     reviewer_name: str | None = None
     comments: str | None = None
-    decision: str | None = Field(default=None, pattern="^(accept|minor_revision|major_revision|reject)$")
+    decision: str | None = Field(
+        default=None, pattern="^(accept|minor_revision|major_revision|reject)$"
+    )
     round: int = 1
 
 
 class ReviewUpdate(BaseModel):
     reviewer_name: str | None = None
     comments: str | None = None
-    decision: str | None = Field(default=None, pattern="^(accept|minor_revision|major_revision|reject)$")
+    decision: str | None = Field(
+        default=None, pattern="^(accept|minor_revision|major_revision|reject)$"
+    )
 
 
 class ReviewResponse(BaseModel):
@@ -422,7 +499,9 @@ class ReviewResponse(BaseModel):
 
 
 class DraftSectionRequest(BaseModel):
-    section: str = Field(pattern="^(abstract|introduction|methods|results|discussion|conclusion)$")
+    section: str = Field(
+        pattern="^(abstract|introduction|methods|results|discussion|conclusion)$"
+    )
     style: str = Field(default="standard", pattern="^(standard|concise|detailed|lay)$")
 
 
@@ -462,7 +541,9 @@ class BibliographyImportRequest(BaseModel):
 class LiteratureReviewRequest(BaseModel):
     topic: str = Field(min_length=1, max_length=1024)
     focus_area: str | None = Field(default=None, max_length=1024)
-    depth: str = Field(default="comprehensive", pattern="^(quick|comprehensive|exhaustive)$")
+    depth: str = Field(
+        default="comprehensive", pattern="^(quick|comprehensive|exhaustive)$"
+    )
 
 
 class ReviewAssignmentRequest(BaseModel):
@@ -477,7 +558,10 @@ class ComputeResourceCreate(BaseModel):
 
 
 class GrantWriterRequest(BaseModel):
-    grant_type: str = Field(default="general", pattern="^(tubitak_1001|tubitak_1003|tubitak_3501|tubitak_other|tuseb|nih_r01|nsf|erc|wellcome|general)$")
+    grant_type: str = Field(
+        default="general",
+        pattern="^(tubitak_1001|tubitak_1003|tubitak_3501|tubitak_other|tuseb|nih_r01|nsf|erc|wellcome|general)$",
+    )
 
 
 class ComputeRunRequest(BaseModel):
@@ -526,6 +610,433 @@ class ProjectFromTemplateRequest(BaseModel):
     name: str = Field(min_length=1, max_length=128)
     description: str | None = None
     lab_id: str | None = None
+
+
+# ── Grants ────────────────────────────────────────────────────────────────────
+
+# Mirrors the grants.status CHECK constraint in db.py. The two drifted apart once
+# already, which made 'under_review' and 'active' unusable through the API even
+# though the UI offered them.
+GRANT_STATUS_PATTERN = "^(draft|submitted|under_review|awarded|rejected|active|closed)$"
+
+
+class GrantCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=512)
+    funder: str = Field(min_length=1, max_length=256)
+    lab_id: str | None = None
+    project_id: str | None = None
+    amount_requested: float | None = None
+    amount_awarded: float | None = None
+    currency: str = "TRY"
+    status: str = Field(default="draft", pattern=GRANT_STATUS_PATTERN)
+    submitted_at: str | None = None
+    awarded_at: str | None = None
+    start_date: str | None = None
+    end_date: str | None = None
+    description: str | None = None
+    pi_id: str | None = None
+
+
+class GrantUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=512)
+    funder: str | None = Field(default=None, min_length=1, max_length=256)
+    amount_requested: float | None = None
+    amount_awarded: float | None = None
+    currency: str | None = None
+    status: str | None = Field(default=None, pattern=GRANT_STATUS_PATTERN)
+    submitted_at: str | None = None
+    awarded_at: str | None = None
+    start_date: str | None = None
+    end_date: str | None = None
+    description: str | None = None
+    pi_id: str | None = None
+    lab_id: str | None = None
+    project_id: str | None = None
+
+
+class GrantResponse(BaseModel):
+    id: str
+    title: str
+    funder: str
+    amount_requested: float | None
+    amount_awarded: float | None
+    currency: str
+    status: str
+    submitted_at: str | None
+    awarded_at: str | None
+    start_date: str | None
+    end_date: str | None
+    description: str | None
+    pi_id: str | None
+    pi_username: str | None = None
+    project_id: str | None
+    lab_id: str | None
+    created_by: str
+    created_at: str
+    updated_at: str
+    # Whether this caller may change the grant — the UI hides edit affordances
+    # instead of offering buttons that answer 403.
+    can_manage: bool = False
+
+
+# ── Grant plan: budget, milestones, team ──────────────────────────────────────
+
+
+class GrantBudgetItemCreate(BaseModel):
+    category: str = Field(
+        default="other",
+        pattern="^(personnel|equipment|consumables|travel|services|other)$",
+    )
+    description: str | None = None
+    planned_amount: float = Field(default=0.0, ge=0)
+    spent_amount: float = Field(default=0.0, ge=0)
+    position: int = 0
+
+
+class GrantBudgetItemUpdate(BaseModel):
+    category: str | None = Field(
+        default=None,
+        pattern="^(personnel|equipment|consumables|travel|services|other)$",
+    )
+    description: str | None = None
+    planned_amount: float | None = Field(default=None, ge=0)
+    spent_amount: float | None = Field(default=None, ge=0)
+    position: int | None = None
+
+
+class GrantBudgetItemResponse(BaseModel):
+    id: str
+    grant_id: str
+    category: str
+    description: str | None
+    planned_amount: float
+    spent_amount: float
+    position: int
+    created_at: str
+    updated_at: str
+
+
+class GrantMilestoneCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=512)
+    kind: str = Field(default="milestone", pattern="^(milestone|report|deliverable)$")
+    due_date: str | None = None
+    owner_id: str | None = None
+    notes: str | None = None
+    position: int = 0
+
+
+class GrantMilestoneUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=512)
+    kind: str | None = Field(default=None, pattern="^(milestone|report|deliverable)$")
+    due_date: str | None = None
+    # Toggling completion is the common edit, so it gets a boolean rather than
+    # making every client build and clear an ISO timestamp.
+    completed: bool | None = None
+    completed_at: str | None = None
+    owner_id: str | None = None
+    notes: str | None = None
+    position: int | None = None
+
+
+class GrantMilestoneResponse(BaseModel):
+    id: str
+    grant_id: str
+    title: str
+    kind: str
+    due_date: str | None
+    completed_at: str | None
+    owner_id: str | None
+    notes: str | None
+    position: int
+    created_at: str
+    updated_at: str
+
+
+class GrantMemberCreate(BaseModel):
+    user_id: str = Field(min_length=1)
+    role: str = Field(
+        default="researcher",
+        pattern="^(pi|co_pi|researcher|assistant|advisor)$",
+    )
+    share_percent: float | None = Field(default=None, ge=0, le=100)
+
+
+class GrantMemberUpdate(BaseModel):
+    role: str | None = Field(
+        default=None, pattern="^(pi|co_pi|researcher|assistant|advisor)$"
+    )
+    share_percent: float | None = Field(default=None, ge=0, le=100)
+
+
+class GrantMemberResponse(BaseModel):
+    id: str
+    grant_id: str
+    user_id: str
+    username: str | None
+    role: str
+    share_percent: float | None
+    added_at: str
+
+
+class GrantCurrencyTotal(BaseModel):
+    currency: str
+    requested: float
+    awarded: float
+    count: int
+
+
+class GrantStatsResponse(BaseModel):
+    total: int
+    by_status: dict[str, int]
+    totals_by_currency: list[GrantCurrencyTotal]
+    decided: int
+    won: int
+    success_rate: float | None
+    ending_soon: int
+    overdue_milestones: int
+    open_reports: int
+    budget_planned: float
+    budget_spent: float
+
+
+# ── Conferences ───────────────────────────────────────────────────────────────
+
+
+class ConferenceCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=256)
+    venue: str | None = None
+    location: str | None = None
+    deadline: str | None = None
+    submission_date: str | None = None
+    decision_date: str | None = None
+    status: str = Field(
+        default="draft", pattern="^(draft|submitted|accepted|rejected|presented)$"
+    )
+    presentation_type: str = Field(
+        default="poster", pattern="^(poster|oral|spotlight|workshop|keynote)$"
+    )
+    travel_funding: float | None = None
+    travel_notes: str | None = None
+    url: str | None = None
+    notes: str | None = None
+    project_id: str | None = None
+    publication_id: str | None = None
+
+
+class ConferenceUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=256)
+    venue: str | None = None
+    location: str | None = None
+    deadline: str | None = None
+    submission_date: str | None = None
+    decision_date: str | None = None
+    status: str | None = Field(
+        default=None, pattern="^(draft|submitted|accepted|rejected|presented)$"
+    )
+    presentation_type: str | None = Field(
+        default=None, pattern="^(poster|oral|spotlight|workshop|keynote)$"
+    )
+    travel_funding: float | None = None
+    travel_notes: str | None = None
+    url: str | None = None
+    notes: str | None = None
+    project_id: str | None = None
+    publication_id: str | None = None
+
+
+class ConferenceResponse(BaseModel):
+    id: str
+    name: str
+    venue: str | None
+    location: str | None
+    deadline: str | None
+    submission_date: str | None
+    decision_date: str | None
+    status: str
+    presentation_type: str
+    travel_funding: float | None
+    travel_notes: str | None
+    url: str | None
+    notes: str | None
+    project_id: str | None
+    publication_id: str | None
+    created_by: str
+    created_at: str
+    updated_at: str
+
+
+# ── IRB Approvals ─────────────────────────────────────────────────────────────
+
+
+class IRBCreate(BaseModel):
+    project_id: str
+    institution: str = Field(min_length=1, max_length=256)
+    protocol_number: str = Field(min_length=1, max_length=128)
+    title: str = Field(min_length=1, max_length=512)
+    # Born draft or submitted ONLY: an IRB can never be created already decided —
+    # 'approved' is an admin transition that records who approved (see routes/irb.py).
+    status: str = Field(default="draft", pattern="^(draft|submitted)$")
+    approval_date: str | None = None
+    expiry_date: str | None = None
+    renewal_date: str | None = None
+    documents: list[str] = []
+    notes: str | None = None
+
+
+class IRBUpdate(BaseModel):
+    status: str | None = Field(
+        default=None,
+        pattern="^(draft|submitted|approved|rejected|expired|closed)$",
+    )
+    approval_date: str | None = None
+    expiry_date: str | None = None
+    renewal_date: str | None = None
+    documents: list[str] | None = None
+    notes: str | None = None
+    institution: str | None = None
+    protocol_number: str | None = None
+
+
+class IRBResponse(BaseModel):
+    id: str
+    project_id: str
+    institution: str
+    protocol_number: str
+    title: str
+    status: str
+    approval_date: str | None
+    expiry_date: str | None
+    renewal_date: str | None
+    documents: list[str]
+    notes: str | None
+    created_by: str
+    created_at: str
+    updated_at: str
+    approved_by: str | None = None
+    approved_at: str | None = None
+
+
+# ── Imaging datasets ──────────────────────────────────────────────────────────
+
+
+class DatasetCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=256)
+    purpose: str = Field(min_length=1, max_length=2048)
+    lab_id: str
+    modality: str | None = Field(default=None, max_length=16)
+    accession_list: list[str] = []
+    estimated_bytes: int | None = Field(default=None, ge=0)
+    irb_ids: list[str] = []
+    # Whether Curator derives viewing PNGs during delivery. A pure-ML cohort sets false and
+    # never pays the render storage; annotation needs true (CVAT cannot read DICOM).
+    renders: bool = True
+
+
+class DatasetTransition(BaseModel):
+    status: str | None = Field(
+        default=None, pattern="^(delivering|sealed|expired|revoked)$"
+    )
+    retention_until: str | None = None
+    content_root_sha256: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
+
+
+class DatasetGrantCreate(BaseModel):
+    project_id: str
+    expires_at: str | None = None
+    # Annotation staging (increment 4): stage this dataset as CVAT tasks in the target
+    # project's provisioned CVAT project. task_size chunks images per task (0/None = one task
+    # per accession+study). This is the HUMAN request; the platform only executes mechanics.
+    annotate: bool = False
+    task_size: int | None = Field(default=None, ge=1, le=500)
+
+
+class DatasetGrantResponse(BaseModel):
+    id: str
+    dataset_id: str
+    project_id: str
+    granted_by: str
+    admin_approved_by: str | None
+    admin_approved_at: str | None
+    granted_at: str
+    expires_at: str | None
+    revoked_at: str | None
+    revoked_by: str | None
+    active: bool
+    cvat_project_id: int | None = None
+    task_size: int | None = None
+
+
+class DatasetResponse(BaseModel):
+    id: str
+    name: str
+    purpose: str
+    lab_id: str
+    requested_by: str
+    modality: str | None
+    accession_list: list[str]
+    estimated_bytes: int | None
+    status: str
+    pi_approved_by: str | None
+    pi_approved_at: str | None
+    admin_approved_by: str | None
+    admin_approved_at: str | None
+    retention_until: str | None
+    bucket: str | None
+    renders: bool = True
+    sealed_at: str | None
+    content_root_sha256: str | None
+    generation: int
+    created_at: str
+    updated_at: str
+    irb_ids: list[str] = []
+    grants: list[DatasetGrantResponse] = []
+
+
+# ── Wiki Pages ────────────────────────────────────────────────────────────────
+
+
+class WikiPageCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=256)
+    content: str = ""
+    tags: list[str] = []
+
+
+class WikiPageUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=256)
+    content: str | None = None
+    tags: list[str] | None = None
+
+
+class WikiPageResponse(BaseModel):
+    id: str
+    lab_id: str
+    title: str
+    slug: str
+    content: str
+    tags: list[str]
+    created_by: str
+    created_at: str
+    updated_at: str
+
+
+# ── Search ────────────────────────────────────────────────────────────────────
+
+
+class SearchResultItem(BaseModel):
+    id: str
+    type: str
+    title: str | None = None
+    name: str | None = None
+    description: str | None = None
+    project_id: str | None = None
+    venue: str | None = None
+
+
+class SearchResults(BaseModel):
+    projects: list[SearchResultItem] = []
+    tasks: list[SearchResultItem] = []
+    experiments: list[SearchResultItem] = []
+    publications: list[SearchResultItem] = []
 
 
 # ── Errors ────────────────────────────────────────────────────────────────────
@@ -615,3 +1126,173 @@ class DependencyResponse(BaseModel):
 class DependenciesListResponse(BaseModel):
     dependencies: list[DependencyResponse]
     dependents: list[DependencyResponse]
+
+
+# ── De-identification Pipelines ──────────────────────────────────────────────
+
+
+class PipelineCreate(BaseModel):
+    name: str = Field(min_length=1)
+    description: str | None = None
+    pipeline_type: str = Field(pattern=r"^(dicom|ehr|text|image|generic)$")
+    config_json: str = "{}"
+
+
+class PipelineUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    config_json: str | None = None
+
+
+class PipelineResponse(BaseModel):
+    id: str
+    project_id: str
+    name: str
+    description: str | None
+    pipeline_type: str
+    config_json: str
+    created_by: str
+    created_at: str
+    updated_at: str
+
+
+class PipelineRunCreate(BaseModel):
+    pipeline_id: str
+    irb_id: str | None = None
+    input_location: str = Field(min_length=1)
+    output_location: str = Field(min_length=1)
+
+
+class PipelineRunUpdate(BaseModel):
+    status: str | None = Field(
+        default=None, pattern=r"^(pending|running|completed|failed|verified)$"
+    )
+    output_location: str | None = None
+    input_size_bytes: int | None = None
+    output_size_bytes: int | None = None
+    records_processed: int | None = None
+    phi_fields_removed: str | None = None
+    verification_status: str | None = Field(
+        default=None, pattern=r"^(pending|passed|failed)$"
+    )
+    verification_notes: str | None = None
+    error: str | None = None
+
+
+class PipelineRunResponse(BaseModel):
+    id: str
+    pipeline_id: str
+    project_id: str
+    input_location: str
+    output_location: str
+    status: str
+    irb_id: str | None
+    input_size_bytes: int | None
+    output_size_bytes: int | None
+    records_processed: int | None
+    phi_fields_removed: str
+    verification_status: str | None
+    verification_notes: str | None
+    error: str | None
+    started_at: str | None
+    completed_at: str | None
+    created_by: str
+    created_at: str
+
+
+# ── Sandboxes ────────────────────────────────────────────────────────────────
+
+
+class SandboxCreate(BaseModel):
+    name: str = Field(min_length=1)
+    irb_id: str | None = None
+    spec_json: str = "{}"
+    network_rules_json: str = "[]"
+    storage_quota_bytes: int | None = None
+    expires_at: str | None = None
+
+
+class SandboxUpdate(BaseModel):
+    status: str | None = Field(
+        default=None,
+        pattern=r"^(provisioning|active|expiring|expired|terminated)$",
+    )
+    access_url: str | None = None
+    spec_json: str | None = None
+    expires_at: str | None = None
+
+
+class SandboxResponse(BaseModel):
+    id: str
+    project_id: str
+    name: str
+    status: str
+    spec_json: str
+    network_rules_json: str
+    irb_id: str | None
+    storage_quota_bytes: int | None
+    access_url: str | None
+    provisioned_at: str | None
+    expires_at: str | None
+    terminated_at: str | None
+    created_by: str
+    created_at: str
+    updated_at: str
+
+
+# ── Export Requests ──────────────────────────────────────────────────────────
+
+
+class ExportRequestCreate(BaseModel):
+    file_name: str = Field(min_length=1)
+    file_type: str = Field(
+        pattern=r"^(model_weights|aggregate_figure|coefficient_table|annotation_stats|documentation|other)$"
+    )
+    file_size_bytes: int | None = None
+    description: str | None = None
+    justification: str | None = None
+
+
+class ExportRequestReview(BaseModel):
+    status: str = Field(pattern=r"^(approved|rejected)$")
+    reviewer_notes: str | None = None
+
+
+class ExportRequestResponse(BaseModel):
+    id: str
+    project_id: str
+    sandbox_id: str | None
+    requested_by: str
+    reviewed_by: str | None
+    status: str
+    file_name: str
+    file_type: str
+    file_size_bytes: int | None
+    description: str | None
+    justification: str | None
+    reviewer_notes: str | None
+    reviewed_at: str | None
+    created_at: str
+
+
+# ── Attachment Classification ────────────────────────────────────────────────
+
+
+class AttachmentClassifyRequest(BaseModel):
+    classification: str = Field(
+        pattern=r"^(unclassified|raw_phi|de_identified|aggregate|model_weights|public)$"
+    )
+
+
+# ── Companion applications ────────────────────────────────────────────────────
+
+
+class IntegrationStatus(BaseModel):
+    key: str
+    name: str
+    path: str
+    kind: str
+    description: str
+    up: bool
+    http_status: int | None
+    latency_ms: int

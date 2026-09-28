@@ -133,7 +133,7 @@ export function ProjectReportPage() {
             }}
           >←</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <img src="/sabita.jpg" alt="SABITA" style={{ height: 26, borderRadius: 4, display: 'block' }} />
+            <img src="/medipolLogo.png" alt="Medipol" style={{ height: 26, borderRadius: 4, display: 'block' }} />
             <span style={{ color: 'var(--text-dim)', fontSize: 20, fontFamily: 'var(--font-mono)' }}>/</span>
             <span style={{ color: '#ff8015', fontSize: 21, fontFamily: 'var(--font-mono)' }}>
               {project?.name ?? '…'}
@@ -254,7 +254,7 @@ export function ProjectReportPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 16 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                {['NAME', 'STATUS', 'TAGS', 'DEADLINE', 'NOTES', 'RESULTS'].map(h => (
+                {['NAME', 'STATUS', 'DEADLINE', 'NOTES', 'RESULTS'].map(h => (
                   <th key={h} style={{ padding: '6px 8px', textAlign: 'left', fontSize: 18, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', letterSpacing: '0.1em' }}>
                     {h}
                   </th>
@@ -277,9 +277,6 @@ export function ProjectReportPage() {
                       }}>
                         {exp.status.toUpperCase()}
                       </span>
-                    </td>
-                    <td style={{ padding: '8px', fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
-                      {exp.tags.join(', ') || '—'}
                     </td>
                     <td style={{ padding: '8px', fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
                       {exp.deadline ?? '—'}

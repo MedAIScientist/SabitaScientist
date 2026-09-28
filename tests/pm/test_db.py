@@ -20,7 +20,7 @@ def test_create_schema_creates_all_tables(tmp_path: Path) -> None:
         "auth_tokens", "project_members", "projects", "runs",
         "task_comments", "tasks", "users",
         "experiments", "experiment_tasks", "experiment_entries",
-        "experiment_assists",
+        "experiment_assists", "experiment_metrics",
         "project_phases", "task_dependencies",
         "attachments", "admissions",
         "labs", "lab_members",
@@ -32,6 +32,9 @@ def test_create_schema_creates_all_tables(tmp_path: Path) -> None:
         "sandboxes", "export_requests",
         "task_history", "cvat_projects", "webknossos_datasets",
         "rate_limits",
+        "datasets", "dataset_irbs", "dataset_grants",
+        "researcher_pushes",
+        "grant_budget_items", "grant_milestones", "grant_members",
     }
 
 
@@ -42,7 +45,7 @@ def test_create_schema_is_idempotent(tmp_path: Path) -> None:
 
     conn = sqlite3.connect(db_path)
     cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    assert len(cur.fetchall()) == 34
+    assert len(cur.fetchall()) == 42
     conn.close()
 
 

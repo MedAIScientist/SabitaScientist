@@ -9,17 +9,21 @@ const STATUS_META: Record<string, { color: string; label: string }> = {
   planned:   { color: '#f59e0b', label: 'PLANNED' },
   running:   { color: '#ff8015', label: 'RUNNING' },
   completed: { color: '#10b981', label: 'COMPLETED' },
+  abandoned: { color: '#6b7280', label: 'ABANDONED' },
 }
+
+interface Phase { id: string; name: string; color?: string }
 
 interface Props {
   experiment: Experiment
   projectId: string
   onClose: () => void
+  phases?: Phase[]
 }
 
 type Tab = 'overview' | 'notes' | 'results'
 
-export function ExperimentDetail({ experiment, projectId, onClose }: Props) {
+export function ExperimentDetail({ experiment, projectId, onClose, phases }: Props) {
   const qc = useQueryClient()
   const [tab, setTab] = useState<Tab>('overview')
   const [showEditor, setShowEditor] = useState(false)
@@ -27,6 +31,13 @@ export function ExperimentDetail({ experiment, projectId, onClose }: Props) {
   const [taskSearch, setTaskSearch] = useState('')
   const [showAiPanel, setShowAiPanel] = useState(false)
   const [pendingEntryBody, setPendingEntryBody] = useState<{ text: string; type: 'note' | 'result' } | null>(null)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editName, setEditName] = useState(experiment.name)
+  const [editStatus, setEditStatus] = useState<string>(experiment.status)
+  const [editHypothesis, setEditHypothesis] = useState(experiment.hypothesis ?? '')
+  const [editProtocol, setEditProtocol] = useState(experiment.protocol ?? '')
+  const [editDeadline, setEditDeadline] = useState(experiment.deadline ?? '')
+  const [editPhaseId, setEditPhaseId] = useState(experiment.phase_id ?? '')
 
   const status = STATUS_META[experiment.status] ?? STATUS_META.planned
 
@@ -77,6 +88,7 @@ export function ExperimentDetail({ experiment, projectId, onClose }: Props) {
     mutationFn: (taskId: string) => api.linkTask(projectId, experiment.id, taskId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['linked-tasks', experiment.id] })
+      qc.invalidateQueries({ queryKey: ['experiments', projectId] })
       setTaskSearch('')
     },
   })
@@ -87,9 +99,13 @@ export function ExperimentDetail({ experiment, projectId, onClose }: Props) {
   })
 
   const updateExperimentMutation = useMutation({
-    mutationFn: (data: { hypothesis?: string; protocol?: string }) =>
+    mutationFn: (data: { name?: string; hypothesis?: string; protocol?: string; status?: string; deadline?: string | null; phase_id?: string | null }) =>
       api.updateExperiment(projectId, experiment.id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['experiment', experiment.id] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['experiment', experiment.id] })
+      qc.invalidateQueries({ queryKey: ['experiments', projectId] })
+      setIsEditing(false)
+    },
   })
 
   const searchResults = taskSearch.length > 0
@@ -132,17 +148,41 @@ export function ExperimentDetail({ experiment, projectId, onClose }: Props) {
               }}>
                 {status.label}
               </span>
-              {experiment.tags.map(tag => (
-                <span key={tag} style={{
-                  fontSize: 16, color: 'var(--text-3)', background: 'var(--surface-input)',
-                  border: '1px solid var(--border-subtle)', borderRadius: 2, padding: '1px 4px',
-                }}>
-                  {tag}
-                </span>
-              ))}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <button
+              onClick={() => {
+                if (isEditing) {
+                  updateExperimentMutation.mutate({
+                    name: editName,
+                    status: editStatus,
+                    hypothesis: editHypothesis || undefined,
+                    protocol: editProtocol || undefined,
+                    deadline: editDeadline || undefined,
+                    phase_id: editPhaseId || undefined,
+                  })
+                } else {
+                  setEditName(experiment.name)
+                  setEditStatus(experiment.status)
+                  setEditHypothesis(experiment.hypothesis ?? '')
+                  setEditProtocol(experiment.protocol ?? '')
+                  setEditDeadline(experiment.deadline ?? '')
+                  setEditPhaseId(experiment.phase_id ?? '')
+                  setIsEditing(true)
+                }
+              }}
+              style={{
+                background: isEditing ? 'rgba(16,185,129,0.12)' : 'rgba(255,128,21,0.08)',
+                border: isEditing ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(255,128,21,0.18)',
+                borderRadius: 4, color: isEditing ? '#10b981' : '#ff8015', fontSize: 18,
+                cursor: 'pointer', padding: '2px 8px',
+                fontFamily: 'var(--font-mono)', fontWeight: 700,
+              }}
+              title={isEditing ? 'Save changes' : 'Edit experiment'}
+            >
+              {isEditing ? '💾 SAVE' : '✎ EDIT'}
+            </button>
             <button
               onClick={() => setShowAiPanel(p => !p)}
               style={{
@@ -176,7 +216,7 @@ export function ExperimentDetail({ experiment, projectId, onClose }: Props) {
 
       {/* Body */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
-        {tab === 'overview' && (
+        {tab === 'overview' && !isEditing && (
           <OverviewTab
             experiment={experiment}
             linkedTasks={linkedTasks}
@@ -185,7 +225,68 @@ export function ExperimentDetail({ experiment, projectId, onClose }: Props) {
             searchResults={searchResults}
             onLink={(id: string) => linkTaskMutation.mutate(id)}
             onUnlink={(id: string) => unlinkTaskMutation.mutate(id)}
+            phases={phases}
           />
+        )}
+
+        {tab === 'overview' && isEditing && (
+          <div>
+            {isEditing && (
+              <button
+                onClick={() => setIsEditing(false)}
+                style={{
+                  background: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.15)',
+                  borderRadius: 4, color: '#f43f5e', fontSize: 14, cursor: 'pointer',
+                  fontFamily: 'var(--font-mono)', padding: '3px 8px', marginBottom: 10,
+                }}
+              >✕ CANCEL</button>
+            )}
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>NAME</label>
+              <input value={editName} onChange={e => setEditName(e.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box', padding: '8px 11px', background: 'var(--surface-input)',
+                  border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 20, outline: 'none' }} />
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>STATUS</label>
+              <select value={editStatus} onChange={e => setEditStatus(e.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box', padding: '8px 11px', background: 'var(--surface-input)',
+                  border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 20, outline: 'none' }}>
+                {Object.entries(STATUS_META).map(([k, v]) => (
+                  <option key={k} value={k}>{v.label}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>HYPOTHESIS</label>
+              <textarea value={editHypothesis} onChange={e => setEditHypothesis(e.target.value)} rows={4}
+                style={{ width: '100%', boxSizing: 'border-box', padding: '8px 11px', background: 'var(--surface-input)',
+                  border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 18, outline: 'none', resize: 'vertical' }} />
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>PROTOCOL</label>
+              <textarea value={editProtocol} onChange={e => setEditProtocol(e.target.value)} rows={4}
+                style={{ width: '100%', boxSizing: 'border-box', padding: '8px 11px', background: 'var(--surface-input)',
+                  border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 18, outline: 'none', resize: 'vertical' }} />
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>PHASE</label>
+              <select value={editPhaseId} onChange={e => setEditPhaseId(e.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box', padding: '8px 11px', background: 'var(--surface-input)',
+                  border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 20, outline: 'none' }}>
+                <option value="">No phase</option>
+                {(phases ?? []).map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            </div>
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>DEADLINE</label>
+              <input type="date" value={editDeadline} onChange={e => setEditDeadline(e.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box', padding: '8px 11px', background: 'var(--surface-input)',
+                  border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 20, outline: 'none' }} />
+            </div>
+          </div>
         )}
 
         {(tab === 'notes' || tab === 'results') && (
@@ -228,7 +329,7 @@ export function ExperimentDetail({ experiment, projectId, onClose }: Props) {
 
 function OverviewTab({
   experiment, linkedTasks, taskSearch, setTaskSearch,
-  searchResults, onLink, onUnlink,
+  searchResults, onLink, onUnlink, phases,
 }: {
   experiment: Experiment
   linkedTasks: Task[]
@@ -237,14 +338,32 @@ function OverviewTab({
   searchResults: Task[]
   onLink: (id: string) => void
   onUnlink: (id: string) => void
+  phases?: Phase[]
 }) {
   const fieldLabel: React.CSSProperties = {
     fontSize: 18, fontWeight: 700, color: 'var(--text-dim)',
     letterSpacing: '0.1em', fontFamily: 'var(--font-mono)',
     marginBottom: 4, marginTop: 10, display: 'block',
   }
+  const currentPhase = phases?.find(p => p.id === experiment.phase_id)
+
   return (
     <div>
+      {currentPhase && (
+        <>
+          <span style={fieldLabel}>PHASE</span>
+          <p style={{
+            fontSize: 20, color: 'var(--text-2)', margin: '0 0 8px',
+            display: 'inline-block',
+            background: `${currentPhase.color ?? '#ff8015'}14`,
+            border: `1px solid ${currentPhase.color ?? '#ff8015'}30`,
+            borderRadius: 4, padding: '2px 10px',
+            fontFamily: 'var(--font-mono)', fontWeight: 700,
+          }}>
+            {currentPhase.name}
+          </p>
+        </>
+      )}
       {experiment.hypothesis && (
         <>
           <span style={fieldLabel}>HYPOTHESIS</span>

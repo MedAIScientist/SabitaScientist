@@ -74,7 +74,7 @@ export function LabsPage() {
             }}
           >←</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <img src="/sabita.jpg" alt="SABITA" style={{ height: 26, borderRadius: 4 }} />
+            <img src="/medipolLogo.png" alt="Medipol" style={{ height: 26, borderRadius: 4 }} />
             <span style={{ color: 'var(--text-dim)', fontSize: 20, fontFamily: 'var(--font-mono)' }}>/</span>
             <span style={{ color: '#ff8015', fontSize: 21, fontFamily: 'var(--font-mono)' }}>labs</span>
           </div>
@@ -174,7 +174,7 @@ export function LabsPage() {
                     <div style={{ fontSize: 18, color: 'var(--text-dim)', marginTop: 2 }}>
                       {lab.department || ''}{lab.department && lab.university ? ' · ' : ''}{lab.university || ''}
                       <span style={{ marginLeft: 12, color: 'var(--text-3)' }}>
-                        {lab.members.length} member{lab.members.length !== 1 ? 's' : ''}
+                        {lab.member_count} member{lab.member_count !== 1 ? 's' : ''}
                       </span>
                     </div>
                   </div>

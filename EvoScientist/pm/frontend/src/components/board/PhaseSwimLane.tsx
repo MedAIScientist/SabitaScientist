@@ -8,6 +8,7 @@ const EXP_STATUS_TO_COL: Record<Experiment['status'], Task['status']> = {
   planned:   'todo',
   running:   'in_progress',
   completed: 'done',
+  abandoned: 'todo',
 }
 
 // ── Column definitions (must match Board.tsx COLUMNS) ────────────────────────
@@ -31,19 +32,21 @@ export interface PhaseSwimLaneProps {
   onAddCancel: () => void
   onAddSubmit: (col: Task['status']) => (title: string) => void
   onCardClick: (task: Task) => void
-  onEditClick: (task: Task, rect: DOMRect) => void
   onExpClick: (exp: Experiment) => void
   members: { user_id: string; username: string }[]
   selectedIds: Set<string>
   onToggleSelect: (taskId: string) => void
+  selectedExpIds: Set<string>
+  onToggleExpSelect: (expId: string) => void
 }
 
 export function PhaseSwimLane({
   phase, tasks, experiments, overColumnId, activeTaskId,
   addingToCol, newTaskTitle, onNewTaskTitleChange,
   onAddStart, onAddCancel, onAddSubmit,
-  onCardClick, onEditClick, onExpClick, members,
+  onCardClick, onExpClick, members,
   selectedIds, onToggleSelect,
+  selectedExpIds, onToggleExpSelect,
 }: PhaseSwimLaneProps) {
   const totalTasks = tasks.length
   const doneTasks = tasks.filter(t => t.status === 'done').length
@@ -145,11 +148,12 @@ export function PhaseSwimLane({
               onAddCancel={onAddCancel}
               onAddSubmit={onAddSubmit(col.key)}
               onCardClick={onCardClick}
-              onEditClick={onEditClick}
               onExpClick={onExpClick}
               members={members}
               selectedIds={selectedIds}
               onToggleSelect={onToggleSelect}
+              selectedExpIds={selectedExpIds}
+              onToggleExpSelect={onToggleExpSelect}
             />
           )
         })}

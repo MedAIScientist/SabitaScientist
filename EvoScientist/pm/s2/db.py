@@ -1,16 +1,20 @@
-"""Semantic Scholar database — connection, schema, and paper lookup."""
+"""Semantic Scholar database — connection, schema, and paper lookup.
+
+DB path configured via EvoScientistConfig (``pm_s2_db_path`` / ``S2_DB_PATH``).
+"""
 
 from __future__ import annotations
 
 import json
-import os
 import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
-S2_DB_PATH = os.environ.get("S2_DB_PATH", "")
+from .._evoscientist import get_s2_db_path
+
+S2_DB_PATH = get_s2_db_path()
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS papers (
@@ -145,16 +149,24 @@ def _row_to_paper(row: sqlite3.Row) -> Paper:
     return Paper(
         id=row["id"],
         title=row["title"],
-        authors=json.loads(row["authors"]) if isinstance(row["authors"], str) else (row["authors"] or []),
+        authors=json.loads(row["authors"])
+        if isinstance(row["authors"], str)
+        else (row["authors"] or []),
         year=row["year"],
         venue=row["venue"],
         abstract=row["abstract"],
-        external_ids=json.loads(row["external_ids"]) if isinstance(row["external_ids"], str) else (row["external_ids"] or {}),
+        external_ids=json.loads(row["external_ids"])
+        if isinstance(row["external_ids"], str)
+        else (row["external_ids"] or {}),
         citation_count=row["citation_count"] or 0,
         reference_count=row["reference_count"] or 0,
         influential_citation_count=row["influential_citation_count"] or 0,
-        fields_of_study=json.loads(row["fields_of_study"]) if isinstance(row["fields_of_study"], str) else (row["fields_of_study"] or []),
-        publication_types=json.loads(row["publication_types"]) if isinstance(row["publication_types"], str) else (row["publication_types"] or []),
+        fields_of_study=json.loads(row["fields_of_study"])
+        if isinstance(row["fields_of_study"], str)
+        else (row["fields_of_study"] or []),
+        publication_types=json.loads(row["publication_types"])
+        if isinstance(row["publication_types"], str)
+        else (row["publication_types"] or []),
         is_open_access=bool(row["is_open_access"]),
         url=row["url"],
         pdf_url=row["pdf_url"],

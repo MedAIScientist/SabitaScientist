@@ -36,6 +36,11 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
     queryFn: () => api.listComments(projectId, task.id),
   })
 
+  const { data: linkedExperiments = [] } = useQuery({
+    queryKey: ['task-experiments', task.id],
+    queryFn: () => api.listLinkedExperiments(projectId, task.id),
+  })
+
   // ── Edit field state (kept in sync with task prop) ──────────────────────────
   const [editTitle,       setEditTitle]       = useState(task.title)
   const [editStatus,      setEditStatus]      = useState<Task['status']>(task.status)
@@ -223,6 +228,7 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
             allTasks={allTasks}
             copied={copied}
             onCopySessionId={handleCopySessionId}
+            linkedExperiments={linkedExperiments}
           />
         )}
 

@@ -13,9 +13,10 @@ export interface ColumnDef {
 
 // ── Priority labels / colors ─────────────────────────────────────────────────
 const PRIORITY: Record<string, { color: string; label: string }> = {
-  high:   { color: '#f43f5e', label: 'CRIT' },
-  medium: { color: '#f59e0b', label: 'NORM' },
-  low:    { color: '#10b981', label: 'ROUT' },
+  critical: { color: '#dc2626', label: 'CRIT' },
+  high:     { color: '#f43f5e', label: 'HIGH' },
+  medium:   { color: '#f59e0b', label: 'NORM' },
+  low:      { color: '#10b981', label: 'ROUT' },
 }
 
 // ── Overdue helper ────────────────────────────────────────────────────────────
@@ -30,14 +31,13 @@ export interface DraggableCardProps {
   idx: number
   activeTaskId: string | null
   onCardClick: (task: Task) => void
-  onEditClick: (task: Task, rect: DOMRect) => void
   members: { user_id: string; username: string }[]
   isSelected: boolean
   onToggleSelect: (taskId: string) => void
 }
 
 export function DraggableCard({
-  task, col, idx, activeTaskId, onCardClick, onEditClick, members,
+  task, col, idx, activeTaskId, onCardClick, members,
   isSelected, onToggleSelect,
 }: DraggableCardProps) {
   const [isHovered, setIsHovered] = useState(false)
@@ -115,36 +115,6 @@ export function DraggableCard({
         />
       )}
 
-      {/* Edit icon (shown on hover) */}
-      {isHovered && (
-        <button
-          title="Edit"
-          onPointerDown={e => e.stopPropagation()}
-          onClick={e => {
-            e.stopPropagation()
-            const card = e.currentTarget.closest<HTMLElement>('[data-card]')
-            if (!card) return
-            onEditClick(task, card.getBoundingClientRect())
-          }}
-          style={{
-            position: 'absolute',
-            top: 6,
-            right: 8,
-            background: 'rgba(255,128,21,0.1)',
-            border: '1px solid rgba(255,128,21,0.22)',
-            borderRadius: 4,
-            color: '#ff8015',
-            cursor: 'pointer',
-            fontSize: 20,
-            lineHeight: 1,
-            padding: '2px 5px',
-            zIndex: 2,
-          }}
-        >
-          ✎
-        </button>
-      )}
-
       <p style={{ margin: '0 0 6px', fontWeight: 500, fontSize: 22, lineHeight: 1.4, color: 'var(--text-heading)' }}>
         {task.title}
       </p>
@@ -160,25 +130,34 @@ export function DraggableCard({
           width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
           background: p.color, boxShadow: `0 0 5px ${p.color}88`,
         }} />
-        <span style={{
-          fontSize: 15, fontWeight: 700, color: p.color,
-          letterSpacing: '0.1em', fontFamily: 'var(--font-mono)',
-        }}>
-          {p.label}
-        </span>
         {task.blocked_by && task.blocked_by.length > 0 && (
-          <span style={{
+          <span title="Blocked by incomplete dependencies" style={{
             fontSize: 13, fontWeight: 700, color: '#f43f5e',
             background: 'rgba(244,63,94,0.1)',
             border: '1px solid rgba(244,63,94,0.3)',
-            borderRadius: 3, padding: '1px 4px',
+            borderRadius: 3, padding: '1px 5px',
             fontFamily: 'var(--font-mono)',
             letterSpacing: '0.08em',
             flexShrink: 0,
+            display: 'inline-flex', alignItems: 'center', gap: 3,
           }}>
-            BLOCKED
+            🔒 {task.blocked_by.length}
           </span>
         )}
+        {task.linked_experiment_count ? (
+          <span title="Linked experiments" style={{
+            fontSize: 13, fontWeight: 700, color: '#10b981',
+            background: 'rgba(16,185,129,0.1)',
+            border: '1px solid rgba(16,185,129,0.3)',
+            borderRadius: 3, padding: '1px 5px',
+            fontFamily: 'var(--font-mono)',
+            letterSpacing: '0.08em',
+            flexShrink: 0,
+            display: 'inline-flex', alignItems: 'center', gap: 3,
+          }}>
+            ⚗ {task.linked_experiment_count}
+          </span>
+        ) : null}
         {assignee && (
           <span
             title={assignee.username}

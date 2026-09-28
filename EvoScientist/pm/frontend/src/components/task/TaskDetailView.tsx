@@ -2,7 +2,7 @@
 import React from 'react'
 import { DependencyPicker } from '../DependencyPicker'
 import { STATUS_META, PRIORITY_META, isOverdue, labelStyle } from './taskStyles'
-import type { Task, Member } from '../../api'
+import type { Task, Member, Experiment } from '../../api'
 
 interface Props {
   task: Task & { blocked_by?: string[] }
@@ -12,9 +12,10 @@ interface Props {
   allTasks: { id: string; title: string }[]
   copied: boolean
   onCopySessionId: () => void
+  linkedExperiments?: Experiment[]
 }
 
-export function TaskDetailView({ task, projectId, members, token, allTasks, copied, onCopySessionId }: Props) {
+export function TaskDetailView({ task, projectId, members, token, allTasks, copied, onCopySessionId, linkedExperiments = [] }: Props) {
   const status   = STATUS_META[task.status]   ?? STATUS_META.todo
   const priority = PRIORITY_META[task.priority] ?? PRIORITY_META.low
   const overdue  = isOverdue(task.deadline)
@@ -125,7 +126,7 @@ export function TaskDetailView({ task, projectId, members, token, allTasks, copi
             margin: '7px 0 0', fontSize: 16, color: 'var(--text-dim)',
             fontFamily: 'var(--font-mono)',
           }}>
-            EvoSci --resume {task.session_id}
+            gazzali --resume {task.session_id}
           </p>
         </div>
       )}
@@ -139,6 +140,28 @@ export function TaskDetailView({ task, projectId, members, token, allTasks, copi
           allTasks={allTasks}
         />
       )}
+
+      {/* Linked experiments */}
+      <div>
+        <span style={labelStyle}>LINKED EXPERIMENTS</span>
+        {linkedExperiments.length === 0 ? (
+          <span style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+            NO LINKED EXPERIMENTS
+          </span>
+        ) : (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+            {linkedExperiments.map(e => (
+              <span key={e.id} style={{
+                fontSize: 15, color: '#10b981', background: 'rgba(16,185,129,0.06)',
+                border: '1px solid rgba(16,185,129,0.18)', borderRadius: 3, padding: '2px 7px',
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+              }}>
+                ⚗ {e.name}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
     </>
   )
 }

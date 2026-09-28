@@ -64,7 +64,7 @@ export function AdminDashboard() {
             color: 'var(--text-muted)', padding: '3px 9px', fontSize: 22, lineHeight: 1,
           }}>←</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <img src="/sabita.jpg" alt="SABITA" style={{ height: 26, borderRadius: 4 }} />
+            <img src="/medipolLogo.png" alt="Medipol" style={{ height: 26, borderRadius: 4 }} />
             <span style={{ color: 'var(--text-dim)', fontSize: 20, fontFamily: 'var(--font-mono)' }}>/</span>
             <span style={{ color: '#ff8015', fontSize: 21, fontFamily: 'var(--font-mono)' }}>admin</span>
           </div>

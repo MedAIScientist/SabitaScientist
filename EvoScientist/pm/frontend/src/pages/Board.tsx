@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { DndContext, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
@@ -7,7 +7,7 @@ import { api, Task, Experiment, listPhases } from '../api'
 import { TaskDetail } from './TaskDetail'
 import { ExperimentDetail } from '../components/ExperimentDetail'
 import { FilterToolbar } from '../components/FilterToolbar'
-import { CardEditPopover } from '../components/CardEditPopover'
+
 import { ProjectSettingsPanel } from '../components/ProjectSettingsPanel'
 import { DroppableColumn } from '../components/board/DroppableColumn'
 import { PhaseSwimLane } from '../components/board/PhaseSwimLane'
@@ -31,6 +31,7 @@ const EXP_STATUS_TO_COL: Record<Experiment['status'], Task['status']> = {
   planned:   'todo',
   running:   'in_progress',
   completed: 'done',
+  abandoned: 'todo',
 }
 
 // ── Main Board component ──────────────────────────────────────────────────────
@@ -47,11 +48,14 @@ export function Board() {
   const [addingToCol,  setAddingToCol]    = useState<Task['status'] | null>(null)
   const [activeTaskId, setActiveTaskId]   = useState<string | null>(null)
   const [overColumnId, setOverColumnId]   = useState<string | null>(null)
-  const [editingTask,  setEditingTask]    = useState<Task | null>(null)
-  const [editAnchorRect, setEditAnchorRect] = useState<DOMRect | null>(null)
+
+
   const [settingsPanelOpen, setSettingsPanelOpen] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [selectedExpIds, setSelectedExpIds] = useState<Set<string>>(new Set())
   const [showResearchTools, setShowResearchTools] = useState(false)
+  const [showMode, setShowMode] = useState<'both' | 'tasks' | 'experiments'>('both')
+  const [showExperimentsPanel, setShowExperimentsPanel] = useState(false)
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
@@ -122,18 +126,38 @@ export function Board() {
     setOverColumnId(event.over ? String(event.over.id) : null)
   }, [])
 
+  const patchExpStatus = useMutation({
+    mutationFn: ({ expId, status }: { expId: string; status: Experiment['status'] }) =>
+      api.updateExperiment(projectId!, expId, { status }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['experiments', projectId] })
+    },
+  })
+
   const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const taskId  = String(event.active.id)
+    const activeId = String(event.active.id)
     const colKey  = event.over ? String(event.over.id) : null
     if (colKey && COLUMNS.some(c => c.key === colKey)) {
-      const task = tasks.find(t => String(t.id) === taskId)
-      if (task && task.status !== colKey) {
-        patchStatus.mutate({ taskId, status: colKey as Task['status'] })
+      if (activeId.startsWith('exp-')) {
+        // Experiment drag → update experiment status
+        const expId = activeId.slice(4)
+        const exp = experiments.find(e => String(e.id) === expId)
+        const targetStatus = (Object.entries(EXP_STATUS_TO_COL) as [Experiment['status'], Task['status']][])
+          .find(([, col]) => col === colKey)?.[0]
+        if (exp && targetStatus && exp.status !== targetStatus) {
+          patchExpStatus.mutate({ expId, status: targetStatus })
+        }
+      } else {
+        // Task drag → update task status
+        const task = tasks.find(t => String(t.id) === activeId)
+        if (task && task.status !== colKey) {
+          patchStatus.mutate({ taskId: activeId, status: colKey as Task['status'] })
+        }
       }
     }
     setActiveTaskId(null)
     setOverColumnId(null)
-  }, [tasks, patchStatus])
+  }, [tasks, experiments, patchStatus, patchExpStatus])
 
   const handleAddSubmit = useCallback((colKey: Task['status']) => (title: string) => {
     createTask.mutate({ title, status: colKey })
@@ -144,15 +168,18 @@ export function Board() {
   const handleCardClick = useCallback((task: Task) => setSelectedTask(task), [])
   const handleExpClick  = useCallback((exp: Experiment) => setSelectedExp(exp), [])
 
-  const handleEditClick = useCallback((task: Task, rect: DOMRect) => {
-    setEditingTask(task)
-    setEditAnchorRect(rect)
-  }, [])
-
   const toggleSelect = useCallback((taskId: string) => {
     setSelectedIds(prev => {
       const next = new Set(prev)
       next.has(taskId) ? next.delete(taskId) : next.add(taskId)
+      return next
+    })
+  }, [])
+
+  const toggleExpSelect = useCallback((expId: string) => {
+    setSelectedExpIds(prev => {
+      const next = new Set(prev)
+      next.has(expId) ? next.delete(expId) : next.add(expId)
       return next
     })
   }, [])
@@ -164,6 +191,28 @@ export function Board() {
     queryClient.invalidateQueries({ queryKey: ['tasks', projectId] })
     setSelectedIds(new Set())
   }, [selectedIds, projectId, queryClient])
+
+  const applyBulkExpUpdate = useCallback(async (updates: Partial<Experiment>) => {
+    await Promise.all(
+      [...selectedExpIds].map(id => api.updateExperiment(projectId!, id, updates))
+    )
+    queryClient.invalidateQueries({ queryKey: ['experiments', projectId] })
+    setSelectedExpIds(new Set())
+  }, [selectedExpIds, projectId, queryClient])
+
+  // ── Keyboard shortcuts ────────────────────────────────────────────────
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      const target = e.target as HTMLElement
+      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
+      if (isInput) return
+      if (e.key === 'n' || e.key === 'N') setAddingToCol('todo')
+      if (e.key === 'Escape') { setSelectedTask(null); setSelectedExp(null); setAddingToCol(null) }
+      if (e.key === 'k' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); /* search — handled by browser */ }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [])
 
   return (
     <div style={{ background: 'var(--bg)', height: '100vh', display: 'flex', flexDirection: 'column', color: 'var(--text)' }}>
@@ -209,11 +258,11 @@ export function Board() {
 
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
-            onClick={() => navigate('/admissions')}
+            onClick={() => setShowExperimentsPanel(o => !o)}
             style={{
-              background: 'rgba(129,140,248,0.08)',
-              border: '1px solid rgba(129,140,248,0.18)',
-              color: '#64748b',
+              background: showExperimentsPanel ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.08)',
+              border: showExperimentsPanel ? '1px solid rgba(16,185,129,0.35)' : '1px solid rgba(16,185,129,0.18)',
+              color: showExperimentsPanel ? '#10b981' : '#64748b',
               fontFamily: 'var(--font-mono)',
               fontSize: 20,
               padding: '4px 10px',
@@ -221,26 +270,8 @@ export function Board() {
               cursor: 'pointer',
               letterSpacing: '0.08em',
             }}
-            onMouseEnter={e => { e.currentTarget.style.color = '#818cf8'; e.currentTarget.style.borderColor = 'rgba(129,140,248,0.35)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(129,140,248,0.18)' }}
-          >
-            📋 ADMISSIONS
-          </button>
-          <button
-            onClick={() => navigate(`/projects/${projectId}/experiments`)}
-            style={{
-              background: 'rgba(16,185,129,0.08)',
-              border: '1px solid rgba(16,185,129,0.18)',
-              color: '#64748b',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 20,
-              padding: '4px 10px',
-              borderRadius: 4,
-              cursor: 'pointer',
-              letterSpacing: '0.08em',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.color = '#10b981'; e.currentTarget.style.borderColor = 'rgba(16,185,129,0.35)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(16,185,129,0.18)' }}
+            onMouseEnter={e => { if (!showExperimentsPanel) { e.currentTarget.style.color = '#10b981'; e.currentTarget.style.borderColor = 'rgba(16,185,129,0.35)' } }}
+            onMouseLeave={e => { if (!showExperimentsPanel) { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(16,185,129,0.18)' } }}
           >
             ⚗ EXPERIMENTS
           </button>
@@ -263,19 +294,12 @@ export function Board() {
             📊 REPORT
           </button>
           <button
-            onClick={async () => {
-              try {
-                const result = await api.draftPaper(projectId!)
-                alert(`Paper draft started! Publication ID: ${result.publication_id}`)
-                navigate(`/publications/${result.publication_id}`)
-              } catch (e: unknown) {
-                alert(e instanceof Error ? e.message : 'Draft failed')
-              }
-            }}
+            onClick={() => setShowMode(m => m === 'both' ? 'tasks' : m === 'tasks' ? 'experiments' : 'both')}
+            title="Toggle board view: tasks / experiments / both"
             style={{
-              background: 'rgba(99,102,241,0.08)',
-              border: '1px solid rgba(99,102,241,0.18)',
-              color: '#64748b',
+              background: showMode === 'both' ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.06)',
+              border: '1px solid rgba(16,185,129,0.3)',
+              color: showMode === 'both' ? '#10b981' : '#64748b',
               fontFamily: 'var(--font-mono)',
               fontSize: 16,
               padding: '5px 12px',
@@ -283,67 +307,10 @@ export function Board() {
               cursor: 'pointer',
               letterSpacing: '0.08em',
             }}
-            onMouseEnter={e => { e.currentTarget.style.color = '#a78bfa'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.35)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(99,102,241,0.18)' }}
           >
-            ✍ DRAFT PAPER
+            {showMode === 'both' ? '⚗ BOTH' : showMode === 'tasks' ? '📋 TASKS' : '🔬 EXPS'}
           </button>
-          <button
-            onClick={() => setShowResearchTools(true)}
-            style={{
-              background: 'rgba(139,92,246,0.08)',
-              border: '1px solid rgba(139,92,246,0.18)',
-              color: '#64748b',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 16,
-              padding: '5px 12px',
-              borderRadius: 4,
-              cursor: 'pointer',
-              letterSpacing: '0.08em',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.color = '#c084fc'; e.currentTarget.style.borderColor = 'rgba(139,92,246,0.35)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(139,92,246,0.18)' }}
-          >
-            🧪 RESEARCH
-          </button>
-          <button
-            onClick={async () => {
-              const type = prompt('Grant type:\n  tubitak_1001 / tubitak_1003 / tubitak_3501\n  tubitak_other / tuseb / nih_r01\n  nsf / erc / wellcome / general', 'tubitak_1001')
-              if (!type) return
-              try {
-                const r = await api.draftGrantProposal(projectId!, type.trim())
-                alert(`Grant proposal started! View at /publications/${r.publication_id}`)
-                navigate(`/publications/${r.publication_id}`)
-              } catch (e: unknown) {
-                alert(e instanceof Error ? e.message : 'Failed')
-              }
-            }}
-            style={{
-              background: 'rgba(16,185,129,0.08)',
-              border: '1px solid rgba(16,185,129,0.18)',
-              color: '#64748b',
-              fontFamily: 'var(--font-mono)', fontSize: 16,
-              padding: '5px 12px', borderRadius: 4, cursor: 'pointer', letterSpacing: '0.08em',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.color = '#10b981'; e.currentTarget.style.borderColor = 'rgba(16,185,129,0.35)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(16,185,129,0.18)' }}
-          >
-            💰 GRANT
-          </button>
-          <button
-            onClick={() => navigate(`/publications?project_id=${projectId}`)}
-            style={{
-              background: 'rgba(236,72,153,0.08)',
-              border: '1px solid rgba(236,72,153,0.18)',
-              color: '#64748b',
-              fontFamily: 'var(--font-mono)', fontSize: 16,
-              padding: '5px 12px', borderRadius: 4, cursor: 'pointer', letterSpacing: '0.08em',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.color = '#ec4899'; e.currentTarget.style.borderColor = 'rgba(236,72,153,0.35)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(236,72,153,0.18)' }}
-          >
-            📄 PAPERS
-          </button>
+
           {isOwner && (
             <button
               onClick={() => setSettingsPanelOpen(true)}
@@ -441,8 +408,8 @@ export function Board() {
             alignItems: 'flex-start',
           }}>
             {COLUMNS.map(col => {
-              const colTasks = filtered.filter(t => t.status === col.key)
-              const colExps  = experiments.filter(e => EXP_STATUS_TO_COL[e.status] === col.key)
+              const colTasks = (showMode !== 'experiments' ? filtered : []).filter(t => t.status === col.key)
+              const colExps  = (showMode !== 'tasks' ? experiments : []).filter(e => EXP_STATUS_TO_COL[e.status] === col.key)
               return (
                 <DroppableColumn
                   key={col.key}
@@ -458,11 +425,12 @@ export function Board() {
                   onAddCancel={handleAddCancel}
                   onAddSubmit={handleAddSubmit(col.key)}
                   onCardClick={handleCardClick}
-                  onEditClick={handleEditClick}
                   onExpClick={handleExpClick}
                   members={project?.members ?? []}
                   selectedIds={selectedIds}
                   onToggleSelect={toggleSelect}
+                  selectedExpIds={selectedExpIds}
+                  onToggleExpSelect={toggleExpSelect}
                 />
               )
             })}
@@ -496,8 +464,8 @@ export function Board() {
 
             {/* One swimlane per phase */}
             {phases.map(phase => {
-              const laneTasks = filtered.filter(t => t.phase_id === phase.id)
-              const laneExps  = experiments.filter(e => e.phase_id === phase.id)
+              const laneTasks = (showMode !== 'experiments' ? filtered : []).filter(t => t.phase_id === phase.id)
+              const laneExps  = (showMode !== 'tasks' ? experiments : []).filter(e => e.phase_id === phase.id)
               return (
                 <PhaseSwimLane
                   key={phase.id}
@@ -513,11 +481,13 @@ export function Board() {
                   onAddCancel={handleAddCancel}
                   onAddSubmit={handleAddSubmit}
                   onCardClick={handleCardClick}
-                  onEditClick={handleEditClick}
+
                   onExpClick={handleExpClick}
                   members={project?.members ?? []}
                   selectedIds={selectedIds}
                   onToggleSelect={toggleSelect}
+                  selectedExpIds={selectedExpIds}
+                  onToggleExpSelect={toggleExpSelect}
                 />
               )
             })}
@@ -525,8 +495,8 @@ export function Board() {
             {/* Unassigned swimlane */}
             {(() => {
               const phaseIds = new Set(phases.map(p => p.id))
-              const unassignedTasks = filtered.filter(t => !t.phase_id || !phaseIds.has(t.phase_id))
-              const unassignedExps  = experiments.filter(e => !e.phase_id || !phaseIds.has(e.phase_id))
+              const unassignedTasks = (showMode !== 'experiments' ? filtered : []).filter(t => !t.phase_id || !phaseIds.has(t.phase_id))
+              const unassignedExps  = (showMode !== 'tasks' ? experiments : []).filter(e => !e.phase_id || !phaseIds.has(e.phase_id))
               return (
                 <PhaseSwimLane
                   key="unassigned"
@@ -542,11 +512,13 @@ export function Board() {
                   onAddCancel={handleAddCancel}
                   onAddSubmit={handleAddSubmit}
                   onCardClick={handleCardClick}
-                  onEditClick={handleEditClick}
+
                   onExpClick={handleExpClick}
                   members={project?.members ?? []}
                   selectedIds={selectedIds}
                   onToggleSelect={toggleSelect}
+                  selectedExpIds={selectedExpIds}
+                  onToggleExpSelect={toggleExpSelect}
                 />
               )
             })()}
@@ -570,17 +542,70 @@ export function Board() {
           experiment={selectedExp}
           projectId={projectId!}
           onClose={() => setSelectedExp(null)}
+          phases={phases}
         />
       )}
 
-      {editingTask && editAnchorRect && (
-        <CardEditPopover
-          task={editingTask}
-          projectId={projectId!}
-          anchorRect={editAnchorRect}
-          onClose={() => setEditingTask(null)}
-        />
+      {showExperimentsPanel && (
+        <div style={{
+          position: 'fixed', right: 0, top: 100, bottom: 0, width: 380,
+          background: 'var(--surface-panel)', borderLeft: '1px solid var(--border)',
+          zIndex: 40, display: 'flex', flexDirection: 'column',
+          animation: 'slideIn 0.2s ease',
+        }}>
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '12px 16px', borderBottom: '1px solid var(--border)',
+          }}>
+            <span style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#10b981' }}>
+              ⚗ Experiments
+            </span>
+            <button onClick={() => setShowExperimentsPanel(false)} style={{
+              background: 'none', border: 'none', cursor: 'pointer', fontSize: 20,
+              color: 'var(--text-dim)', padding: '2px 6px', borderRadius: 4,
+            }}>✕</button>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
+            {experiments.length === 0 ? (
+              <div style={{ color: 'var(--text-dim)', fontSize: 14, padding: 16, textAlign: 'center' }}>
+                No experiments yet.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {experiments.map(exp => {
+                  const statusColor = exp.status === 'completed' ? '#10b981' : exp.status === 'running' ? '#f59e0b' : exp.status === 'planned' ? '#ff8015' : '#6b7280'
+                  return (
+                    <div key={exp.id} onClick={() => handleExpClick(exp)} style={{
+                      cursor: 'pointer', padding: '12px 14px',
+                      background: 'var(--surface-card)', border: '1px solid var(--border)',
+                      borderLeft: `3px solid ${statusColor}`,
+                      borderRadius: 8, transition: 'border-color 0.14s',
+                    }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = `rgba(16,185,129,0.25)` }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+                        <span style={{ fontSize: 17, fontWeight: 600, color: 'var(--text-heading)', lineHeight: 1.3 }}>{exp.name}</span>
+                        <span style={{
+                          fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                          color: statusColor, background: `${statusColor}14`,
+                          border: `1px solid ${statusColor}30`, borderRadius: 3, padding: '1px 5px', whiteSpace: 'nowrap', marginLeft: 6,
+                        }}>{exp.status.toUpperCase()}</span>
+                      </div>
+                      {exp.hypothesis && (
+                        <div style={{ fontSize: 15, color: 'var(--text-dim)', lineHeight: 1.4, fontStyle: 'italic', marginTop: 2 }}>
+                          {exp.hypothesis.slice(0, 120)}{exp.hypothesis.length > 120 ? '…' : ''}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
       )}
+      <style>{`@keyframes slideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }`}</style>
 
       {showResearchTools && projectId && (
         <ResearchToolsPanel projectId={projectId} onClose={() => setShowResearchTools(false)} />
@@ -596,10 +621,32 @@ export function Board() {
       {selectedIds.size > 0 && (
         <BulkActionBar
           count={selectedIds.size}
+          label="tasks"
           phases={phases}
-          onStatusChange={status => applyBulkUpdate({ status })}
-          onPhaseChange={phaseId => applyBulkUpdate({ phase_id: phaseId })}
+          statusOptions={[
+            { value: 'todo', label: 'PLANNED' },
+            { value: 'in_progress', label: 'IN PROGRESS' },
+            { value: 'done', label: 'COMPLETE' },
+          ]}
+          onStatusChange={status => applyBulkUpdate({ status: status as Task['status'] })}
+          onPhaseChange={phaseId => applyBulkUpdate({ phase_id: phaseId as Task['phase_id'] })}
           onClear={() => setSelectedIds(new Set())}
+        />
+      )}
+      {selectedExpIds.size > 0 && (
+        <BulkActionBar
+          count={selectedExpIds.size}
+          label="experiments"
+          phases={phases}
+          statusOptions={[
+            { value: 'planned', label: 'PLANNED' },
+            { value: 'running', label: 'RUNNING' },
+            { value: 'completed', label: 'COMPLETED' },
+            { value: 'abandoned', label: 'ABANDONED' },
+          ]}
+          onStatusChange={status => applyBulkExpUpdate({ status: status as Experiment['status'] })}
+          onPhaseChange={phaseId => applyBulkExpUpdate({ phase_id: phaseId as Experiment['phase_id'] })}
+          onClear={() => setSelectedExpIds(new Set())}
         />
       )}
     </div>

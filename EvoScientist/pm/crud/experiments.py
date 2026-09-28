@@ -83,6 +83,7 @@ def update_experiment(
     status: object = _UNSET,
     tags: object = _UNSET,
     deadline: object = _UNSET,
+    phase_id: object = _UNSET,
 ) -> Experiment:
     """Update experiment fields. Omitted kwargs are unchanged; pass None to clear optional fields."""
     exp = get_experiment(db_path, exp_id)
@@ -103,14 +104,15 @@ def update_experiment(
         created_by=exp.created_by,
         created_at=exp.created_at,
         updated_at=now,
-        phase_id=exp.phase_id,
+        phase_id=phase_id if phase_id is not _UNSET else exp.phase_id,
     )
     with get_db(db_path) as conn:
         conn.execute(
             """UPDATE experiments SET name=?, hypothesis=?, protocol=?, status=?,
-               tags=?, deadline=?, updated_at=? WHERE id=?""",
+               tags=?, deadline=?, phase_id=?, updated_at=? WHERE id=?""",
             (new.name, new.hypothesis, new.protocol, new.status,
-             json.dumps(new.tags) if new.tags is not None else "[]", new.deadline, now, exp_id),
+             json.dumps(new.tags) if new.tags is not None else "[]", new.deadline,
+             new.phase_id, now, exp_id),
         )
     return new
 
@@ -135,6 +137,18 @@ def link_task(db_path: Path, exp_id: str, task_id: str, linked_by: str) -> None:
         if "UNIQUE" in str(exc) or "PRIMARY KEY" in str(exc):
             raise ValueError(f"Task {task_id!r} is already linked to experiment {exp_id!r}") from exc
         raise
+
+
+def list_experiments_for_task(db_path: Path, task_id: str) -> list[Experiment]:
+    """Return all experiments linked to a task."""
+    with get_db(db_path) as conn:
+        rows = conn.execute(
+            """SELECT e.* FROM experiments e
+               JOIN experiment_tasks et ON et.experiment_id = e.id
+               WHERE et.task_id = ? ORDER BY e.created_at DESC""",
+            (task_id,),
+        ).fetchall()
+        return [_row_to_experiment(r) for r in rows]
 
 
 def unlink_task(db_path: Path, exp_id: str, task_id: str) -> bool:

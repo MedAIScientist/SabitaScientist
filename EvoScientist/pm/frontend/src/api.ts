@@ -9,19 +9,29 @@ function authHeaders(): HeadersInit {
   return token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function request<T>(
+  method: string,
+  path: string,
+  body?: unknown,
+  opts?: { skipAuthRedirect?: boolean },
+): Promise<T> {
+  const hadToken = getToken() !== null
   const resp = await fetch(`${BASE}${path}`, {
     method,
     headers: authHeaders(),
     body: body !== undefined ? JSON.stringify(body) : undefined,
   })
-  if (resp.status === 401) {
+  // A 401 only means the session expired when we actually sent a token. Without
+  // this guard a rejected /auth/login reloaded the page, so the error message
+  // never reached the user and the form just appeared to reset.
+  if (resp.status === 401 && hadToken && !opts?.skipAuthRedirect) {
     sessionStorage.removeItem('pm_token')
     window.location.href = '/login'
   }
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({ detail: resp.statusText }))
-    throw new Error(err.detail ?? resp.statusText)
+    const detail = err.detail
+    throw new Error(typeof detail === 'string' ? detail : resp.statusText || 'Request failed')
   }
   if (resp.status === 204) return undefined as T
   return resp.json() as Promise<T>
@@ -30,13 +40,17 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 export const api = {
   login: (username: string, password: string) =>
     request<{ token: string; user_id: string; username: string; is_admin: boolean }>(
-      'POST', '/auth/login', { username, password }
+      'POST', '/auth/login', { username, password }, { skipAuthRedirect: true }
     ),
   me: () => request<{ id: string; username: string; is_admin: boolean }>('GET', '/users/me'),
+  setPassword: (newPassword: string) =>
+    request<UserRecord>('PUT', '/users/me', { new_password: newPassword }),
   setupStatus: () => request<{ needs_setup: boolean }>('GET', '/users/setup/status'),
   listUsers: () => request<UserRecord[]>('GET', '/users'),
   createUser: (username: string, password: string, email?: string) =>
     request<UserRecord>('POST', '/users', { username, password, email }),
+  updateUser: (userId: string, data: { username?: string; email?: string | null; is_admin?: boolean }) =>
+    request<UserRecord>('PUT', `/users/${userId}`, data),
   deleteUser: (userId: string) => request<void>('DELETE', `/users/${userId}`),
   createAdmin: (username: string, password: string, email?: string) =>
     request<{ id: string; username: string }>('POST', '/users/setup/admin', { username, password, email }),
@@ -83,7 +97,7 @@ export const api = {
     request<Experiment>('GET', `/projects/${projectId}/experiments/${expId}`),
   updateExperiment: (projectId: string, expId: string, data: {
     name?: string; hypothesis?: string | null; protocol?: string | null;
-    status?: string; tags?: string[]; deadline?: string | null
+    status?: string; tags?: string[]; deadline?: string | null; phase_id?: string | null
   }) => request<Experiment>('PATCH', `/projects/${projectId}/experiments/${expId}`, data),
   deleteExperiment: (projectId: string, expId: string) =>
     request<void>('DELETE', `/projects/${projectId}/experiments/${expId}`),
@@ -95,6 +109,8 @@ export const api = {
     request<void>('DELETE', `/projects/${projectId}/experiments/${expId}/tasks/${taskId}`),
   listLinkedTasks: (projectId: string, expId: string) =>
     request<Task[]>('GET', `/projects/${projectId}/experiments/${expId}/tasks`),
+  listLinkedExperiments: (projectId: string, taskId: string) =>
+    request<Experiment[]>('GET', `/projects/${projectId}/tasks/${taskId}/experiments`),
   listEntries: (projectId: string, expId: string, type?: 'note' | 'result') =>
     request<ExperimentEntry[]>(
       'GET', `/projects/${projectId}/experiments/${expId}/entries${type ? `?type=${type}` : ''}`
@@ -217,8 +233,12 @@ export const api = {
   submitPublication: (id: string) => request<Publication_>('POST', `/publications/${id}/submit`),
   deletePublication: (id: string) => request<void>('DELETE', `/publications/${id}`),
   listVersions: (pubId: string) => request<Version[]>('GET', `/publications/${pubId}/versions`),
+  getVersion: (pubId: string, versionId: string) =>
+    request<Version>('GET', `/publications/${pubId}/versions/${versionId}`),
   createVersion: (pubId: string, notes?: string) =>
     request<Version>('POST', `/publications/${pubId}/versions`, { notes }),
+  getAiDisclosure: (pubId: string) =>
+    request<AiDisclosure>('GET', `/publications/${pubId}/ai-disclosure`),
   listReviews: (pubId: string) => request<Review[]>('GET', `/publications/${pubId}/reviews`),
   createReview: (pubId: string, data: {
     reviewer_name?: string; comments?: string; decision?: string; round?: number
@@ -274,17 +294,57 @@ export const api = {
     request<LabImpact>('GET', `/labs/${labId}/research-impact`),
 
   // ── Grants ────────────────────────────────────────────────────────────────
-  listGrants: (labId?: string, status?: string, offset = 0, limit = 50) => {
+  listGrants: (opts: {
+    labId?: string; projectId?: string; status?: string
+    q?: string; sort?: string; offset?: number; limit?: number
+  } = {}) => {
     const p = new URLSearchParams()
-    if (labId) p.set('lab_id', labId)
-    if (status) p.set('status', status)
-    p.set('offset', String(offset)); p.set('limit', String(limit))
+    if (opts.labId) p.set('lab_id', opts.labId)
+    if (opts.projectId) p.set('project_id', opts.projectId)
+    if (opts.status) p.set('status', opts.status)
+    if (opts.q) p.set('q', opts.q)
+    if (opts.sort) p.set('sort', opts.sort)
+    p.set('offset', String(opts.offset ?? 0)); p.set('limit', String(opts.limit ?? 50))
     return request<Grant_[]>('GET', `/grants?${p}`)
   },
-  createGrant: (data: Record<string, unknown>) => request('POST', '/grants', data),
+  grantStats: (opts: { labId?: string; projectId?: string } = {}) => {
+    const p = new URLSearchParams()
+    if (opts.labId) p.set('lab_id', opts.labId)
+    if (opts.projectId) p.set('project_id', opts.projectId)
+    return request<GrantStats>('GET', `/grants/stats?${p}`)
+  },
+  createGrant: (data: Record<string, unknown>) => request<Grant_>('POST', '/grants', data),
   getGrant: (id: string) => request<Grant_>('GET', `/grants/${id}`),
-  updateGrant: (id: string, data: Record<string, unknown>) => request('PUT', `/grants/${id}`, data),
+  updateGrant: (id: string, data: Record<string, unknown>) => request<Grant_>('PUT', `/grants/${id}`, data),
   deleteGrant: (id: string) => request<void>('DELETE', `/grants/${id}`),
+
+  // ── Grant plan: budget, milestones, team ────────────────────────────────
+  listGrantBudget: (gid: string) =>
+    request<GrantBudgetItem[]>('GET', `/grants/${gid}/budget`),
+  createGrantBudgetItem: (gid: string, data: Record<string, unknown>) =>
+    request<GrantBudgetItem>('POST', `/grants/${gid}/budget`, data),
+  updateGrantBudgetItem: (gid: string, itemId: string, data: Record<string, unknown>) =>
+    request<GrantBudgetItem>('PUT', `/grants/${gid}/budget/${itemId}`, data),
+  deleteGrantBudgetItem: (gid: string, itemId: string) =>
+    request<void>('DELETE', `/grants/${gid}/budget/${itemId}`),
+
+  listGrantMilestones: (gid: string) =>
+    request<GrantMilestone[]>('GET', `/grants/${gid}/milestones`),
+  createGrantMilestone: (gid: string, data: Record<string, unknown>) =>
+    request<GrantMilestone>('POST', `/grants/${gid}/milestones`, data),
+  updateGrantMilestone: (gid: string, mid: string, data: Record<string, unknown>) =>
+    request<GrantMilestone>('PUT', `/grants/${gid}/milestones/${mid}`, data),
+  deleteGrantMilestone: (gid: string, mid: string) =>
+    request<void>('DELETE', `/grants/${gid}/milestones/${mid}`),
+
+  listGrantMembers: (gid: string) =>
+    request<GrantMember[]>('GET', `/grants/${gid}/members`),
+  addGrantMember: (gid: string, data: Record<string, unknown>) =>
+    request<GrantMember>('POST', `/grants/${gid}/members`, data),
+  updateGrantMember: (gid: string, memberId: string, data: Record<string, unknown>) =>
+    request<GrantMember>('PUT', `/grants/${gid}/members/${memberId}`, data),
+  removeGrantMember: (gid: string, memberId: string) =>
+    request<void>('DELETE', `/grants/${gid}/members/${memberId}`),
 
   // ── Conferences ─────────────────────────────────────────────────────────
   listConferences: (projectId?: string, status?: string) => {
@@ -316,6 +376,49 @@ export const api = {
   updateWikiPage: (labId: string, pageId: string, data: { content?: string; title?: string; tags?: string[] }) =>
     request('PUT', `/labs/${labId}/wiki/${pageId}`, data),
 
+  // ── MCP Servers ──────────────────────────────────────────────────────────
+  mcpMarketplace: (tag?: string) => {
+    const qs = tag ? `?tag=${encodeURIComponent(tag)}` : ''
+    return request<MCPMarketplace>('GET', `/mcp/marketplace${qs}`)
+  },
+  mcpInstalled: () => request<MCPInstalled>('GET', '/mcp/installed'),
+  mcpInstall: (name: string) => request<{ status: string; name: string }>('POST', '/mcp/install', { name }),
+  mcpRemove: (name: string) => request<void>('DELETE', `/mcp/installed/${encodeURIComponent(name)}`),
+
+  // ── Memory / Observations ────────────────────────────────────────────────
+  listObservations: (projectId: string, limit = 50) =>
+    request<ObservationsList>('GET', `/memory/observations?project_id=${encodeURIComponent(projectId)}&limit=${limit}`),
+  searchObservations: (projectId: string, q: string, limit = 10) =>
+    request<ObservationSearchResults>('GET', `/memory/search?project_id=${encodeURIComponent(projectId)}&q=${encodeURIComponent(q)}&limit=${limit}`),
+  recordObservation: (projectId: string, title: string, body?: string, tags?: string[]) =>
+    request<{ status: string }>('POST', '/memory/observations', { project_id: projectId, title, body, tags }),
+  linkObservations: (projectId: string, sourceObservationId: string, targetObservationId: string, reason?: string, relation = 'complements') =>
+    request('POST', '/memory/observations/link', { project_id: projectId, source_observation_id: sourceObservationId, target_observation_id: targetObservationId, reason, relation }),
+
+  // ── System Health ────────────────────────────────────────────────────────
+  systemHealth: () => request<SystemHealth>('GET', '/system/health'),
+
+  // ── Companion applications (CVAT, Curator, JupyterHub, …) ───────────────
+  listIntegrations: () => request<IntegrationStatus[]>('GET', '/integrations'),
+
+  // ── Models ──────────────────────────────────────────────────────────────
+  listModels: () => request<ModelsResponse>('GET', '/models'),
+  currentModel: () => request<CurrentModel>('GET', '/models/current'),
+  selectModel: (model: string, provider?: string) =>
+    request<{ status: string; model: string; provider: string | null }>('POST', '/models/select', { model, provider }),
+
+  // ── System Prompt ───────────────────────────────────────────────────────
+  systemPrompt: () => request<{ system_prompt: string; length: number }>('GET', '/system-prompt'),
+
+  // ── Cron Schedules ──────────────────────────────────────────────────────
+  listSchedules: () => request<ScheduleList>('GET', '/schedules'),
+  createSchedule: (name: string, schedule: string, prompt: string, timezone?: string) =>
+    request<{ status: string; cron_id: string }>('POST', '/schedules', { name, schedule, prompt, timezone }),
+  toggleSchedule: (cronId: string, enabled: boolean) =>
+    request<{ status: string; cron_id: string; enabled: boolean }>('POST', `/schedules/${encodeURIComponent(cronId)}/toggle`, { enabled }),
+  deleteSchedule: (cronId: string) => request<void>('DELETE', `/schedules/${encodeURIComponent(cronId)}`),
+  runScheduleNow: (prompt: string) => request<{ status: string; thread_id: string }>('POST', '/schedules/run-now', { prompt }),
+
   // ── Global Search ────────────────────────────────────────────────────────
   globalSearch: (q: string) => request<SearchResults>('GET', `/search?q=${encodeURIComponent(q)}`),
 
@@ -324,6 +427,9 @@ export const api = {
   getTemplate: (id: string) => request<Template>('GET', `/templates/${id}`),
   createProjectFromTemplate: (data: { template_id: string; name: string; description?: string; lab_id?: string }) =>
     request<Project>('POST', '/templates/from-template', data),
+
+  // ── Help ─────────────────────────────────────────────────────────────────
+  getHelp: () => request<{ intro: string; sections: { slug: string; title: string; html: string }[]; title: string }>('GET', '/help'),
 }
 
 export interface UserRecord {
@@ -340,16 +446,21 @@ export interface Lab {
   id: string; name: string; pi_id: string | null
   department: string; university: string
   created_at: string; updated_at: string
+  // Empty unless the caller is a member of this lab or a platform admin — use
+  // member_count for the size, which is always the real one.
   members: LabMember_[]
+  member_count: number
+  can_manage: boolean
 }
 export interface LabMember_ { user_id: string; username: string; role: string; joined_at: string }
 export interface Task {
   id: string; project_id: string; title: string; description: string | null
   assignee_id: string | null; status: 'todo' | 'in_progress' | 'done'
-  priority: 'high' | 'medium' | 'low'; deadline: string | null
+  priority: 'critical' | 'high' | 'medium' | 'low'; deadline: string | null
   session_id: string | null; created_by: string; created_at: string; updated_at: string
   phase_id?: string | null
   blocked_by?: string[]
+  linked_experiment_count?: number
 }
 export interface Comment { id: string; task_id: string; author_id: string | null; body: string; created_at: string }
 export interface Run {
@@ -373,15 +484,15 @@ export interface Experiment {
   name: string
   hypothesis: string | null
   protocol: string | null
-  status: 'planned' | 'running' | 'completed'
+  status: 'planned' | 'running' | 'completed' | 'abandoned'
   tags: string[]
   deadline: string | null
   phase_id?: string | null
+  linked_task_count?: number
   created_by: string
   created_at: string
   updated_at: string
 }
-
 export interface ExperimentEntry {
   id: string
   experiment_id: string
@@ -680,6 +791,14 @@ export interface Publication_ {
 export interface Version {
   id: string; publication_id: string; version: number
   file_path: string | null; notes: string | null; created_by: string; created_at: string
+  section: string | null; generated_by: string | null; model: string | null
+  prompt_hash: string | null; content_length: number
+  content: string | null   // only populated by getVersion
+}
+export interface AiDisclosure {
+  publication_id: string; statement: string
+  ai_version_count: number; human_version_count: number
+  models_used: string[]; sections: string[]
 }
 export interface Review {
   id: string; publication_id: string; reviewer_name: string | null
@@ -702,7 +821,80 @@ export interface Pipeline {
   pipeline_stages: { stage: string; status: string; name?: string; id?: string; date?: string; count?: number; reviews?: number }[]
 }
 
-export interface Grant_ { id: string; title: string; funder: string; amount_awarded: number | null; currency: string; status: string; submitted_at: string | null; start_date: string | null; end_date: string | null; project_id: string | null; lab_id: string | null; created_at: string }
+export interface Grant_ {
+  id: string; title: string; funder: string
+  amount_requested: number | null; amount_awarded: number | null
+  currency: string; status: string
+  submitted_at: string | null; awarded_at: string | null
+  start_date: string | null; end_date: string | null
+  description: string | null; pi_id: string | null; pi_username: string | null
+  project_id: string | null; lab_id: string | null
+  created_by: string; created_at: string; updated_at: string
+  can_manage: boolean
+}
+
+export type GrantStatus =
+  | 'draft' | 'submitted' | 'under_review' | 'awarded'
+  | 'rejected' | 'active' | 'closed'
+
+export const GRANT_STATUSES: GrantStatus[] = [
+  'draft', 'submitted', 'under_review', 'awarded', 'rejected', 'active', 'closed',
+]
+
+export interface GrantCurrencyTotal {
+  currency: string; requested: number; awarded: number; count: number
+}
+
+export interface GrantStats {
+  total: number
+  by_status: Record<string, number>
+  totals_by_currency: GrantCurrencyTotal[]
+  decided: number
+  won: number
+  success_rate: number | null
+  ending_soon: number
+  overdue_milestones: number
+  open_reports: number
+  budget_planned: number
+  budget_spent: number
+}
+
+export type GrantBudgetCategory =
+  | 'personnel' | 'equipment' | 'consumables' | 'travel' | 'services' | 'other'
+
+export const GRANT_BUDGET_CATEGORIES: GrantBudgetCategory[] = [
+  'personnel', 'equipment', 'consumables', 'travel', 'services', 'other',
+]
+
+export interface GrantBudgetItem {
+  id: string; grant_id: string; category: GrantBudgetCategory
+  description: string | null
+  planned_amount: number; spent_amount: number
+  position: number; created_at: string; updated_at: string
+}
+
+export type GrantMilestoneKind = 'milestone' | 'report' | 'deliverable'
+
+export const GRANT_MILESTONE_KINDS: GrantMilestoneKind[] = [
+  'milestone', 'report', 'deliverable',
+]
+
+export interface GrantMilestone {
+  id: string; grant_id: string; title: string; kind: GrantMilestoneKind
+  due_date: string | null; completed_at: string | null; owner_id: string | null
+  notes: string | null; position: number; created_at: string; updated_at: string
+}
+
+export type GrantMemberRole = 'pi' | 'co_pi' | 'researcher' | 'assistant' | 'advisor'
+
+export const GRANT_MEMBER_ROLES: GrantMemberRole[] = [
+  'pi', 'co_pi', 'researcher', 'assistant', 'advisor',
+]
+
+export interface GrantMember {
+  id: string; grant_id: string; user_id: string; username: string | null
+  role: GrantMemberRole; share_percent: number | null; added_at: string
+}
 export interface Conference_ { id: string; name: string; venue: string | null; deadline: string | null; status: string; presentation_type: string; decision_date: string | null }
 export interface IRB_ { id: string; title: string; institution: string; protocol_number: string; status: string; approval_date: string | null; expiry_date: string | null }
 export interface WikiPage_ { id: string; title: string; slug: string; content?: string; tags?: string[]; updated_at: string }
@@ -714,3 +906,61 @@ export interface Template {
   experiment_types: { name: string; description: string }[]
   tasks: { title: string; description: string; phase: string; priority: string }[]
 }
+
+// ── MCP ──────────────────────────────────────────────────────────────────────
+
+export interface MCPServerItem {
+  name: string; label: string; description: string; tags: string[]
+  transport: string; pip_package: string | null; env_key: string | null
+  env_hint: string; env_optional: boolean; installed: boolean
+}
+export interface MCPMarketplace { servers: MCPServerItem[]; tags: string[] }
+export interface MCPInstalledServer { name: string; transport: string; command: string | null; args: string[]; url: string | null }
+export interface MCPInstalled { servers: MCPInstalledServer[] }
+
+// ── Memory / Observations ────────────────────────────────────────────────────
+
+export interface ObservationItem {
+  id: string; title: string; body: string; memory_type: string; scope: string
+}
+export interface ObservationsList { observations: ObservationItem[]; total: number }
+export interface ObservationHit {
+  id: string; title: string; body: string; score: number; tags: string[]
+}
+export interface ObservationSearchResults { results: ObservationHit[] }
+
+// ── System Health ────────────────────────────────────────────────────────────
+
+export interface SystemHealth {
+  langgraph_dev: { running: boolean; url: string }
+  skills_available: number
+}
+
+export type IntegrationKind = 'annotation' | 'imaging' | 'compute' | 'identity'
+
+export interface IntegrationStatus {
+  key: string
+  name: string
+  /** Subpath of this host that the service is published under, e.g. "/cvat/". */
+  path: string
+  kind: IntegrationKind
+  description: string
+  up: boolean
+  http_status: number | null
+  latency_ms: number
+}
+
+// ── Models ────────────────────────────────────────────────────────────────────
+
+export interface ModelEntry { short_name: string; model_id: string }
+export interface ModelProvider { name: string; models: ModelEntry[] }
+export interface ModelsResponse { providers: ModelProvider[]; default_model: string }
+export interface CurrentModel { current_model: string | null; current_provider: string | null; default_model: string }
+
+// ── Cron Schedules ────────────────────────────────────────────────────────────
+
+export interface ScheduleItem {
+  cron_id: string; name: string; schedule: string; prompt: string
+  enabled: boolean; created_at: string; updated_at: string
+}
+export interface ScheduleList { schedules: ScheduleItem[] }

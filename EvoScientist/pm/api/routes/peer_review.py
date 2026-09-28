@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import os
-from pathlib import Path
-
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 
+from ....paths import RUNS_DIR
+from ..._evoscientist import get_runner_url
 from ...crud.publications import (
     create_review,
     get_publication,
@@ -21,7 +20,7 @@ from ..deps import get_current_user
 from ..schemas import ReviewAssignmentRequest
 
 router = APIRouter()
-RUNNER_URL = os.getenv("RUNNER_URL", "http://127.0.0.1:8001")
+RUNNER_URL = get_runner_url()
 
 _REVIEW_PROMPT = """You are an expert peer reviewer for a scientific journal. Review the publication context below and produce a structured review.
 
@@ -118,8 +117,7 @@ async def generate_ai_review(
     prompt = _REVIEW_PROMPT.format(title=pub.title, abstract=pub.abstract or "(no abstract)", context=context)
 
     run_id = f"review-{pub_id}-{__import__('time').time():.0f}"
-    workspace_base = os.getenv("EVOSCIENTIST_WORKSPACE_DIR", str(Path.home() / "evoscientist" / "runs"))
-    workspace_dir = str(Path(workspace_base) / "reviews" / run_id)
+    workspace_dir = str(RUNS_DIR / "reviews" / run_id)
 
     background_tasks.add_task(_run_ai_review, pub_id, run_id, prompt, workspace_dir)
     return {"status": "started", "publication_id": pub_id}

@@ -34,6 +34,11 @@ export function PublicationsPage() {
     },
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: (pubId: string) => api.deletePublication(pubId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['publications'] }),
+  })
+
   const inputStyle: React.CSSProperties = {
     padding: '9px 12px', background: 'var(--surface-input)',
     border: '1px solid var(--border)', borderRadius: 7,
@@ -122,14 +127,26 @@ export function PublicationsPage() {
                       created {new Date(p.created_at).toLocaleDateString()}
                     </div>
                   </div>
-                  <span style={{
-                    fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)',
-                    color: STATUS_COLORS[p.status] || '#6b7280',
-                    background: `${STATUS_COLORS[p.status] || '#6b7280'}14`,
-                    border: `1px solid ${STATUS_COLORS[p.status] || '#6b7280'}30`,
-                    borderRadius: 4, padding: '2px 8px', whiteSpace: 'nowrap',
-                    letterSpacing: '0.06em',
-                  }}>{p.status.toUpperCase()}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                    <span style={{
+                      fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                      color: STATUS_COLORS[p.status] || '#6b7280',
+                      background: `${STATUS_COLORS[p.status] || '#6b7280'}14`,
+                      border: `1px solid ${STATUS_COLORS[p.status] || '#6b7280'}30`,
+                      borderRadius: 4, padding: '2px 8px', whiteSpace: 'nowrap',
+                      letterSpacing: '0.06em',
+                    }}>{p.status.toUpperCase()}</span>
+                    <button onClick={e => { e.stopPropagation(); if (confirm('Delete this publication?')) deleteMutation.mutate(p.id) }}
+                      style={{
+                        cursor: 'pointer', padding: '3px 10px', fontSize: 13, fontWeight: 700,
+                        fontFamily: 'var(--font-mono)',
+                        background: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.15)',
+                        borderRadius: 4, color: '#f43f5e', transition: 'background 0.14s',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(244,63,94,0.14)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(244,63,94,0.06)' }}
+                    >DELETE</button>
+                  </div>
                 </div>
               </div>
             ))}

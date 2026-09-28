@@ -21,7 +21,14 @@ export function Login() {
     const token = params.get('token')
     if (token) {
       sessionStorage.setItem('pm_token', token)
-      window.location.href = '/projects'
+      fetch('/api/v1/users/me', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.json())
+        .then(u => {
+          sessionStorage.setItem('pm_username', u.username)
+          sessionStorage.setItem('pm_admin', String(u.is_admin))
+        })
+        .catch(() => {})
+        .finally(() => { window.location.href = '/projects' })
     }
   }, [])
 
@@ -68,7 +75,7 @@ export function Login() {
         animation: 'fadeInUp 0.3s ease',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-          <img src="/sabita.jpg" alt="SABITA" style={{ height: 38, borderRadius: 6 }} />
+          <img src="/medipolLogo.png" alt="Medipol" style={{ height: 38, borderRadius: 6 }} />
           <div style={{ fontFamily: 'var(--font-mono)', fontSize: 15, color: 'var(--text-dim)', letterSpacing: '0.1em', lineHeight: 1.5 }}>
             RESEARCH · PM
           </div>
@@ -84,7 +91,7 @@ export function Login() {
           }}>{error}</div>
         )}
 
-        {(['USERNAME', 'PASSWORD'] as const).map((label, i) => (
+        {(['USERNAME OR EMAIL', 'PASSWORD'] as const).map((label, i) => (
           <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
             <label style={{
               fontSize: 15, fontWeight: 700, color: 'var(--text-dim)',
@@ -92,7 +99,7 @@ export function Login() {
             }}>{label}</label>
             <input
               type={i === 1 ? 'password' : 'text'}
-              placeholder={i === 1 ? '••••••••' : 'username'}
+              placeholder={i === 1 ? '••••••••' : 'username or e-mail'}
               value={i === 0 ? username : password}
               onChange={e => i === 0 ? setUsername(e.target.value) : setPassword(e.target.value)}
               required

@@ -1,3 +1,5 @@
+"""CRUD operations for LabWikiPage entities."""
+
 from __future__ import annotations
 
 import json
@@ -14,6 +16,20 @@ def _slugify(title: str) -> str:
     return re.sub(r"[^a-z0-9-]", "", title.lower().replace(" ", "-"))[:80]
 
 
+def _row_to_page(r) -> LabWikiPage:
+    return LabWikiPage(
+        id=r["id"],
+        lab_id=r["lab_id"],
+        title=r["title"],
+        slug=r["slug"],
+        content=r["content"],
+        tags=json.loads(r["tags"]) if isinstance(r["tags"], str) else [],
+        created_by=r["created_by"],
+        created_at=r["created_at"],
+        updated_at=r["updated_at"],
+    )
+
+
 def create_page(
     db_path: Path,
     lab_id: str,
@@ -22,7 +38,8 @@ def create_page(
     tags: list[str] | None = None,
     created_by: str = "agent",
 ) -> LabWikiPage:
-    pid, now = uuid.uuid4().hex, datetime.now(UTC).isoformat()
+    pid = uuid.uuid4().hex
+    now = datetime.now(UTC).isoformat()
     slug = _slugify(title)
     with get_db(db_path) as conn:
         conn.execute(
@@ -57,17 +74,7 @@ def list_pages(
 ) -> list[LabWikiPage]:
     with get_db(db_path) as conn:
         return [
-            LabWikiPage(
-                id=r["id"],
-                lab_id=r["lab_id"],
-                title=r["title"],
-                slug=r["slug"],
-                content=r["content"],
-                tags=json.loads(r["tags"]) if isinstance(r["tags"], str) else [],
-                created_by=r["created_by"],
-                created_at=r["created_at"],
-                updated_at=r["updated_at"],
-            )
+            _row_to_page(r)
             for r in conn.execute(
                 "SELECT * FROM lab_wiki_pages WHERE lab_id=? ORDER BY updated_at DESC LIMIT ? OFFSET ?",
                 (lab_id, limit, offset),
@@ -80,21 +87,7 @@ def get_page(db_path: Path, page_id: str) -> LabWikiPage | None:
         r = conn.execute(
             "SELECT * FROM lab_wiki_pages WHERE id=?", (page_id,)
         ).fetchone()
-    return (
-        LabWikiPage(
-            id=r["id"],
-            lab_id=r["lab_id"],
-            title=r["title"],
-            slug=r["slug"],
-            content=r["content"],
-            tags=json.loads(r["tags"]) if isinstance(r["tags"], str) else [],
-            created_by=r["created_by"],
-            created_at=r["created_at"],
-            updated_at=r["updated_at"],
-        )
-        if r
-        else None
-    )
+    return _row_to_page(r) if r else None
 
 
 def get_page_by_slug(db_path: Path, lab_id: str, slug: str) -> LabWikiPage | None:
@@ -102,21 +95,7 @@ def get_page_by_slug(db_path: Path, lab_id: str, slug: str) -> LabWikiPage | Non
         r = conn.execute(
             "SELECT * FROM lab_wiki_pages WHERE lab_id=? AND slug=?", (lab_id, slug)
         ).fetchone()
-    return (
-        LabWikiPage(
-            id=r["id"],
-            lab_id=r["lab_id"],
-            title=r["title"],
-            slug=r["slug"],
-            content=r["content"],
-            tags=json.loads(r["tags"]) if isinstance(r["tags"], str) else [],
-            created_by=r["created_by"],
-            created_at=r["created_at"],
-            updated_at=r["updated_at"],
-        )
-        if r
-        else None
-    )
+    return _row_to_page(r) if r else None
 
 
 def update_page(

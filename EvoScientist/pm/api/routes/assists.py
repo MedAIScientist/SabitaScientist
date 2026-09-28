@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 import json
-import os
-from pathlib import Path
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
+from ....paths import RUNS_DIR
+from ..._evoscientist import get_runner_url
 from ...crud.assists import (
     create_assist,
     get_assist,
@@ -27,7 +27,7 @@ from ..schemas import AssistCreate, AssistResponse
 router = APIRouter()
 global_router = APIRouter()
 
-RUNNER_URL = os.getenv("RUNNER_URL", "http://127.0.0.1:8001")
+RUNNER_URL = get_runner_url()
 _MAX_ENTRY_BODY = 500  # chars per entry body in context snapshot
 
 
@@ -185,10 +185,7 @@ async def create_experiment_assist(
         created_by=current_user.id,
     )
 
-    workspace_base = os.getenv(
-        "EVOSCIENTIST_WORKSPACE_DIR", str(Path.home() / "evoscientist" / "runs")
-    )
-    workspace_dir = str(Path(workspace_base) / "assists" / assist.id)
+    workspace_dir = str(RUNS_DIR / "assists" / assist.id)
 
     background_tasks.add_task(_notify_runner, assist.id, body.agent_type, full_prompt, workspace_dir)
     return _assist_to_response(assist)

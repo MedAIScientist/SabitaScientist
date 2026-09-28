@@ -14,6 +14,7 @@ describe('BulkActionBar', () => {
       <BulkActionBar
         count={3}
         phases={PHASES}
+        statusOptions={[{ value: 'done', label: 'COMPLETE' }]}
         onStatusChange={vi.fn()}
         onPhaseChange={vi.fn()}
         onClear={vi.fn()}
@@ -28,6 +29,7 @@ describe('BulkActionBar', () => {
       <BulkActionBar
         count={2}
         phases={PHASES}
+        statusOptions={[{ value: 'done', label: 'COMPLETE' }]}
         onStatusChange={onStatusChange}
         onPhaseChange={vi.fn()}
         onClear={vi.fn()}
@@ -45,6 +47,7 @@ describe('BulkActionBar', () => {
       <BulkActionBar
         count={2}
         phases={PHASES}
+        statusOptions={[{ value: 'done', label: 'COMPLETE' }]}
         onStatusChange={vi.fn()}
         onPhaseChange={onPhaseChange}
         onClear={vi.fn()}
@@ -62,6 +65,7 @@ describe('BulkActionBar', () => {
       <BulkActionBar
         count={2}
         phases={PHASES}
+        statusOptions={[{ value: 'done', label: 'COMPLETE' }]}
         onStatusChange={vi.fn()}
         onPhaseChange={onPhaseChange}
         onClear={vi.fn()}
@@ -79,6 +83,7 @@ describe('BulkActionBar', () => {
       <BulkActionBar
         count={2}
         phases={PHASES}
+        statusOptions={[{ value: 'done', label: 'COMPLETE' }]}
         onStatusChange={vi.fn()}
         onPhaseChange={vi.fn()}
         onClear={onClear}

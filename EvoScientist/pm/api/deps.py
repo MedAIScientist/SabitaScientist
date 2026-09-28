@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import Depends, Header, HTTPException, status
 
 from ..auth import validate_token
+from ..crud.labs import get_member_role as get_lab_member_role
 from ..crud.projects import get_member_role
 from ..crud.users import get_user_by_id
 from ..db import get_db_path
@@ -67,6 +68,62 @@ def require_project_role(*allowed_roles: str):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"Role '{role}' not permitted here",
+            )
+        return current_user
+
+    return _dep
+
+
+def require_lab_role(*allowed_roles: str):
+    """Return a dependency that checks the caller's role in a lab.
+
+    Mirrors require_project_role(), with three deliberate differences:
+
+    * The role comes from ``lab_members`` (crud.labs.get_member_role), not
+      ``project_members``.
+    * A platform admin (``is_admin``) is always allowed, member or not — the
+      platform admin is the superuser across this whole platform.
+    * A non-member gets 403, not 404. Labs are already listable by any
+      authenticated user (``GET /labs``), so hiding their existence here would
+      be theatre; the detail names the requirement instead.
+    """
+
+    def _dep(lab_id: str, current_user: User = Depends(get_current_user)) -> User:
+        if current_user.is_admin:
+            return current_user
+        role = get_lab_member_role(get_db_path(), lab_id, current_user.id)
+        if role is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"lab membership required ({' or '.join(allowed_roles)})",
+            )
+        if role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Role '{role}' not permitted here",
+            )
+        return current_user
+
+    return _dep
+
+
+def require_lab_member():
+    """Return a dependency that requires lab membership in any role.
+
+    For read-ish lab endpoints (wiki, research impact): every role in
+    ``lab_members`` is accepted, a platform admin is always allowed, and a
+    non-member gets 403 with the requirement named — same reasoning as
+    require_lab_role().
+    """
+
+    def _dep(lab_id: str, current_user: User = Depends(get_current_user)) -> User:
+        if current_user.is_admin:
+            return current_user
+        role = get_lab_member_role(get_db_path(), lab_id, current_user.id)
+        if role is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="lab membership required (any role)",
             )
         return current_user
 

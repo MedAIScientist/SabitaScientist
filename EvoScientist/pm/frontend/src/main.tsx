@@ -16,8 +16,7 @@ import { Setup } from './pages/Setup'
 import { ProjectReportPage } from './pages/ProjectReportPage'
 import { GlobalReportPage }   from './pages/GlobalReportPage'
 import { UsersPage }          from './pages/UsersPage'
-import { AdmissionsPage }     from './pages/AdmissionsPage'
-import { AdmissionDetail }    from './pages/AdmissionDetail'
+
 import { LabsPage }           from './pages/LabsPage'
 import { LabDetail }          from './pages/LabDetail'
 import { AdminDashboard }     from './pages/AdminDashboard'
@@ -31,6 +30,12 @@ import { WikiPages }          from './pages/WikiPages'
 import { WikiPageView }       from './pages/WikiPageView'
 import { PublicationsPage }   from './pages/PublicationsPage'
 import { PublicationDetail }  from './pages/PublicationDetail'
+import { MCPPage }            from './pages/MCPPage'
+import { MemoryPage }         from './pages/MemoryPage'
+import { SystemHealthPage }   from './pages/SystemHealthPage'
+import { SettingsPage }       from './pages/SettingsPage'
+import { HelpPage }           from './pages/HelpPage'
+import { AppsPage }           from './pages/AppsPage'
 
 const queryClient = new QueryClient()
 
@@ -60,8 +65,6 @@ function App() {
         <Route path="/reports"             element={<PrivateRoute><GlobalReportPage /></PrivateRoute>} />
         <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />
         <Route path="/users"   element={<PrivateRoute><UsersPage /></PrivateRoute>} />
-        <Route path="/admissions"       element={<PrivateRoute><AdmissionsPage /></PrivateRoute>} />
-        <Route path="/admissions/:id"   element={<PrivateRoute><AdmissionDetail /></PrivateRoute>} />
         <Route path="/labs"            element={<PrivateRoute><LabsPage /></PrivateRoute>} />
         <Route path="/labs/:id"        element={<PrivateRoute><LabDetail /></PrivateRoute>} />
         <Route path="/labs/:id/impact" element={<PrivateRoute><ImpactPage /></PrivateRoute>} />
@@ -75,6 +78,12 @@ function App() {
         <Route path="/labs/:id/wiki/:slug" element={<PrivateRoute><WikiPageView /></PrivateRoute>} />
         <Route path="/publications"    element={<PrivateRoute><PublicationsPage /></PrivateRoute>} />
         <Route path="/publications/:id" element={<PrivateRoute><PublicationDetail /></PrivateRoute>} />
+        <Route path="/mcp"       element={<PrivateRoute><MCPPage /></PrivateRoute>} />
+        <Route path="/memory"    element={<PrivateRoute><MemoryPage /></PrivateRoute>} />
+        <Route path="/apps"      element={<PrivateRoute><AppsPage /></PrivateRoute>} />
+        <Route path="/health"    element={<PrivateRoute><SystemHealthPage /></PrivateRoute>} />
+        <Route path="/settings"  element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
+        <Route path="/help"      element={<PrivateRoute><HelpPage /></PrivateRoute>} />
         {!needsSetup && <Route path="*" element={<Navigate to="/projects" replace />} />}
       </Routes>
     </BrowserRouter>

@@ -115,7 +115,18 @@ def create_version(
     created_by: str,
     notes: str | None = None,
     file_path: str | None = None,
+    content: str | None = None,
+    section: str | None = None,
+    generated_by: str | None = None,
+    model: str | None = None,
+    prompt_hash: str | None = None,
 ) -> PublicationVersion:
+    """Create the next version of a publication.
+
+    ``content`` holds the full draft text. It is stored in the database rather
+    than only on disk so the text survives container restarts and can actually
+    be served back to the author.
+    """
     ver_id = uuid.uuid4().hex
     now = datetime.now(UTC).isoformat()
     with get_db(db_path) as conn:
@@ -126,9 +137,11 @@ def create_version(
         new_ver = max_ver + 1
         conn.execute(
             """INSERT INTO publication_versions
-               (id, publication_id, version, file_path, notes, created_by, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (ver_id, publication_id, new_ver, file_path, notes, created_by, now),
+               (id, publication_id, version, file_path, notes, created_by, created_at,
+                content, section, generated_by, model, prompt_hash)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (ver_id, publication_id, new_ver, file_path, notes, created_by, now,
+             content, section, generated_by, model, prompt_hash),
         )
     return PublicationVersion(
         id=ver_id,
@@ -138,6 +151,11 @@ def create_version(
         notes=notes,
         created_by=created_by,
         created_at=now,
+        content=content,
+        section=section,
+        generated_by=generated_by,
+        model=model,
+        prompt_hash=prompt_hash,
     )
 
 
@@ -147,15 +165,33 @@ def list_versions(db_path: Path, publication_id: str) -> list[PublicationVersion
             "SELECT * FROM publication_versions WHERE publication_id = ? ORDER BY version DESC",
             (publication_id,),
         ).fetchall()
-    return [
-        PublicationVersion(
-            id=r["id"], publication_id=r["publication_id"],
-            version=r["version"], file_path=r["file_path"],
-            notes=r["notes"], created_by=r["created_by"],
-            created_at=r["created_at"],
-        )
-        for r in rows
-    ]
+    return [_row_to_version(r) for r in rows]
+
+
+def get_version(db_path: Path, version_id: str) -> PublicationVersion | None:
+    """Return one version including its full text, or None."""
+    with get_db(db_path) as conn:
+        row = conn.execute(
+            "SELECT * FROM publication_versions WHERE id = ?", (version_id,)
+        ).fetchone()
+    return _row_to_version(row) if row else None
+
+
+def _row_to_version(row) -> PublicationVersion:
+    return PublicationVersion(
+        id=row["id"],
+        publication_id=row["publication_id"],
+        version=row["version"],
+        file_path=row["file_path"],
+        notes=row["notes"],
+        created_by=row["created_by"],
+        created_at=row["created_at"],
+        content=row["content"],
+        section=row["section"],
+        generated_by=row["generated_by"],
+        model=row["model"],
+        prompt_hash=row["prompt_hash"],
+    )
 
 
 def create_review(

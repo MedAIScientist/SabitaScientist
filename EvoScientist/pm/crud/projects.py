@@ -29,6 +29,13 @@ def create_project(
             "INSERT INTO project_members (project_id, user_id, role, added_at) VALUES (?, ?, ?, ?)",
             (project_id, created_by, "owner", now),
         )
+    # The platform hooks live HERE, not in the HTTP route, because the route is not the
+    # only caller: the AI assistant's pm_create_project tool and accept_admission both
+    # come straight to crud. A project whose bucket was never provisioned and whose owner
+    # was never pushed looks fine in Medai and is invisible from a notebook.
+    from ..platform_push import announce_new_project
+
+    announce_new_project(db_path, project_id, created_by)
     return Project(
         id=project_id,
         name=name,
@@ -76,6 +83,9 @@ def add_member(db_path: Path, project_id: str, user_id: str, role: str) -> Membe
             "INSERT INTO project_members (project_id, user_id, role, added_at) VALUES (?, ?, ?, ?)",
             (project_id, user_id, role, now),
         )
+    from ..platform_push import announce_membership_change
+
+    announce_membership_change(db_path, user_id)
     return Member(project_id=project_id, user_id=user_id, role=role, added_at=now)
 
 
@@ -86,6 +96,12 @@ def remove_member(db_path: Path, project_id: str, user_id: str) -> bool:
             "DELETE FROM project_members WHERE project_id = ? AND user_id = ?",
             (project_id, user_id),
         )
+    if cur.rowcount > 0:
+        # The push carries the FULL remaining membership, so a hard delete needs no
+        # soft-delete column: the shorter list IS the revocation.
+        from ..platform_push import announce_membership_change
+
+        announce_membership_change(db_path, user_id)
     return cur.rowcount > 0
 
 

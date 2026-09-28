@@ -4,12 +4,18 @@ from __future__ import annotations
 
 import sqlite3
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from EvoScientist.pm.models import Attachment
 
+_COLUMNS = "id, entry_id, filename, s3_key, content_type, size_bytes, uploaded_by, created_at, classification"
+
 
 def _row_to_attachment(row: sqlite3.Row) -> Attachment:
+    try:
+        classification = row["classification"]
+    except (KeyError, IndexError):
+        classification = "unclassified"
     return Attachment(
         id=row["id"],
         entry_id=row["entry_id"],
@@ -19,6 +25,7 @@ def _row_to_attachment(row: sqlite3.Row) -> Attachment:
         size_bytes=row["size_bytes"],
         uploaded_by=row["uploaded_by"],
         created_at=row["created_at"],
+        classification=classification,
     )
 
 
@@ -30,18 +37,24 @@ def create_attachment(
     content_type: str,
     size_bytes: int,
     user_id: str | None = None,
+    classification: str = "unclassified",
 ) -> Attachment:
     """Insert a new attachment record and return it."""
     attachment_id = str(uuid.uuid4())
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     db.execute(
-        """
-        INSERT INTO attachments (id, entry_id, filename, s3_key, content_type,
-                                  size_bytes, uploaded_by, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """,
-        (attachment_id, entry_id, filename, s3_key, content_type,
-         size_bytes, user_id, now),
+        f"INSERT INTO attachments ({_COLUMNS}) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            attachment_id,
+            entry_id,
+            filename,
+            s3_key,
+            content_type,
+            size_bytes,
+            user_id,
+            now,
+            classification,
+        ),
     )
     return Attachment(
         id=attachment_id,
@@ -52,6 +65,7 @@ def create_attachment(
         size_bytes=size_bytes,
         uploaded_by=user_id,
         created_at=now,
+        classification=classification,
     )
 
 
@@ -64,14 +78,23 @@ def list_attachments(db: sqlite3.Connection, entry_id: str) -> list[Attachment]:
     return [_row_to_attachment(r) for r in rows]
 
 
-def get_attachment(
-    db: sqlite3.Connection, attachment_id: str
-) -> Attachment | None:
+def get_attachment(db: sqlite3.Connection, attachment_id: str) -> Attachment | None:
     """Return an attachment by its primary key, or None if not found."""
     row = db.execute(
         "SELECT * FROM attachments WHERE id = ?", (attachment_id,)
     ).fetchone()
     return _row_to_attachment(row) if row else None
+
+
+def update_attachment_classification(
+    db: sqlite3.Connection, attachment_id: str, classification: str
+) -> Attachment | None:
+    """Update the data classification of an attachment."""
+    db.execute(
+        "UPDATE attachments SET classification = ? WHERE id = ?",
+        (classification, attachment_id),
+    )
+    return get_attachment(db, attachment_id)
 
 
 def delete_attachment(db: sqlite3.Connection, attachment_id: str) -> None:

@@ -18,6 +18,7 @@ from ...crud.projects import (
 )
 from ...crud.users import get_user_by_id
 from ...db import get_db, get_db_path
+from ...platform_push import project_member_emails, push_researchers
 from ...models import User
 from ..audit_helper import log_action
 from ..deps import get_current_user, require_project_role
@@ -88,6 +89,8 @@ def create_new_project(
         db, name=body.name, description=body.description, created_by=current_user.id, lab_id=body.lab_id
     )
     log_action(request, current_user, "create", "project", project.id, f"name={project.name}")
+    # (The bucket and the membership push happen inside create_project itself, so
+    # every caller — this route, the AI assistant's tool, an admission — gets them.)
     return _project_to_response(project, db)
 
 
@@ -113,6 +116,12 @@ def update_existing_project(
     """Update project name/description/archive (owner only)."""
     db = get_db_path()
     archived_at = datetime.now(UTC).isoformat() if body.archive else None
+    # Archiving (or un-archiving) changes what every member is entitled to,
+    # because an archived project's bucket is in nobody's session. Collected
+    # unconditionally because this route writes archived_at on EVERY call —
+    # archive defaults to False, so a plain rename un-archives — and the
+    # entitlement therefore moves whether or not the caller meant it to.
+    members = project_member_emails(db, project_id)
     project = update_project(
         db,
         project_id,
@@ -120,6 +129,7 @@ def update_existing_project(
         description=body.description,
         archived_at=archived_at,
     )
+    push_researchers(db, members)
     return _project_to_response(project, db)
 
 
@@ -128,8 +138,30 @@ def delete_existing_project(
     project_id: str,
     current_user: User = Depends(require_project_role("owner")),
 ):
-    """Delete a project (owner only)."""
-    delete_project(get_db_path(), project_id)
+    """Delete a project (owner only) — refused while governance rows reference it.
+
+    irb_approvals cascades on project delete, so before this guard a project
+    owner could destroy the audit anchor of a live PHI cohort in one request
+    while the images survived in the buckets. Archive the project instead; the
+    governance history must outlive the workspace.
+    """
+    from ...crud.datasets import project_reference_counts
+
+    refs = {
+        k: v
+        for k, v in project_reference_counts(get_db_path(), project_id).items()
+        if v
+    }
+    if refs:
+        held = ", ".join(f"{v} {k}" for k, v in sorted(refs.items()))
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"project holds governance records ({held}); archive it instead",
+        )
+    db = get_db_path()
+    members = project_member_emails(db, project_id)
+    delete_project(db, project_id)
+    push_researchers(db, members)
 
 
 @router.post(

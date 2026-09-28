@@ -68,6 +68,11 @@ def test_conference_requires_auth(client) -> None:
 # --- IRB ------------------------------------------------------------------
 
 def test_irb_crud_round_trip(client, admin_token) -> None:
+    # Updated 2026-08-20 for the IRB lockdown: an IRB is born draft/submitted,
+    # approval is an admin transition FROM submitted WITH evidence (dates+docs),
+    # and the record is append-only forever — delete answers 403 and the row
+    # stays. The old version of this test encoded the self-service hole as the
+    # expected behaviour. Deep coverage lives in test_api_irb_lockdown.py.
     project_id = _make_project(client, admin_token)
     created = client.post(
         "/api/v1/irb",
@@ -76,6 +81,7 @@ def test_irb_crud_round_trip(client, admin_token) -> None:
             "institution": "Bogazici University",
             "protocol_number": "2026-42",
             "title": "Human subjects study",
+            "status": "submitted",
         },
         headers=_auth(admin_token),
     )
@@ -86,9 +92,21 @@ def test_irb_crud_round_trip(client, admin_token) -> None:
     assert got.status_code == 200
     assert got.json()["protocol_number"] == "2026-42"
 
-    assert client.put(f"/api/v1/irb/{iid}", json={"status": "approved"}, headers=_auth(admin_token)).status_code == 200
-    assert client.delete(f"/api/v1/irb/{iid}", headers=_auth(admin_token)).status_code == 204
-    assert client.get(f"/api/v1/irb/{iid}", headers=_auth(admin_token)).status_code == 404
+    # approval without evidence is refused; with evidence it lands and is attributed
+    assert client.put(f"/api/v1/irb/{iid}", json={"status": "approved"}, headers=_auth(admin_token)).status_code == 409
+    approved = client.put(
+        f"/api/v1/irb/{iid}",
+        json={"status": "approved", "approval_date": "2026-08-01",
+              "expiry_date": "2030-01-01", "documents": ["protocol.pdf"]},
+        headers=_auth(admin_token),
+    )
+    assert approved.status_code == 200
+    assert approved.json()["approved_by"]
+
+    # append-only: no deletion, ever — close it instead
+    assert client.delete(f"/api/v1/irb/{iid}", headers=_auth(admin_token)).status_code == 403
+    assert client.get(f"/api/v1/irb/{iid}", headers=_auth(admin_token)).status_code == 200
+    assert client.put(f"/api/v1/irb/{iid}", json={"status": "closed"}, headers=_auth(admin_token)).status_code == 200
 
 
 def test_irb_requires_auth(client) -> None:

@@ -65,9 +65,9 @@ class Run:
     id: str
     task_id: str
     project_id: str
-    agent_type: str       # 'research' | 'code' | 'data_analysis' | 'writing'
+    agent_type: str  # 'research' | 'code' | 'data_analysis' | 'writing'
     prompt: str
-    status: str           # 'pending' | 'running' | 'done' | 'failed' | 'cancelled'
+    status: str  # 'pending' | 'running' | 'done' | 'failed' | 'cancelled'
     created_by: str
     created_at: str
     output: str | None = None
@@ -81,7 +81,7 @@ class Experiment:
     id: str
     project_id: str
     name: str
-    status: str           # 'planned' | 'running' | 'completed'
+    status: str  # 'planned' | 'running' | 'completed'
     tags: list[str]
     created_by: str
     created_at: str
@@ -96,12 +96,29 @@ class Experiment:
 class ExperimentEntry:
     id: str
     experiment_id: str
-    type: str             # 'note' | 'result'
+    type: str  # 'note' | 'result'
     title: str
     body: str
     created_at: str
     updated_at: str
     author_id: str | None = None
+
+
+@dataclass
+class ExperimentMetric:
+    """A recorded numeric result. The only source of numbers for drafting."""
+
+    id: str
+    experiment_id: str
+    name: str
+    value: float
+    created_at: str
+    unit: str | None = None
+    split: str | None = None
+    n: int | None = None
+    stderr: float | None = None
+    source_attachment_id: str | None = None
+    recorded_by: str | None = None
 
 
 @dataclass
@@ -111,12 +128,12 @@ class ExperimentAssist:
     project_id: str
     prompt: str
     context_json: str
-    status: str          # 'pending'|'running'|'done'|'failed'|'cancelled'
+    status: str  # 'pending'|'running'|'done'|'failed'|'cancelled'
     created_by: str
     created_at: str
     output: str | None = None
     error: str | None = None
-    agent_type: str = "writing"      # 'research'|'code'|'data_analysis'|'writing'
+    agent_type: str = "writing"  # 'research'|'code'|'data_analysis'|'writing'
     target_field: str | None = None  # 'hypothesis'|'protocol'|'entry_body'|None
     finished_at: str | None = None
 
@@ -152,6 +169,7 @@ class Attachment:
     size_bytes: int
     created_at: str
     uploaded_by: str | None = None
+    classification: str = "unclassified"
 
 
 @dataclass
@@ -177,7 +195,7 @@ class LabMember:
 class Publication:
     id: str
     title: str
-    status: str       # draft|submitted|reviewing|accepted|published|rejected
+    status: str  # draft|submitted|reviewing|accepted|published|rejected
     authors: list[dict]
     created_by: str
     created_at: str
@@ -202,6 +220,11 @@ class PublicationVersion:
     created_by: str
     created_at: str
     file_path: str | None = None
+    content: str | None = None
+    section: str | None = None
+    generated_by: str | None = None  # 'ai-agent' | 'ai-direct' | 'human'
+    model: str | None = None  # None when the producing model is unknown
+    prompt_hash: str | None = None
 
 
 @dataclass
@@ -247,6 +270,47 @@ class Grant:
     end_date: str | None = None
     description: str | None = None
     pi_id: str | None = None
+    # Joined for display — the id alone is unreadable in a UI.
+    pi_username: str | None = None
+
+
+@dataclass
+class GrantBudgetItem:
+    id: str
+    grant_id: str
+    category: str
+    planned_amount: float
+    spent_amount: float
+    created_at: str
+    updated_at: str
+    description: str | None = None
+    position: int = 0
+
+
+@dataclass
+class GrantMilestone:
+    id: str
+    grant_id: str
+    title: str
+    kind: str
+    created_at: str
+    updated_at: str
+    due_date: str | None = None
+    completed_at: str | None = None
+    owner_id: str | None = None
+    notes: str | None = None
+    position: int = 0
+
+
+@dataclass
+class GrantMember:
+    id: str
+    grant_id: str
+    user_id: str
+    role: str
+    added_at: str
+    share_percent: float | None = None
+    username: str | None = None
 
 
 @dataclass
@@ -287,6 +351,56 @@ class IRBApproval:
     renewal_date: str | None = None
     documents: list[str] | None = None
     notes: str | None = None
+    approved_by: str | None = None
+    approved_at: str | None = None
+
+
+@dataclass
+class Dataset:
+    """Governance record of one delivered imaging cohort (v2 storage model)."""
+
+    id: str
+    name: str
+    purpose: str
+    lab_id: str
+    requested_by: str
+    status: str
+    generation: int
+    created_at: str
+    updated_at: str
+    modality: str | None = None
+    accession_list: list[str] | None = None
+    estimated_bytes: int | None = None
+    pi_approved_by: str | None = None
+    pi_approved_at: str | None = None
+    admin_approved_by: str | None = None
+    admin_approved_at: str | None = None
+    retention_until: str | None = None
+    pepper_generation: int = 1
+    bucket: str | None = None
+    sealed_at: str | None = None
+    content_root_sha256: str | None = None
+    renders: bool = True
+
+
+@dataclass
+class DatasetGrant:
+    """A dataset shared with one project — pending until an admin approves."""
+
+    id: str
+    dataset_id: str
+    project_id: str
+    granted_by: str
+    granted_at: str
+    admin_approved_by: str | None = None
+    admin_approved_at: str | None = None
+    expires_at: str | None = None
+    revoked_at: str | None = None
+    revoked_by: str | None = None
+    # Annotation staging intent (increment 4): a HUMAN asked for this dataset to appear as
+    # CVAT tasks in this project; the platform converges the mechanics. None = data-only grant.
+    cvat_project_id: int | None = None
+    task_size: int | None = None
 
 
 @dataclass
@@ -327,3 +441,121 @@ class Admission:
     aid_percentage: float | None = None
     aid_notes: str | None = None
     aid_at: str | None = None
+
+
+@dataclass
+class DeIDPipeline:
+    id: str
+    project_id: str
+    name: str
+    pipeline_type: str  # dicom, ehr, text, image, generic
+    config_json: str
+    created_by: str
+    created_at: str
+    updated_at: str
+    description: str | None = None
+
+
+@dataclass
+class DeIDPipelineRun:
+    id: str
+    pipeline_id: str
+    project_id: str
+    input_location: str
+    output_location: str
+    status: str  # pending, running, completed, failed, verified
+    created_by: str
+    created_at: str
+    irb_id: str | None = None
+    input_size_bytes: int | None = None
+    output_size_bytes: int | None = None
+    records_processed: int | None = None
+    phi_fields_removed: str | None = None  # JSON list
+    verification_status: str | None = None  # pending, passed, failed
+    verification_notes: str | None = None
+    error: str | None = None
+    started_at: str | None = None
+    completed_at: str | None = None
+
+
+@dataclass
+class Sandbox:
+    id: str
+    project_id: str
+    name: str
+    status: str  # provisioning, active, expiring, expired, terminated
+    spec_json: str
+    network_rules_json: str
+    created_by: str
+    created_at: str
+    updated_at: str
+    irb_id: str | None = None
+    storage_quota_bytes: int | None = None
+    access_url: str | None = None
+    provisioned_at: str | None = None
+    expires_at: str | None = None
+    terminated_at: str | None = None
+
+
+@dataclass
+class ExportRequest:
+    id: str
+    project_id: str
+    requested_by: str
+    file_name: str
+    file_type: str  # model_weights, aggregate_figure, coefficient_table, annotation_stats, documentation, other
+    status: str  # pending, approved, rejected
+    created_at: str
+    sandbox_id: str | None = None
+    reviewed_by: str | None = None
+    file_size_bytes: int | None = None
+    description: str | None = None
+    justification: str | None = None
+    reviewer_notes: str | None = None
+    reviewed_at: str | None = None
+
+
+@dataclass
+class TaskHistoryEntry:
+    id: str
+    task_id: str
+    change_type: str
+    created_at: str
+    changed_by: str | None = None
+    from_status: str | None = None
+    to_status: str | None = None
+    comment: str | None = None
+
+
+@dataclass
+class CVATProject:
+    id: str
+    project_id: str
+    cvat_id: int
+    name: str
+    status: str
+    created_by: str
+    created_at: str
+    updated_at: str
+    labels_json: str = "[]"
+    num_images: int = 0
+    num_annotations: int = 0
+    export_format: str = "COCO 1.0"
+    export_key: str | None = None
+
+
+@dataclass
+class WebKnossosDataset:
+    id: str
+    project_id: str
+    name: str
+    directory_name: str
+    status: str
+    created_by: str
+    created_at: str
+    updated_at: str
+    wk_id: str | None = None
+    voxel_count: str | None = None
+    segmentation_status: str = "pending"
+    num_skeletons: int = 0
+    num_volumes: int = 0

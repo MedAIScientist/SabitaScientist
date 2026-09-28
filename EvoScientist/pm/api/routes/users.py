@@ -16,7 +16,13 @@ from ...crud.users import (
 from ...db import get_db_path
 from ...models import User
 from ..deps import get_current_user, require_admin
-from ..schemas import UpdatePasswordRequest, UserCreate, UserResponse, UserSearchResult
+from ..schemas import (
+    UpdatePasswordRequest,
+    UserCreate,
+    UserResponse,
+    UserSearchResult,
+    UserUpdate,
+)
 
 router = APIRouter()
 
@@ -34,7 +40,7 @@ def _to_response(u: User) -> UserResponse:
 @router.get("", response_model=list[UserResponse])
 def list_all_users(_admin: User = Depends(require_admin)):
     """List all users (admin only)."""
-    return [_to_response(u) for u in list_users(get_db_path())]
+    return [_to_response(u) for u in list_users(get_db_path()) if not u.username.startswith("_")]
 
 
 @router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -86,13 +92,45 @@ def search_users_endpoint(
     ]
 
 
+@router.put("/{user_id}", response_model=UserResponse)
+def update_existing_user(
+    user_id: str,
+    body: UserUpdate,
+    _admin: User = Depends(require_admin),
+):
+    """Update user info (admin only)."""
+    from ...crud.users import update_user
+
+    user = update_user(
+        get_db_path(),
+        user_id=user_id,
+        username=body.username,
+        email=body.email,
+        is_admin=body.is_admin,
+    )
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return _to_response(user)
+
+
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_existing_user(user_id: str, _admin: User = Depends(require_admin)):
     """Delete a user (admin only)."""
-    if not delete_user(get_db_path(), user_id):
+    from ...platform_push import push_researcher
+
+    db = get_db_path()
+    # The address has to be read BEFORE the delete: it is the key the platform
+    # holds this person's entitlements under, and deleting the row takes it
+    # away. The push that follows says "no projects", which is what strips
+    # their access at the next session mint.
+    gone = get_user_by_id(db, user_id)
+    email = gone.email if gone else None
+    if not delete_user(db, user_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
+    if email:
+        push_researcher(db, email)
 
 
 @router.get("/setup/status")

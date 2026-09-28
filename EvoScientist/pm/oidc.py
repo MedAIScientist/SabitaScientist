@@ -1,9 +1,13 @@
-"""Microsoft O365 / Azure AD OIDC authentication for the PM API."""
+"""Generic OIDC authentication via discovery — works with Authentik, Microsoft, etc.
+
+When ``issuer_url`` is configured, uses OIDC discovery (``.well-known/openid-configuration``)
+to dynamically resolve authorize, token, and JWKS endpoints.
+Falls back to Microsoft-specific URLs when ``issuer_url`` is empty (backward compatible).
+"""
 
 from __future__ import annotations
 
 import logging
-import os
 from dataclasses import dataclass
 from typing import Any
 
@@ -11,15 +15,14 @@ import httpx
 from jwt import PyJWKClient
 from jwt import decode as jwt_decode
 
+from ._evoscientist import get_oidc_config
+
 logger = logging.getLogger(__name__)
 
-OIDC_CONFIG = {
-    "client_id": os.environ.get("OIDC_CLIENT_ID", ""),
-    "client_secret": os.environ.get("OIDC_CLIENT_SECRET", ""),
-    "tenant_id": os.environ.get("OIDC_TENANT_ID", "common"),
-    "redirect_uri": os.environ.get("OIDC_REDIRECT_URI", "http://localhost:7860/api/v1/auth/oidc/callback"),
-    "scope": os.environ.get("OIDC_SCOPE", "openid email profile"),
-}
+OIDC_CONFIG = get_oidc_config()
+
+# Lazily-populated OIDC discovery document
+_discovery_doc: dict | None = None
 
 
 @dataclass
@@ -35,11 +38,86 @@ def is_configured() -> bool:
     return bool(OIDC_CONFIG["client_id"] and OIDC_CONFIG["client_secret"])
 
 
-def get_authorization_url(state: str) -> str:
-    """Build the Azure AD authorize URL."""
+def _load_discovery() -> dict | None:
+    """Fetch and cache OIDC discovery document from issuer_url."""
+    global _discovery_doc
+    if _discovery_doc is not None:
+        return _discovery_doc
+    issuer_url = OIDC_CONFIG.get("issuer_url", "")
+    if not issuer_url:
+        _discovery_doc = None
+        return None
+    disc_url = issuer_url.rstrip("/") + "/.well-known/openid-configuration"
+    try:
+        resp = httpx.get(disc_url, timeout=10.0)
+        resp.raise_for_status()
+        _discovery_doc = resp.json()
+        return _discovery_doc
+    except Exception as exc:
+        logger.warning("OIDC discovery failed for %s: %s", issuer_url, exc)
+        _discovery_doc = None
+        return None
+
+
+def _discovery_url(key: str) -> str | None:
+    doc = _load_discovery()
+    if doc is None:
+        return None
+    val = doc.get(key)
+    if isinstance(val, str) and val:
+        return val
+    logger.warning("OIDC discovery doc missing '%s'", key)
+    return None
+
+
+def _authorize_url() -> str:
+    microsoft_url = (
+        f"https://login.microsoftonline.com/{OIDC_CONFIG['tenant_id']}"
+        "/oauth2/v2.0/authorize"
+    )
+    return _discovery_url("authorization_endpoint") or microsoft_url
+
+
+def _token_url() -> str:
+    microsoft_url = (
+        f"https://login.microsoftonline.com/{OIDC_CONFIG['tenant_id']}"
+        "/oauth2/v2.0/token"
+    )
+    return _discovery_url("token_endpoint") or microsoft_url
+
+
+def _jwks_url() -> str:
+    microsoft_url = (
+        f"https://login.microsoftonline.com/{OIDC_CONFIG['tenant_id']}"
+        "/discovery/v2.0/keys"
+    )
+    return _discovery_url("jwks_uri") or microsoft_url
+
+
+def _expected_issuer() -> str:
+    # Prefer the issuer the provider advertises in its own discovery document. That value is
+    # authoritative and is byte-for-byte what lands in the id_token "iss" claim — trailing
+    # slash included. Authentik advertises ".../application/o/<slug>/" WITH a trailing slash;
+    # rstrip("/")-ing the configured URL would drop it, and PyJWT's exact-string issuer check
+    # would then reject every token (InvalidIssuerError -> 401). Consulting discovery here also
+    # makes this consistent with _authorize_url/_token_url/_jwks_url, which already do.
+    # Provider-neutral: for Entra, discovery "issuer" equals the Microsoft fallback below, so
+    # the current Entra login is unchanged; when issuer_url is empty, discovery is unavailable
+    # and we fall through to exactly today's behaviour.
+    discovered = _discovery_url("issuer")
+    if discovered:
+        return discovered
+    issuer_url = OIDC_CONFIG.get("issuer_url", "")
+    if issuer_url:
+        return issuer_url.rstrip("/")
     tenant = OIDC_CONFIG["tenant_id"]
+    return f"https://login.microsoftonline.com/{tenant}/v2.0"
+
+
+def get_authorization_url(state: str) -> str:
+    """Build the OIDC authorize URL (discovery or Microsoft fallback)."""
     return (
-        f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize"
+        f"{_authorize_url()}"
         f"?client_id={OIDC_CONFIG['client_id']}"
         f"&response_type=code"
         f"&redirect_uri={OIDC_CONFIG['redirect_uri']}"
@@ -51,19 +129,19 @@ def get_authorization_url(state: str) -> str:
 
 async def exchange_code(code: str) -> OIDCUser | None:
     """Exchange an authorization code for an ID token and decode it."""
-    tenant = OIDC_CONFIG["tenant_id"]
-    token_url = f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token"
-
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(token_url, data={
-                "client_id": OIDC_CONFIG["client_id"],
-                "client_secret": OIDC_CONFIG["client_secret"],
-                "code": code,
-                "redirect_uri": OIDC_CONFIG["redirect_uri"],
-                "grant_type": "authorization_code",
-                "scope": OIDC_CONFIG["scope"],
-            })
+            resp = await client.post(
+                _token_url(),
+                data={
+                    "client_id": OIDC_CONFIG["client_id"],
+                    "client_secret": OIDC_CONFIG["client_secret"],
+                    "code": code,
+                    "redirect_uri": OIDC_CONFIG["redirect_uri"],
+                    "grant_type": "authorization_code",
+                    "scope": OIDC_CONFIG["scope"],
+                },
+            )
             if resp.status_code != 200:
                 logger.error("Token exchange failed: %s", resp.text)
                 return None
@@ -81,11 +159,10 @@ async def exchange_code(code: str) -> OIDCUser | None:
 
 
 def _decode_id_token(id_token: str) -> OIDCUser | None:
-    """Decode and verify an Azure AD ID token."""
+    """Decode and verify an OIDC ID token (any provider)."""
     try:
-        tenant = OIDC_CONFIG["tenant_id"]
-        issuer = f"https://login.microsoftonline.com/{tenant}/v2.0"
-        jwks_url = f"https://login.microsoftonline.com/{tenant}/discovery/v2.0/keys"
+        issuer = _expected_issuer()
+        jwks_url = _jwks_url()
 
         jwks_client = PyJWKClient(jwks_url)
         signing_key = jwks_client.get_signing_key_from_jwt(id_token)

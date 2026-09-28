@@ -96,7 +96,7 @@ export function AdmissionsPage() {
             onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
           >←</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <img src="/sabita.jpg" alt="SABITA" style={{ height: 26, borderRadius: 4 }} />
+            <img src="/medipolLogo.png" alt="Medipol" style={{ height: 26, borderRadius: 4 }} />
             <span style={{ color: 'var(--text-dim)', fontSize: 20, fontFamily: 'var(--font-mono)' }}>/</span>
             <span style={{ color: '#818cf8', fontSize: 21, fontFamily: 'var(--font-mono)' }}>admissions</span>
           </div>

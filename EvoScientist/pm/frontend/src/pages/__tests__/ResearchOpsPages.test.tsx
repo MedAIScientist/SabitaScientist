@@ -33,11 +33,26 @@ describe('GrantsPage', () => {
     expect(screen.getByText('Grants')).toBeInTheDocument()
   })
 
-  test('create form reveals title/funder fields on + NEW', () => {
+  test('create form reveals the full grant fields on + NEW', () => {
     render(<GrantsPage />)
     fireEvent.click(screen.getByText('+ NEW'))
     expect(screen.getByPlaceholderText('Project title')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('TÜBİTAK, TÜSEB, etc.')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('TÜBİTAK, TÜSEB, NIH…')).toBeInTheDocument()
+    // the amounts and dates the old two-field form could not capture
+    expect(screen.getByText('AMOUNT REQUESTED')).toBeInTheDocument()
+    expect(screen.getByText('AMOUNT AWARDED')).toBeInTheDocument()
+    expect(screen.getByText('START DATE')).toBeInTheDocument()
+    expect(screen.getByText('END DATE')).toBeInTheDocument()
+    expect(screen.getByText('DESCRIPTION')).toBeInTheDocument()
+  })
+
+  test('exposes search, status and sort controls', () => {
+    render(<GrantsPage />)
+    expect(
+      screen.getByPlaceholderText('search title, funder or description…')
+    ).toBeInTheDocument()
+    expect(screen.getByDisplayValue('all statuses')).toBeInTheDocument()
+    expect(screen.getByDisplayValue('newest first')).toBeInTheDocument()
   })
 })
 

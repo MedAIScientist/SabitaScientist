@@ -1,1 +1,1 @@
-"""EvoScientist PM runner service — wraps create_cli_agent for HTTP/SSE dispatch."""
+"""EvoScientist PM runner service — Groq API backed agent runs with HTTP/SSE dispatch."""

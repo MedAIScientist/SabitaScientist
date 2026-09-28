@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
-import { useDroppable } from '@dnd-kit/core'
+import { useDraggable, useDroppable } from '@dnd-kit/core'
+import { CSS } from '@dnd-kit/utilities'
 import { Task, Experiment } from '../../api'
 import { DraggableCard, ColumnDef } from './DraggableCard'
 
-// ── Experiment card (non-draggable) ──────────────────────────────────────────
+// ── Experiment card (draggable) ──────────────────────────────────────────────
 const EXP_ACCENT = '#10b981'
 const EXP_GLOW   = '16,185,129'
 
@@ -11,34 +12,57 @@ interface ExperimentCardProps {
   exp: Experiment
   idx: number
   onExpClick: (exp: Experiment) => void
+  isSelected: boolean
+  onToggleSelect: (expId: string) => void
 }
 
-function ExperimentCard({ exp, idx, onExpClick }: ExperimentCardProps) {
+function ExperimentCard({ exp, idx, onExpClick, isSelected, onToggleSelect }: ExperimentCardProps) {
   const [hovered, setHovered] = useState(false)
   const hypoSnippet = exp.hypothesis
     ? exp.hypothesis.slice(0, 70) + (exp.hypothesis.length > 70 ? '…' : '')
     : null
 
+  // Draggable with a prefixed id to avoid collision with task ids
+  const { attributes, listeners, setNodeRef, transform } = useDraggable({
+    id: `exp-${exp.id}`,
+  })
+
   return (
     <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
       onClick={() => onExpClick(exp)}
       style={{
         background: hovered ? `rgba(${EXP_GLOW},0.06)` : 'var(--surface-card)',
-        border: `1px solid ${hovered ? `rgba(${EXP_GLOW},0.3)` : `rgba(${EXP_GLOW},0.18)`}`,
+        border: isSelected ? `1px solid ${EXP_ACCENT}` : `1px solid ${hovered ? `rgba(${EXP_GLOW},0.3)` : `rgba(${EXP_GLOW},0.18)`}`,
         borderLeft: `3px solid ${EXP_ACCENT}`,
         borderRadius: 7,
         padding: '10px 13px',
-        cursor: 'pointer',
+        cursor: 'grab',
         animation: 'fadeInUp 0.22s ease both',
         animationDelay: `${idx * 0.035}s`,
         transition: 'background 0.14s, border-color 0.14s, box-shadow 0.14s',
         boxShadow: hovered
           ? `0 5px 18px rgba(0,0,0,0.22), 0 0 0 1px rgba(${EXP_GLOW},0.1)`
           : undefined,
+        transform: CSS.Transform.toString(transform) ?? undefined,
+        touchAction: 'none',
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
+      {/* Selection checkbox */}
+      {(hovered || isSelected) && (
+        <input
+          type="checkbox"
+          checked={isSelected}
+          readOnly
+          onPointerDown={e => e.stopPropagation()}
+          onClick={e => { e.stopPropagation(); onToggleSelect(exp.id) }}
+          style={{ position: 'absolute', top: 8, left: 8, accentColor: EXP_ACCENT, zIndex: 2 }}
+        />
+      )}
       {/* Badge */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
         <span style={{
@@ -50,15 +74,6 @@ function ExperimentCard({ exp, idx, onExpClick }: ExperimentCardProps) {
         }}>
           ⚗ EXP
         </span>
-        {exp.tags.slice(0, 2).map(tag => (
-          <span key={tag} style={{
-            fontSize: 18, fontFamily: 'var(--font-mono)',
-            color: 'var(--text-dim)',
-            background: 'var(--surface-2)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 3, padding: '1px 4px',
-          }}>{tag}</span>
-        ))}
       </div>
 
       <p style={{ margin: '0 0 5px', fontWeight: 500, fontSize: 21, lineHeight: 1.4, color: 'var(--text-heading)' }}>
@@ -76,6 +91,19 @@ function ExperimentCard({ exp, idx, onExpClick }: ExperimentCardProps) {
           Due {exp.deadline}
         </div>
       )}
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 6 }}>
+        <span style={{
+          fontSize: 13, fontWeight: 700, color: '#ff8015',
+          background: 'rgba(255,128,21,0.1)',
+          border: '1px solid rgba(255,128,21,0.3)',
+          borderRadius: 3, padding: '1px 5px',
+          fontFamily: 'var(--font-mono)', letterSpacing: '0.08em',
+          display: 'inline-flex', alignItems: 'center', gap: 3,
+        }}>
+          🔗 {exp.linked_task_count ?? 0}
+        </span>
+      </div>
     </div>
   )
 }
@@ -94,19 +122,21 @@ export interface DroppableColumnProps {
   onAddCancel: () => void
   onAddSubmit: (title: string) => void
   onCardClick: (task: Task) => void
-  onEditClick: (task: Task, rect: DOMRect) => void
   onExpClick: (exp: Experiment) => void
   members: { user_id: string; username: string }[]
   selectedIds: Set<string>
   onToggleSelect: (taskId: string) => void
+  selectedExpIds: Set<string>
+  onToggleExpSelect: (expId: string) => void
 }
 
 export function DroppableColumn({
   col, colTasks, colExps, isDropTarget, activeTaskId,
   addingToCol, newTaskTitle, onNewTaskTitleChange,
   onAddStart, onAddCancel, onAddSubmit,
-  onCardClick, onEditClick, onExpClick, members,
+  onCardClick, onExpClick, members,
   selectedIds, onToggleSelect,
+  selectedExpIds, onToggleExpSelect,
 }: DroppableColumnProps) {
   const { setNodeRef } = useDroppable({ id: col.key })
 
@@ -153,19 +183,22 @@ export function DroppableColumn({
           borderRadius: 9, padding: '1px 7px',
           fontFamily: 'var(--font-mono)',
         }}>
-          {col.label} · {colTasks.length + colExps.length}
+          {colTasks.length + colExps.length}
         </span>
       </div>
 
       {/* Cards */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '8px 9px 4px', display: 'flex', flexDirection: 'column', gap: 7 }}>
         {colExps.map((exp, idx) => (
-          <ExperimentCard
-            key={`exp-${exp.id}`}
-            exp={exp}
-            idx={idx}
-            onExpClick={onExpClick}
-          />
+          <div key={`exp-${exp.id}`} style={{ position: 'relative' }}>
+            <ExperimentCard
+              exp={exp}
+              idx={idx}
+              onExpClick={onExpClick}
+              isSelected={selectedExpIds.has(exp.id)}
+              onToggleSelect={onToggleExpSelect}
+            />
+          </div>
         ))}
         {colTasks.map((task, idx) => (
           <DraggableCard
@@ -175,7 +208,6 @@ export function DroppableColumn({
             idx={colExps.length + idx}
             activeTaskId={activeTaskId}
             onCardClick={onCardClick}
-            onEditClick={onEditClick}
             members={members}
             isSelected={selectedIds.has(task.id)}
             onToggleSelect={onToggleSelect}

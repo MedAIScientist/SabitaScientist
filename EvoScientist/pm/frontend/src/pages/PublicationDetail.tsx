@@ -11,6 +11,49 @@ const STATUS_COLORS: Record<string, string> = {
 
 type AITab = 'section' | 'revise' | 'review_response' | null
 
+/** Full text of one draft version, fetched on demand. */
+function VersionContent({ pubId, versionId }: { pubId: string; versionId: string }) {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['version', pubId, versionId],
+    queryFn: () => api.getVersion(pubId, versionId),
+  })
+
+  if (isLoading) return <div style={{ marginTop: 10, fontSize: 15, color: 'var(--text-dim)' }}>Loading draft…</div>
+  if (isError) return <div style={{ marginTop: 10, fontSize: 15, color: '#f43f5e' }}>Could not load this draft.</div>
+
+  return (
+    <pre style={{
+      marginTop: 10, marginBottom: 0, padding: 12, maxHeight: 420, overflow: 'auto',
+      background: 'var(--surface-2, rgba(0,0,0,0.15))', border: '1px solid var(--border)',
+      borderRadius: 6, fontSize: 15, lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+    }}>{data?.content || '(this version has no stored text)'}</pre>
+  )
+}
+
+/** Disclosure statement derived from the recorded version history. */
+function AiDisclosurePanel({ pubId }: { pubId: string }) {
+  const { data } = useQuery({
+    queryKey: ['ai-disclosure', pubId],
+    queryFn: () => api.getAiDisclosure(pubId),
+  })
+  if (!data) return null
+
+  return (
+    <div style={{
+      marginBottom: 28, padding: '12px 14px', background: 'var(--surface-card)',
+      border: '1px solid var(--border)', borderRadius: 7,
+    }}>
+      <div style={{
+        fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)',
+        color: 'var(--text-heading)', marginBottom: 6,
+      }}>
+        AI-USE DISCLOSURE ({data.ai_version_count} AI / {data.human_version_count} human)
+      </div>
+      <p style={{ margin: 0, fontSize: 16, lineHeight: 1.55, color: 'var(--text-2)' }}>{data.statement}</p>
+    </div>
+  )
+}
+
 const SECTIONS = [
   { id: 'abstract', label: 'Abstract' },
   { id: 'introduction', label: 'Introduction' },
@@ -39,6 +82,7 @@ export function PublicationDetail() {
   const [editDoi, setEditDoi] = useState('')
   const [showNewVersion, setShowNewVersion] = useState(false)
   const [versionNotes, setVersionNotes] = useState('')
+  const [openVersionId, setOpenVersionId] = useState<string | null>(null)
   const [showNewReview, setShowNewReview] = useState(false)
   const [reviewerName, setReviewerName] = useState('')
   const [reviewComments, setReviewComments] = useState('')
@@ -486,18 +530,45 @@ export function PublicationDetail() {
             {versions.map(v => (
               <div key={v.id} style={{
                 background: 'var(--surface-card)', border: '1px solid var(--border)',
-                borderRadius: 7, padding: '10px 14px', display: 'flex', justifyContent: 'space-between',
+                borderRadius: 7, padding: '10px 14px',
               }}>
-                <div>
-                  <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)', fontSize: 16 }}>v{v.version}</span>
-                  {v.notes && <span style={{ color: 'var(--text-2)', marginLeft: 10, fontSize: 16 }}>{v.notes}</span>}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono)', fontSize: 16 }}>v{v.version}</span>
+                    {v.section && <span style={{
+                      marginLeft: 8, padding: '1px 7px', borderRadius: 4, fontSize: 12, fontWeight: 700,
+                      fontFamily: 'var(--font-mono)', background: 'rgba(99,102,241,0.12)', color: '#6366f1',
+                    }}>{v.section}</span>}
+                    {v.generated_by?.startsWith('ai') && <span style={{
+                      marginLeft: 6, padding: '1px 7px', borderRadius: 4, fontSize: 12, fontWeight: 700,
+                      fontFamily: 'var(--font-mono)', background: 'rgba(245,158,11,0.12)', color: '#f59e0b',
+                    }} title={v.model ? `Model: ${v.model}` : 'Model not recorded'}>AI</span>}
+                    {v.notes && <span style={{ color: 'var(--text-2)', marginLeft: 10, fontSize: 16 }}>{v.notes}</span>}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {v.content_length > 0 && (
+                      <button
+                        onClick={() => setOpenVersionId(openVersionId === v.id ? null : v.id)}
+                        style={{
+                          cursor: 'pointer', padding: '2px 9px', background: 'rgba(16,185,129,0.1)',
+                          border: '1px solid rgba(16,185,129,0.28)', borderRadius: 5, color: '#10b981',
+                          fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                        }}
+                      >
+                        {openVersionId === v.id ? 'HIDE' : `VIEW (${v.content_length.toLocaleString()} ch)`}
+                      </button>
+                    )}
+                    <span style={{ fontSize: 13, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+                      {new Date(v.created_at).toLocaleDateString()}
+                    </span>
+                  </div>
                 </div>
-                <span style={{ fontSize: 13, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
-                  {new Date(v.created_at).toLocaleDateString()}
-                </span>
+                {openVersionId === v.id && <VersionContent pubId={id!} versionId={v.id} />}
               </div>
             ))}
           </div>
+
+          <AiDisclosurePanel pubId={id!} />
 
           {/* Reviews */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>

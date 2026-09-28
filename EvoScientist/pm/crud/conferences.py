@@ -1,3 +1,5 @@
+"""CRUD operations for Conference entities."""
+
 from __future__ import annotations
 
 import uuid
@@ -8,51 +10,92 @@ from ..db import get_db
 from ..models import Conference
 
 
-def create_conference(db_path: Path, **kw) -> Conference:
-    cid, now = uuid.uuid4().hex, datetime.now(UTC).isoformat()
+def _row_to_conference(r) -> Conference:
+    return Conference(
+        id=r["id"],
+        name=r["name"],
+        venue=r["venue"],
+        location=r["location"],
+        deadline=r["deadline"],
+        submission_date=r["submission_date"],
+        decision_date=r["decision_date"],
+        status=r["status"],
+        presentation_type=r["presentation_type"],
+        travel_funding=r["travel_funding"],
+        travel_notes=r["travel_notes"],
+        url=r["url"],
+        notes=r["notes"],
+        project_id=r["project_id"],
+        publication_id=r["publication_id"],
+        created_by=r["created_by"],
+        created_at=r["created_at"],
+        updated_at=r["updated_at"],
+    )
+
+
+def create_conference(
+    db_path: Path,
+    name: str,
+    created_by: str,
+    project_id: str | None = None,
+    publication_id: str | None = None,
+    venue: str | None = None,
+    location: str | None = None,
+    deadline: str | None = None,
+    submission_date: str | None = None,
+    decision_date: str | None = None,
+    status: str = "draft",
+    presentation_type: str = "poster",
+    travel_funding: float | None = None,
+    travel_notes: str | None = None,
+    url: str | None = None,
+    notes: str | None = None,
+) -> Conference:
+    cid = uuid.uuid4().hex
+    now = datetime.now(UTC).isoformat()
     with get_db(db_path) as conn:
         conn.execute(
             "INSERT INTO conferences (id,project_id,publication_id,name,venue,location,deadline,submission_date,decision_date,status,presentation_type,travel_funding,travel_notes,url,notes,created_by,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 cid,
-                kw.get("project_id"),
-                kw.get("publication_id"),
-                kw["name"],
-                kw.get("venue"),
-                kw.get("location"),
-                kw.get("deadline"),
-                kw.get("submission_date"),
-                kw.get("decision_date"),
-                kw.get("status", "draft"),
-                kw.get("presentation_type", "poster"),
-                kw.get("travel_funding"),
-                kw.get("travel_notes"),
-                kw.get("url"),
-                kw.get("notes"),
-                kw["created_by"],
+                project_id,
+                publication_id,
+                name,
+                venue,
+                location,
+                deadline,
+                submission_date,
+                decision_date,
+                status,
+                presentation_type,
+                travel_funding,
+                travel_notes,
+                url,
+                notes,
+                created_by,
                 now,
                 now,
             ),
         )
     return Conference(
         id=cid,
-        name=kw["name"],
-        status=kw.get("status", "draft"),
-        presentation_type=kw.get("presentation_type", "poster"),
-        created_by=kw["created_by"],
+        name=name,
+        venue=venue,
+        location=location,
+        deadline=deadline,
+        submission_date=submission_date,
+        decision_date=decision_date,
+        status=status,
+        presentation_type=presentation_type,
+        travel_funding=travel_funding,
+        travel_notes=travel_notes,
+        url=url,
+        notes=notes,
+        project_id=project_id,
+        publication_id=publication_id,
+        created_by=created_by,
         created_at=now,
         updated_at=now,
-        project_id=kw.get("project_id"),
-        publication_id=kw.get("publication_id"),
-        venue=kw.get("venue"),
-        location=kw.get("location"),
-        deadline=kw.get("deadline"),
-        submission_date=kw.get("submission_date"),
-        decision_date=kw.get("decision_date"),
-        travel_funding=kw.get("travel_funding"),
-        travel_notes=kw.get("travel_notes"),
-        url=kw.get("url"),
-        notes=kw.get("notes"),
     )
 
 
@@ -64,88 +107,72 @@ def list_conferences(
     limit: int = 50,
 ) -> list[Conference]:
     q = "SELECT * FROM conferences WHERE 1=1"
-    p: list = []
+    params: list = []
     if project_id:
         q += " AND project_id=?"
-        p.append(project_id)
+        params.append(project_id)
     if status:
         q += " AND status=?"
-        p.append(status)
+        params.append(status)
     q += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
-    p.extend([limit, offset])
+    params.extend([limit, offset])
     with get_db(db_path) as conn:
-        return [
-            Conference(
-                id=r["id"],
-                name=r["name"],
-                status=r["status"],
-                presentation_type=r["presentation_type"],
-                created_by=r["created_by"],
-                created_at=r["created_at"],
-                updated_at=r["updated_at"],
-                project_id=r["project_id"],
-                publication_id=r["publication_id"],
-                venue=r["venue"],
-                location=r["location"],
-                deadline=r["deadline"],
-                submission_date=r["submission_date"],
-                decision_date=r["decision_date"],
-                travel_funding=r["travel_funding"],
-                travel_notes=r["travel_notes"],
-                url=r["url"],
-                notes=r["notes"],
-            )
-            for r in conn.execute(q, p).fetchall()
-        ]
+        return [_row_to_conference(r) for r in conn.execute(q, params).fetchall()]
 
 
 def get_conference(db_path: Path, cid: str) -> Conference | None:
     with get_db(db_path) as conn:
         r = conn.execute("SELECT * FROM conferences WHERE id=?", (cid,)).fetchone()
-    return (
-        Conference(
-            id=r["id"],
-            name=r["name"],
-            status=r["status"],
-            presentation_type=r["presentation_type"],
-            created_by=r["created_by"],
-            created_at=r["created_at"],
-            updated_at=r["updated_at"],
-            project_id=r["project_id"],
-            publication_id=r["publication_id"],
-            venue=r["venue"],
-            location=r["location"],
-            deadline=r["deadline"],
-            submission_date=r["submission_date"],
-            decision_date=r["decision_date"],
-            travel_funding=r["travel_funding"],
-            travel_notes=r["travel_notes"],
-            url=r["url"],
-            notes=r["notes"],
-        )
-        if r
-        else None
-    )
+    return _row_to_conference(r) if r else None
 
 
-def update_conference(db_path: Path, cid: str, **kw) -> Conference | None:
-    allowed = {
-        "name",
-        "venue",
-        "location",
-        "deadline",
-        "submission_date",
-        "decision_date",
-        "status",
-        "presentation_type",
-        "travel_funding",
-        "travel_notes",
-        "url",
-        "notes",
-        "project_id",
-        "publication_id",
-    }
-    updates = {k: v for k, v in kw.items() if k in allowed and v is not None}
+def update_conference(
+    db_path: Path,
+    cid: str,
+    name: str | None = None,
+    venue: str | None = None,
+    location: str | None = None,
+    deadline: str | None = None,
+    submission_date: str | None = None,
+    decision_date: str | None = None,
+    status: str | None = None,
+    presentation_type: str | None = None,
+    travel_funding: float | None = None,
+    travel_notes: str | None = None,
+    url: str | None = None,
+    notes: str | None = None,
+    project_id: str | None = None,
+    publication_id: str | None = None,
+) -> Conference | None:
+    updates = {}
+    if name is not None:
+        updates["name"] = name
+    if venue is not None:
+        updates["venue"] = venue
+    if location is not None:
+        updates["location"] = location
+    if deadline is not None:
+        updates["deadline"] = deadline
+    if submission_date is not None:
+        updates["submission_date"] = submission_date
+    if decision_date is not None:
+        updates["decision_date"] = decision_date
+    if status is not None:
+        updates["status"] = status
+    if presentation_type is not None:
+        updates["presentation_type"] = presentation_type
+    if travel_funding is not None:
+        updates["travel_funding"] = travel_funding
+    if travel_notes is not None:
+        updates["travel_notes"] = travel_notes
+    if url is not None:
+        updates["url"] = url
+    if notes is not None:
+        updates["notes"] = notes
+    if project_id is not None:
+        updates["project_id"] = project_id
+    if publication_id is not None:
+        updates["publication_id"] = publication_id
     if updates:
         now = datetime.now(UTC).isoformat()
         set_clause = ", ".join(f"{k}=?" for k in updates)

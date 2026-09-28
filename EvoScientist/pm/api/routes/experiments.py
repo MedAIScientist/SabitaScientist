@@ -11,18 +11,25 @@ from ...crud.experiment_entries import (
     list_entries,
     update_entry,
 )
+from ...crud.experiment_metrics import (
+    create_metrics,
+    delete_metric,
+    list_metrics,
+)
 from ...crud.experiments import (
     create_experiment,
     delete_experiment,
     get_experiment,
     link_task,
     list_experiments,
+    list_experiments_for_task,
     list_linked_tasks,
     unlink_task,
     update_experiment,
 )
 from ...crud.tasks import get_task
 from ...db import get_db_path
+from ...metrics_csv import ParsedMetric
 from ...models import User
 from ..deps import require_project_role
 from ..schemas import (
@@ -30,6 +37,8 @@ from ..schemas import (
     ExperimentEntryCreate,
     ExperimentEntryResponse,
     ExperimentEntryUpdate,
+    ExperimentMetricCreate,
+    ExperimentMetricResponse,
     ExperimentResponse,
     ExperimentUpdate,
     TaskResponse,
@@ -56,7 +65,17 @@ def _exp_to_response(e) -> ExperimentResponse:
         created_at=e.created_at,
         updated_at=e.updated_at,
         phase_id=e.phase_id,
+        linked_task_count=_count_linked_tasks(e.id),
     )
+
+
+def _count_linked_tasks(exp_id: str) -> int:
+    from ...db import get_db
+    with get_db(get_db_path()) as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM experiment_tasks WHERE experiment_id = ?", (exp_id,)
+        ).fetchone()
+        return int(row[0]) if row else 0
 
 
 def _entry_to_response(e) -> ExperimentEntryResponse:
@@ -198,8 +217,12 @@ def link_task_to_experiment(
     body: _LinkTaskBody,
     current_user: User = Depends(require_project_role("owner", "editor")),
 ):
-    """Link a task to an experiment."""
-    _get_exp_or_404(project_id, exp_id)
+    """Link a task to an experiment.
+
+    The experiment automatically moves to the linked task's phase so it
+    appears in the same swimlane on the Kanban board.
+    """
+    exp = _get_exp_or_404(project_id, exp_id)
     task = get_task(get_db_path(), body.task_id)
     if not task or task.project_id != project_id:
         raise HTTPException(status_code=422, detail="Task does not belong to this project")
@@ -207,7 +230,14 @@ def link_task_to_experiment(
         link_task(get_db_path(), exp_id, body.task_id, linked_by=current_user.id)
     except ValueError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-    return {"experiment_id": exp_id, "task_id": body.task_id}
+    # Sync experiment phase to the linked task's phase
+    if task.phase_id and task.phase_id != exp.phase_id:
+        update_experiment(get_db_path(), exp_id, phase_id=task.phase_id)
+    return {
+        "experiment_id": exp_id,
+        "task_id": body.task_id,
+        "phase_id": task.phase_id,
+    }
 
 
 @router.delete(
@@ -237,6 +267,23 @@ def get_linked_tasks(
     """List all tasks linked to an experiment."""
     _get_exp_or_404(project_id, exp_id)
     return [_task_to_response(t) for t in list_linked_tasks(get_db_path(), exp_id)]
+
+
+@router.get(
+    "/{project_id}/tasks/{task_id}/experiments",
+    response_model=list[ExperimentResponse],
+)
+def get_experiments_for_task(
+    project_id: str,
+    task_id: str,
+    current_user: User = Depends(require_project_role("owner", "editor", "viewer")),
+):
+    """List all experiments linked to a task (reverse of task linking)."""
+    from ...crud.tasks import get_task as _get_task
+    task = _get_task(get_db_path(), task_id)
+    if not task or task.project_id != project_id:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return [_exp_to_response(e) for e in list_experiments_for_task(get_db_path(), task_id)]
 
 
 # ── Entries ───────────────────────────────────────────────────────────────────
@@ -316,3 +363,87 @@ def delete_experiment_entry(
     if not entry or entry.experiment_id != exp_id:
         raise HTTPException(status_code=404, detail="Entry not found")
     delete_entry(get_db_path(), entry_id)
+
+
+# ── Metrics ───────────────────────────────────────────────────────────────────
+
+
+def _metric_to_response(m) -> ExperimentMetricResponse:
+    return ExperimentMetricResponse(
+        id=m.id,
+        experiment_id=m.experiment_id,
+        name=m.name,
+        value=m.value,
+        unit=m.unit,
+        split=m.split,
+        n=m.n,
+        stderr=m.stderr,
+        source_attachment_id=m.source_attachment_id,
+        recorded_by=m.recorded_by,
+        created_at=m.created_at,
+    )
+
+
+@router.get(
+    "/{project_id}/experiments/{exp_id}/metrics",
+    response_model=list[ExperimentMetricResponse],
+    summary="List recorded numeric results for an experiment",
+)
+def list_experiment_metrics(
+    project_id: str,
+    exp_id: str,
+    current_user: User = Depends(require_project_role("owner", "editor", "viewer")),
+):
+    """Return every recorded metric. These are the only numbers AI drafting sees."""
+    _get_exp_or_404(project_id, exp_id)
+    return [_metric_to_response(m) for m in list_metrics(get_db_path(), exp_id)]
+
+
+@router.post(
+    "/{project_id}/experiments/{exp_id}/metrics",
+    response_model=ExperimentMetricResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Record a numeric result by hand",
+)
+def create_experiment_metric(
+    project_id: str,
+    exp_id: str,
+    body: ExperimentMetricCreate,
+    current_user: User = Depends(require_project_role("owner", "editor")),
+):
+    """Record one metric manually, for results that never arrive as a CSV."""
+    _get_exp_or_404(project_id, exp_id)
+    created = create_metrics(
+        get_db_path(),
+        experiment_id=exp_id,
+        metrics=[
+            ParsedMetric(
+                name=body.name,
+                value=body.value,
+                unit=body.unit,
+                split=body.split,
+                n=body.n,
+                stderr=body.stderr,
+            )
+        ],
+        recorded_by=current_user.id,
+    )
+    return _metric_to_response(created[0])
+
+
+@router.delete(
+    "/{project_id}/experiments/{exp_id}/metrics/{metric_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a recorded metric",
+)
+def delete_experiment_metric(
+    project_id: str,
+    exp_id: str,
+    metric_id: str,
+    current_user: User = Depends(require_project_role("owner", "editor")),
+):
+    """Delete a metric that was recorded in error."""
+    _get_exp_or_404(project_id, exp_id)
+    if not any(m.id == metric_id for m in list_metrics(get_db_path(), exp_id)):
+        raise HTTPException(status_code=404, detail="Metric not found")
+    delete_metric(get_db_path(), metric_id)

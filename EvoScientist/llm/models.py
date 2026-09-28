@@ -36,6 +36,7 @@ _DASHSCOPE_CODE_BASE_URL = "https://coding.dashscope.aliyuncs.com/v1"
 _DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 _MOONSHOT_BASE_URL = "https://api.moonshot.cn/v1"
 _KIMI_CODING_BASE_URL = "https://api.kimi.com/coding/"
+_GROQ_BASE_URL = "https://api.groq.com/openai/v1"
 
 # Providers routed through the OpenAI provider with a custom base_url.
 # Maps provider name → (base_url or None, env var for API key).
@@ -48,6 +49,7 @@ _OPENAI_ROUTED_PROVIDERS: dict[str, tuple[str | None, str]] = {
     "volcengine": (_VOLCENGINE_BASE_URL, "VOLCENGINE_API_KEY"),
     "dashscope": (_DASHSCOPE_BASE_URL, "DASHSCOPE_API_KEY"),
     "dashscope-code": (_DASHSCOPE_CODE_BASE_URL, "DASHSCOPE_API_KEY"),
+    "groq": (_GROQ_BASE_URL, "GROQ_API_KEY"),
     "custom-openai": (
         None,
         "CUSTOM_OPENAI_API_KEY",
@@ -82,6 +84,19 @@ _MODEL_ENTRIES: list[tuple[str, str, str]] = [
     ("gpt-5.4", "gpt-5.4", "custom-openai"),
     ("gpt-5.3-codex", "gpt-5.3-codex", "custom-openai"),
     ("gpt-5-mini", "gpt-5-mini", "custom-openai"),
+    # Groq (OpenAI-compatible, hosted inference)
+    # Currently served by Groq (verified against GET /v1/models on 2026-08-18). The five entries
+    # below were DECOMMISSIONED by Groq — every request returned 404 model_not_found, which broke
+    # the PM copilot until the default moved to gpt-oss-120b.
+    ("openai/gpt-oss-120b", "openai/gpt-oss-120b", "groq"),
+    ("openai/gpt-oss-20b", "openai/gpt-oss-20b", "groq"),
+    ("qwen/qwen3.6-27b", "qwen/qwen3.6-27b", "groq"),
+    ("groq/compound", "groq/compound", "groq"),
+    ("mixtral-8x7b-32768", "mixtral-8x7b-32768", "groq"),  # DECOMMISSIONED by Groq
+    ("llama-3.3-70b-versatile", "llama-3.3-70b-versatile", "groq"),  # DECOMMISSIONED by Groq
+    ("llama-3.1-8b-instant", "llama-3.1-8b-instant", "groq"),  # DECOMMISSIONED by Groq
+    ("gemma2-9b-it", "gemma2-9b-it", "groq"),  # DECOMMISSIONED by Groq
+    ("deepseek-r1-distill-llama-70b", "deepseek-r1-distill-llama-70b", "groq"),  # DECOMMISSIONED
     # Anthropic (current generation)
     ("claude-fable-5", "claude-fable-5", "anthropic"),
     ("claude-opus-4-8", "claude-opus-4-8", "anthropic"),
@@ -226,7 +241,12 @@ MODELS: dict[str, tuple[str, str]] = {
     name: (model_id, provider) for name, model_id, provider in _MODEL_ENTRIES
 }
 
-DEFAULT_MODEL = "claude-sonnet-4-6"
+# was llama-3.3-70b-versatile until Groq decommissioned it on 2026-08-16. Groq recommends
+# gpt-oss-120b, but that model NARRATES its plan instead of emitting the copilot's literal
+# "TOOL_CALL: name(args)" protocol, so tools never fire; gpt-oss-20b 400s (it insists on native
+# tool calling) and groq/compound{,-mini} only comply intermittently. qwen3.6-27b emitted a
+# parseable TOOL_CALL 3/3 runs and chains list->create correctly, so it is the default.
+DEFAULT_MODEL = "qwen/qwen3.6-27b"
 
 
 def get_models_for_provider(provider: str) -> list[tuple[str, str]]:

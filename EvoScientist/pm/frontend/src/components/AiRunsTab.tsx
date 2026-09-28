@@ -122,7 +122,7 @@ export function AiRunsTab({ task, projectId }: Props) {
           marginBottom: 10, opacity: (isRunning || !prompt.trim()) ? 0.4 : 1,
         }}
       >
-        {hasHistory ? '▶ RUN AGAIN' : '▶ RUN SABITA AI'}
+        {hasHistory ? '▶ RUN AGAIN' : '▶ RUN Gazzali AI'}
       </button>
 
       {/* Active run (streaming) */}

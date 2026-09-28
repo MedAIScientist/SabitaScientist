@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 import json
-import os
-from pathlib import Path
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
+from ....paths import RUNS_DIR
+from ..._evoscientist import get_runner_url
 from ...crud.runs import (
     create_run,
     get_run,
@@ -24,7 +24,7 @@ from ..schemas import RunCreate, RunResponse
 
 router = APIRouter()
 
-RUNNER_URL = os.getenv("RUNNER_URL", "http://127.0.0.1:8001")
+RUNNER_URL = get_runner_url()
 
 
 def _run_to_response(r) -> RunResponse:
@@ -91,10 +91,7 @@ async def create_new_run(
     )
 
     # Workspace isolated per project + task
-    workspace_base = os.getenv(
-        "EVOSCIENTIST_WORKSPACE_DIR", str(Path.home() / "evoscientist" / "runs")
-    )
-    workspace_dir = str(Path(workspace_base) / project_id / task_id)
+    workspace_dir = str(RUNS_DIR / project_id / task_id)
 
     background_tasks.add_task(
         _notify_runner, run.id, body.agent_type, body.prompt, workspace_dir

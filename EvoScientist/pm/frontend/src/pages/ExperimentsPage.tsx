@@ -378,15 +378,7 @@ function ExperimentCard({ exp, onClick }: { exp: Experiment; onClick: () => void
           {exp.hypothesis}
         </p>
       )}
-      {exp.tags.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-          {exp.tags.map(tag => (
-            <span key={tag} style={{ fontSize: 16, color: 'var(--text-3)', background: 'var(--surface-input)', border: '1px solid var(--border-subtle)', borderRadius: 2, padding: '1px 4px' }}>
-              {tag}
-            </span>
-          ))}
-        </div>
-      )}
+
       {exp.deadline && (
         <div style={{ fontSize: 15, color: 'var(--text-dim)', marginTop: 8, fontFamily: 'var(--font-mono)' }}>
           DEADLINE: {exp.deadline}

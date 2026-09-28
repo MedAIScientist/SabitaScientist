@@ -11,6 +11,7 @@ from ...crud.publications import (
     delete_publication,
     get_project_name_for_publication,
     get_publication,
+    get_version,
     link_experiment,
     list_linked_experiments,
     list_publications,
@@ -23,6 +24,7 @@ from ...db import get_db_path
 from ...models import User
 from ..deps import get_current_user
 from ..schemas import (
+    AIDisclosureResponse,
     PublicationCreate,
     PublicationLinkExperimentRequest,
     PublicationResponse,
@@ -236,15 +238,20 @@ def list_publication_versions(
     current_user: User = Depends(get_current_user),
 ):
     db = get_db_path()
-    return [
-        VersionResponse(
-            id=v.id, publication_id=v.publication_id,
-            version=v.version, file_path=v.file_path,
-            notes=v.notes, created_by=v.created_by,
-            created_at=v.created_at,
-        )
-        for v in list_versions(db, pub_id)
-    ]
+    return [_version_to_response(v) for v in list_versions(db, pub_id)]
+
+
+def _version_to_response(v, include_content: bool = False) -> VersionResponse:
+    return VersionResponse(
+        id=v.id, publication_id=v.publication_id,
+        version=v.version, file_path=v.file_path,
+        notes=v.notes, created_by=v.created_by,
+        created_at=v.created_at,
+        section=v.section, generated_by=v.generated_by,
+        model=v.model, prompt_hash=v.prompt_hash,
+        content_length=len(v.content or ""),
+        content=v.content if include_content else None,
+    )
 
 
 @router.post("/{pub_id}/versions", response_model=VersionResponse, status_code=status.HTTP_201_CREATED)
@@ -254,12 +261,101 @@ def create_publication_version(
     current_user: User = Depends(get_current_user),
 ):
     db = get_db_path()
-    v = create_version(db, pub_id, created_by=current_user.id, notes=body.notes)
-    return VersionResponse(
-        id=v.id, publication_id=v.publication_id,
-        version=v.version, file_path=v.file_path,
-        notes=v.notes, created_by=v.created_by,
-        created_at=v.created_at,
+    v = create_version(
+        db, pub_id, created_by=current_user.id, notes=body.notes,
+        content=body.content, section=body.section, generated_by="human",
+    )
+    return _version_to_response(v, include_content=True)
+
+
+@router.get("/{pub_id}/versions/{version_id}", response_model=VersionResponse)
+def get_publication_version(
+    pub_id: str,
+    version_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """Return one version including its full draft text."""
+    version = get_version(get_db_path(), version_id)
+    if not version or version.publication_id != pub_id:
+        raise HTTPException(404, "Version not found")
+    return _version_to_response(version, include_content=True)
+
+
+@router.post("/{pub_id}/versions/{version_id}/restore")
+def restore_publication_version(
+    pub_id: str,
+    version_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """Restore a previous version by copying its text into a new version."""
+    pub = get_publication(get_db_path(), pub_id)
+    if not pub:
+        raise HTTPException(404, "Publication not found")
+    target = get_version(get_db_path(), version_id)
+    if not target or target.publication_id != pub_id:
+        raise HTTPException(404, "Version not found")
+    # Carry the text forward — a restore that copies only the note restores nothing.
+    v = create_version(
+        get_db_path(), pub_id, created_by=current_user.id,
+        notes=f"Restored from version {target.version} ({target.id}): {target.notes or 'no notes'}",
+        content=target.content,
+        section=target.section,
+        file_path=target.file_path,
+        generated_by=target.generated_by,
+        model=target.model,
+        prompt_hash=target.prompt_hash,
+    )
+    return {
+        "status": "restored",
+        "new_version_id": v.id,
+        "new_version": v.version,
+        "restored_from_version": target.version,
+    }
+
+
+@router.get("/{pub_id}/ai-disclosure", response_model=AIDisclosureResponse)
+def get_ai_disclosure(
+    pub_id: str,
+    current_user: User = Depends(get_current_user),
+):
+    """Build an AI-use disclosure statement from the recorded version history.
+
+    The statement is derived from what was actually generated, never asserted.
+    If no AI versions exist it says so rather than producing boilerplate.
+    """
+    pub = get_publication(get_db_path(), pub_id)
+    if not pub:
+        raise HTTPException(404, "Publication not found")
+
+    versions = list_versions(get_db_path(), pub_id)
+    ai_versions = [v for v in versions if (v.generated_by or "").startswith("ai")]
+    models = sorted({v.model for v in ai_versions if v.model})
+    sections = sorted({v.section for v in ai_versions if v.section})
+
+    if not ai_versions:
+        statement = (
+            "No AI-assisted drafting was recorded for this manuscript in the "
+            "project management system."
+        )
+    else:
+        model_phrase = ", ".join(models) if models else "an unrecorded language model"
+        section_phrase = (
+            f" The assisted sections were: {', '.join(sections)}." if sections else ""
+        )
+        statement = (
+            f"Portions of this manuscript were drafted with AI assistance using "
+            f"{model_phrase}. AI assistance was used across {len(ai_versions)} recorded "
+            f"draft version(s).{section_phrase} All AI-generated text was reviewed and "
+            f"edited by the authors, who take full responsibility for the content."
+        )
+
+    return AIDisclosureResponse(
+        publication_id=pub_id,
+        statement=statement,
+        ai_version_count=len(ai_versions),
+        human_version_count=len(versions) - len(ai_versions),
+        models_used=models,
+        sections=sections,
     )
 
 

@@ -29,7 +29,7 @@ export function Setup() {
   return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', fontFamily: 'system-ui' }}>
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12, width: 320 }}>
-        <h1 style={{ margin: 0 }}>Welcome to EvoScientist PM</h1>
+        <h1 style={{ margin: 0 }}>Welcome to Gazzali PM</h1>
         <p style={{ color: '#666', margin: 0 }}>Create the first admin account to get started.</p>
         {error && <p style={{ color: 'red', margin: 0 }}>{error}</p>}
         <input

@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from ...auth import create_token, verify_password
-from ...crud.users import get_user_by_username
+from ...crud.users import get_user_by_identifier
 from ...db import get_db, get_db_path
 from ..deps import get_current_user
 from ..schemas import LoginRequest, TokenResponse
@@ -18,8 +18,11 @@ _TOKEN_TTL_HOURS = 24
 
 @router.post("/login", response_model=TokenResponse)
 def login(body: LoginRequest):
-    """Authenticate user and return session token."""
-    user = get_user_by_username(get_db_path(), body.username)
+    """Authenticate user and return session token.
+
+    The identifier may be either a username or an e-mail address.
+    """
+    user = get_user_by_identifier(get_db_path(), body.username)
     if not user or not verify_password(body.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"

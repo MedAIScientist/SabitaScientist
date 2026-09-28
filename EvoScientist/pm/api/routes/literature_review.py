@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-import os
-from pathlib import Path
-
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 
+from ..._evoscientist import get_runner_url
 from ...crud.experiment_entries import create_entry
 from ...crud.experiments import create_experiment
 from ...crud.projects import get_project
@@ -17,7 +15,7 @@ from ..deps import require_project_role
 from ..schemas import LiteratureReviewRequest
 
 router = APIRouter()
-RUNNER_URL = os.getenv("RUNNER_URL", "http://127.0.0.1:8001")
+RUNNER_URL = get_runner_url()
 
 _LIT_REVIEW_PROMPT = """You are a research literature review specialist. Your task is to conduct a thorough literature review on the topic below and produce a structured Markdown report.
 
@@ -75,9 +73,9 @@ async def run_literature_review(
         focus=body.focus_area or "general",
         depth=body.depth,
     )
+    from ....paths import RUNS_DIR
     run_id = f"litreview-{project_id}-{__import__('time').time():.0f}"
-    workspace_base = os.getenv("EVOSCIENTIST_WORKSPACE_DIR", str(Path.home() / "evoscientist" / "runs"))
-    workspace_dir = str(Path(workspace_base) / "research" / run_id)
+    workspace_dir = str(RUNS_DIR / "research" / run_id)
 
     background_tasks.add_task(_run_lit_review, project_id, current_user.id, run_id, prompt, workspace_dir, body.topic)
     return {"status": "started", "message": f"Literature review started for '{body.topic}'"}

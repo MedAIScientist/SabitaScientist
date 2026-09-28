@@ -19,6 +19,14 @@ export function UsersPage() {
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
 
+  // Edit state
+  const [editTarget, setEditTarget] = useState<UserRecord | null>(null)
+  const [editUsername, setEditUsername] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [editAdmin, setEditAdmin] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editError, setEditError] = useState<string | null>(null)
+
   // Delete confirm state
   const [deleteTarget, setDeleteTarget] = useState<UserRecord | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -52,6 +60,34 @@ export function UsersPage() {
       setCreateError(err instanceof Error ? err.message : 'Create failed')
     } finally {
       setCreating(false)
+    }
+  }
+
+  function openEdit(u: UserRecord) {
+    setEditTarget(u)
+    setEditUsername(u.username)
+    setEditEmail(u.email ?? '')
+    setEditAdmin(u.is_admin)
+    setEditError(null)
+  }
+
+  async function handleEdit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editTarget) return
+    setEditing(true)
+    setEditError(null)
+    try {
+      await api.updateUser(editTarget.id, {
+        username: editUsername !== editTarget.username ? editUsername : undefined,
+        email: editEmail !== (editTarget.email ?? '') ? editEmail || null : undefined,
+        is_admin: editAdmin !== editTarget.is_admin ? editAdmin : undefined,
+      })
+      setEditTarget(null)
+      await load()
+    } catch (err: unknown) {
+      setEditError(err instanceof Error ? err.message : 'Update failed')
+    } finally {
+      setEditing(false)
     }
   }
 
@@ -107,7 +143,7 @@ export function UsersPage() {
             onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
           >←</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <img src="/sabita.jpg" alt="SABITA" style={{ height: 26, borderRadius: 4 }} />
+            <img src="/medipolLogo.png" alt="Medipol" style={{ height: 26, borderRadius: 4 }} />
             <span style={{ color: 'var(--text-dim)', fontSize: 20, fontFamily: 'var(--font-mono)' }}>/</span>
             <span style={{ color: '#ff8015', fontSize: 21, fontFamily: 'var(--font-mono)' }}>users</span>
           </div>
@@ -268,6 +304,21 @@ export function UsersPage() {
                   </div>
                 </div>
 
+                <div style={{ display: 'flex', gap: 6 }}>
+                <button
+                  onClick={() => openEdit(u)}
+                  title="Edit user"
+                  style={{
+                    cursor: 'pointer', padding: '6px 14px',
+                    background: 'rgba(16,185,129,0.06)',
+                    border: '1px solid rgba(16,185,129,0.15)',
+                    borderRadius: 6, color: '#10b981',
+                    fontSize: 18, fontFamily: 'var(--font-mono)',
+                    transition: 'background 0.14s',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(16,185,129,0.14)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(16,185,129,0.06)' }}
+                >EDIT</button>
                 <button
                   onClick={() => setDeleteTarget(u)}
                   title="Delete user"
@@ -283,6 +334,7 @@ export function UsersPage() {
                   onMouseLeave={e => { e.currentTarget.style.background = 'rgba(244,63,94,0.06)'; e.currentTarget.style.borderColor = 'rgba(244,63,94,0.15)' }}
                 >DELETE</button>
               </div>
+            </div>
             ))}
           </div>
         )}
@@ -336,6 +388,62 @@ export function UsersPage() {
                 onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
               >CANCEL</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit modal */}
+      {editTarget && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 50,
+          background: 'var(--overlay-bg)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }} onClick={() => !editing && setEditTarget(null)}>
+          <div onClick={e => e.stopPropagation()} style={{
+            background: 'var(--surface-panel)', border: '1px solid var(--border)',
+            borderRadius: 12, padding: '28px 32px', width: 400, animation: 'fadeInUp 0.2s ease',
+          }}>
+            <form onSubmit={handleEdit}>
+              <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)', marginBottom: 20 }}>
+                EDIT USER
+              </div>
+
+              {editError && (
+                <div style={{ padding: '8px 12px', marginBottom: 16, background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)', borderRadius: 6, color: '#f43f5e', fontSize: 19, fontFamily: 'var(--font-mono)' }}>{editError}</div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+                <label style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dim)', letterSpacing: '0.1em', fontFamily: 'var(--font-mono)' }}>USERNAME</label>
+                <input value={editUsername} onChange={e => setEditUsername(e.target.value)} required
+                  style={{ padding: '9px 12px', background: 'var(--surface-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text)', fontSize: 22, outline: 'none', width: '100%', boxSizing: 'border-box' }} />
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+                <label style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dim)', letterSpacing: '0.1em', fontFamily: 'var(--font-mono)' }}>EMAIL</label>
+                <input value={editEmail} onChange={e => setEditEmail(e.target.value)} type="email"
+                  style={{ padding: '9px 12px', background: 'var(--surface-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text)', fontSize: 22, outline: 'none', width: '100%', boxSizing: 'border-box' }} />
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
+                <label style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dim)', letterSpacing: '0.1em', fontFamily: 'var(--font-mono)' }}>ADMIN</label>
+                <input type="checkbox" checked={editAdmin} onChange={e => setEditAdmin(e.target.checked)}
+                  style={{ width: 20, height: 20, cursor: 'pointer' }} />
+              </div>
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button type="submit" disabled={editing} style={{
+                  flex: 1, padding: '10px 0', cursor: editing ? 'default' : 'pointer',
+                  background: editing ? 'rgba(255,128,21,0.07)' : 'rgba(255,128,21,0.12)',
+                  border: '1px solid rgba(255,128,21,0.28)', borderRadius: 7, color: '#ff8015',
+                  fontSize: 19, fontWeight: 700, fontFamily: 'var(--font-mono)', transition: 'background 0.14s',
+                }}>{editing ? 'SAVING…' : 'SAVE'}</button>
+                <button type="button" onClick={() => setEditTarget(null)} disabled={editing} style={{
+                  flex: 1, padding: '10px 0', cursor: 'pointer',
+                  background: 'transparent', border: '1px solid var(--border)',
+                  borderRadius: 7, color: 'var(--text-muted)', fontSize: 19, fontFamily: 'var(--font-mono)',
+                }}>CANCEL</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

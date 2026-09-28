@@ -1,37 +1,31 @@
 """S3-compatible object storage client for PM file attachments.
 
-Wraps boto3 with a thin interface. Configured via environment variables:
-  GARAGE_S3_ENDPOINT  — S3 endpoint URL (default: http://localhost:3900)
-  GARAGE_ACCESS_KEY   — AWS-style access key ID
-  GARAGE_SECRET_KEY   — AWS-style secret access key
-  GARAGE_BUCKET       — bucket name (default: evoscientist)
-
-If access/secret keys are not set the module is importable but upload/download
-operations will raise RuntimeError with a clear message.
+Wraps boto3 with a thin interface. Configured via EvoScientistConfig
+(GARAGE_S3_ENDPOINT, GARAGE_ACCESS_KEY, GARAGE_SECRET_KEY, GARAGE_BUCKET).
 """
 
 from __future__ import annotations
 
-import os
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from typing import BinaryIO
+
+from ._evoscientist import get_garage_config
 
 try:
     import boto3
     from botocore.config import Config
     from botocore.exceptions import ClientError
+
     _BOTO3_AVAILABLE = True
 except ImportError:
     _BOTO3_AVAILABLE = False
 
-# ── Configuration ────────────────────────────────────────────────────────────
+# ── Configuration (from EvoScientistConfig) ────────────────────────────────
 
-_ENDPOINT = os.environ.get("GARAGE_S3_ENDPOINT", "http://localhost:3900")
-_ACCESS_KEY = os.environ.get("GARAGE_ACCESS_KEY", "")
-_SECRET_KEY = os.environ.get("GARAGE_SECRET_KEY", "")
-_BUCKET = os.environ.get("GARAGE_BUCKET", "evoscientist")
+_GARAGE = get_garage_config()
 _REGION = "garage"  # Garage uses a fixed pseudo-region
+_BUCKET = _GARAGE["bucket"]
 
 # Thread pool for running sync boto3 calls in async contexts
 _executor = ThreadPoolExecutor(max_workers=4)
@@ -40,20 +34,17 @@ _executor = ThreadPoolExecutor(max_workers=4)
 def _client():
     """Build and return a boto3 S3 client."""
     if not _BOTO3_AVAILABLE:
-        raise RuntimeError(
-            "boto3 is not installed. "
-            "Install it with: pip install boto3"
-        )
-    if not _ACCESS_KEY or not _SECRET_KEY:
+        raise RuntimeError("boto3 is not installed. Install it with: pip install boto3")
+    if not _GARAGE["access_key"] or not _GARAGE["secret_key"]:
         raise RuntimeError(
             "S3 storage is not configured. "
             "Set GARAGE_ACCESS_KEY and GARAGE_SECRET_KEY environment variables."
         )
     return boto3.client(
         "s3",
-        endpoint_url=_ENDPOINT,
-        aws_access_key_id=_ACCESS_KEY,
-        aws_secret_access_key=_SECRET_KEY,
+        endpoint_url=_GARAGE["endpoint"],
+        aws_access_key_id=_GARAGE["access_key"],
+        aws_secret_access_key=_GARAGE["secret_key"],
         region_name=_REGION,
         config=Config(signature_version="s3v4"),
     )

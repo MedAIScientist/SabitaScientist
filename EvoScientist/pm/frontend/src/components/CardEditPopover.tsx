@@ -3,14 +3,17 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, Task } from '../api'
 import { DeadlinePicker } from './DeadlinePicker'
 
+interface Phase { id: string; name: string; color?: string }
+
 interface CardEditPopoverProps {
   task: Task
   projectId: string
   anchorRect: DOMRect
   onClose: () => void
+  phases?: Phase[]
 }
 
-export function CardEditPopover({ task, projectId, anchorRect, onClose }: CardEditPopoverProps) {
+export function CardEditPopover({ task, projectId, anchorRect, onClose, phases }: CardEditPopoverProps) {
   const queryClient = useQueryClient()
   const panelRef = useRef<HTMLDivElement>(null)
   const onCloseRef = useRef(onClose)
@@ -19,6 +22,7 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose }: CardEd
   const [title, setTitle] = useState(task.title)
   const [priority, setPriority] = useState<Task['priority']>(task.priority)
   const [deadline, setDeadline] = useState(task.deadline ?? '')
+  const [phaseId, setPhaseId] = useState(task.phase_id ?? '')
   const [saveError, setSaveError] = useState<string | null>(null)
 
   // Position: right of card with 8px gap, flip left if no room
@@ -38,15 +42,18 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose }: CardEd
     onError: () => setSaveError('Save failed — please retry.'),
   })
 
-  // Click-outside handler — stable, no re-attachment on onClose change
+  // Click-outside handler — delayed to avoid catching the opening click
   useEffect(() => {
-    function handleMouseDown(e: MouseEvent) {
-      if (panelRef.current && e.target instanceof Node && !panelRef.current.contains(e.target)) {
-        onCloseRef.current()
+    const timer = setTimeout(() => {
+      function handleMouseDown(e: MouseEvent) {
+        if (panelRef.current && e.target instanceof Node && !panelRef.current.contains(e.target)) {
+          onCloseRef.current()
+        }
       }
-    }
-    document.addEventListener('mousedown', handleMouseDown)
-    return () => document.removeEventListener('mousedown', handleMouseDown)
+      document.addEventListener('mousedown', handleMouseDown)
+      return () => document.removeEventListener('mousedown', handleMouseDown)
+    }, 100)
+    return () => clearTimeout(timer)
   }, [])
 
   // Close on scroll or resize (popover position becomes stale)
@@ -72,6 +79,7 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose }: CardEd
       title,
       priority,
       deadline: deadline || undefined,
+      phase_id: phaseId || undefined,
     })
   }
 
@@ -130,9 +138,18 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose }: CardEd
         onChange={e => setPriority(e.target.value as Task['priority'])}
         style={fieldStyle}
       >
-        <option value="high">CRITICAL</option>
-        <option value="medium">STANDARD</option>
-        <option value="low">ROUTINE</option>
+        <option value="critical">CRITICAL</option>
+        <option value="high">HIGH</option>
+        <option value="medium">MEDIUM</option>
+        <option value="low">LOW</option>
+      </select>
+
+      <label style={labelStyle}>PHASE</label>
+      <select value={phaseId} onChange={e => setPhaseId(e.target.value)} style={fieldStyle}>
+        <option value="">No phase</option>
+        {(phases ?? []).map(p => (
+          <option key={p.id} value={p.id}>{p.name}</option>
+        ))}
       </select>
 
       <label style={labelStyle}>DEADLINE</label>

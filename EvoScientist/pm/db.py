@@ -30,6 +30,16 @@ CREATE TABLE IF NOT EXISTS projects (
     archived_at   TEXT
 );
 
+CREATE TABLE IF NOT EXISTS researcher_pushes (
+    -- The monotonic generation of each person's membership push to
+    -- platform-control. It lives here rather than in a clock so that two
+    -- pushes in the same second differ and a backwards clock changes nothing;
+    -- platform-control refuses any generation it has already seen, which is
+    -- what stops a delayed push from restoring a membership that ended.
+    email      TEXT PRIMARY KEY,
+    generation INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS project_members (
     project_id    TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -175,6 +185,26 @@ CREATE TABLE IF NOT EXISTS attachments (
 
 CREATE INDEX IF NOT EXISTS idx_attachments_entry ON attachments(entry_id);
 
+-- Structured experiment results. Paper drafting takes its numbers from here
+-- and nowhere else, so an unrecorded number cannot reach a manuscript.
+CREATE TABLE IF NOT EXISTS experiment_metrics (
+    id            TEXT PRIMARY KEY,
+    experiment_id TEXT NOT NULL REFERENCES experiments(id) ON DELETE CASCADE,
+    name          TEXT NOT NULL,
+    value         REAL NOT NULL,
+    unit          TEXT,
+    split         TEXT,
+    n             INTEGER,
+    stderr        REAL,
+    source_attachment_id TEXT REFERENCES attachments(id) ON DELETE SET NULL,
+    recorded_by   TEXT REFERENCES users(id) ON DELETE SET NULL,
+    created_at    TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_experiment_metrics_exp ON experiment_metrics(experiment_id);
+CREATE INDEX IF NOT EXISTS idx_experiment_metrics_src
+    ON experiment_metrics(source_attachment_id);
+
 CREATE TABLE IF NOT EXISTS admissions (
     id                 TEXT PRIMARY KEY,
     form_submission_id INTEGER,
@@ -317,6 +347,54 @@ CREATE TABLE IF NOT EXISTS grants (
     created_at      TEXT NOT NULL,
     updated_at      TEXT NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_grants_lab ON grants(lab_id);
+CREATE INDEX IF NOT EXISTS idx_grants_project ON grants(project_id);
+
+CREATE TABLE IF NOT EXISTS grant_budget_items (
+    id             TEXT PRIMARY KEY,
+    grant_id       TEXT NOT NULL REFERENCES grants(id) ON DELETE CASCADE,
+    category       TEXT NOT NULL DEFAULT 'other'
+                   CHECK(category IN ('personnel','equipment','consumables','travel','services','other')),
+    description    TEXT,
+    planned_amount REAL NOT NULL DEFAULT 0,
+    spent_amount   REAL NOT NULL DEFAULT 0,
+    position       INTEGER NOT NULL DEFAULT 0,
+    created_at     TEXT NOT NULL,
+    updated_at     TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_grant_budget_grant ON grant_budget_items(grant_id);
+
+CREATE TABLE IF NOT EXISTS grant_milestones (
+    id           TEXT PRIMARY KEY,
+    grant_id     TEXT NOT NULL REFERENCES grants(id) ON DELETE CASCADE,
+    title        TEXT NOT NULL,
+    kind         TEXT NOT NULL DEFAULT 'milestone'
+                 CHECK(kind IN ('milestone','report','deliverable')),
+    due_date     TEXT,
+    completed_at TEXT,
+    owner_id     TEXT REFERENCES users(id) ON DELETE SET NULL,
+    notes        TEXT,
+    position     INTEGER NOT NULL DEFAULT 0,
+    created_at   TEXT NOT NULL,
+    updated_at   TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_grant_milestones_grant ON grant_milestones(grant_id);
+
+CREATE TABLE IF NOT EXISTS grant_members (
+    id            TEXT PRIMARY KEY,
+    grant_id      TEXT NOT NULL REFERENCES grants(id) ON DELETE CASCADE,
+    user_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role          TEXT NOT NULL DEFAULT 'researcher'
+                  CHECK(role IN ('pi','co_pi','researcher','assistant','advisor')),
+    share_percent REAL,
+    added_at      TEXT NOT NULL,
+    UNIQUE(grant_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_grant_members_grant ON grant_members(grant_id);
 
 CREATE TABLE IF NOT EXISTS conferences (
     id              TEXT PRIMARY KEY,
@@ -519,6 +597,58 @@ CREATE TABLE IF NOT EXISTS webknossos_datasets (
 CREATE INDEX IF NOT EXISTS idx_cvat_project ON cvat_projects(project_id);
 CREATE INDEX IF NOT EXISTS idx_webknossos_project ON webknossos_datasets(project_id);
 
+-- ── Imaging datasets (v2 storage model, 20 Aug 2026) ──────────────────────────
+-- A dataset is the governance record of ONE delivered imaging cohort. The row
+-- exists BEFORE any bucket does; Curator refuses a C-MOVE without an 'approved'
+-- dataset id, and the bucket manifest is a copy of this row. RESTRICT (not
+-- CASCADE) everywhere: governance history must never vanish as a side effect.
+CREATE TABLE IF NOT EXISTS datasets (
+    id                  TEXT PRIMARY KEY,
+    name                TEXT NOT NULL,
+    purpose             TEXT NOT NULL,
+    lab_id              TEXT NOT NULL REFERENCES labs(id) ON DELETE RESTRICT,
+    requested_by        TEXT NOT NULL REFERENCES users(id),
+    modality            TEXT,
+    accession_list      TEXT NOT NULL DEFAULT '[]',
+    estimated_bytes     INTEGER,
+    status              TEXT NOT NULL DEFAULT 'draft'
+                        CHECK(status IN ('draft','pi_approved','approved','delivering','sealed','expired','revoked')),
+    pi_approved_by      TEXT REFERENCES users(id),
+    pi_approved_at      TEXT,
+    admin_approved_by   TEXT REFERENCES users(id),
+    admin_approved_at   TEXT,
+    retention_until     TEXT,
+    pepper_generation   INTEGER NOT NULL DEFAULT 1,
+    bucket              TEXT,
+    sealed_at           TEXT,
+    content_root_sha256 TEXT,
+    generation          INTEGER NOT NULL DEFAULT 0,
+    created_at          TEXT NOT NULL,
+    updated_at          TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_datasets_lab ON datasets(lab_id);
+
+CREATE TABLE IF NOT EXISTS dataset_irbs (
+    dataset_id TEXT NOT NULL REFERENCES datasets(id) ON DELETE RESTRICT,
+    irb_id     TEXT NOT NULL REFERENCES irb_approvals(id) ON DELETE RESTRICT,
+    PRIMARY KEY (dataset_id, irb_id)
+);
+
+CREATE TABLE IF NOT EXISTS dataset_grants (
+    id                TEXT PRIMARY KEY,
+    dataset_id        TEXT NOT NULL REFERENCES datasets(id) ON DELETE RESTRICT,
+    project_id        TEXT NOT NULL REFERENCES projects(id) ON DELETE RESTRICT,
+    granted_by        TEXT NOT NULL REFERENCES users(id),
+    admin_approved_by TEXT REFERENCES users(id),
+    admin_approved_at TEXT,
+    granted_at        TEXT NOT NULL,
+    expires_at        TEXT,
+    revoked_at        TEXT,
+    revoked_by        TEXT REFERENCES users(id),
+    UNIQUE(dataset_id, project_id)
+);
+CREATE INDEX IF NOT EXISTS idx_dataset_grants_ds ON dataset_grants(dataset_id);
+
 -- Per-IP rate-limit tracking (SQLite-backed for multi-worker support)
 CREATE TABLE IF NOT EXISTS rate_limits (
     ip           TEXT NOT NULL,
@@ -539,6 +669,25 @@ _MIGRATIONS = [
     "ALTER TABLE attachments ADD COLUMN classification TEXT NOT NULL DEFAULT 'unclassified'",
     "ALTER TABLE sandboxes ADD COLUMN terminated_by TEXT REFERENCES users(id)",
     "ALTER TABLE irb_approvals ADD COLUMN sandbox_id TEXT REFERENCES sandboxes(id)",
+    # Drafts live in the DB, not only as a server-local file path no client can read.
+    "ALTER TABLE publication_versions ADD COLUMN content TEXT",
+    "ALTER TABLE publication_versions ADD COLUMN section TEXT",
+    # AI provenance — required to produce a truthful journal disclosure statement.
+    "ALTER TABLE publication_versions ADD COLUMN generated_by TEXT",
+    "ALTER TABLE publication_versions ADD COLUMN model TEXT",
+    "ALTER TABLE publication_versions ADD COLUMN prompt_hash TEXT",
+    # IRB decisions record WHO approved — the audit anchor for PHI releases.
+    "ALTER TABLE irb_approvals ADD COLUMN approved_by TEXT REFERENCES users(id)",
+    "ALTER TABLE irb_approvals ADD COLUMN approved_at TEXT",
+    # Membership becomes a LIFECYCLE, not a row that vanishes: an ended membership must stay
+    # computable so the cluster-side reconciler can REVOKE what it once granted (CVAT org
+    # membership, bucket read). A deleted row is an absence nothing can act on.
+    "ALTER TABLE lab_members ADD COLUMN ended_at TEXT",
+    # v2 imaging: whether Curator derives viewing PNGs during delivery (a pure-ML cohort says no),
+    # and per-grant annotation staging intent (requested by a human, converged by the platform).
+    "ALTER TABLE datasets ADD COLUMN renders INTEGER NOT NULL DEFAULT 1",
+    "ALTER TABLE dataset_grants ADD COLUMN cvat_project_id INTEGER",
+    "ALTER TABLE dataset_grants ADD COLUMN task_size INTEGER",
 ]
 
 

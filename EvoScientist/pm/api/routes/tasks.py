@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from ...crud.dependencies import get_blocked_by
+from ...crud.task_history import record_task_change
 from ...crud.tasks import (
     create_comment,
     create_task,
@@ -15,7 +16,7 @@ from ...crud.tasks import (
     list_tasks,
     update_task,
 )
-from ...db import get_db_path
+from ...db import get_db, get_db_path
 from ...models import User
 from ..deps import require_project_role
 from ..schemas import (
@@ -44,9 +45,19 @@ def _task_to_response(t) -> TaskResponse:
         created_at=t.created_at,
         updated_at=t.updated_at,
         phase_id=getattr(t, "phase_id", None),
-        # NOTE: issues one extra query per task (N+1). Acceptable for current SQLite/low-volume usage.
+        # NOTE: issues extra queries per task (N+1). Acceptable for current SQLite/low-volume usage.
         blocked_by=get_blocked_by(get_db_path(), t.id),
+        linked_experiment_count=_count_linked_experiments(t.id),
     )
+
+
+def _count_linked_experiments(task_id: str) -> int:
+    from ...db import get_db
+    with get_db(get_db_path()) as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) FROM experiment_tasks WHERE task_id = ?", (task_id,)
+        ).fetchone()
+        return int(row[0]) if row else 0
 
 
 @router.get("/{project_id}/tasks", response_model=list[TaskResponse])
@@ -117,6 +128,18 @@ def update_existing_task(
     task = get_task(get_db_path(), task_id)
     if not task or task.project_id != project_id:
         raise HTTPException(status_code=404, detail="Task not found")
+
+    # Enforce hard dependencies when moving to done
+    if body.status and body.status == "done":
+        blocked_by = get_blocked_by(get_db_path(), task_id)
+        incomplete = [b for b in blocked_by if b.status != "done"]
+        if incomplete:
+            names = ", ".join(b.title for b in incomplete[:5])
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot complete — blocked by incomplete tasks: {names}",
+            )
+
     updated = update_task(
         get_db_path(),
         task_id,
@@ -128,6 +151,15 @@ def update_existing_task(
         deadline=body.deadline,
         session_id=body.session_id,
     )
+
+    # Record history on status change
+    if body.status and body.status != task.status:
+        with get_db(get_db_path()) as conn:
+            record_task_change(
+                conn, task_id, current_user.id, "status",
+                from_status=task.status, to_status=body.status,
+            )
+
     return _task_to_response(updated)
 
 

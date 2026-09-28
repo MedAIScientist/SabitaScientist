@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import secrets
 from datetime import UTC, datetime, timedelta
+from sqlite3 import IntegrityError
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
-from ...auth import create_token
-from ...crud.users import create_user
+from ...auth import create_token, hash_password
+from ...crud.users import create_user, get_user_by_email, get_user_by_username
 from ...db import get_db, get_db_path
 from ...oidc import exchange_code, get_authorization_url, is_configured
 
@@ -21,10 +22,12 @@ _oidc_states: dict[str, str] = {}  # state -> redirect_after
 
 
 @router.get("/login/oidc")
-def oidc_login(redirect: str = "/projects"):
-    """Redirect to Microsoft login page."""
+def oidc_login(redirect: str = "/login"):
+    """Redirect to OIDC provider (Authentik or Microsoft) login page."""
     if not is_configured():
-        raise HTTPException(503, "OIDC not configured — set OIDC_CLIENT_ID, OIDC_CLIENT_SECRET, OIDC_TENANT_ID")
+        raise HTTPException(
+            503, "OIDC not configured — set OIDC_CLIENT_ID and OIDC_CLIENT_SECRET"
+        )
 
     state = secrets.token_hex(16)
     _oidc_states[state] = redirect
@@ -33,8 +36,13 @@ def oidc_login(redirect: str = "/projects"):
 
 
 @router.get("/auth/oidc/callback")
-async def oidc_callback(request: Request, code: str | None = None, state: str | None = None, error: str | None = None):
-    """Handle the OIDC callback from Microsoft."""
+async def oidc_callback(
+    request: Request,
+    code: str | None = None,
+    state: str | None = None,
+    error: str | None = None,
+):
+    """Handle the OIDC callback from the provider (Authentik or Microsoft)."""
     if error:
         raise HTTPException(400, f"OIDC error: {error}")
     if not code or not state:
@@ -48,25 +56,37 @@ async def oidc_callback(request: Request, code: str | None = None, state: str | 
     # Exchange code for user info
     oidc_user = await exchange_code(code)
     if not oidc_user:
-        raise HTTPException(401, "Failed to authenticate with Microsoft")
+        raise HTTPException(401, "Failed to authenticate with OIDC provider")
 
-    # Find or create PM user
-    from ...crud.users import get_user_by_username as _get_user
+    # Find or create PM user. Match by email first — it is stable across
+    # providers and survives display-name changes; matching by username only
+    # would try to insert a duplicate email and 500 on UNIQUE constraint.
     db = get_db_path()
-    username = oidc_user.preferred_username or oidc_user.email or oidc_user.sub.split("-")[0][:20]
-    user = _get_user(db, username)
+    username = (
+        oidc_user.name
+        or oidc_user.preferred_username
+        or oidc_user.email
+        or oidc_user.sub.split("-")[0][:20]
+    )
+    user = get_user_by_email(db, oidc_user.email) if oidc_user.email else None
+    if not user:
+        user = get_user_by_username(db, username)
 
     if not user:
-        existing = _get_user(db, username)
-        if existing:
-            user = existing
-        else:
-            random_pw = secrets.token_hex(16)
+        try:
             user = create_user(
-                db, username=username,
-                password=random_pw,
+                db,
+                username=username,
+                password_hash=hash_password(secrets.token_hex(16)),
                 email=oidc_user.email,
             )
+        except IntegrityError:
+            # Concurrent login created the user between lookup and insert
+            user = get_user_by_email(db, oidc_user.email) or get_user_by_username(
+                db, username
+            )
+            if not user:
+                raise
 
     # Issue session token
     token = create_token()

@@ -1,5 +1,6 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { api } from '../api'
 import { useAuth } from '../auth'
 import { useTheme } from '../theme'
 
@@ -9,6 +10,36 @@ export function ProfilePage() {
   const navigate = useNavigate()
 
   const isDark = theme === 'dark'
+
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordSaving, setPasswordSaving] = useState(false)
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [passwordSaved, setPasswordSaved] = useState(false)
+
+  async function handlePasswordSave() {
+    setPasswordError(null)
+    setPasswordSaved(false)
+    if (newPassword.length < 6) {
+      setPasswordError('Password must be at least 6 characters')
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('Passwords do not match')
+      return
+    }
+    setPasswordSaving(true)
+    try {
+      await api.setPassword(newPassword)
+      setNewPassword('')
+      setConfirmPassword('')
+      setPasswordSaved(true)
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : 'Could not update password')
+    } finally {
+      setPasswordSaving(false)
+    }
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
@@ -36,7 +67,7 @@ export function ProfilePage() {
             onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
           >←</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <img src="/sabita.jpg" alt="SABITA" style={{ height: 26, borderRadius: 4, display: 'block' }} />
+            <img src="/medipolLogo.png" alt="Medipol" style={{ height: 26, borderRadius: 4, display: 'block' }} />
             <span style={{ color: 'var(--text-dim)', fontSize: 20, fontFamily: 'var(--font-mono)' }}>/</span>
             <span style={{ color: '#ff8015', fontSize: 21, fontFamily: 'var(--font-mono)' }}>profile</span>
           </div>
@@ -145,6 +176,79 @@ export function ProfilePage() {
               fontSize: 15, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)',
               letterSpacing: '0.06em',
             }}>READ-ONLY</span>
+          </div>
+        </div>
+
+        {/* Password card — lets Microsoft SSO accounts set a usable local password */}
+        <div style={{
+          background: 'var(--surface-card)',
+          border: '1px solid var(--border)',
+          borderRadius: 10,
+          padding: '16px 20px',
+          marginBottom: 16,
+        }}>
+          <div style={{ fontSize: 22, fontWeight: 500, color: 'var(--text-heading)', marginBottom: 2 }}>
+            Password
+          </div>
+          <div style={{
+            fontSize: 17, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)',
+            marginBottom: 14, lineHeight: 1.5,
+          }}>
+            SET A LOCAL PASSWORD TO SIGN IN WITHOUT MICROSOFT
+          </div>
+
+          {passwordError && (
+            <div style={{
+              padding: '7px 11px', marginBottom: 10,
+              background: 'rgba(244,63,94,0.08)',
+              border: '1px solid rgba(244,63,94,0.2)',
+              borderRadius: 6, color: '#f43f5e',
+              fontSize: 17, fontFamily: 'var(--font-mono)',
+            }}>{passwordError}</div>
+          )}
+
+          {passwordSaved && (
+            <div style={{
+              padding: '7px 11px', marginBottom: 10,
+              background: 'rgba(16,185,129,0.08)',
+              border: '1px solid rgba(16,185,129,0.2)',
+              borderRadius: 6, color: '#10b981',
+              fontSize: 17, fontFamily: 'var(--font-mono)',
+            }}>PASSWORD UPDATED</div>
+          )}
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {([
+              ['new password (min 6 characters)', newPassword, setNewPassword],
+              ['repeat new password', confirmPassword, setConfirmPassword],
+            ] as const).map(([placeholder, value, setter]) => (
+              <input
+                key={placeholder}
+                type="password"
+                placeholder={placeholder}
+                value={value}
+                onChange={e => setter(e.target.value)}
+                style={{
+                  padding: '9px 11px', background: 'var(--surface-input)',
+                  border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text)',
+                  fontSize: 20, fontFamily: 'var(--font-mono)', outline: 'none',
+                }}
+                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(255,128,21,0.32)' }}
+                onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
+              />
+            ))}
+            <button
+              onClick={handlePasswordSave}
+              disabled={passwordSaving || !newPassword}
+              style={{
+                padding: '10px 0', cursor: passwordSaving || !newPassword ? 'default' : 'pointer',
+                background: passwordSaving || !newPassword ? 'rgba(255,128,21,0.07)' : 'rgba(255,128,21,0.12)',
+                border: '1px solid rgba(255,128,21,0.28)',
+                borderRadius: 8, color: '#ff8015',
+                fontSize: 16, fontWeight: 700, letterSpacing: '0.1em',
+                fontFamily: 'var(--font-mono)',
+              }}
+            >{passwordSaving ? 'SAVING…' : 'SET PASSWORD'}</button>
           </div>
         </div>
 

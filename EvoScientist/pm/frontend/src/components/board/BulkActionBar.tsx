@@ -1,8 +1,9 @@
-// EvoScientist/pm/frontend/src/components/board/BulkActionBar.tsx
 import React, { useState } from 'react'
-import type { Task } from '../../api'
 
-const VALID_STATUSES = ['todo', 'in_progress', 'done'] as const
+interface StatusOption {
+  value: string
+  label: string
+}
 
 interface Phase {
   id: string
@@ -11,8 +12,10 @@ interface Phase {
 
 interface Props {
   count: number
+  label?: string
   phases: Phase[]
-  onStatusChange: (status: Task['status']) => void
+  statusOptions: StatusOption[]
+  onStatusChange: (status: string) => void
   onPhaseChange: (phaseId: string | null) => void
   onClear: () => void
 }
@@ -29,7 +32,7 @@ const selectStyle: React.CSSProperties = {
   outline: 'none',
 }
 
-export function BulkActionBar({ count, phases, onStatusChange, onPhaseChange, onClear }: Props) {
+export function BulkActionBar({ count, label, phases, statusOptions, onStatusChange, onPhaseChange, onClear }: Props) {
   const [statusVal, setStatusVal] = useState('')
   const [phaseVal, setPhaseVal] = useState('')
   const [clearHovered, setClearHovered] = useState(false)
@@ -59,7 +62,7 @@ export function BulkActionBar({ count, phases, onStatusChange, onPhaseChange, on
         letterSpacing: '0.05em',
         whiteSpace: 'nowrap',
       }}>
-        {count} selected
+        {count} {label ?? 'selected'}
       </span>
 
       <div style={{ width: 1, height: 20, background: 'var(--border)', flexShrink: 0 }} />
@@ -68,18 +71,15 @@ export function BulkActionBar({ count, phases, onStatusChange, onPhaseChange, on
         data-testid="bulk-status-select"
         value={statusVal}
         onChange={e => {
-          const val = e.target.value
-          if (VALID_STATUSES.includes(val as Task['status'])) {
-            onStatusChange(val as Task['status'])
-          }
+          onStatusChange(e.target.value)
           setStatusVal('')
         }}
         style={selectStyle}
       >
         <option value="" disabled>Set status…</option>
-        <option value="todo">PLANNED</option>
-        <option value="in_progress">IN PROGRESS</option>
-        <option value="done">COMPLETE</option>
+        {statusOptions.map(o => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
       </select>
 
       <select

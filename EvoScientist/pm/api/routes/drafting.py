@@ -38,6 +38,12 @@ from ..schemas import (
     ReviewResponseRequest,
     ReviseRequest,
 )
+from .drafting_helpers import (
+    GROUNDING_RULE,
+    _entry_body,
+    prompt_fingerprint,
+    render_metrics_block,
+)
 
 router = APIRouter()
 RUNNER_URL = get_runner_url()
@@ -67,12 +73,12 @@ def _build_experiment_context(experiment_id: str) -> str:
     ]
     if linked:
         parts.append(f"Linked tasks: {', '.join(t.title for t in linked)}")
+    parts.append(render_metrics_block(experiment_id))
     if entries:
         parts.append("\n## Entries")
         for e in entries:
-            body = (e.body or "")[:800]
             parts.append(f"\n### {e.title} ({e.type})")
-            parts.append(body)
+            parts.append(_entry_body(e))
     return "\n".join(parts)
 
 
@@ -107,11 +113,11 @@ def _build_publication_context(pub_id: str) -> str:
                         parts.append(f"Protocol: {exp.protocol}")
                     if linked:
                         parts.append(f"Linked tasks: {', '.join(t.title for t in linked)}")
+                    parts.append(render_metrics_block(exp.id))
                     if entries:
                         for e in entries:
-                            body = (e.body or "")[:600]
                             parts.append(f"\n#### {e.title} ({e.type})")
-                            parts.append(body)
+                            parts.append(_entry_body(e))
     return "\n".join(parts)
 
 
@@ -139,7 +145,8 @@ Use only the information provided. Where details are missing, note them in **[br
 
 ---
 {context}
----"""
+---
+{GROUNDING_RULE}"""
 
 
 def _build_revise_prompt(current_text: str, instructions: str) -> str:
@@ -259,6 +266,10 @@ async def _run_section_and_save(pub_id: str, section: str, run_id: str, prompt: 
             created_by=user_id,
             file_path=file_path,
             notes=f"AI-generated {section} ({len(text)} chars)",
+            content=text,
+            section=section,
+            generated_by="ai-agent",
+            prompt_hash=prompt_fingerprint(prompt),
         )
 
 
@@ -358,6 +369,10 @@ async def _run_revision_and_save(pub_id: str, run_id: str, prompt: str, workspac
             created_by="system",
             file_path=file_path,
             notes=f"AI revision ({len(text)} chars)",
+            content=text,
+            section="revision",
+            generated_by="ai-agent",
+            prompt_hash=prompt_fingerprint(prompt),
         )
 
 
@@ -404,6 +419,10 @@ async def _run_response_and_save(pub_id: str, comments: str, run_id: str, prompt
             created_by=user_id,
             file_path=file_path,
             notes=f"AI-generated reviewer response ({len(comments)} chars of comments)",
+            content=text,
+            section="reviewer-response",
+            generated_by="ai-agent",
+            prompt_hash=prompt_fingerprint(prompt),
         )
 
 
@@ -450,12 +469,18 @@ async def _run_draft_agent(pub_id: str, prompt: str, workspace_dir: str) -> None
     text = await _run_agent_and_get_output(f"draft-{pub_id}", prompt, workspace_dir)
     if text:
         file_path = _save_section_file(workspace_dir, "full-draft", text)
+        # The full text lives in the version row; `abstract` keeps only a preview
+        # so the publication list stays readable.
         update_publication(get_db_path(), pub_id, abstract=text[:2000].strip(), status="draft")
         create_version(
             get_db_path(), pub_id,
             created_by="system",
             file_path=file_path,
             notes=f"Full AI-generated draft ({len(text)} chars)",
+            content=text,
+            section="full-draft",
+            generated_by="ai-agent",
+            prompt_hash=prompt_fingerprint(prompt),
         )
 
 

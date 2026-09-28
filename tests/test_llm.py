@@ -46,6 +46,7 @@ class TestModelsRegistry:
         assert "deepseek" in providers
         assert "moonshot" in providers
         assert "kimi-coding" in providers
+        assert "groq" in providers
 
     def test_entries_are_valid_tuples(self):
         """Test that _MODEL_ENTRIES contains valid (name, model_id, provider) tuples."""
@@ -67,6 +68,7 @@ class TestModelsRegistry:
             "deepseek",
             "moonshot",
             "kimi-coding",
+            "groq",
         }
         for entry in _MODEL_ENTRIES:
             assert len(entry) == 3, f"Entry {entry} doesn't have 3 elements"
@@ -102,10 +104,10 @@ class TestDefaultModel:
         """Test that DEFAULT_MODEL is a valid model in MODELS."""
         assert DEFAULT_MODEL in MODELS
 
-    def test_default_model_is_anthropic(self):
-        """Test that default model uses Anthropic."""
+    def test_default_model_is_groq(self):
+        """Test that default model uses Groq."""
         _, provider = MODELS[DEFAULT_MODEL]
-        assert provider == "anthropic"
+        assert provider == "groq"
 
 
 # =============================================================================
@@ -170,9 +172,10 @@ class TestGetChatModel:
         mock_init.assert_called_once()
         call_kwargs = mock_init.call_args[1]
         # Default model should be resolved from MODELS
-        expected_model_id, expected_provider = MODELS[DEFAULT_MODEL]
+        expected_model_id, _ = MODELS[DEFAULT_MODEL]
         assert call_kwargs["model"] == expected_model_id
-        assert call_kwargs["model_provider"] == expected_provider
+        # Groq is routed through OpenAI provider, so model_provider is 'openai'
+        assert call_kwargs["model_provider"] == "openai"
 
     @patch("EvoScientist.llm.models.init_chat_model")
     def test_resolves_short_name(self, mock_init):
