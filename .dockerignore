@@ -5,7 +5,6 @@
 
 # CI / project meta (image doesn't need these)
 .github/
-docs/
 CONTRIBUTING.md
 README.zh-CN.md
 LICENSE

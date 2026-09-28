@@ -1,0 +1,19 @@
+version: 1
+metadata:
+  name: Microsoft OAuth Source
+  labels:
+    blueprint.evoscientist.ai/type: source
+entries:
+  - model: authentik_sources_oauth.oauthsource
+    id: microsoft-oauth
+    attrs:
+      name: Microsoft
+      slug: microsoft
+      enabled: true
+      authentication_flow: !Find [authentik_flows.flow, [slug, default-source-authentication]]
+      enrollment_flow: !Find [authentik_flows.flow, [slug, default-source-enrollment]]
+      provider_type: microsoft
+      consumer_key: ${MICROSOFT_OAUTH_CLIENT_ID}
+      consumer_secret: ${MICROSOFT_OAUTH_CLIENT_SECRET}
+      tenant_id: ${MICROSOFT_OAUTH_TENANT_ID}
+      additional_scopes: "openid email profile User.Read offline_access"

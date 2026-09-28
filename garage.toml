@@ -3,10 +3,8 @@ data_dir = "/data/store"
 db_engine = "sqlite"
 replication_factor = 1
 
-[rpc_bind_addr]
-# Internal cluster RPC — only needed for multi-node; required key nonetheless
-addr = "0.0.0.0"
-port = 3901
+rpc_bind_addr = "0.0.0.0:3901"
+rpc_secret = "8a86f50ff39841c0d19dbdb8c92a2527becaf7471005fe569db3740f094d046d"
 
 [s3_api]
 s3_region = "garage"

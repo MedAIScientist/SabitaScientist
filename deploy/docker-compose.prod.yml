@@ -1,11 +1,4 @@
-# Production deployment for EvoScientist Research Ecosystem.
-# Usage:
-#   cp .env deploy/.env && vim deploy/.env   # set API keys
-#   docker compose -f deploy/docker-compose.yml up -d
-#
-# With SSL (requires cert.pem + key.pem in deploy/nginx/ssl/):
-#   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.ssl.yml up -d
-
+# Production deployment — single compose file for all services
 x-shared: &shared
   env_file:
     - ../.env
@@ -13,7 +6,6 @@ x-shared: &shared
   restart: unless-stopped
 
 services:
-  # ── Main application: PM API + SPA + Agent Runner ──────────────────────────
   evoscientist:
     <<: *shared
     build:
@@ -23,9 +15,9 @@ services:
     container_name: evoscientist
     entrypoint: ["tini", "--", "evosci"]
     command: ["dashboard", "--host", "0.0.0.0", "--no-open"]
-    ports:
-      - "7860:7860"
-      - "8001:8001"
+    expose:
+      - "7860"
+      - "8001"
     depends_on:
       garage:
         condition: service_healthy
@@ -36,22 +28,30 @@ services:
       - GARAGE_ACCESS_KEY=${GARAGE_ACCESS_KEY:-}
       - GARAGE_SECRET_KEY=${GARAGE_SECRET_KEY:-}
       - GARAGE_BUCKET=${GARAGE_BUCKET:-evoscientist}
+    # platform-control desired-state pushes (DMZ -> cluster): the hostname
+    # resolves to the cluster gateway VIP only inside this container (public DNS
+    # for it points back at this very host's nginx, which has no location for
+    # it), and the gateway's cert chains to the pinned internal CA below.
+    extra_hosts:
+      - "platform.medai.medipol.edu.tr:172.20.43.241"
     volumes:
       - evoscientist-prod-data:/data
       - evoscientist-home:/home/evosci/.evoscientist
+      - /home/medaiadm/sabita-internal-ca.pem:/etc/ssl/sabita-internal-ca.pem:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:7860/api/v1/health"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 15s
+      start_period: 10s
+    networks:
+      - gazzali-net
 
-  # ── S3-compatible object storage for file attachments ──────────────────────
   garage:
     image: dxflrs/garage:v1.0.1
     container_name: evoscientist-garage
-    ports:
-      - "127.0.0.1:3900:3900"
+    expose:
+      - "3900"
     environment:
       - GARAGE_CONFIG_FILE=/etc/garage.toml
     volumes:
@@ -64,8 +64,35 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
+    networks:
+      - gazzali-net
+
+  nginx:
+    image: nginx:alpine
+    container_name: evoscientist-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+    depends_on:
+      - evoscientist
+    networks:
+      - gazzali-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/nginx-health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
 
 volumes:
   evoscientist-prod-data:
   evoscientist-home:
   garage-prod-data:
+
+networks:
+  gazzali-net:
+    driver: bridge

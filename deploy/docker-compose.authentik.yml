@@ -1,0 +1,107 @@
+# Authentik IAM — OIDC provider with Microsoft OAuth source.
+# Usage:
+#   docker compose -f deploy/docker-compose.yml \
+#     -f deploy/docker-compose.authentik.yml up -d
+#
+# With SSL:
+#   docker compose -f deploy/docker-compose.yml \
+#     -f deploy/docker-compose.ssl.yml \
+#     -f deploy/docker-compose.authentik.yml up -d
+
+x-shared: &authentik-shared
+  env_file:
+    - ../.env
+    - .env
+    - authentik/.env.authentik
+  restart: unless-stopped
+
+services:
+  # ── PostgreSQL for Authentik ───────────────────────────────────────────────
+  authentik-postgres:
+    image: postgres:16-alpine
+    container_name: authentik-postgres
+    environment:
+      POSTGRES_DB: ${AUTHENTIK_POSTGRES_DB:-authentik}
+      POSTGRES_USER: ${AUTHENTIK_POSTGRES_USER:-authentik}
+      POSTGRES_PASSWORD: ${AUTHENTIK_POSTGRES_PASSWORD:?must be set}
+    volumes:
+      - authentik-postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ── Redis for Authentik ────────────────────────────────────────────────────
+  authentik-redis:
+    image: redis:7-alpine
+    container_name: authentik-redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ── Authentik Server (web UI + API) ────────────────────────────────────────
+  authentik-server:
+    <<: *authentik-shared
+    image: ghcr.io/goauthentik/server:2025.6
+    container_name: authentik-server
+    command: server
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9443:9443"
+    volumes:
+      - authentik-media:/media
+      - authentik-templates:/templates
+      - ./authentik/blueprints:/blueprints:ro
+    environment:
+      AUTHENTIK_BOOTSTRAP_BLUEPRINTS_DIR: /blueprints
+      AUTHENTIK_POSTGRESQL__HOST: authentik-postgres
+      AUTHENTIK_POSTGRESQL__NAME: ${AUTHENTIK_POSTGRES_DB:-authentik}
+      AUTHENTIK_POSTGRESQL__USER: ${AUTHENTIK_POSTGRES_USER:-authentik}
+      AUTHENTIK_REDIS__HOST: authentik-redis
+      AUTHENTIK_LISTEN__PORT: "9000"
+      AUTHENTIK_LISTEN__HTTPS_PORT: "9443"
+    depends_on:
+      authentik-postgres:
+        condition: service_healthy
+      authentik-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/-/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+
+  # ── Authentik Worker (background tasks) ────────────────────────────────────
+  authentik-worker:
+    <<: *authentik-shared
+    image: ghcr.io/goauthentik/server:2025.6
+    container_name: authentik-worker
+    command: worker
+    volumes:
+      - authentik-media:/media
+      - authentik-templates:/templates
+      - ./authentik/blueprints:/blueprints:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      AUTHENTIK_BOOTSTRAP_BLUEPRINTS_DIR: /blueprints
+      AUTHENTIK_POSTGRESQL__HOST: authentik-postgres
+      AUTHENTIK_POSTGRESQL__NAME: ${AUTHENTIK_POSTGRES_DB:-authentik}
+      AUTHENTIK_POSTGRESQL__USER: ${AUTHENTIK_POSTGRES_USER:-authentik}
+      AUTHENTIK_REDIS__HOST: authentik-redis
+    depends_on:
+      authentik-postgres:
+        condition: service_healthy
+      authentik-redis:
+        condition: service_healthy
+
+volumes:
+  authentik-postgres-data:
+  authentik-media:
+  authentik-templates:

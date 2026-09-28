@@ -29,13 +29,17 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-install-project --no-dev \
         --extra pm --extra all-channels
 
-COPY EvoScientist ./EvoScientist
+COPY EvoScientist/ ./EvoScientist/
+COPY docs ./EvoScientist/docs
 
 # Overlay the freshly-built frontend dist
 COPY --from=frontend-builder /frontend/dist ./EvoScientist/pm/frontend/dist
 
+# --reinstall-package: uv otherwise reuses the wheel it cached for the project on
+# a previous build, so newly added modules never reach site-packages. The image
+# must always reflect the source tree it is built from.
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-editable \
+    uv sync --frozen --no-dev --no-editable --reinstall-package EvoScientist \
         --extra pm --extra all-channels
 
 # ---------- Runtime ----------

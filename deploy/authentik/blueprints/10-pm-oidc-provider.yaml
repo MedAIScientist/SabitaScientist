@@ -1,0 +1,36 @@
+version: 1
+metadata:
+  name: EvoScientist PM — OIDC Provider
+  labels:
+    blueprint.evoscientist.ai/type: oidc
+entries:
+  - model: authentik_providers_oauth2.oauth2provider
+    id: pm-oidc
+    attrs:
+      name: EvoScientist PM
+      authentication_flow: !Find [authentik_flows.flow, [slug, default-source-authentication]]
+      authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
+      invalidation_flow: !Find [authentik_flows.flow, [slug, default-invalidation-flow]]
+      client_type: confidential
+      client_id: ${PM_OIDC_CLIENT_ID}
+      client_secret: ${PM_OIDC_CLIENT_SECRET}
+      redirect_uris: ${PM_OIDC_REDIRECT_URI}
+      signing_key: !Find [authentik_crypto.certificatekeypair, [name, authentik Self-signed Certificate]]
+      sub_mode: hashed_user_id
+      property_mappings:
+        - !Find [authentik_core.propertymapping, [managed, goauthentik.io/providers/oauth2/scope-email]]
+        - !Find [authentik_core.propertymapping, [managed, goauthentik.io/providers/oauth2/scope-openid]]
+        - !Find [authentik_core.propertymapping, [managed, goauthentik.io/providers/oauth2/scope-profile]]
+      access_code_validity: minutes=5
+      token_validity: days=1
+
+  - model: authentik_core.application
+    attrs:
+      name: EvoScientist PM
+      slug: evoscientist-pm
+      group: EvoScientist
+      meta_launch_url: ${PM_BASE_URL:-http://localhost:7860}
+      meta_description: Research Project Management Dashboard
+      meta_icon: https://raw.githubusercontent.com/anomalyco/EvoScientist/main/frontend/public/favicon.ico
+      provider: !Find [authentik_providers_oauth2.oauth2provider, [pk, pm-oidc]]
+      policy_engine_mode: any
