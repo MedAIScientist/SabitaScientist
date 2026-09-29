@@ -91,7 +91,8 @@ export const api = {
     request<Experiment[]>('GET', `/projects/${projectId}/experiments`),
   createExperiment: (projectId: string, data: {
     name: string; hypothesis?: string | null; protocol?: string | null;
-    status?: string; tags?: string[]; deadline?: string | null
+    status?: string; tags?: string[]; deadline?: string | null;
+    phase_id?: string | null
   }) => request<Experiment>('POST', `/projects/${projectId}/experiments`, data),
   getExperiment: (projectId: string, expId: string) =>
     request<Experiment>('GET', `/projects/${projectId}/experiments/${expId}`),

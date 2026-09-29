@@ -6,6 +6,7 @@ import type { DragStartEvent, DragOverEvent, DragEndEvent } from '@dnd-kit/core'
 import { api, Task, Experiment, listPhases } from '../api'
 import { TaskDetail } from './TaskDetail'
 import { ExperimentDetail } from '../components/ExperimentDetail'
+import { NewExperimentDialog } from '../components/experiment/NewExperimentDialog'
 import { FilterToolbar } from '../components/FilterToolbar'
 
 import { ProjectSettingsPanel } from '../components/ProjectSettingsPanel'
@@ -56,6 +57,7 @@ export function Board() {
   const [showResearchTools, setShowResearchTools] = useState(false)
   const [showMode, setShowMode] = useState<'both' | 'tasks' | 'experiments'>('both')
   const [showExperimentsPanel, setShowExperimentsPanel] = useState(false)
+  const [showNewExperiment, setShowNewExperiment] = useState(false)
 
   const { data: project } = useQuery({
     queryKey: ['project', projectId],
@@ -565,6 +567,15 @@ export function Board() {
         />
       )}
 
+      {showNewExperiment && projectId && (
+        <NewExperimentDialog
+          projectId={projectId}
+          phases={phases}
+          onCreated={exp => { setShowNewExperiment(false); setSelectedExp(exp) }}
+          onClose={() => setShowNewExperiment(false)}
+        />
+      )}
+
       {showExperimentsPanel && (
         <div style={{
           position: 'fixed', right: 0, top: 100, bottom: 0, width: 380,
@@ -579,15 +590,38 @@ export function Board() {
             <span style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#10b981' }}>
               ⚗ Experiments
             </span>
-            <button onClick={() => setShowExperimentsPanel(false)} style={{
-              background: 'none', border: 'none', cursor: 'pointer', fontSize: 20,
-              color: 'var(--text-dim)', padding: '2px 6px', borderRadius: 4,
-            }}>✕</button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {/* The panel could list experiments but not make one, so creating
+                  from the board meant leaving for the experiments page. */}
+              <button
+                onClick={() => setShowNewExperiment(true)}
+                title="New experiment"
+                style={{
+                  background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.28)',
+                  borderRadius: 4, padding: '2px 9px', color: '#10b981',
+                  fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                  letterSpacing: '0.06em', cursor: 'pointer',
+                }}
+              >+ NEW</button>
+              <button onClick={() => setShowExperimentsPanel(false)} style={{
+                background: 'none', border: 'none', cursor: 'pointer', fontSize: 20,
+                color: 'var(--text-dim)', padding: '2px 6px', borderRadius: 4,
+              }}>✕</button>
+            </div>
           </div>
           <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
             {experiments.length === 0 ? (
               <div style={{ color: 'var(--text-dim)', fontSize: 14, padding: 16, textAlign: 'center' }}>
-                No experiments yet.
+                <div>No experiments yet.</div>
+                <button
+                  onClick={() => setShowNewExperiment(true)}
+                  style={{
+                    marginTop: 10, background: 'rgba(16,185,129,0.1)',
+                    border: '1px solid rgba(16,185,129,0.28)', borderRadius: 4,
+                    padding: '5px 14px', color: '#10b981', fontSize: 15,
+                    fontWeight: 700, fontFamily: 'var(--font-mono)', cursor: 'pointer',
+                  }}
+                >+ NEW EXPERIMENT</button>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

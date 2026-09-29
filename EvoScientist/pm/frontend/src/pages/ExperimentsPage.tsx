@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, Experiment, listPhases } from '../api'
 import { ExperimentDetail } from '../components/ExperimentDetail'
+import { NewExperimentDialog } from '../components/experiment/NewExperimentDialog'
 import { useAuth } from '../auth'
 
 const STATUS_COLORS: Record<string, string> = {
@@ -18,21 +19,8 @@ export function ExperimentsPage() {
   const { token } = useAuth()
   const [selectedExp, setSelectedExp] = useState<Experiment | null>(null)
   const [modal, setModal] = useState<ModalType>(null)
-  const [showDropdown, setShowDropdown] = useState(false)
   const [newName, setNewName] = useState('')
   const [selectedPhaseId, setSelectedPhaseId] = useState<string | null>(null)
-  const dropdownRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!showDropdown) return
-    const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setShowDropdown(false)
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [showDropdown])
 
   useEffect(() => {
     setSelectedPhaseId(null)
@@ -60,15 +48,6 @@ export function ExperimentsPage() {
     ? experiments
     : experiments.filter(e => e.phase_id === selectedPhaseId)
 
-  const createExperimentMutation = useMutation({
-    mutationFn: () => api.createExperiment(projectId!, { name: newName.trim() }),
-    onSuccess: (exp) => {
-      qc.invalidateQueries({ queryKey: ['experiments', projectId] })
-      closeModal()
-      setSelectedExp(exp)
-    },
-  })
-
   const createTaskMutation = useMutation({
     mutationFn: () => api.createTask(projectId!, { title: newName.trim(), status: 'todo' }),
     onSuccess: () => {
@@ -83,19 +62,15 @@ export function ExperimentsPage() {
   }
 
   const openModal = (type: ModalType) => {
-    setShowDropdown(false)
     setModal(type)
   }
 
-  const isExperiment = modal === 'experiment'
-  const accent = isExperiment ? '#10b981' : '#ff8015'
-  const accentRgb = isExperiment ? '16,185,129' : '34,211,238'
-  const isPending = isExperiment ? createExperimentMutation.isPending : createTaskMutation.isPending
+  const accent = '#ff8015'
+  const accentRgb = '255,128,21'
 
   const handleCreate = () => {
     if (!newName.trim()) return
-    if (isExperiment) createExperimentMutation.mutate()
-    else createTaskMutation.mutate()
+    createTaskMutation.mutate()
   }
 
   return (
@@ -128,56 +103,42 @@ export function ExperimentsPage() {
           </h1>
         </div>
 
-        {/* NEW dropdown */}
-        <div style={{ marginLeft: 'auto', position: 'relative' }} ref={dropdownRef}>
-          <button
-            onClick={() => setShowDropdown(v => !v)}
-            style={{
-              background: 'rgba(255,128,21,0.08)', border: '1px solid rgba(255,128,21,0.22)',
-              borderRadius: 4, padding: '5px 14px', color: '#ff8015',
-              fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)',
-              letterSpacing: '0.08em', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
-              transition: 'background 0.14s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,128,21,0.15)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,128,21,0.08)' }}
-          >
-            + NEW
-            <span style={{ fontSize: 18, opacity: 0.7, marginLeft: 2 }}>▾</span>
-          </button>
-
-          {showDropdown && (
-            <div style={{
-              position: 'absolute', top: 'calc(100% + 6px)', right: 0,
-              background: 'var(--surface-panel)',
-              border: '1px solid var(--border)',
-              borderRadius: 6, overflow: 'hidden',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
-              minWidth: 160, zIndex: 20,
-              animation: 'fadeInUp 0.12s ease',
-            }}>
-              <DropdownItem
-                icon="⚗"
-                label="EXPERIMENT"
-                sub="Lab experiment with notes & results"
-                color="#10b981"
-                onClick={() => openModal('experiment')}
-              />
-              <div style={{ height: 1, background: 'var(--border-subtle)' }} />
-              <DropdownItem
-                icon="✦"
-                label="TASK"
-                sub="Kanban task added to Planned column"
-                color="#ff8015"
-                onClick={() => openModal('task')}
-              />
-            </div>
-          )}
+        {/* Two explicit buttons rather than a "+ NEW ▾" dropdown: creating an
+            experiment is the common action here and used to cost two clicks
+            through a menu that did not say what it made. */}
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+          <HeaderAction
+            icon="⚗"
+            label="EXPERIMENT"
+            color="#10b981"
+            rgb="16,185,129"
+            onClick={() => openModal('experiment')}
+          />
+          <HeaderAction
+            icon="✦"
+            label="TASK"
+            color="#ff8015"
+            rgb="255,128,21"
+            onClick={() => openModal('task')}
+          />
         </div>
       </div>
 
-      {/* Create modal */}
-      {modal && (
+      {/* Create experiment — a dedicated dialog that also captures the phase, so
+          the new experiment does not land in "Unassigned" and need a second trip
+          through the detail panel. */}
+      {modal === 'experiment' && (
+        <NewExperimentDialog
+          projectId={projectId!}
+          phases={phases}
+          defaultPhaseId={selectedPhaseId}
+          onCreated={exp => { setModal(null); setSelectedExp(exp) }}
+          onClose={() => setModal(null)}
+        />
+      )}
+
+      {/* Create task */}
+      {modal === 'task' && (
         <div style={{
           position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50,
@@ -191,12 +152,12 @@ export function ExperimentsPage() {
             animation: 'fadeInUp 0.15s ease',
           }}>
             <div style={{ fontSize: 20, fontWeight: 700, color: accent, fontFamily: 'var(--font-mono)', marginBottom: 14, letterSpacing: '0.1em' }}>
-              {isExperiment ? '⚗ NEW EXPERIMENT' : '✦ NEW TASK'}
+              ✦ NEW TASK
             </div>
             <input
               value={newName}
               onChange={e => setNewName(e.target.value)}
-              placeholder={isExperiment ? 'Experiment name…' : 'Task title…'}
+              placeholder="Task title…"
               autoFocus
               onKeyDown={e => e.key === 'Enter' && handleCreate()}
               style={{
@@ -207,11 +168,9 @@ export function ExperimentsPage() {
                 fontFamily: 'inherit', outline: 'none', marginBottom: 14,
               }}
             />
-            {!isExperiment && (
-              <p style={{ fontSize: 16, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginBottom: 14, marginTop: -8 }}>
-                Task will appear in the PLANNED column on the board.
-              </p>
-            )}
+            <p style={{ fontSize: 16, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginBottom: 14, marginTop: -8 }}>
+              Task will appear in the PLANNED column on the board.
+            </p>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button
                 onClick={closeModal}
@@ -223,7 +182,7 @@ export function ExperimentsPage() {
               >CANCEL</button>
               <button
                 onClick={handleCreate}
-                disabled={!newName.trim() || isPending}
+                disabled={!newName.trim() || createTaskMutation.isPending}
                 style={{
                   background: `rgba(${accentRgb},0.1)`, border: `1px solid rgba(${accentRgb},0.28)`,
                   borderRadius: 4, padding: '6px 14px', color: accent,
@@ -284,10 +243,10 @@ export function ExperimentsPage() {
   )
 }
 
-function DropdownItem({
-  icon, label, sub, color, onClick,
+function HeaderAction({
+  icon, label, color, rgb, onClick,
 }: {
-  icon: string; label: string; sub: string; color: string; onClick: () => void
+  icon: string; label: string; color: string; rgb: string; onClick: () => void
 }) {
   const [hovered, setHovered] = useState(false)
   return (
@@ -296,21 +255,16 @@ function DropdownItem({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        display: 'flex', alignItems: 'flex-start', gap: 10,
-        width: '100%', padding: '10px 14px', border: 'none', cursor: 'pointer', textAlign: 'left',
-        background: hovered ? 'var(--surface-card-hover)' : 'transparent',
-        transition: 'background 0.1s',
+        background: `rgba(${rgb},${hovered ? 0.15 : 0.08})`,
+        border: `1px solid rgba(${rgb},${hovered ? 0.35 : 0.22})`,
+        borderRadius: 4, padding: '5px 14px', color,
+        fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)',
+        letterSpacing: '0.08em', cursor: 'pointer',
+        display: 'flex', alignItems: 'center', gap: 6,
+        transition: 'background 0.14s, border-color 0.14s',
       }}
     >
-      <span style={{ fontSize: 21, flexShrink: 0, marginTop: 1 }}>{icon}</span>
-      <div>
-        <div style={{ fontSize: 16, fontWeight: 700, color, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em' }}>
-          {label}
-        </div>
-        <div style={{ fontSize: 15, color: 'var(--text-dim)', marginTop: 1, lineHeight: 1.4 }}>
-          {sub}
-        </div>
-      </div>
+      <span style={{ fontSize: 18 }}>{icon}</span> {label}
     </button>
   )
 }
@@ -382,6 +336,27 @@ function ExperimentCard({ exp, onClick }: { exp: Experiment; onClick: () => void
       {exp.deadline && (
         <div style={{ fontSize: 15, color: 'var(--text-dim)', marginTop: 8, fontFamily: 'var(--font-mono)' }}>
           DEADLINE: {exp.deadline}
+        </div>
+      )}
+
+      {((exp.linked_task_count ?? 0) > 0 || (exp.linked_asset_count ?? 0) > 0) && (
+        <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+          {(exp.linked_task_count ?? 0) > 0 && (
+            <span style={{
+              fontSize: 13, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)',
+              background: 'var(--surface-input)', border: '1px solid var(--border)',
+              borderRadius: 3, padding: '1px 6px',
+            }}>🔗 {exp.linked_task_count} task{exp.linked_task_count === 1 ? '' : 's'}</span>
+          )}
+          {/* Surfaces the DATA tab: without this there is no hint on the card
+              that an experiment is traced to datasets or imaging artefacts. */}
+          {(exp.linked_asset_count ?? 0) > 0 && (
+            <span style={{
+              fontSize: 13, fontFamily: 'var(--font-mono)', color: '#8b5cf6',
+              background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.25)',
+              borderRadius: 3, padding: '1px 6px',
+            }}>🗄 {exp.linked_asset_count} data</span>
+          )}
         </div>
       )}
     </div>

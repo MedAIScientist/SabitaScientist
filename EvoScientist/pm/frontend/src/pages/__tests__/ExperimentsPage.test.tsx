@@ -17,7 +17,9 @@ vi.mock('../../api', () => ({
       protocol: null, status: 'planned', tags: [], deadline: null,
       created_by: 'u1', created_at: '2026-01-01', updated_at: '2026-01-01',
     }),
+    createTask: vi.fn().mockResolvedValue({}),
   },
+  listPhases: vi.fn().mockResolvedValue([]),
 }))
 
 vi.mock('../../auth', () => ({
@@ -35,6 +37,11 @@ const MOCK_EXP: Experiment = {
   created_at: '2026-01-01', updated_at: '2026-01-01',
 }
 
+const PHASE = {
+  id: 'ph1', project_id: 'p1', name: 'Data Analysis', color: '#8b5cf6',
+  position: 0, target_date: null, created_by: 'u1', created_at: '2026-01-01',
+}
+
 function wrap(ui: React.ReactNode) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return (
@@ -49,7 +56,12 @@ function wrap(ui: React.ReactNode) {
 }
 
 describe('ExperimentsPage', () => {
-  beforeEach(() => { vi.clearAllMocks() })
+  beforeEach(async () => {
+    vi.clearAllMocks()
+    const { api, listPhases } = await import('../../api')
+    vi.mocked(api.listExperiments).mockResolvedValue([])
+    vi.mocked(listPhases).mockResolvedValue([])
+  })
 
   it('renders project name in header', async () => {
     render(wrap(<ExperimentsPage />))
@@ -68,13 +80,37 @@ describe('ExperimentsPage', () => {
     await waitFor(() => expect(screen.getByText('Western Blot #1')).toBeInTheDocument())
   })
 
-  it('shows NEW EXPERIMENT button', async () => {
+  it('names the create action instead of hiding it behind a + NEW menu', async () => {
     render(wrap(<ExperimentsPage />))
-    // The "+ NEW" dropdown trigger button should always be present
-    const newBtn = await waitFor(() => screen.getByRole('button', { name: /\+ NEW/i }))
+    const newBtn = await waitFor(() => screen.getByRole('button', { name: /EXPERIMENT/i }))
     expect(newBtn).toBeInTheDocument()
-    // Opening the dropdown reveals the EXPERIMENT item
-    fireEvent.click(newBtn)
-    await waitFor(() => expect(screen.getByRole('button', { name: /EXPERIMENT/i })).toBeInTheDocument())
+  })
+
+  it('creates an experiment with the phase picked in the dialog', async () => {
+    const { api, listPhases } = await import('../../api')
+    vi.mocked(listPhases).mockResolvedValue([PHASE])
+    render(wrap(<ExperimentsPage />))
+
+    fireEvent.click(await screen.findByRole('button', { name: /EXPERIMENT/i }))
+
+    const nameInput = await screen.findByPlaceholderText(/Denoise cohort/i)
+    fireEvent.change(nameInput, { target: { value: 'Denoise cohort' } })
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'ph1' } })
+    fireEvent.click(screen.getByRole('button', { name: /^CREATE$/i }))
+
+    await waitFor(() => expect(api.createExperiment).toHaveBeenCalledWith('p1', {
+      name: 'Denoise cohort', phase_id: 'ph1', hypothesis: null,
+    }))
+  })
+
+  it('will not create an experiment without a name', async () => {
+    const { api } = await import('../../api')
+    render(wrap(<ExperimentsPage />))
+
+    fireEvent.click(await screen.findByRole('button', { name: /EXPERIMENT/i }))
+    await screen.findByPlaceholderText(/Denoise cohort/i)
+    fireEvent.click(screen.getByRole('button', { name: /^CREATE$/i }))
+
+    expect(api.createExperiment).not.toHaveBeenCalled()
   })
 })
