@@ -1,7 +1,7 @@
 // src/pages/ProjectReportPage.tsx
 import React, { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQueries, useQuery } from '@tanstack/react-query'
 import { api } from '../api'
 import { StatCard } from '../components/report/StatCard'
 import { DonutChart } from '../components/report/DonutChart'
@@ -94,8 +94,24 @@ export function ProjectReportPage() {
     enabled: Boolean(projectId),
   })
 
-  // listEntries requires per-experiment calls (projectId + expId); use empty counts
+  // Notes and results live behind a per-experiment endpoint, so they are fetched
+  // in parallel for the experiments on this report. This used to be a hard-coded
+  // empty map, which made every NOTES/RESULTS cell render 0.
+  const entryQueries = useQueries({
+    queries: experiments.map(exp => ({
+      queryKey: ['entries', projectId, exp.id],
+      queryFn: () => api.listEntries(projectId!, exp.id),
+      enabled: Boolean(projectId),
+    })),
+  })
   const entryCounts = new Map<string, { notes: number; results: number }>()
+  experiments.forEach((exp, index) => {
+    const rows = entryQueries[index]?.data ?? []
+    entryCounts.set(exp.id, {
+      notes: rows.filter(e => e.type === 'note').length,
+      results: rows.filter(e => e.type === 'result').length,
+    })
+  })
 
   const todoCount       = tasks.filter(t => t.status === 'todo').length
   const inProgressCount = tasks.filter(t => t.status === 'in_progress').length

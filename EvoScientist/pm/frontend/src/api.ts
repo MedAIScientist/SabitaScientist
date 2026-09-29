@@ -111,6 +111,50 @@ export const api = {
     request<Task[]>('GET', `/projects/${projectId}/experiments/${expId}/tasks`),
   listLinkedExperiments: (projectId: string, taskId: string) =>
     request<Experiment[]>('GET', `/projects/${projectId}/tasks/${taskId}/experiments`),
+  // ── Experiment data lineage ──────────────────────────────────────────────
+  // What the experiment consumed (dataset), how it was processed (de-id run) and
+  // what it produced (CVAT annotations, WebKnossos segmentation).
+  listExperimentAssets: (projectId: string, expId: string) =>
+    request<ExperimentAsset[]>('GET', `/projects/${projectId}/experiments/${expId}/assets`),
+  linkExperimentAsset: (
+    projectId: string,
+    expId: string,
+    data: {
+      asset_type: ExperimentAssetType; asset_id: string
+      role?: ExperimentAssetRole; note?: string | null
+    },
+  ) => request<ExperimentAsset>(
+    'POST', `/projects/${projectId}/experiments/${expId}/assets`, data,
+  ),
+  unlinkExperimentAsset: (
+    projectId: string, expId: string, assetType: string, assetId: string,
+  ) => request<void>(
+    'DELETE', `/projects/${projectId}/experiments/${expId}/assets/${assetType}/${assetId}`,
+  ),
+  // ── Experiment metrics ───────────────────────────────────────────────────
+  // These are the numbers paper drafting reads; a results CSV uploaded to an
+  // entry is parsed into them server-side, so they exist whether or not the UI
+  // ever showed them.
+  listExperimentMetrics: (projectId: string, expId: string) =>
+    request<ExperimentMetric[]>('GET', `/projects/${projectId}/experiments/${expId}/metrics`),
+  createExperimentMetric: (projectId: string, expId: string, data: {
+    name: string; value: number; unit?: string | null; split?: string | null
+    n?: number | null; stderr?: number | null
+  }) => request<ExperimentMetric>(
+    'POST', `/projects/${projectId}/experiments/${expId}/metrics`, data,
+  ),
+  deleteExperimentMetric: (projectId: string, expId: string, metricId: string) =>
+    request<void>('DELETE', `/projects/${projectId}/experiments/${expId}/metrics/${metricId}`),
+  // ── Data / imaging assets a lineage link can point at ────────────────────
+  listDatasets: () => request<DatasetSummary[]>('GET', '/datasets'),
+  listProjectDeidRuns: (projectId: string) =>
+    request<PipelineRunSummary[]>('GET', `/projects/${projectId}/deid-pipeline-runs`),
+  listProjectCvat: (projectId: string) =>
+    request<CvatProjectSummary[]>('GET', `/projects/${projectId}/cvat`),
+  listProjectWebknossos: (projectId: string) =>
+    request<WebKnossosDatasetSummary[]>('GET', `/projects/${projectId}/webknossos`),
+  listProjectSandboxes: (projectId: string) =>
+    request<SandboxSummary[]>('GET', `/projects/${projectId}/sandboxes`),
   listEntries: (projectId: string, expId: string, type?: 'note' | 'result') =>
     request<ExperimentEntry[]>(
       'GET', `/projects/${projectId}/experiments/${expId}/entries${type ? `?type=${type}` : ''}`
@@ -489,6 +533,7 @@ export interface Experiment {
   deadline: string | null
   phase_id?: string | null
   linked_task_count?: number
+  linked_asset_count?: number
   created_by: string
   created_at: string
   updated_at: string
@@ -502,6 +547,77 @@ export interface ExperimentEntry {
   author_id: string | null
   created_at: string
   updated_at: string
+}
+
+/** Kinds of data/imaging asset an experiment can be traced to. */
+export type ExperimentAssetType =
+  | 'dataset' | 'pipeline_run' | 'cvat_project' | 'webknossos_dataset' | 'sandbox'
+
+/** What the asset is to the experiment. */
+export type ExperimentAssetRole = 'input' | 'processing' | 'output' | 'reference'
+
+export const EXPERIMENT_ASSET_ROLES: ExperimentAssetRole[] = [
+  'input', 'processing', 'output', 'reference',
+]
+
+export const EXPERIMENT_ASSET_TYPE_LABELS: Record<ExperimentAssetType, string> = {
+  dataset: 'IMAGING DATASET',
+  pipeline_run: 'DE-ID RUN',
+  cvat_project: 'CVAT ANNOTATION',
+  webknossos_dataset: 'WEBKNOSSOS SEGMENTATION',
+  sandbox: 'SANDBOX',
+}
+
+export interface ExperimentAsset {
+  experiment_id: string
+  asset_type: ExperimentAssetType
+  asset_id: string
+  role: ExperimentAssetRole
+  note: string | null
+  linked_at: string
+  linked_by: string
+  /** Resolved server-side so the UI needs no per-type table knowledge. */
+  label: string | null
+  detail: string | null
+}
+
+export interface ExperimentMetric {
+  id: string
+  experiment_id: string
+  name: string
+  value: number
+  unit: string | null
+  split: string | null
+  n: number | null
+  stderr: number | null
+  source_attachment_id: string | null
+  recorded_by: string | null
+  created_at: string
+}
+
+export interface DatasetSummary {
+  id: string; name: string; modality: string | null; status: string; lab_id: string
+}
+
+export interface PipelineRunSummary {
+  id: string; pipeline_id: string; project_id: string
+  input_location: string; output_location: string; status: string
+  records_processed: number | null; completed_at: string | null
+}
+
+export interface CvatProjectSummary {
+  id: string; project_id: string; cvat_id: number; name: string
+  status: string; num_images: number; num_annotations: number
+}
+
+export interface WebKnossosDatasetSummary {
+  id: string; project_id: string; name: string; directory_name: string
+  status: string; num_skeletons: number; num_volumes: number
+}
+
+export interface SandboxSummary {
+  id: string; project_id: string; name: string; status: string
+  access_url: string | null; expires_at: string | null
 }
 
 export interface Assist {

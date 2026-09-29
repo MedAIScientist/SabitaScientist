@@ -4,6 +4,8 @@ import { api, Experiment, ExperimentEntry, Task } from '../api'
 import { EntryEditor } from './EntryEditor'
 import { AiAssistPanel } from './AiAssistPanel'
 import { AttachmentList } from './AttachmentList'
+import { ExperimentDataTab } from './experiment/ExperimentDataTab'
+import { ExperimentMetricsTab } from './experiment/ExperimentMetricsTab'
 
 const STATUS_META: Record<string, { color: string; label: string }> = {
   planned:   { color: '#f59e0b', label: 'PLANNED' },
@@ -21,7 +23,7 @@ interface Props {
   phases?: Phase[]
 }
 
-type Tab = 'overview' | 'notes' | 'results'
+type Tab = 'overview' | 'data' | 'metrics' | 'notes' | 'results'
 
 export function ExperimentDetail({ experiment, projectId, onClose, phases }: Props) {
   const qc = useQueryClient()
@@ -160,7 +162,10 @@ export function ExperimentDetail({ experiment, projectId, onClose, phases }: Pro
                     hypothesis: editHypothesis || undefined,
                     protocol: editProtocol || undefined,
                     deadline: editDeadline || undefined,
-                    phase_id: editPhaseId || undefined,
+                    // null, not undefined: undefined omits the key and the API
+                    // would leave the old phase in place, so picking "No phase"
+                    // could never un-assign it.
+                    phase_id: editPhaseId || null,
                   })
                 } else {
                   setEditName(experiment.name)
@@ -209,6 +214,8 @@ export function ExperimentDetail({ experiment, projectId, onClose, phases }: Pro
         {/* Tab bar */}
         <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', marginTop: 4 }}>
           <button style={tabStyle('overview')} onClick={() => setTab('overview')}>OVERVIEW</button>
+          <button style={tabStyle('data')} onClick={() => setTab('data')}>DATA</button>
+          <button style={tabStyle('metrics')} onClick={() => setTab('metrics')}>METRICS</button>
           <button style={tabStyle('notes')} onClick={() => { setTab('notes'); setShowEditor(false) }}>NOTES</button>
           <button style={tabStyle('results')} onClick={() => { setTab('results'); setShowEditor(false) }}>RESULTS</button>
         </div>
@@ -287,6 +294,14 @@ export function ExperimentDetail({ experiment, projectId, onClose, phases }: Pro
                   border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 20, outline: 'none' }} />
             </div>
           </div>
+        )}
+
+        {tab === 'data' && (
+          <ExperimentDataTab projectId={projectId} experimentId={experiment.id} />
+        )}
+
+        {tab === 'metrics' && (
+          <ExperimentMetricsTab projectId={projectId} experimentId={experiment.id} />
         )}
 
         {(tab === 'notes' || tab === 'results') && (
