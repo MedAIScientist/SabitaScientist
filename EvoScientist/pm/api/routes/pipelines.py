@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from ...crud.experiment_assets import clear_asset_links
 from ...crud.pipelines import (
     create_pipeline,
     create_run,
@@ -11,6 +12,7 @@ from ...crud.pipelines import (
     get_pipeline,
     get_run,
     list_pipelines,
+    list_project_runs,
     list_runs,
     update_pipeline,
     update_run,
@@ -114,6 +116,10 @@ def delete_pipeline_endpoint(
     p = get_pipeline(get_db_path(), pipeline_id)
     if not p or p.project_id != project_id:
         raise HTTPException(404, "Pipeline not found")
+    # Runs cascade with the pipeline, so clear their experiment lineage links first
+    # (asset_id has no FK to cascade them).
+    for run in list_runs(get_db_path(), pipeline_id):
+        clear_asset_links(get_db_path(), "pipeline_run", run.id)
     delete_pipeline(get_db_path(), pipeline_id)
 
 
@@ -154,7 +160,26 @@ def list_runs_endpoint(
     pipeline_id: str,
     current_user: User = Depends(require_project_role("owner", "editor", "viewer")),
 ):
+    # The pipeline must belong to the project the caller was checked against;
+    # without this, a role in one project would read another project's run
+    # input/output locations by passing that pipeline's id.
+    pipeline = get_pipeline(get_db_path(), pipeline_id)
+    if not pipeline or pipeline.project_id != project_id:
+        raise HTTPException(404, "Pipeline not found")
     return list_runs(get_db_path(), pipeline_id)
+
+
+@router.get(
+    "/projects/{project_id}/deid-pipeline-runs",
+    response_model=list[PipelineRunResponse],
+    summary="Every de-identification run in the project",
+)
+def list_project_runs_endpoint(
+    project_id: str,
+    current_user: User = Depends(require_project_role("owner", "editor", "viewer")),
+):
+    """Flat run list, so an experiment's lineage can offer runs to pick from."""
+    return list_project_runs(get_db_path(), project_id)
 
 
 @router.get(

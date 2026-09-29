@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from ...crud.experiment_assets import clear_asset_links
 from ...crud.irb import get_irb
 from ...crud.projects import get_project
 from ...crud.sandboxes import (
@@ -107,4 +108,6 @@ def delete_sandbox_endpoint(
     s = get_sandbox(get_db_path(), sandbox_id)
     if not s or s.project_id != project_id:
         raise HTTPException(404, "Sandbox not found")
+    # Drop experiment lineage links first: asset_id has no FK to cascade them.
+    clear_asset_links(get_db_path(), "sandbox", sandbox_id)
     delete_sandbox(get_db_path(), sandbox_id)

@@ -6,7 +6,15 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from ..models import EXPERIMENT_ASSET_ROLES, EXPERIMENT_ASSET_TYPES, EXPERIMENT_STATUSES
+
 AgentType = Literal["research", "code", "data_analysis", "writing"]
+
+# Derived from the single vocabularies in models.py so the API, the CRUD
+# validator and the DB CHECK constraint cannot drift apart again.
+EXPERIMENT_STATUS_PATTERN = "^(" + "|".join(EXPERIMENT_STATUSES) + ")$"
+EXPERIMENT_ASSET_TYPE_PATTERN = "^(" + "|".join(EXPERIMENT_ASSET_TYPES) + ")$"
+EXPERIMENT_ASSET_ROLE_PATTERN = "^(" + "|".join(EXPERIMENT_ASSET_ROLES) + ")$"
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
@@ -179,16 +187,19 @@ class ExperimentCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     hypothesis: str | None = None
     protocol: str | None = None
-    status: str = Field(default="planned", pattern="^(planned|running|completed)$")
+    status: str = Field(default="planned", pattern=EXPERIMENT_STATUS_PATTERN)
     tags: list[str] = []
     deadline: str | None = None
+    # Settable at creation so an experiment can start inside a project phase
+    # instead of being created unassigned and then moved.
+    phase_id: str | None = None
 
 
 class ExperimentUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     hypothesis: str | None = None
     protocol: str | None = None
-    status: str | None = Field(default=None, pattern="^(planned|running|completed)$")
+    status: str | None = Field(default=None, pattern=EXPERIMENT_STATUS_PATTERN)
     tags: list[str] | None = None
     deadline: str | None = None
     phase_id: str | None = None
@@ -208,6 +219,28 @@ class ExperimentResponse(BaseModel):
     updated_at: str
     phase_id: str | None = None
     linked_task_count: int = 0
+    # How many data/imaging assets this experiment is traced to, for list badges.
+    linked_asset_count: int = 0
+
+
+class ExperimentAssetCreate(BaseModel):
+    asset_type: str = Field(pattern=EXPERIMENT_ASSET_TYPE_PATTERN)
+    asset_id: str = Field(min_length=1, max_length=64)
+    role: str = Field(default="input", pattern=EXPERIMENT_ASSET_ROLE_PATTERN)
+    note: str | None = Field(default=None, max_length=500)
+
+
+class ExperimentAssetResponse(BaseModel):
+    experiment_id: str
+    asset_type: str
+    asset_id: str
+    role: str
+    note: str | None
+    linked_at: str
+    linked_by: str
+    # Resolved for display so the UI does not have to know each asset's table.
+    label: str | None = None
+    detail: str | None = None
 
 
 class ExperimentEntryCreate(BaseModel):

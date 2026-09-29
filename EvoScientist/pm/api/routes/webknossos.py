@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
+from ...crud.experiment_assets import clear_asset_links
 from ...crud.projects import get_project
 from ...crud.webknossos import (
     create_wk_dataset,
@@ -83,4 +84,6 @@ def delete_wk(
     ds = get_wk_dataset(get_db_path(), wk_ds_id)
     if not ds or ds.project_id != project_id:
         raise HTTPException(404, "WebKnossos dataset not found")
+    # Drop experiment lineage links first: asset_id has no FK to cascade them.
+    clear_asset_links(get_db_path(), "webknossos_dataset", wk_ds_id)
     delete_wk_dataset(get_db_path(), wk_ds_id)

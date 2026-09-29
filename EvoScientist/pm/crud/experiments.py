@@ -8,9 +8,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from ..db import get_db
-from ..models import Experiment, Task
+from ..models import EXPERIMENT_STATUSES, Experiment, Task
 
-VALID_STATUSES = frozenset({"planned", "running", "completed"})
+VALID_STATUSES = frozenset(EXPERIMENT_STATUSES)
 _UNSET = object()
 
 
@@ -24,8 +24,11 @@ def create_experiment(
     status: str = "planned",
     tags: list[str] | None = None,
     deadline: str | None = None,
+    phase_id: str | None = None,
 ) -> Experiment:
     """Create an experiment record and return it."""
+    if status not in VALID_STATUSES:
+        raise ValueError(f"Invalid status {status!r}")
     exp_id = uuid.uuid4().hex
     now = datetime.now(UTC).isoformat()
     tags_json = json.dumps(tags or [])
@@ -33,10 +36,10 @@ def create_experiment(
         conn.execute(
             """INSERT INTO experiments
                (id, project_id, name, hypothesis, protocol, status, tags,
-                deadline, created_by, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                deadline, phase_id, created_by, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (exp_id, project_id, name, hypothesis, protocol, status,
-             tags_json, deadline, created_by, now, now),
+             tags_json, deadline, phase_id, created_by, now, now),
         )
     return Experiment(
         id=exp_id,
@@ -47,6 +50,7 @@ def create_experiment(
         status=status,
         tags=tags or [],
         deadline=deadline,
+        phase_id=phase_id,
         created_by=created_by,
         created_at=now,
         updated_at=now,

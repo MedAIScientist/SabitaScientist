@@ -12,6 +12,7 @@ from ...crud.cvat import (
     list_cvat_projects,
     update_cvat_project,
 )
+from ...crud.experiment_assets import clear_asset_links
 from ...crud.projects import get_project
 from ...db import get_db_path
 from ...models import User
@@ -83,4 +84,6 @@ def delete_cvat(
     cp = get_cvat_project(get_db_path(), cvat_id)
     if not cp or cp.project_id != project_id:
         raise HTTPException(404, "CVAT project not found")
+    # Drop experiment lineage links first: asset_id has no FK to cascade them.
+    clear_asset_links(get_db_path(), "cvat_project", cvat_id)
     delete_cvat_project(get_db_path(), cvat_id)

@@ -4,6 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+# Single source of truth for the experiment lifecycle. The CRUD validator and the
+# Pydantic patterns derive from this list, and a test asserts db.py's CHECK
+# constraint matches it — the three previously disagreed about 'abandoned', which
+# the UI offered and the API rejected.
+EXPERIMENT_STATUSES: tuple[str, ...] = ("planned", "running", "completed", "abandoned")
+
 
 @dataclass
 class User:
@@ -81,7 +87,7 @@ class Experiment:
     id: str
     project_id: str
     name: str
-    status: str  # 'planned' | 'running' | 'completed'
+    status: str  # one of EXPERIMENT_STATUSES
     tags: list[str]
     created_by: str
     created_at: str
@@ -90,6 +96,36 @@ class Experiment:
     protocol: str | None = None
     deadline: str | None = None
     phase_id: str | None = None
+
+
+# Asset kinds an experiment can be traced to. Kept as a tuple for the same reason
+# as EXPERIMENT_STATUSES: the DB CHECK, the validator and the schema share it.
+EXPERIMENT_ASSET_TYPES: tuple[str, ...] = (
+    "dataset",
+    "pipeline_run",
+    "cvat_project",
+    "webknossos_dataset",
+    "sandbox",
+)
+
+# What the asset is to the experiment: the cohort going in, the processing step,
+# the artefact coming out, or supporting material.
+EXPERIMENT_ASSET_ROLES: tuple[str, ...] = ("input", "processing", "output", "reference")
+
+
+@dataclass
+class ExperimentAsset:
+    experiment_id: str
+    asset_type: str
+    asset_id: str
+    role: str
+    linked_at: str
+    linked_by: str
+    note: str | None = None
+    # Resolved for display; None when the asset row is gone (see the cleanup in
+    # the delete routes, which normally prevents that).
+    label: str | None = None
+    detail: str | None = None
 
 
 @dataclass

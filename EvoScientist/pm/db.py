@@ -205,6 +205,31 @@ CREATE INDEX IF NOT EXISTS idx_experiment_metrics_exp ON experiment_metrics(expe
 CREATE INDEX IF NOT EXISTS idx_experiment_metrics_src
     ON experiment_metrics(source_attachment_id);
 
+-- Data lineage for an experiment: the cohort it consumed, the pipeline run that
+-- processed it, the annotation/segmentation it produced, and the sandbox it ran
+-- in. Those assets are owned by projects (or, for datasets, by a lab with a grant
+-- to a project), so a link table is what lets one experiment cite them without
+-- moving ownership. asset_id carries no FK because the target table varies; the
+-- link routes validate existence, and each asset's delete route clears its links.
+CREATE TABLE IF NOT EXISTS experiment_assets (
+    experiment_id TEXT NOT NULL REFERENCES experiments(id) ON DELETE CASCADE,
+    asset_type    TEXT NOT NULL
+                  CHECK(asset_type IN ('dataset','pipeline_run','cvat_project',
+                                       'webknossos_dataset','sandbox')),
+    asset_id      TEXT NOT NULL,
+    role          TEXT NOT NULL DEFAULT 'input'
+                  CHECK(role IN ('input','processing','output','reference')),
+    note          TEXT,
+    linked_at     TEXT NOT NULL,
+    linked_by     TEXT NOT NULL REFERENCES users(id),
+    PRIMARY KEY (experiment_id, asset_type, asset_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_experiment_assets_exp ON experiment_assets(experiment_id);
+CREATE INDEX IF NOT EXISTS idx_experiment_assets_asset
+    ON experiment_assets(asset_type, asset_id);
+
+
 CREATE TABLE IF NOT EXISTS admissions (
     id                 TEXT PRIMARY KEY,
     form_submission_id INTEGER,
