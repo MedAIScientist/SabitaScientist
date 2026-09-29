@@ -262,6 +262,25 @@ def list_projects_with_asset(
     return [r["project_id"] for r in rows]
 
 
+def list_project_assets(db_path: Path, project_id: str) -> list[dict]:
+    """Every lineage link in a project, with the experiment that made it.
+
+    The reverse view of :func:`list_assets`: given a project's data assets, which
+    experiments reference each one. One query; the caller groups by asset.
+    """
+    with get_db(db_path) as conn:
+        rows = conn.execute(
+            """SELECT a.experiment_id, e.name AS experiment_name, a.asset_type,
+                      a.asset_id, a.role
+               FROM experiment_assets a
+               JOIN experiments e ON e.id = a.experiment_id
+               WHERE e.project_id = ?
+               ORDER BY a.asset_type, a.asset_id, e.name""",
+            (project_id,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
 assert set(EXPERIMENT_ASSET_TYPES) == set(_ASSET_TABLES), (
     "models.EXPERIMENT_ASSET_TYPES and the asset table map must stay in step"
 )

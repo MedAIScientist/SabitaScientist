@@ -12,6 +12,7 @@ from ...crud.experiment_assets import (
     dataset_available_to_project,
     link_asset,
     list_assets,
+    list_project_assets,
     unlink_asset,
 )
 from ...crud.experiment_entries import (
@@ -53,6 +54,7 @@ from ..schemas import (
     ExperimentMetricResponse,
     ExperimentResponse,
     ExperimentUpdate,
+    ProjectAssetLink,
     TaskResponse,
 )
 
@@ -594,3 +596,22 @@ def unlink_experiment_asset(
     _get_exp_or_404(project_id, exp_id)
     if not unlink_asset(get_db_path(), exp_id, asset_type, asset_id):
         raise HTTPException(status_code=404, detail="Link not found")
+
+
+@router.get(
+    "/{project_id}/experiment-assets",
+    response_model=list[ProjectAssetLink],
+    summary="Which experiments reference which assets in this project",
+)
+def list_project_asset_links(
+    project_id: str,
+    current_user: User = Depends(require_project_role("owner", "editor", "viewer")),
+):
+    """Reverse lineage for the project data view: asset -> experiments using it.
+
+    Returned flat and grouped client-side so the view costs one request.
+    """
+    return [
+        ProjectAssetLink(**row)
+        for row in list_project_assets(get_db_path(), project_id)
+    ]

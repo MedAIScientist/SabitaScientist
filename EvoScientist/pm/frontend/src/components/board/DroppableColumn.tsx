@@ -103,6 +103,19 @@ function ExperimentCard({ exp, idx, onExpClick, isSelected, onToggleSelect }: Ex
         }}>
           🔗 {exp.linked_task_count ?? 0}
         </span>
+        {/* Surfaces the experiment panel's DATA tab from the board. */}
+        {(exp.linked_asset_count ?? 0) > 0 && (
+          <span style={{
+            fontSize: 13, fontWeight: 700, color: '#8b5cf6',
+            background: 'rgba(139,92,246,0.1)',
+            border: '1px solid rgba(139,92,246,0.3)',
+            borderRadius: 3, padding: '1px 5px',
+            fontFamily: 'var(--font-mono)', letterSpacing: '0.08em',
+            display: 'inline-flex', alignItems: 'center', gap: 3,
+          }}>
+            🗄 {exp.linked_asset_count}
+          </span>
+        )}
       </div>
     </div>
   )

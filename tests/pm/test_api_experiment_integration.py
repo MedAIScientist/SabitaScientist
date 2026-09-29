@@ -33,6 +33,18 @@ def _admin(client, tmp_db, username="exp_admin"):
     ).json()["token"]
 
 
+def _make_user(client, tmp_db, username, password="pw"):
+    """A plain, non-admin user; returns (user, token)."""
+    from EvoScientist.pm.auth import hash_password
+    from EvoScientist.pm.crud.users import create_user
+
+    user = create_user(tmp_db, username=username, password_hash=hash_password(password))
+    token = client.post(
+        "/api/v1/auth/login", json={"username": username, "password": password}
+    ).json()["token"]
+    return user, token
+
+
 def _project(client, token, name="Imaging study"):
     resp = client.post("/api/v1/projects", json={"name": name}, headers=_auth(token))
     assert resp.status_code == 201, resp.text
@@ -597,3 +609,72 @@ def test_run_list_rejects_a_pipeline_from_another_project(client, tmp_db) -> Non
         headers=_auth(token),
     )
     assert resp.status_code == 404
+
+
+# ── Reverse lineage: which experiments use an asset (the project data view) ───
+
+
+def test_project_asset_links_name_the_experiments(client, tmp_db) -> None:
+    token = _admin(client, tmp_db)
+    pid = _project(client, token)
+    cvat = _cvat(client, token, pid)
+    first = _experiment(client, token, pid, name="Denoise")["id"]
+    second = _experiment(client, token, pid, name="Segment")["id"]
+    _link(client, token, pid, first, "cvat_project", cvat, role="output")
+    _link(client, token, pid, second, "cvat_project", cvat, role="input")
+
+    links = client.get(
+        f"/api/v1/projects/{pid}/experiment-assets", headers=_auth(token)
+    ).json()
+    assert {(link["experiment_name"], link["role"]) for link in links} == {
+        ("Denoise", "output"),
+        ("Segment", "input"),
+    }
+    assert {link["asset_id"] for link in links} == {cvat}
+    assert {link["asset_type"] for link in links} == {"cvat_project"}
+
+
+def test_project_asset_links_stay_inside_the_project(client, tmp_db) -> None:
+    """The view is one request, so it must not leak another project's claims."""
+    token = _admin(client, tmp_db)
+    pid = _project(client, token, "Imaging study")
+    other = _project(client, token, "Other study")
+    mine = _experiment(client, token, pid)["id"]
+    theirs = _experiment(client, token, other)["id"]
+    _link(client, token, pid, mine, "cvat_project", _cvat(client, token, pid))
+    _link(
+        client,
+        token,
+        other,
+        theirs,
+        "cvat_project",
+        _cvat(client, token, other, "Other"),
+    )
+
+    links = client.get(
+        f"/api/v1/projects/{pid}/experiment-assets", headers=_auth(token)
+    ).json()
+    assert [link["experiment_id"] for link in links] == [mine]
+
+
+def test_project_asset_links_is_empty_before_anything_is_linked(client, tmp_db) -> None:
+    token = _admin(client, tmp_db)
+    pid = _project(client, token)
+    assert (
+        client.get(
+            f"/api/v1/projects/{pid}/experiment-assets", headers=_auth(token)
+        ).json()
+        == []
+    )
+
+
+def test_project_asset_links_require_project_membership(client, tmp_db) -> None:
+    token = _admin(client, tmp_db)
+    pid = _project(client, token)
+    _outsider, outsider_token = _make_user(client, tmp_db, "data_outsider")
+    assert (
+        client.get(
+            f"/api/v1/projects/{pid}/experiment-assets", headers=_auth(outsider_token)
+        ).status_code
+        == 404
+    )

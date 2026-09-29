@@ -243,6 +243,16 @@ class ExperimentAssetResponse(BaseModel):
     detail: str | None = None
 
 
+class ProjectAssetLink(BaseModel):
+    """One experiment's claim on one asset — the reverse of a lineage list."""
+
+    experiment_id: str
+    experiment_name: str
+    asset_type: str
+    asset_id: str
+    role: str
+
+
 class ExperimentEntryCreate(BaseModel):
     type: str = Field(pattern="^(note|result)$")
     title: str = Field(min_length=1, max_length=200)

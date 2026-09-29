@@ -36,6 +36,7 @@ import { SystemHealthPage }   from './pages/SystemHealthPage'
 import { SettingsPage }       from './pages/SettingsPage'
 import { HelpPage }           from './pages/HelpPage'
 import { AppsPage }           from './pages/AppsPage'
+import { ProjectDataPage }    from './pages/ProjectDataPage'
 
 const queryClient = new QueryClient()
 
@@ -62,6 +63,7 @@ function App() {
         <Route path="/projects" element={<PrivateRoute><Projects /></PrivateRoute>} />
         <Route path="/projects/:id" element={<PrivateRoute><Board /></PrivateRoute>} />
         <Route path="/projects/:id/experiments" element={<PrivateRoute><ExperimentsPage /></PrivateRoute>} />
+        <Route path="/projects/:id/data" element={<PrivateRoute><ProjectDataPage /></PrivateRoute>} />
         <Route path="/projects/:id/report" element={<PrivateRoute><ProjectReportPage /></PrivateRoute>} />
         <Route path="/reports"             element={<PrivateRoute><GlobalReportPage /></PrivateRoute>} />
         <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />

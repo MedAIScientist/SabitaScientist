@@ -131,6 +131,9 @@ export const api = {
   ) => request<void>(
     'DELETE', `/projects/${projectId}/experiments/${expId}/assets/${assetType}/${assetId}`,
   ),
+  /** Reverse lineage: every asset claim in the project, for the data view. */
+  listProjectAssetLinks: (projectId: string) =>
+    request<ProjectAssetLink[]>('GET', `/projects/${projectId}/experiment-assets`),
   // ── Experiment metrics ───────────────────────────────────────────────────
   // These are the numbers paper drafting reads; a results CSV uploaded to an
   // entry is parsed into them server-side, so they exist whether or not the UI
@@ -593,6 +596,15 @@ export interface ExperimentMetric {
   source_attachment_id: string | null
   recorded_by: string | null
   created_at: string
+}
+
+/** One experiment's claim on one asset. */
+export interface ProjectAssetLink {
+  experiment_id: string
+  experiment_name: string
+  asset_type: ExperimentAssetType
+  asset_id: string
+  role: ExperimentAssetRole
 }
 
 export interface DatasetSummary {

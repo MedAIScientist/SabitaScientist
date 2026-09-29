@@ -276,6 +276,25 @@ export function Board() {
             ⚗ EXPERIMENTS
           </button>
           <button
+            onClick={() => navigate(`/projects/${projectId}/data`)}
+            title="Imaging datasets, de-identification runs, annotations and sandboxes in this project"
+            style={{
+              background: 'rgba(139,92,246,0.08)',
+              border: '1px solid rgba(139,92,246,0.18)',
+              color: '#64748b',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 20,
+              padding: '4px 10px',
+              borderRadius: 4,
+              cursor: 'pointer',
+              letterSpacing: '0.08em',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = '#8b5cf6'; e.currentTarget.style.borderColor = 'rgba(139,92,246,0.35)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(139,92,246,0.18)' }}
+          >
+            🗄 DATA
+          </button>
+          <button
             onClick={() => navigate(`/projects/${projectId}/report`)}
             style={{
               background: 'rgba(255,128,21,0.08)',
