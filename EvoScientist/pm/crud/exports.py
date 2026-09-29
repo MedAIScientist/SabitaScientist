@@ -11,6 +11,9 @@ _COLUMNS = "id, project_id, sandbox_id, requested_by, reviewed_by, status, file_
 
 
 def _row_to_export(r: dict) -> ExportRequest:
+    # get_db sets row_factory=sqlite3.Row, which supports r["col"] but has no
+    # .get(); normalise to a dict so optional columns can be read defensively.
+    r = dict(r)
     return ExportRequest(
         id=r["id"],
         project_id=r["project_id"],
@@ -64,7 +67,9 @@ def create_export_request(
                 now,
             ),
         )
-        return get_export_request(db_path, eid)
+    # Re-read AFTER the block commits: get_db commits on exit, so a read issued
+    # inside it uses a second connection that cannot see this row yet.
+    return get_export_request(db_path, eid)
 
 
 def get_export_request(db_path: str | Path, export_id: str) -> ExportRequest | None:
@@ -107,7 +112,7 @@ def review_export_request(
             "UPDATE export_requests SET status = ?, reviewed_by = ?, reviewer_notes = ?, reviewed_at = ? WHERE id = ?",
             (status, reviewer_id, reviewer_notes, now, export_id),
         )
-        return get_export_request(db_path, export_id)
+    return get_export_request(db_path, export_id)
 
 
 def delete_export_request(db_path: str | Path, export_id: str) -> bool:

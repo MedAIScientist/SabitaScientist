@@ -12,6 +12,9 @@ _COLUMNS_R = "id, pipeline_id, project_id, irb_id, input_location, output_locati
 
 
 def _row_to_pipeline(r: dict) -> DeIDPipeline:
+    # get_db sets row_factory=sqlite3.Row, which supports r["col"] but has no
+    # .get(); normalise to a dict so optional columns can be read defensively.
+    r = dict(r)
     return DeIDPipeline(
         id=r["id"],
         project_id=r["project_id"],
@@ -26,6 +29,8 @@ def _row_to_pipeline(r: dict) -> DeIDPipeline:
 
 
 def _row_to_run(r: dict) -> DeIDPipelineRun:
+    # See _row_to_pipeline: sqlite3.Row has no .get().
+    r = dict(r)
     return DeIDPipelineRun(
         id=r["id"],
         pipeline_id=r["pipeline_id"],
@@ -76,7 +81,9 @@ def create_pipeline(
                 now,
             ),
         )
-        return get_pipeline(db_path, pid)
+    # Re-read AFTER the block commits: get_db commits on exit, so a read issued
+    # inside it uses a second connection that cannot see this row yet.
+    return get_pipeline(db_path, pid)
 
 
 def get_pipeline(db_path: str | Path, pipeline_id: str) -> DeIDPipeline | None:
@@ -106,7 +113,7 @@ def update_pipeline(db_path: str | Path, pipeline_id: str, **kw) -> DeIDPipeline
     vals = [*list(sets.values()), pipeline_id]
     with get_db(db_path) as conn:
         conn.execute(f"UPDATE deid_pipelines SET {clause} WHERE id = ?", vals)
-        return get_pipeline(db_path, pipeline_id)
+    return get_pipeline(db_path, pipeline_id)
 
 
 def delete_pipeline(db_path: str | Path, pipeline_id: str) -> bool:
@@ -152,7 +159,8 @@ def create_run(
                 now,
             ),
         )
-        return get_run(db_path, rid)
+    # Re-read AFTER the block commits (see create_pipeline).
+    return get_run(db_path, rid)
 
 
 def get_run(db_path: str | Path, run_id: str) -> DeIDPipelineRun | None:
@@ -172,6 +180,20 @@ def list_runs(db_path: str | Path, pipeline_id: str) -> list[DeIDPipelineRun]:
         return [_row_to_run(r) for r in rows]
 
 
+def list_project_runs(db_path: str | Path, project_id: str) -> list[DeIDPipelineRun]:
+    """Every run in a project, newest first.
+
+    A run is what an experiment is actually traced to, so the lineage picker needs
+    to offer runs directly instead of making the caller walk pipeline by pipeline.
+    """
+    with get_db(db_path) as conn:
+        rows = conn.execute(
+            "SELECT * FROM deid_pipeline_runs WHERE project_id = ? ORDER BY created_at DESC",
+            (project_id,),
+        ).fetchall()
+        return [_row_to_run(r) for r in rows]
+
+
 def update_run(db_path: str | Path, run_id: str, **kw) -> DeIDPipelineRun | None:
     sets = {k: v for k, v in kw.items() if v is not None}
     if not sets:
@@ -180,4 +202,4 @@ def update_run(db_path: str | Path, run_id: str, **kw) -> DeIDPipelineRun | None
     vals = [*list(sets.values()), run_id]
     with get_db(db_path) as conn:
         conn.execute(f"UPDATE deid_pipeline_runs SET {clause} WHERE id = ?", vals)
-        return get_run(db_path, run_id)
+    return get_run(db_path, run_id)

@@ -30,7 +30,9 @@ def create_cvat_project(db_path: str | Path, project_id: str, cvat_id: int, name
             "INSERT INTO cvat_projects (id, project_id, cvat_id, name, labels_json, status, created_by, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
             (cid, project_id, cvat_id, name, labels_json, "created", created_by, now, now),
         )
-        return get_cvat_project(db_path, cid)
+    # Re-read AFTER the block commits: get_db commits on exit, so a read issued
+    # inside it uses a second connection that cannot see this row yet.
+    return get_cvat_project(db_path, cid)
 
 
 def get_cvat_project(db_path: str | Path, cid: str) -> CVATProject | None:
@@ -57,7 +59,7 @@ def update_cvat_project(db_path: str | Path, cid: str, **kw) -> CVATProject | No
     vals = [*sets.values(), cid]
     with get_db(db_path) as conn:
         conn.execute(f"UPDATE cvat_projects SET {clause} WHERE id = ?", vals)
-        return get_cvat_project(db_path, cid)
+    return get_cvat_project(db_path, cid)
 
 
 def delete_cvat_project(db_path: str | Path, cid: str) -> bool:

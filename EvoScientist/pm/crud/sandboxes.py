@@ -11,6 +11,9 @@ _COLUMNS = "id, project_id, irb_id, name, status, spec_json, network_rules_json,
 
 
 def _row_to_sandbox(r: dict) -> Sandbox:
+    # get_db sets row_factory=sqlite3.Row, which supports r["col"] but has no
+    # .get(); normalise to a dict so optional columns can be read defensively.
+    r = dict(r)
     return Sandbox(
         id=r["id"],
         project_id=r["project_id"],
@@ -66,7 +69,9 @@ def create_sandbox(
                 now,
             ),
         )
-        return get_sandbox(db_path, sid)
+    # Re-read AFTER the block commits: get_db commits on exit, so a read issued
+    # inside it uses a second connection that cannot see this row yet.
+    return get_sandbox(db_path, sid)
 
 
 def get_sandbox(db_path: str | Path, sandbox_id: str) -> Sandbox | None:
@@ -96,7 +101,7 @@ def update_sandbox(db_path: str | Path, sandbox_id: str, **kw) -> Sandbox | None
     vals = [*list(sets.values()), sandbox_id]
     with get_db(db_path) as conn:
         conn.execute(f"UPDATE sandboxes SET {clause} WHERE id = ?", vals)
-        return get_sandbox(db_path, sandbox_id)
+    return get_sandbox(db_path, sandbox_id)
 
 
 def delete_sandbox(db_path: str | Path, sandbox_id: str) -> bool:

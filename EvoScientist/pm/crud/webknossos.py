@@ -9,6 +9,9 @@ from ..models import WebKnossosDataset
 
 
 def _row_to_wk(r: dict) -> WebKnossosDataset:
+    # get_db sets row_factory=sqlite3.Row, which supports r["col"] but has no
+    # .get(); normalise to a dict so optional columns can be read defensively.
+    r = dict(r)
     return WebKnossosDataset(
         id=r["id"], project_id=r["project_id"], wk_id=r.get("wk_id"),
         name=r["name"], directory_name=r["directory_name"], status=r["status"],
@@ -30,7 +33,9 @@ def create_wk_dataset(db_path: str | Path, project_id: str, name: str, directory
             "INSERT INTO webknossos_datasets (id, project_id, wk_id, name, directory_name, status, created_by, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)",
             (wid, project_id, wk_id, name, directory_name, "imported", created_by, now, now),
         )
-        return get_wk_dataset(db_path, wid)
+    # Re-read AFTER the block commits: get_db commits on exit, so a read issued
+    # inside it uses a second connection that cannot see this row yet.
+    return get_wk_dataset(db_path, wid)
 
 
 def get_wk_dataset(db_path: str | Path, wid: str) -> WebKnossosDataset | None:
@@ -57,7 +62,7 @@ def update_wk_dataset(db_path: str | Path, wid: str, **kw) -> WebKnossosDataset 
     vals = [*sets.values(), wid]
     with get_db(db_path) as conn:
         conn.execute(f"UPDATE webknossos_datasets SET {clause} WHERE id = ?", vals)
-        return get_wk_dataset(db_path, wid)
+    return get_wk_dataset(db_path, wid)
 
 
 def delete_wk_dataset(db_path: str | Path, wid: str) -> bool:
