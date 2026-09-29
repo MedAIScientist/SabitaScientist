@@ -51,7 +51,8 @@ function App() {
     api.setupStatus().then(r => setNeedsSetup(r.needs_setup)).catch(() => setNeedsSetup(false))
   }, [])
 
-  if (needsSetup === null) return <p style={{ padding: 24 }}>Loading\u2026</p>
+  // JSX text is literal, so "\u2026" here would render as those six characters.
+  if (needsSetup === null) return <p style={{ padding: 24 }}>Loading…</p>
 
   return (
     <BrowserRouter>

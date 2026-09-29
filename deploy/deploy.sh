@@ -3,10 +3,15 @@ set -euo pipefail
 
 # ── Gazzali PM Production Deploy ─────────────────────────────────────────
 # Usage:  ./deploy/deploy.sh [server-address]
-# Example: ./deploy/deploy.sh medaiadm@10.150.145.10
+# Example: ./deploy/deploy.sh medaiadm@medai-prod
 # Prerequisites: Docker, docker compose, rsync, ssh on the remote host.
+#
+# The default target is the host's Tailscale name. Over Tailscale SSH the campus
+# firewall's block on port 22 to the DMZ does not apply, so deploys work from any
+# network. Use medaiadm@10.150.145.10 only from inside the campus client subnets
+# that are permitted to reach the DMZ.
 
-SERVER="${1:-medaiadm@10.150.145.10}"
+SERVER="${1:-medaiadm@medai-prod}"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SSH="ssh ${SERVER}"
 DEPLOY_DIR="/home/medaiadm/EvoScientist"
