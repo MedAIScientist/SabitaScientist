@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supervisionApi } from '../api'
+import { ApprovalsInbox } from '../components/imaging/ApprovalsInbox'
 import { useAuth } from '../auth'
 
 /** Professor group overview: KPIs, trends, workload, and what needs attention. */
@@ -40,6 +41,8 @@ export function ProfessorDashboardPage() {
           <button onClick={() => navigate('/journey')} style={btnGhost}>Journeys</button>
         </div>
       </div>
+
+      <ApprovalsInbox />
 
       {/* KPI cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 12, marginBottom: 22 }}>

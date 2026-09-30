@@ -1,5 +1,7 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { ProjectHeader } from '../components/ProjectHeader'
+import { DatasetRequestDialog } from '../components/imaging/DatasetRequestDialog'
+import { DatasetRequests } from '../components/imaging/DatasetRequests'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -62,6 +64,8 @@ export function ProjectDataPage() {
     queryFn: () => api.listProjectSandboxes(projectId),
     enabled: Boolean(projectId),
   })
+  const { data: apps = [] } = useQuery({ queryKey: ['integrations'], queryFn: api.listIntegrations })
+  const [requesting, setRequesting] = useState(false)
   const { data: links = [] } = useQuery({
     queryKey: ['project-asset-links', projectId],
     queryFn: () => api.listProjectAssetLinks(projectId),
@@ -82,17 +86,32 @@ export function ProjectDataPage() {
       .grants?.some(g => g.project_id === projectId && g.admin_approved_at && !g.revoked_at),
   )
 
+  const activeSandbox = sandboxes.find(sb => sb.status === 'active' || sb.status === 'expiring')
+
   const total = grantedDatasets.length + runs.length + cvat.length + wk.length + sandboxes.length
   const linked = links.length
 
   return (
     <div>
-      <ProjectHeader projectId={projectId!} name={project?.name} />
+      <ProjectHeader projectId={projectId!} name={project?.name} actions={<>
+        <AppLink app={apps.find(a => a.key === 'curator')} label="Open Curator (PACS)" />
+        <AppLink app={apps.find(a => a.key === 'jupyter')} label="Open JupyterHub" />
+        {activeSandbox?.access_url && (
+          <a className="btn" href={activeSandbox.access_url} target="_blank" rel="noopener noreferrer"
+            title={activeSandbox.expires_at ? `Workspace access ends ${activeSandbox.expires_at.slice(0, 10)}` : undefined}>
+            Open workspace ↗
+          </a>
+        )}
+        <button className="btn btn-primary" onClick={() => setRequesting(true)} disabled={!project}>+ Request imaging data</button>
+      </>} />
+      {requesting && project && <DatasetRequestDialog project={project} onClose={() => setRequesting(false)} />}
       <div className="page" style={{ maxWidth: 1000 }}>
         <p className="page-sub" style={{ marginTop: 0, marginBottom: 20 }}>
           {total} asset{total === 1 ? '' : 's'}
           {linked > 0 ? ` · ${linked} experiment link${linked === 1 ? '' : 's'}` : ''}
         </p>
+
+        <DatasetRequests projectId={projectId} />
 
         <Section title="IMAGING DATASETS" hint="cohorts granted to this project">
           {grantedDatasets.map(d => (
@@ -267,4 +286,15 @@ function Row({ name, status, detail, usedBy, externalHref, onOpenExperiment }: {
       )}
     </div>
   )
+}
+
+
+/** A companion app link; shown disabled (with the reason) when the probe says it is down. */
+function AppLink({ app, label }: { app?: { path: string; up: boolean; http_status: number | null }; label: string }) {
+  if (!app) return null
+  if (!app.up) {
+    return <span className="btn" aria-disabled="true" style={{ opacity: 0.55, cursor: 'not-allowed' }}
+      title={`Not reachable right now${app.http_status ? ` (HTTP ${app.http_status})` : ''}`}>{label} · offline</span>
+  }
+  return <a className="btn" href={app.path} target="_blank" rel="noopener noreferrer">{label} ↗</a>
 }
