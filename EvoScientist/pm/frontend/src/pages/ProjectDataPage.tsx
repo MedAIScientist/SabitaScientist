@@ -306,6 +306,9 @@ function AppLink({ app, label, subpath = '' }: {
 }
 
 
+/** In-cluster S3 endpoint for the dataset buckets (curator config: garage_s3_url). */
+const GARAGE_S3 = 'http://garage.garage.svc.cluster.local:3900'
+
 /** Where a granted cohort is in delivery, in the words a researcher needs. */
 const DELIVERY: Record<string, string> = {
   approved: 'approved, waiting for delivery from PACS',
@@ -345,6 +348,17 @@ function JupyterAccess({ datasets, hubPath }: { datasets: DatasetSummary[]; hubP
             ))}
           </tbody>
         </table>
+        <details>
+          <summary style={{ cursor: 'pointer', fontWeight: 500, color: 'var(--text)' }}>How a dataset bucket is organised</summary>
+          {/* Layout as written by Curator's delivery (curator/dicom/retrieve.py, delivery.py). */}
+          <dl className="inbox-facts" style={{ marginTop: 8 }}>
+            <div><dt>DICOM</dt><dd><code>images/&lt;accession&gt;/&lt;study UID&gt;/&lt;SOP UID&gt;.dcm</code></dd></div>
+            <div><dt>Viewable images</dt><dd><code>renders/&lt;accession&gt;/&lt;study UID&gt;/&lt;SOP UID&gt;.png</code> (only if requested with viewable images)</dd></div>
+            <div><dt>Per study</dt><dd><code>manifest/studies/&lt;accession&gt;/&lt;study UID&gt;.json</code></dd></div>
+            <div><dt>Complete?</dt><dd>Delivery is finished when <code>manifest/sealed.json</code> exists; until then files may still be arriving.</dd></div>
+            <div><dt>Storage</dt><dd>S3-compatible (Garage) at <code>{GARAGE_S3}</code>, region <code>garage</code>, path-style addressing — reachable only from inside JupyterHub.</dd></div>
+          </dl>
+        </details>
       </div>
     </details>
   )
