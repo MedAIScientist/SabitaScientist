@@ -77,9 +77,9 @@ describe('CardEditPopover', () => {
 
   test('renders CRITICAL/STANDARD/ROUTINE options in priority select', () => {
     renderPopover(false)
-    expect(screen.getByRole('option', { name: 'CRITICAL' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'STANDARD' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'ROUTINE' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /^CRITICAL$/i })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /^STANDARD$/i })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /^ROUTINE$/i })).toBeInTheDocument()
   })
 
   test('calls onClose when Escape key pressed', () => {

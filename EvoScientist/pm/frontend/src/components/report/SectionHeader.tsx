@@ -16,7 +16,7 @@ export function SectionHeader({ title, accent = '#ff8015', count }: SectionHeade
         fontSize: 16,
         fontWeight: 700,
         fontFamily: 'var(--font-mono)',
-        letterSpacing: '0.12em',
+        letterSpacing: '0.04em',
         textTransform: 'uppercase' as const,
         color: accent,
       }}>

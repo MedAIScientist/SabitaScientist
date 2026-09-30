@@ -50,17 +50,17 @@ describe('TaskEditForm', () => {
   test('renders status select with PLANNED/IN PROGRESS/COMPLETE options', () => {
     render(<TaskEditForm {...DEFAULT_PROPS} />)
     const options = screen.getAllByRole('option').map(o => o.textContent)
-    expect(options).toContain('PLANNED')
-    expect(options).toContain('IN PROGRESS')
-    expect(options).toContain('COMPLETE')
+    expect(options).toContain('Planned')
+    expect(options).toContain('In progress')
+    expect(options).toContain('Complete')
   })
 
   test('renders priority select with CRITICAL/STANDARD/ROUTINE options', () => {
     render(<TaskEditForm {...DEFAULT_PROPS} />)
     const options = screen.getAllByRole('option').map(o => o.textContent)
-    expect(options).toContain('CRITICAL')
-    expect(options).toContain('STANDARD')
-    expect(options).toContain('ROUTINE')
+    expect(options).toContain('Critical')
+    expect(options).toContain('Standard')
+    expect(options).toContain('Routine')
   })
 
   test('renders member options in assignee select', () => {

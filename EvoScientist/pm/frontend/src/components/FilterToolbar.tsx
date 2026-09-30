@@ -18,10 +18,10 @@ const inputStyle: React.CSSProperties = {
   background: 'var(--surface-input)',
   border: '1px solid var(--border)',
   color: 'var(--text)',
-  borderRadius: 4,
-  padding: '4px 8px',
-  fontFamily: 'var(--font-mono)',
-  fontSize: 20,
+  borderRadius: 6,
+  height: 30,
+  padding: '0 10px',
+  fontSize: 13.5,
   outline: 'none',
 }
 
@@ -31,30 +31,27 @@ const selectStyle: React.CSSProperties = {
 }
 
 const labelStyle: React.CSSProperties = {
-  fontSize: 16,
+  fontSize: 13,
   color: 'var(--text-3)',
-  fontFamily: 'var(--font-mono)',
-  marginRight: 4,
+  marginLeft: 6,
   whiteSpace: 'nowrap',
 }
 
 type ChipAccent = Record<Task['priority'], string>
 
 const CHIP_ACCENTS: ChipAccent = {
-  critical: '#ef4444',
   high: '#f43f5e',
   medium: '#f59e0b',
   low: '#22c55e',
 }
 
 const CHIP_LABELS: Record<Task['priority'], string> = {
-  critical: 'CRIT',
-  high: 'HIGH',
-  medium: 'NORM',
-  low: 'ROUT',
+  high: 'Critical',
+  medium: 'Standard',
+  low: 'Routine',
 }
 
-const PRIORITIES: Task['priority'][] = ['critical', 'high', 'medium', 'low']
+const PRIORITIES: Task['priority'][] = ['high', 'medium', 'low']
 
 function chipStyle(priority: Task['priority'], active: boolean): React.CSSProperties {
   const accent = CHIP_ACCENTS[priority]
@@ -62,12 +59,11 @@ function chipStyle(priority: Task['priority'], active: boolean): React.CSSProper
     background: active ? `rgba(${hexToRgb(accent)},0.15)` : 'transparent',
     border: active ? `1px solid ${accent}` : '1px solid var(--border)',
     color: active ? accent : 'var(--text-3)',
-    borderRadius: 3,
-    padding: '2px 8px',
-    fontSize: 16,
-    fontWeight: 700,
+    borderRadius: 999,
+    padding: '3px 10px',
+    fontSize: 12.5,
+    fontWeight: 600,
     cursor: 'pointer',
-    fontFamily: 'var(--font-mono)',
   }
 }
 
@@ -103,9 +99,10 @@ export function FilterToolbar({
         placeholder="🔬 Search experiments…"
         value={search}
         onChange={(e) => onSearchChange(e.target.value)}
-        style={inputStyle}
+        style={{ ...inputStyle, width: 240 }}
       />
 
+      <span style={labelStyle}>Priority:</span>
       {PRIORITIES.map((priority) => (
         <button
           key={priority}
@@ -116,6 +113,7 @@ export function FilterToolbar({
         </button>
       ))}
 
+      <span style={labelStyle}>Sort by:</span>
       <select
         value={sort}
         onChange={(e) => onSortChange(e.target.value as SortKey)}

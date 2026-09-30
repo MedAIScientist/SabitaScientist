@@ -16,12 +16,12 @@ export function SystemHealthPage() {
   })
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', padding: '32px 28px', maxWidth: 600, margin: '0 auto' }}>
-      <h1 style={{ margin: '0 0 24px', fontSize: 30, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>System Health</h1>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', padding: '32px 28px', maxWidth: 900, margin: '0 auto' }}>
+      <h1 style={{ margin: '0 0 24px', fontSize: 24, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>System Health</h1>
 
       <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 20px', marginBottom: 12 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div><span style={{ fontSize: 20, fontWeight: 500, color: 'var(--text-heading)' }}>LangGraph Dev</span>
+          <div><span style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-heading)' }}>LangGraph Dev</span>
             <div style={{ fontSize: 14, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>{health?.langgraph_dev?.url ?? '—'}</div></div>
           <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-mono)', color: health?.langgraph_dev?.running ? '#10b981' : '#f43f5e', padding: '3px 8px', borderRadius: 3, background: health?.langgraph_dev?.running ? 'rgba(16,185,129,0.1)' : 'rgba(244,63,94,0.1)' }}>{health?.langgraph_dev?.running ? 'RUNNING' : 'OFFLINE'}</span>
         </div>
@@ -29,17 +29,17 @@ export function SystemHealthPage() {
 
       <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 20px', marginBottom: 12 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div><span style={{ fontSize: 20, fontWeight: 500, color: 'var(--text-heading)' }}>Skills</span>
+          <div><span style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-heading)' }}>Skills</span>
             <div style={{ fontSize: 14, color: 'var(--text-dim)', marginTop: 2 }}>Installed Gazzali skills available to the agent</div></div>
-          <span style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#818cf8' }}>{health?.skills_available ?? '—'}</span>
+          <span style={{ fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#818cf8' }}>{health?.skills_available ?? '—'}</span>
         </div>
       </div>
 
       <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 20px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div><span style={{ fontSize: 20, fontWeight: 500, color: 'var(--text-heading)' }}>Agent Runner</span>
+          <div><span style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-heading)' }}>Agent Runner</span>
             <div style={{ fontSize: 14, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>PM agent runner service: runs drafting, research, code agents</div></div>
-          <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#10b981', padding: '3px 8px', borderRadius: 3, background: 'rgba(16,185,129,0.1)' }}>ACTIVE</span>
+          <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#10b981', padding: '3px 8px', borderRadius: 3, background: 'rgba(16,185,129,0.1)' }}>Active</span>
         </div>
       </div>
 
@@ -52,16 +52,16 @@ export function SystemHealthPage() {
             margin: '24px 0 12px',
           }}>
             <h2 style={{
-              margin: 0, fontSize: 20, fontWeight: 600,
+              margin: 0, fontSize: 16, fontWeight: 600,
               fontFamily: 'var(--font-mono)', color: 'var(--text-heading)',
             }}>Companion apps</h2>
             <Link
               to="/apps"
               style={{
-                fontSize: 14, color: '#ff8015', fontFamily: 'var(--font-mono)',
-                textDecoration: 'none', letterSpacing: '0.06em',
+                fontSize: 14, color: 'var(--accent)', fontFamily: 'var(--font-mono)',
+                textDecoration: 'none', letterSpacing: '0.04em',
               }}
-            >OPEN LAUNCHER →</Link>
+            >Open launcher →</Link>
           </div>
 
           {apps.map(app => (
@@ -71,7 +71,7 @@ export function SystemHealthPage() {
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
-                  <span style={{ fontSize: 20, fontWeight: 500, color: 'var(--text-heading)' }}>
+                  <span style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-heading)' }}>
                     {app.name}
                   </span>
                   <div style={{

@@ -50,12 +50,12 @@ export function NewExperimentDialog({
   const field: React.CSSProperties = {
     width: '100%', boxSizing: 'border-box', padding: '8px 10px',
     background: 'var(--surface-input)', border: '1px solid rgba(16,185,129,0.2)',
-    borderRadius: 5, color: 'var(--text)', fontSize: 20,
+    borderRadius: 5, color: 'var(--text)', fontSize: 16,
     fontFamily: 'inherit', outline: 'none',
   }
   const label: React.CSSProperties = {
     fontSize: 13, fontWeight: 700, color: 'var(--text-dim)',
-    fontFamily: 'var(--font-mono)', letterSpacing: '0.08em',
+    fontFamily: 'var(--font-mono)', letterSpacing: '0.04em',
     display: 'block', marginBottom: 4,
   }
 
@@ -73,9 +73,9 @@ export function NewExperimentDialog({
         animation: 'fadeInUp 0.15s ease',
       }}>
         <div style={{
-          fontSize: 20, fontWeight: 700, color: accent,
-          fontFamily: 'var(--font-mono)', marginBottom: 16, letterSpacing: '0.1em',
-        }}>⚗ NEW EXPERIMENT</div>
+          fontSize: 16, fontWeight: 700, color: accent,
+          fontFamily: 'var(--font-mono)', marginBottom: 16, letterSpacing: '0.04em',
+        }}>⚗ New experiment</div>
 
         {error && (
           <div style={{
@@ -86,7 +86,7 @@ export function NewExperimentDialog({
         )}
 
         <label style={label}>
-          NAME
+          Name
           <input
             value={name}
             onChange={e => setName(e.target.value)}
@@ -98,7 +98,7 @@ export function NewExperimentDialog({
         </label>
 
         <label style={{ ...label, marginTop: 14 }}>
-          PHASE
+          Phase
           <select
             value={phaseId}
             onChange={e => setPhaseId(e.target.value)}
@@ -119,7 +119,7 @@ export function NewExperimentDialog({
 
         {showHypothesis ? (
           <label style={{ ...label, marginTop: 14 }}>
-            HYPOTHESIS
+            Hypothesis
             <textarea
               value={hypothesis}
               onChange={e => setHypothesis(e.target.value)}
@@ -147,7 +147,7 @@ export function NewExperimentDialog({
               borderRadius: 4, padding: '6px 14px', color: 'var(--text-muted)',
               fontSize: 16, cursor: 'pointer', fontFamily: 'var(--font-mono)',
             }}
-          >CANCEL</button>
+          >Cancel</button>
           <button
             onClick={() => create.mutate()}
             disabled={!canSubmit}

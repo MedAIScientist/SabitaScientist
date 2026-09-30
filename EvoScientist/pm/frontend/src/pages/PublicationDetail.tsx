@@ -189,20 +189,20 @@ export function PublicationDetail() {
   })
 
   if (isLoading || !pub) return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', padding: 40, fontFamily: 'var(--font-mono)', fontSize: 19 }}>
-      LOADING…
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', padding: 40, fontFamily: 'var(--font-mono)', fontSize: 16 }}>
+      Loading…
     </div>
   )
 
   const inputStyle: React.CSSProperties = {
     padding: '9px 12px', background: 'var(--surface-input)',
     border: '1px solid var(--border)', borderRadius: 7,
-    color: 'var(--text)', fontSize: 22, outline: 'none', width: '100%', boxSizing: 'border-box',
+    color: 'var(--text)', fontSize: 17, outline: 'none', width: '100%', boxSizing: 'border-box',
   }
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
-      <div style={{ maxWidth: 860, margin: '0 auto', padding: '32px 28px', display: 'flex', gap: 24 }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 28px', display: 'flex', gap: 24 }}>
         {/* Main content */}
         <div style={{ flex: 1, minWidth: 0 }}>
           {/* Header */}
@@ -212,7 +212,7 @@ export function PublicationDetail() {
                 {editing ? (
                   <input value={editTitle} onChange={e => setEditTitle(e.target.value)} style={inputStyle} />
                 ) : (
-                  <h1 style={{ margin: 0, fontSize: 26, fontWeight: 600, color: 'var(--text-heading)', lineHeight: 1.3 }}>{pub.title}</h1>
+                  <h1 style={{ margin: 0, fontSize: 22, fontWeight: 600, color: 'var(--text-heading)', lineHeight: 1.3 }}>{pub.title}</h1>
                 )}
                 <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
                   <span style={{
@@ -228,20 +228,25 @@ export function PublicationDetail() {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                <button onClick={() => navigate(`/publications/${id}/workspace`)} style={{
+                  cursor: 'pointer', padding: '6px 12px',
+                  background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.3)',
+                  borderRadius: 6, color: '#a78bfa', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                }}>Workspace</button>
                 {pub.status === 'draft' && (
                   <button onClick={() => submitMutation.mutate()} style={{
                     cursor: 'pointer', padding: '6px 12px',
                     background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.3)',
                     borderRadius: 6, color: '#6366f1', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
-                  }}>SUBMIT</button>
+                  }}>Submit</button>
                 )}
                 <button onClick={() => {
                   if (!editing) { setEditTitle(pub.title); setEditVenue(pub.venue || ''); setEditAbstract(pub.abstract || ''); setEditDoi(pub.doi || '') }
                   setEditing(e => !e)
                 }} style={{
                   cursor: 'pointer', padding: '6px 12px',
-                  background: 'rgba(255,128,21,0.1)', border: '1px solid rgba(255,128,21,0.3)',
-                  borderRadius: 6, color: '#ff8015', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                  background: 'rgba(var(--accent-rgb),0.1)', border: '1px solid rgba(var(--accent-rgb),0.3)',
+                  borderRadius: 6, color: 'var(--accent)', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
                 }}>{editing ? 'CANCEL' : 'EDIT'}</button>
               </div>
             </div>
@@ -249,14 +254,14 @@ export function PublicationDetail() {
 
           {/* Edit form */}
           {editing && (
-            <div style={{ background: 'var(--surface-card)', border: '1px solid rgba(255,128,21,0.2)', borderRadius: 10, padding: 20, marginBottom: 20 }}>
+            <div style={{ background: 'var(--surface-card)', border: '1px solid rgba(var(--accent-rgb),0.2)', borderRadius: 10, padding: 20, marginBottom: 20 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
-                <div><label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>VENUE</label>
+                <div><label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>Venue</label>
                   <input value={editVenue} onChange={e => setEditVenue(e.target.value)} style={inputStyle} /></div>
                 <div><label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>DOI</label>
                   <input value={editDoi} onChange={e => setEditDoi(e.target.value)} placeholder="10.xxxx/xxxxx" style={inputStyle} /></div>
               </div>
-              <div style={{ marginBottom: 12 }}><label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>ABSTRACT</label>
+              <div style={{ marginBottom: 12 }}><label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>Abstract</label>
                 <textarea value={editAbstract} onChange={e => setEditAbstract(e.target.value)} rows={4} style={{ ...inputStyle, resize: 'vertical' }} /></div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
                 {STATUS_OPTIONS.map(s => (
@@ -268,8 +273,8 @@ export function PublicationDetail() {
                 ))}
               </div>
               <button onClick={() => updateMutation.mutate({ title: editTitle, venue: editVenue || null, abstract: editAbstract || null, doi: editDoi || null })}
-                style={{ padding: '8px 20px', cursor: 'pointer', background: '#ff8015', color: '#06091a', border: 'none', borderRadius: 6, fontSize: 17, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
-                SAVE
+                style={{ padding: '8px 20px', cursor: 'pointer', background: 'var(--accent)', color: '#06091a', border: 'none', borderRadius: 6, fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
+                Save
               </button>
             </div>
           )}
@@ -277,8 +282,8 @@ export function PublicationDetail() {
           {/* Abstract */}
           {!editing && pub.abstract && (
             <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 18, marginBottom: 20 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>ABSTRACT</div>
-              <p style={{ margin: 0, fontSize: 18, color: 'var(--text-2)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{pub.abstract}</p>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>Abstract</div>
+              <p style={{ margin: 0, fontSize: 15, color: 'var(--text-2)', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{pub.abstract}</p>
             </div>
           )}
 
@@ -293,8 +298,8 @@ export function PublicationDetail() {
           {/* Pipeline visualization */}
           {pipeline && pipeline.pipeline_stages && (
             <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 20px', marginBottom: 20 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)', marginBottom: 12, letterSpacing: '0.06em' }}>
-                📋 PUBLICATION PIPELINE
+              <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)', marginBottom: 12, letterSpacing: '0.04em' }}>
+                📋 Publication pipeline
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
                 {pipeline.pipeline_stages.map((stage, i) => {
@@ -352,13 +357,13 @@ export function PublicationDetail() {
                     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   }}>
                     <div>
-                      <span style={{ fontSize: 17, fontWeight: 500, color: 'var(--text-heading)' }}>{exp.name}</span>
+                      <span style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-heading)' }}>{exp.name}</span>
                       {exp.section && <span style={{ fontSize: 14, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginLeft: 8 }}>({exp.section})</span>}
                     </div>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                       <span style={{
                         fontSize: 13, fontFamily: 'var(--font-mono)', fontWeight: 700,
-                        color: exp.status === 'completed' ? '#10b981' : exp.status === 'running' ? '#ff8015' : '#f59e0b',
+                        color: exp.status === 'completed' ? '#10b981' : exp.status === 'running' ? 'var(--accent)' : '#f59e0b',
                         padding: '1px 6px', borderRadius: 3, background: 'var(--surface-input)',
                       }}>{exp.status.toUpperCase()}</span>
                       <span style={{ fontSize: 14, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
@@ -386,7 +391,7 @@ export function PublicationDetail() {
                     cursor: 'pointer', padding: '5px 12px', fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)',
                     background: aiTab === btn.key ? `${btn.color}18` : `${btn.color}08`,
                     border: `1px solid ${btn.color}30`, borderRadius: 5, color: btn.color,
-                    letterSpacing: '0.06em', transition: 'background 0.12s',
+                    letterSpacing: '0.04em', transition: 'background 0.12s',
                   }}
                 >{btn.label}</button>
               ))}
@@ -398,13 +403,13 @@ export function PublicationDetail() {
                 <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#6366f1', marginBottom: 12 }}>Draft a Section</div>
                 <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dim)', marginBottom: 3, fontFamily: 'var(--font-mono)' }}>SECTION</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dim)', marginBottom: 3, fontFamily: 'var(--font-mono)' }}>Section</div>
                     <select value={aiSection} onChange={e => setAiSection(e.target.value)} style={inputStyle}>
                       {SECTIONS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
                     </select>
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dim)', marginBottom: 3, fontFamily: 'var(--font-mono)' }}>STYLE</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dim)', marginBottom: 3, fontFamily: 'var(--font-mono)' }}>Style</div>
                     <select value={aiStyle} onChange={e => setAiStyle(e.target.value)} style={inputStyle}>
                       {STYLES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
                     </select>
@@ -424,7 +429,7 @@ export function PublicationDetail() {
                 {/* Draft from experiment */}
                 {pub.project_id && projectExps.length > 0 && (
                   <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 10, marginTop: 10 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dim)', marginBottom: 6, fontFamily: 'var(--font-mono)' }}>OR DRAFT FROM EXPERIMENT</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dim)', marginBottom: 6, fontFamily: 'var(--font-mono)' }}>Or draft from experiment</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       {projectExps.map(exp => (
                         <div key={exp.id} style={{
@@ -491,7 +496,7 @@ export function PublicationDetail() {
                 <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#ec4899', marginBottom: 8 }}>Generate Reviewer Response</div>
                 <textarea value={reviewerComments} onChange={e => setReviewerComments(e.target.value)}
                   placeholder="Paste the full reviewer comments here. The AI will generate a point-by-point response letter."
-                  rows={5} style={{ ...inputStyle, marginBottom: 10, resize: 'vertical', fontSize: 18 }} />
+                  rows={5} style={{ ...inputStyle, marginBottom: 10, resize: 'vertical', fontSize: 15 }} />
                 <button onClick={() => respondMutation.mutate()} disabled={respondMutation.isPending || !reviewerComments.trim()}
                   style={{
                     padding: '8px 16px', cursor: 'pointer',
@@ -505,23 +510,23 @@ export function PublicationDetail() {
 
           {/* Versions */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <h3 style={{ margin: 0, fontSize: 20, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>
               Versions ({versions.length})
             </h3>
             <button onClick={() => setShowNewVersion(true)} style={{
               cursor: 'pointer', padding: '4px 10px',
               background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)',
               borderRadius: 5, color: '#10b981', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
-            }}>+ NEW</button>
+            }}>+ New</button>
           </div>
 
           {showNewVersion && (
             <div style={{ background: 'var(--surface-card)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 8, padding: 14, marginBottom: 10 }}>
               <textarea value={versionNotes} onChange={e => setVersionNotes(e.target.value)} placeholder="Version notes…" rows={2}
-                style={{ ...inputStyle, marginBottom: 6, resize: 'vertical', fontSize: 18 }} />
+                style={{ ...inputStyle, marginBottom: 6, resize: 'vertical', fontSize: 15 }} />
               <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={() => versionMutation.mutate()} style={{ padding: '5px 14px', cursor: 'pointer', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.28)', borderRadius: 5, color: '#10b981', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>CREATE</button>
-                <button onClick={() => setShowNewVersion(false)} style={{ padding: '5px 10px', cursor: 'pointer', background: 'transparent', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text-muted)', fontSize: 15 }}>CANCEL</button>
+                <button onClick={() => versionMutation.mutate()} style={{ padding: '5px 14px', cursor: 'pointer', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.28)', borderRadius: 5, color: '#10b981', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>Create</button>
+                <button onClick={() => setShowNewVersion(false)} style={{ padding: '5px 10px', cursor: 'pointer', background: 'transparent', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text-muted)', fontSize: 15 }}>Cancel</button>
               </div>
             </div>
           )}
@@ -572,22 +577,22 @@ export function PublicationDetail() {
 
           {/* Reviews */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <h3 style={{ margin: 0, fontSize: 20, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>
               Reviews ({reviews.length})
             </h3>
             <button onClick={() => setShowNewReview(true)} style={{
               cursor: 'pointer', padding: '4px 10px',
               background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.3)',
               borderRadius: 5, color: '#6366f1', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
-            }}>+ ADD</button>
+            }}>+ Add</button>
           </div>
 
           {showNewReview && (
             <div style={{ background: 'var(--surface-card)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 8, padding: 14, marginBottom: 10 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 6 }}>
-                <div><label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>REVIEWER</label>
+                <div><label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>Reviewer</label>
                   <input value={reviewerName} onChange={e => setReviewerName(e.target.value)} style={inputStyle} /></div>
-                <div><label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>DECISION</label>
+                <div><label style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>Decision</label>
                   <select value={reviewDecision} onChange={e => setReviewDecision(e.target.value)} style={inputStyle}>
                     <option value="">—</option>
                     <option value="accept">Accept</option>
@@ -599,8 +604,8 @@ export function PublicationDetail() {
               <textarea value={reviewComments} onChange={e => setReviewComments(e.target.value)} placeholder="Comments…" rows={3}
                 style={{ ...inputStyle, marginBottom: 6, resize: 'vertical' }} />
               <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={() => reviewMutation.mutate()} style={{ padding: '5px 14px', cursor: 'pointer', background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.28)', borderRadius: 5, color: '#6366f1', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>ADD REVIEW</button>
-                <button onClick={() => setShowNewReview(false)} style={{ padding: '5px 10px', cursor: 'pointer', background: 'transparent', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text-muted)', fontSize: 15 }}>CANCEL</button>
+                <button onClick={() => reviewMutation.mutate()} style={{ padding: '5px 14px', cursor: 'pointer', background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.28)', borderRadius: 5, color: '#6366f1', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>Add review</button>
+                <button onClick={() => setShowNewReview(false)} style={{ padding: '5px 10px', cursor: 'pointer', background: 'transparent', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text-muted)', fontSize: 15 }}>Cancel</button>
               </div>
             </div>
           )}
@@ -624,7 +629,7 @@ export function PublicationDetail() {
                     }}>{r.decision.replace('_', ' ').toUpperCase()}</span>
                   )}
                 </div>
-                {r.comments && <p style={{ margin: '0 0 4px', fontSize: 17, color: 'var(--text-2)', lineHeight: 1.5 }}>{r.comments}</p>}
+                {r.comments && <p style={{ margin: '0 0 4px', fontSize: 15, color: 'var(--text-2)', lineHeight: 1.5 }}>{r.comments}</p>}
                 <div style={{ fontSize: 13, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
                   {new Date(r.created_at).toLocaleDateString()}
                 </div>

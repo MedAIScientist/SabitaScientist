@@ -86,19 +86,7 @@ export function GlobalReportPage() {
         position: 'sticky', top: 0, zIndex: 10,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button
-            onClick={() => navigate('/projects')}
-            style={{
-              cursor: 'pointer', background: 'var(--surface-input)',
-              border: '1px solid var(--border)', borderRadius: 6,
-              color: 'var(--text-muted)', padding: '3px 9px', fontSize: 22, lineHeight: 1,
-            }}
-          >←</button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <img src="/medipolLogo.png" alt="Medipol" style={{ height: 26, borderRadius: 4, display: 'block' }} />
-            <span style={{ color: 'var(--text-dim)', fontSize: 20, fontFamily: 'var(--font-mono)' }}>/</span>
-            <span style={{ color: '#ff8015', fontSize: 21, fontFamily: 'var(--font-mono)' }}>reports</span>
-          </div>
+          <h1 className="page-title" style={{ fontSize: 18 }}>Reports</h1>
         </div>
         <span style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
           Generated {generatedAt}
@@ -106,7 +94,7 @@ export function GlobalReportPage() {
       </div>
 
       {/* Content */}
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 28px 64px' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 28px 64px' }}>
 
         {/* Section 1 — Global Summary */}
         <div style={{ marginBottom: 40 }}>
@@ -164,8 +152,8 @@ export function GlobalReportPage() {
                 {['PROJECT', 'TASKS', 'EXPERIMENTS', 'MEMBERS', ''].map(h => (
                   <th key={h} style={{
                     padding: '6px 8px', textAlign: 'left',
-                    fontSize: 18, fontFamily: 'var(--font-mono)',
-                    color: 'var(--text-dim)', letterSpacing: '0.1em',
+                    fontSize: 15, fontFamily: 'var(--font-mono)',
+                    color: 'var(--text-dim)', letterSpacing: '0.04em',
                   }}>
                     {h}
                   </th>
@@ -193,14 +181,14 @@ export function GlobalReportPage() {
                       <button
                         onClick={() => navigate(`/projects/${project.id}/report`)}
                         style={{
-                          background: 'rgba(255,128,21,0.08)',
-                          border: '1px solid rgba(255,128,21,0.2)',
-                          color: '#ff8015', fontFamily: 'var(--font-mono)',
-                          fontSize: 18, padding: '3px 8px',
-                          borderRadius: 3, cursor: 'pointer', letterSpacing: '0.08em',
+                          background: 'rgba(var(--accent-rgb),0.08)',
+                          border: '1px solid rgba(var(--accent-rgb),0.2)',
+                          color: 'var(--accent)', fontFamily: 'var(--font-mono)',
+                          fontSize: 15, padding: '3px 8px',
+                          borderRadius: 3, cursor: 'pointer', letterSpacing: '0.04em',
                         }}
                       >
-                        → VIEW REPORT
+                        → View report
                       </button>
                     </td>
                   </tr>

@@ -86,14 +86,14 @@ export function AiAssistPanel({
         flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
         <span style={{
-          fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)',
-          color: accent, letterSpacing: '0.08em',
+          fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
+          color: accent, letterSpacing: '0.04em',
         }}>
-          ✦ AI ASSISTANT
+          ✦ AI assistant
         </span>
         <button
           onClick={onClose}
-          style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 22, cursor: 'pointer', padding: 2 }}
+          style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 17, cursor: 'pointer', padding: 2 }}
         >✕</button>
       </div>
 
@@ -101,7 +101,7 @@ export function AiAssistPanel({
         {/* Target field selector */}
         <div style={{ marginBottom: 10 }}>
           <div style={{ fontSize: 16, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontWeight: 700, marginBottom: 5 }}>
-            APPLY TO
+            Apply to
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
             {TARGET_OPTIONS.map(opt => (
@@ -125,7 +125,7 @@ export function AiAssistPanel({
         {/* Agent type selector */}
         <div style={{ marginBottom: 10 }}>
           <div style={{ fontSize: 16, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontWeight: 700, marginBottom: 5 }}>
-            AI AGENT
+            AI agent
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
             {[
@@ -154,7 +154,7 @@ export function AiAssistPanel({
         {/* Prompt */}
         <div style={{ marginBottom: 8 }}>
           <div style={{ fontSize: 16, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontWeight: 700, marginBottom: 5 }}>
-            PROMPT
+            Prompt
           </div>
           <textarea
             value={prompt}
@@ -183,7 +183,7 @@ export function AiAssistPanel({
               fontFamily: 'var(--font-mono)', cursor: 'pointer', marginBottom: 10,
             }}
           >
-            ■ STOP
+            ■ Stop
           </button>
         ) : (
           <button
@@ -197,7 +197,7 @@ export function AiAssistPanel({
               opacity: !prompt.trim() ? 0.4 : 1,
             }}
           >
-            ▶ GENERATE
+            ▶ Generate
           </button>
         )}
 
@@ -234,7 +234,7 @@ export function AiAssistPanel({
                     fontSize: 15, fontFamily: 'var(--font-mono)', cursor: 'pointer', fontWeight: 700,
                   }}
                 >
-                  ✔ APPLY
+                  ✔ Apply
                 </button>
                 <button
                   onClick={handleDiscard}
@@ -244,7 +244,7 @@ export function AiAssistPanel({
                     fontSize: 15, fontFamily: 'var(--font-mono)', cursor: 'pointer',
                   }}
                 >
-                  ✕ DISCARD
+                  ✕ Discard
                 </button>
               </div>
             )}

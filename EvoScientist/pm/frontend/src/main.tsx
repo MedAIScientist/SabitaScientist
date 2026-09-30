@@ -6,7 +6,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './auth'
 import { ThemeProvider } from './theme'
 import { api } from './api'
-import { NavBar } from './components/NavBar'
+import { AppShell } from './components/NavBar'
 import { Login } from './pages/Login'
 import { Projects } from './pages/Projects'
 import { Board } from './pages/Board'
@@ -37,12 +37,23 @@ import { SettingsPage }       from './pages/SettingsPage'
 import { HelpPage }           from './pages/HelpPage'
 import { AppsPage }           from './pages/AppsPage'
 import { ProjectDataPage }    from './pages/ProjectDataPage'
+import { HomePage }           from './pages/HomePage'
+import { WeeklyUpdatePage }   from './pages/WeeklyUpdatePage'
+import { WeeklyMeetingPage }  from './pages/WeeklyMeetingPage'
+import { SupervisionReportsPage } from './pages/SupervisionReportsPage'
+import { JourneyPage }        from './pages/JourneyPage'
+import { RequirementsPage }   from './pages/RequirementsPage'
+import { ProfessorDashboardPage } from './pages/ProfessorDashboardPage'
+import { ResearchItemsPage }  from './pages/ResearchItemsPage'
+import { PaperWorkspacePage } from './pages/PaperWorkspacePage'
+import { AdmissionsPage }     from './pages/AdmissionsPage'
+import { AdmissionDetail }    from './pages/AdmissionDetail'
 
 const queryClient = new QueryClient()
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { token } = useAuth()
-  return token ? <><NavBar />{children}</> : <Navigate to="/login" replace />
+  return token ? <AppShell>{children}</AppShell> : <Navigate to="/login" replace />
 }
 
 function App() {
@@ -60,6 +71,17 @@ function App() {
       <Routes>
         {needsSetup && <Route path="*" element={<Setup />} />}
         <Route path="/login" element={<Login />} />
+        <Route path="/home" element={<PrivateRoute><HomePage /></PrivateRoute>} />
+        <Route path="/professor" element={<PrivateRoute><ProfessorDashboardPage /></PrivateRoute>} />
+        <Route path="/weekly-update" element={<PrivateRoute><WeeklyUpdatePage /></PrivateRoute>} />
+        <Route path="/meeting" element={<PrivateRoute><WeeklyMeetingPage /></PrivateRoute>} />
+        <Route path="/supervision/reports" element={<PrivateRoute><SupervisionReportsPage /></PrivateRoute>} />
+        <Route path="/journey" element={<PrivateRoute><JourneyPage /></PrivateRoute>} />
+        <Route path="/requirements" element={<PrivateRoute><RequirementsPage /></PrivateRoute>} />
+        <Route path="/research-items" element={<PrivateRoute><ResearchItemsPage /></PrivateRoute>} />
+        <Route path="/publications/:id/workspace" element={<PrivateRoute><PaperWorkspacePage /></PrivateRoute>} />
+        <Route path="/admissions" element={<PrivateRoute><AdmissionsPage /></PrivateRoute>} />
+        <Route path="/admissions/:id" element={<PrivateRoute><AdmissionDetail /></PrivateRoute>} />
         <Route path="/projects" element={<PrivateRoute><Projects /></PrivateRoute>} />
         <Route path="/projects/:id" element={<PrivateRoute><Board /></PrivateRoute>} />
         <Route path="/projects/:id/experiments" element={<PrivateRoute><ExperimentsPage /></PrivateRoute>} />
@@ -87,7 +109,7 @@ function App() {
         <Route path="/health"    element={<PrivateRoute><SystemHealthPage /></PrivateRoute>} />
         <Route path="/settings"  element={<PrivateRoute><SettingsPage /></PrivateRoute>} />
         <Route path="/help"      element={<PrivateRoute><HelpPage /></PrivateRoute>} />
-        {!needsSetup && <Route path="*" element={<Navigate to="/projects" replace />} />}
+        {!needsSetup && <Route path="*" element={<Navigate to="/home" replace />} />}
       </Routes>
     </BrowserRouter>
   )

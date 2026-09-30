@@ -9,7 +9,7 @@ function authHeaders(): HeadersInit {
   return token ? { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }
 }
 
-async function request<T>(
+export async function request<T>(
   method: string,
   path: string,
   body?: unknown,
@@ -39,19 +39,21 @@ async function request<T>(
 
 export const api = {
   login: (username: string, password: string) =>
-    request<{ token: string; user_id: string; username: string; is_admin: boolean }>(
+    request<{ token: string; user_id: string; username: string; is_admin: boolean; role: string }>(
       'POST', '/auth/login', { username, password }, { skipAuthRedirect: true }
     ),
-  me: () => request<{ id: string; username: string; is_admin: boolean }>('GET', '/users/me'),
+  me: () => request<{ id: string; username: string; is_admin: boolean; role: string }>('GET', '/users/me'),
   setPassword: (newPassword: string) =>
     request<UserRecord>('PUT', '/users/me', { new_password: newPassword }),
   setupStatus: () => request<{ needs_setup: boolean }>('GET', '/users/setup/status'),
   listUsers: () => request<UserRecord[]>('GET', '/users'),
-  createUser: (username: string, password: string, email?: string) =>
-    request<UserRecord>('POST', '/users', { username, password, email }),
-  updateUser: (userId: string, data: { username?: string; email?: string | null; is_admin?: boolean }) =>
+  createUser: (username: string, password: string, email?: string, role: string = 'student', is_admin: boolean = false) =>
+    request<UserRecord>('POST', '/users', { username, password, email, role, is_admin }),
+  updateUser: (userId: string, data: { username?: string; email?: string | null; is_admin?: boolean; role?: string }) =>
     request<UserRecord>('PUT', `/users/${userId}`, data),
   deleteUser: (userId: string) => request<void>('DELETE', `/users/${userId}`),
+  bulkImportUsers: (rows: { username: string; password: string; email?: string; role?: string }[]) =>
+    request<{ created: number; errors: string[] }>('POST', '/users/bulk-import', { rows }),
   createAdmin: (username: string, password: string, email?: string) =>
     request<{ id: string; username: string }>('POST', '/users/setup/admin', { username, password, email }),
   listProjects: () => request<Project[]>('GET', '/projects'),
@@ -277,6 +279,8 @@ export const api = {
   updatePublication: (id: string, data: Partial<{
     title: string; venue: string; venue_type: string; authors: { name?: string; email?: string }[];
     abstract: string; doi: string; url: string; status: string
+    reporting_guideline: string; data_availability: string; code_availability: string
+    conflict_of_interest: string; funding_statement: string
   }>) => request<Publication_>('PUT', `/publications/${id}`, data),
   submitPublication: (id: string) => request<Publication_>('POST', `/publications/${id}/submit`),
   deletePublication: (id: string) => request<void>('DELETE', `/publications/${id}`),
@@ -481,7 +485,7 @@ export const api = {
 }
 
 export interface UserRecord {
-  id: string; username: string; email: string | null; is_admin: boolean; created_at: string
+  id: string; username: string; email: string | null; is_admin: boolean; created_at: string; role: string
 }
 
 export interface Project {
@@ -504,7 +508,7 @@ export interface LabMember_ { user_id: string; username: string; role: string; j
 export interface Task {
   id: string; project_id: string; title: string; description: string | null
   assignee_id: string | null; status: 'todo' | 'in_progress' | 'done'
-  priority: 'critical' | 'high' | 'medium' | 'low'; deadline: string | null
+  priority: 'high' | 'medium' | 'low'; deadline: string | null
   session_id: string | null; created_by: string; created_at: string; updated_at: string
   phase_id?: string | null
   blocked_by?: string[]
@@ -915,6 +919,9 @@ export interface Publication_ {
   venue_type: string; authors: { name?: string; email?: string }[]; status: string
   doi: string | null; url: string | null; abstract: string | null
   submitted_at: string | null; accepted_at: string | null; published_at: string | null
+  reporting_guideline: string | null; data_availability: string | null
+  code_availability: string | null; conflict_of_interest: string | null
+  funding_statement: string | null
   created_by: string; created_at: string; updated_at: string
 }
 export interface Version {
@@ -1093,3 +1100,235 @@ export interface ScheduleItem {
   enabled: boolean; created_at: string; updated_at: string
 }
 export interface ScheduleList { schedules: ScheduleItem[] }
+
+
+// ── Academic supervision ────────────────────────────────────────────────────
+
+export interface SupervisorAssignment {
+  id: string; student_id: string; professor_id: string
+  active_from: string; active_until: string | null; created_at: string
+}
+
+export interface WeeklyReportItem {
+  id: string; report_id: string
+  task_id: string | null; publication_id: string | null; experiment_id: string | null
+  item_title: string; item_kind: string | null; progress_pct: number
+  status: string | null; blocker: string | null; needs_help: boolean
+  what_changed: string | null; next_step: string | null
+  risk_level: string; next_deadline: string | null; sort_order: number
+}
+
+export interface WeeklyReport {
+  id: string; student_id: string; week_start: string
+  status: string; review_status: string; risk_level: string
+  risk_override: string | null
+  accomplished: string | null; next_focus: string | null; support_requested: string | null
+  submitted_at: string | null; reviewed_at: string | null; reviewed_by: string | null
+  feedback: string | null; created_at: string; updated_at: string
+  items: WeeklyReportItem[]
+}
+
+export interface Attendance {
+  id: string; professor_id: string; student_id: string; week_start: string
+  status: string; joined_mode: string | null; note: string | null; recorded_at: string
+}
+
+export interface MeetingSetting {
+  id: string; professor_id: string; weekday: number
+  time_local: string | null; timezone: string | null
+  effective_from: string; created_at: string
+}
+
+export interface AcademicJourney {
+  id: string; student_id: string; level: string; status: string
+  programme: string | null; university: string | null; department: string | null
+  start_year: number | null; start_date: string | null; expected_end: string | null
+  thesis_title: string | null; created_at: string; updated_at: string
+}
+
+export interface GraduationRequirement {
+  id: string; level: string; title: string; description: string | null
+  req_type: string; research_item_type: string | null; min_stage: string | null
+  target_value: number; unit: string | null; required: boolean; active: boolean
+  created_at: string
+}
+
+export const supervisionApi = {
+  myStudents: () => request<SupervisorAssignment[]>('GET', '/supervision/my-students'),
+  mySupervisor: () => request<SupervisorAssignment | null>('GET', '/supervision/my-supervisor'),
+  assignSupervisor: (studentId: string, professorId: string) =>
+    request<SupervisorAssignment>('POST', '/supervision/assignments', { student_id: studentId, professor_id: professorId }),
+  listAssignments: (professorId?: string) =>
+    request<SupervisorAssignment[]>('GET', professorId ? `/supervision/assignments?professor_id=${professorId}` : '/supervision/assignments'),
+  setMeetingSetting: (weekday: number, timeLocal?: string, timezone?: string) =>
+    request<MeetingSetting>('POST', '/supervision/meeting-settings', { weekday, time_local: timeLocal, timezone }),
+  getMeetingSetting: (week?: string, professorId?: string) => {
+    const q = new URLSearchParams()
+    if (week) q.set('week', week)
+    if (professorId) q.set('professor_id', professorId)
+    const qs = q.toString()
+    return request<MeetingSetting | null>('GET', `/supervision/meeting-settings${qs ? `?${qs}` : ''}`)
+  },
+  currentWeekReport: (week?: string) => {
+    const qs = week ? `?week=${week}` : ''
+    return request<WeeklyReport>('POST', `/supervision/weekly/current${qs}`)
+  },
+  listReports: (params?: { student_id?: string; status?: string; review_status?: string; risk_level?: string; date_from?: string; date_to?: string }) => {
+    const q = new URLSearchParams()
+    if (params) Object.entries(params).forEach(([k, v]) => { if (v) q.set(k, v) })
+    const qs = q.toString()
+    return request<WeeklyReport[]>('GET', `/supervision/reports${qs ? `?${qs}` : ''}`)
+  },
+  getReport: (id: string) => request<WeeklyReport>('GET', `/supervision/reports/${id}`),
+  updateSummary: (id: string, data: { accomplished?: string; next_focus?: string; support_requested?: string }) =>
+    request<WeeklyReport>('PUT', `/supervision/reports/${id}/summary`, data),
+  upsertItem: (id: string, data: Partial<WeeklyReportItem> & { item_title: string; item_id?: string }) =>
+    request<WeeklyReportItem>('PUT', `/supervision/reports/${id}/items`, data),
+  deleteItem: (reportId: string, itemId: string) =>
+    request<void>('DELETE', `/supervision/reports/${reportId}/items/${itemId}`),
+  submitReport: (id: string) => request<WeeklyReport>('POST', `/supervision/reports/${id}/submit`),
+  reviewReport: (id: string, data: { review_status: string; feedback?: string; risk_override?: string }) =>
+    request<WeeklyReport>('POST', `/supervision/reports/${id}/review`, data),
+  recordAttendance: (studentId: string, week: string, data: { status: string; joined_mode?: string; note?: string }) =>
+    request<Attendance>('POST', `/supervision/attendance?student_id=${studentId}&week=${week}`, data),
+  getAttendance: (studentId: string, week: string) =>
+    request<Attendance | null>('GET', `/supervision/attendance?student_id=${studentId}&week=${week}`),
+  grantExtension: (studentId: string, week: string, data: { new_deadline: string; reason?: string }) =>
+    request<{ id: string; new_deadline: string }>('POST', `/supervision/extensions?student_id=${studentId}&week=${week}`, data),
+  listJourneys: (studentId?: string) => {
+    const qs = studentId ? `?student_id=${studentId}` : ''
+    return request<AcademicJourney[]>('GET', `/supervision/journeys${qs}`)
+  },
+  createJourney: (data: Partial<AcademicJourney> & { level: string }, studentId?: string) => {
+    const qs = studentId ? `?student_id=${studentId}` : ''
+    return request<AcademicJourney>('POST', `/supervision/journeys${qs}`, data)
+  },
+  listRequirements: (level?: string) => {
+    const qs = level ? `?level=${level}` : ''
+    return request<GraduationRequirement[]>('GET', `/supervision/requirements${qs}`)
+  },
+  createRequirement: (data: Partial<GraduationRequirement> & { level: string; title: string; req_type: string }) =>
+    request<GraduationRequirement>('POST', '/supervision/requirements', data),
+  archiveRequirement: (id: string) => request<void>('DELETE', `/supervision/requirements/${id}`),
+  researchItems: (params?: { student_id?: string; kind?: string }) => {
+    const q = new URLSearchParams()
+    if (params?.student_id) q.set('student_id', params.student_id)
+    if (params?.kind) q.set('kind', params.kind)
+    const qs = q.toString()
+    return request<{
+      id: string; kind: string; title: string; status: string; stage: string
+      venue: string | null; owner_id: string; project_id: string | null
+      created_at: string; updated_at: string; link_path: string; deadline?: string | null
+    }[]>('GET', `/supervision/research-items${qs ? `?${qs}` : ''}`)
+  },
+  readiness: (studentId?: string) => {
+    const qs = studentId ? `?student_id=${studentId}` : ''
+    return request<{
+      student_id: string; level: string | null; journey_id: string | null
+      thesis_title: string | null; readiness_pct: number
+      requirements: { id: string; level: string; title: string; req_type: string; target_value: number; unit: string | null; current_value: number; required: boolean; met: boolean }[]
+      summary: { publications: number; journal_papers: number; conference_papers: number }
+    }>('GET', `/supervision/readiness${qs}`)
+  },
+  bulkImportUsers: (rows: { username: string; password: string; email?: string; role?: string }[]) =>
+    request<{ created: number; errors: string[] }>('POST', '/users/bulk-import', { rows }),
+  draftPaperFromItems: (data: {
+    title: string; experiment_ids?: string[]; venue_type?: string
+    abstract?: string; link_sections?: Record<string, string>
+  }) => request<{ publication_id: string; title: string; linked_experiments: string[]; status: string }>(
+    'POST', '/supervision/research-items/draft-paper', data
+  ),
+  linkItemsToPaper: (pubId: string, data: { experiment_ids: string[]; link_sections?: Record<string, string> }) =>
+    request<{ publication_id: string; linked_experiments: string[] }>('POST', `/supervision/papers/${pubId}/link-items`, data),
+  paperReadiness: (pubId: string) =>
+    request<{
+      publication_id: string; status: string; readiness_pct: number; ready_to_submit: boolean
+      checks: { id: string; label: string; met: boolean; required: boolean; detail: string }[]
+      suggested_tools: string[]; ai_versions: number; human_versions: number
+    }>('GET', `/supervision/papers/${pubId}/readiness`),
+  paperEvidence: (pubId: string) =>
+    request<{
+      publication_id: string
+      linked_experiments: { experiment_id: string; section: string | null; experiment_name: string }[]
+      weekly_updates: { id: string; week_start: string; student_id: string; item_title: string; item_kind: string | null; progress_pct: number; status: string | null; what_changed: string | null; next_step: string | null; needs_help: boolean; blocker: string | null; risk_level: string; next_deadline: string | null }[]
+      open_questions: { id: string; item_title: string; blocker: string | null; what_changed: string | null }[]
+    }>('GET', `/supervision/papers/${pubId}/evidence`),
+  professorAnalytics: () => request<{
+    students: { student_id: string; username: string; open_reviews: number; help_requests: number; latest_week: string | null; latest_status: string | null; last_attendance: string | null }[]
+    kpis: { submitted_this_week: number; needs_review: number; draft_or_missing: number; help_requests: number; high_risk: number; student_count: number }
+    weekly_trend: { week: string; submitted: number; on_time: number }[]
+    attendance: Record<string, number>
+    reports_needing_attention: { report_id: string; student_id: string; username: string; week_start: string; review_status: string; risk: string; support_requested: string | null }[]
+    active_deadlines: { item_title: string; next_deadline: string; progress_pct: number; status: string | null; student_id: string; username: string }[]
+    work_mix: { kind: string; count: number }[]
+  }>('GET', '/supervision/analytics/professor'),
+}
+
+// ── AI usage accounting ──────────────────────────────────────────────────────
+
+/** One row of a usage breakdown — a task name or a model name. */
+export interface AiUsageBreakdown {
+  label: string
+  calls: number
+  provider_tokens: number
+  estimated_tokens: number
+}
+
+/**
+ * Token totals. `provider_reported` and `estimated` are deliberately separate:
+ * the API never sums a measurement with an estimate.
+ */
+export interface AiUsageSummary {
+  window_days: number | null
+  calls: number
+  tokens: { provider_reported: number; estimated: number; prompt: number; completion: number }
+  avg_duration_ms: number | null
+  by_task: AiUsageBreakdown[]
+  by_model: AiUsageBreakdown[]
+}
+
+export interface AiUsageRecord {
+  id: string
+  task: string
+  source: string
+  token_source: string
+  model: string | null
+  user_id: string | null
+  project_id: string | null
+  publication_id: string | null
+  run_id: string | null
+  prompt_tokens: number | null
+  completion_tokens: number | null
+  total_tokens: number | null
+  duration_ms: number | null
+  created_at: string
+}
+
+export interface AiUsageQuery {
+  scope?: 'me' | 'user' | 'all'
+  user_id?: string
+  project_id?: string
+  publication_id?: string
+  days?: number
+}
+
+function _usageQuery(params: AiUsageQuery): string {
+  const q = new URLSearchParams()
+  if (params.scope) q.set('scope', params.scope)
+  if (params.user_id) q.set('user_id', params.user_id)
+  if (params.project_id) q.set('project_id', params.project_id)
+  if (params.publication_id) q.set('publication_id', params.publication_id)
+  if (params.days) q.set('days', String(params.days))
+  const qs = q.toString()
+  return qs ? `?${qs}` : ''
+}
+
+export const aiUsageApi = {
+  summary: (params: AiUsageQuery = {}) =>
+    request<AiUsageSummary>('GET', `/ai/usage/summary${_usageQuery(params)}`),
+  records: (params: AiUsageQuery & { limit?: number } = {}) => {
+    const qs = _usageQuery(params)
+    const limit = params.limit ? `${qs ? '&' : '?'}limit=${params.limit}` : ''
+    return request<{ records: AiUsageRecord[] }>('GET', `/ai/usage/records${qs}${limit}`)
+  },
+}

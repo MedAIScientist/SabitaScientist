@@ -35,9 +35,9 @@ describe('FilterToolbar', () => {
 
   test('renders CRIT, NORM, ROUT priority chips', () => {
     render(<FilterToolbar {...defaultProps()} />)
-    expect(screen.getByRole('button', { name: 'CRIT' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'NORM' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'ROUT' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Critical$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Standard$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Routine$/i })).toBeInTheDocument()
   })
 
   test('calls onSearchChange when typing in search', () => {
@@ -51,21 +51,21 @@ describe('FilterToolbar', () => {
   test('calls onTogglePriority("high") when CRIT chip clicked', () => {
     const onTogglePriority = vi.fn()
     render(<FilterToolbar {...defaultProps({ onTogglePriority })} />)
-    fireEvent.click(screen.getByRole('button', { name: 'CRIT' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Critical$/i }))
     expect(onTogglePriority).toHaveBeenCalledWith('high')
   })
 
   test('calls onTogglePriority("medium") when NORM chip clicked', () => {
     const onTogglePriority = vi.fn()
     render(<FilterToolbar {...defaultProps({ onTogglePriority })} />)
-    fireEvent.click(screen.getByRole('button', { name: 'NORM' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Standard$/i }))
     expect(onTogglePriority).toHaveBeenCalledWith('medium')
   })
 
   test('calls onTogglePriority("low") when ROUT chip clicked', () => {
     const onTogglePriority = vi.fn()
     render(<FilterToolbar {...defaultProps({ onTogglePriority })} />)
-    fireEvent.click(screen.getByRole('button', { name: 'ROUT' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Routine$/i }))
     expect(onTogglePriority).toHaveBeenCalledWith('low')
   })
 

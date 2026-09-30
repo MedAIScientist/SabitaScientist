@@ -54,18 +54,18 @@ export function DeadlinePicker({ value, onChange, inputStyle }: Props) {
                 fontSize: 15,
                 fontFamily: 'var(--font-mono)',
                 fontWeight: 700,
-                letterSpacing: '0.06em',
+                letterSpacing: '0.04em',
                 borderRadius: 4,
                 cursor: 'pointer',
                 border: active
-                  ? '1px solid rgba(255,128,21,0.5)'
+                  ? '1px solid rgba(var(--accent-rgb),0.5)'
                   : '1px solid var(--border)',
                 background: active
-                  ? 'rgba(255,128,21,0.12)'
+                  ? 'rgba(var(--accent-rgb),0.12)'
                   : isHovered
-                  ? 'rgba(255,128,21,0.06)'
+                  ? 'rgba(var(--accent-rgb),0.06)'
                   : 'var(--surface-input)',
-                color: active ? '#ff8015' : 'var(--text-2)',
+                color: active ? 'var(--accent)' : 'var(--text-2)',
                 transition: 'background 0.12s, border-color 0.12s, color 0.12s',
               }}
             >
@@ -84,7 +84,7 @@ export function DeadlinePicker({ value, onChange, inputStyle }: Props) {
               fontSize: 15,
               fontFamily: 'var(--font-mono)',
               fontWeight: 700,
-              letterSpacing: '0.06em',
+              letterSpacing: '0.04em',
               borderRadius: 4,
               cursor: 'pointer',
               border: '1px solid rgba(244,63,94,0.25)',
@@ -105,10 +105,10 @@ export function DeadlinePicker({ value, onChange, inputStyle }: Props) {
         onChange={e => onChange(e.target.value)}
         style={{
           ...inputStyle,
-          fontSize: 20,
+          fontSize: 16,
           colorScheme: 'dark',
         }}
-        onFocus={e => { e.currentTarget.style.borderColor = 'rgba(255,128,21,0.3)' }}
+        onFocus={e => { e.currentTarget.style.borderColor = 'rgba(var(--accent-rgb),0.3)' }}
         onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
       />
     </div>

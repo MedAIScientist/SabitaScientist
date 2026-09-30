@@ -28,7 +28,7 @@ beforeEach(() => {
 describe('AppsPage', () => {
   test('lists each companion app with its subpath', () => {
     render(<AppsPage />)
-    expect(screen.getByText('CVAT')).toBeInTheDocument()
+    expect(screen.getByText(/^CVAT$/i)).toBeInTheDocument()
     expect(screen.getByText('/cvat/')).toBeInTheDocument()
     expect(screen.getByText('Curator')).toBeInTheDocument()
     expect(screen.getByText('/pacs/')).toBeInTheDocument()
@@ -37,18 +37,18 @@ describe('AppsPage', () => {
   test('shows per-service UP/DOWN state', () => {
     render(<AppsPage />)
     expect(screen.getByText('UP')).toBeInTheDocument()
-    expect(screen.getByText('DOWN')).toBeInTheDocument()
+    expect(screen.getByText(/^DOWN$/i)).toBeInTheDocument()
   })
 
   test('names the unreachable service with its status', () => {
     render(<AppsPage />)
-    expect(screen.getByText('UNREACHABLE (HTTP 502)')).toBeInTheDocument()
+    expect(screen.getByText(/^UNREACHABLE \(HTTP 502\)$/i)).toBeInTheDocument()
   })
 
   test('counts unreachable services in the header', () => {
     render(<AppsPage />)
-    expect(screen.getByText(/2 SERVICES/)).toBeInTheDocument()
-    expect(screen.getByText(/1 UNREACHABLE/)).toBeInTheDocument()
+    expect(screen.getByText(/2 SERVICES/i)).toBeInTheDocument()
+    expect(screen.getByText(/1 UNREACHABLE/i)).toBeInTheDocument()
   })
 
   test('every card opens its app in a new tab', () => {
@@ -69,7 +69,7 @@ describe('AppsPage', () => {
       data: [], isLoading: true, isFetching: true, refetch: vi.fn(), error: null,
     } as any)
     render(<AppsPage />)
-    expect(screen.getByText('LOADING…')).toBeInTheDocument()
+    expect(screen.getByText(/^LOADING…$/i)).toBeInTheDocument()
   })
 
   test('reports a failed status read without hiding the page', () => {

@@ -26,7 +26,7 @@ const ASSET_TYPES: ExperimentAssetType[] = [
 const inputStyle: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '7px 10px',
   background: 'var(--surface-input)', border: '1px solid var(--border)',
-  borderRadius: 6, color: 'var(--text)', fontSize: 18, outline: 'none',
+  borderRadius: 6, color: 'var(--text)', fontSize: 15, outline: 'none',
 }
 
 const smallBtn: React.CSSProperties = {
@@ -161,7 +161,7 @@ export function ExperimentDataTab({ projectId, experimentId }: {
           style={{
             width: '100%', marginTop: 8, padding: '7px 0', borderRadius: 5,
             cursor: !assetId ? 'default' : 'pointer', border: 'none',
-            background: !assetId || link.isPending ? 'rgba(255,128,21,0.35)' : '#ff8015',
+            background: !assetId || link.isPending ? 'rgba(var(--accent-rgb),0.35)' : '#ff8015',
             color: '#06091a', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
           }}
         >{link.isPending ? 'LINKING…' : `LINK AS ${role.toUpperCase()}`}</button>
@@ -171,7 +171,7 @@ export function ExperimentDataTab({ projectId, experimentId }: {
       </div>
 
       {isLoading ? (
-        <Muted>LOADING…</Muted>
+        <Muted>Loading…</Muted>
       ) : assets.length === 0 ? (
         <Muted>Nothing linked yet.</Muted>
       ) : (
@@ -181,7 +181,7 @@ export function ExperimentDataTab({ projectId, experimentId }: {
           return (
             <div key={r} style={{ marginBottom: 12 }}>
               <div style={{
-                fontSize: 13, fontWeight: 700, letterSpacing: '0.1em',
+                fontSize: 13, fontWeight: 700, letterSpacing: '0.04em',
                 fontFamily: 'var(--font-mono)', color: ROLE_COLORS[r], marginBottom: 5,
               }}>{r.toUpperCase()}</div>
               {rows.map(a => (
@@ -192,7 +192,7 @@ export function ExperimentDataTab({ projectId, experimentId }: {
                   borderRadius: '0 5px 5px 0', padding: '7px 9px', marginBottom: 5,
                 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 17, color: 'var(--text)' }}>
+                    <div style={{ fontSize: 15, color: 'var(--text)' }}>
                       {a.label ?? a.asset_id.slice(0, 8)}
                     </div>
                     <div style={{

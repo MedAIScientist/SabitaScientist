@@ -1,4 +1,5 @@
 import React from 'react'
+import { ProjectHeader } from '../components/ProjectHeader'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -85,46 +86,13 @@ export function ProjectDataPage() {
   const linked = links.length
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
-      <div style={{ maxWidth: 1000, margin: '0 auto', padding: '32px 28px' }}>
-
-        <button
-          onClick={() => navigate(`/projects/${projectId}`)}
-          style={{
-            cursor: 'pointer', background: 'var(--surface-input)',
-            border: '1px solid var(--border)', borderRadius: 6,
-            color: 'var(--text-muted)', padding: '3px 9px',
-            fontSize: 20, lineHeight: 1, marginBottom: 14,
-          }}
-        >←</button>
-
-        <div style={{
-          display: 'flex', justifyContent: 'space-between',
-          alignItems: 'flex-start', gap: 16, marginBottom: 20, flexWrap: 'wrap',
-        }}>
-          <div>
-            <h1 style={{
-              margin: 0, fontSize: 28, fontWeight: 600,
-              fontFamily: 'var(--font-mono)', color: 'var(--text-heading)',
-            }}>Data</h1>
-            <p style={{
-              margin: '4px 0 0', fontSize: 16, color: 'var(--text-dim)',
-              fontFamily: 'var(--font-mono)',
-            }}>
-              {project?.name ?? ''} · {total} ASSET{total === 1 ? '' : 'S'}
-              {linked > 0 ? ` · ${linked} EXPERIMENT LINK${linked === 1 ? '' : 'S'}` : ''}
-            </p>
-          </div>
-          <button
-            onClick={() => navigate(`/projects/${projectId}/experiments`)}
-            style={{
-              cursor: 'pointer', padding: '6px 14px', borderRadius: 6,
-              background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)',
-              color: '#10b981', fontSize: 15, fontWeight: 700,
-              fontFamily: 'var(--font-mono)', letterSpacing: '0.08em',
-            }}
-          >⚗ EXPERIMENTS</button>
-        </div>
+    <div>
+      <ProjectHeader projectId={projectId!} name={project?.name} />
+      <div className="page" style={{ maxWidth: 1000 }}>
+        <p className="page-sub" style={{ marginTop: 0, marginBottom: 20 }}>
+          {total} asset{total === 1 ? '' : 's'}
+          {linked > 0 ? ` · ${linked} experiment link${linked === 1 ? '' : 's'}` : ''}
+        </p>
 
         <Section title="IMAGING DATASETS" hint="cohorts granted to this project">
           {grantedDatasets.map(d => (
@@ -196,7 +164,7 @@ export function ProjectDataPage() {
         {total === 0 && (
           <div style={{
             padding: 32, textAlign: 'center', color: 'var(--text-dim)',
-            fontFamily: 'var(--font-mono)', fontSize: 17, lineHeight: 1.6,
+            fontFamily: 'var(--font-mono)', fontSize: 15, lineHeight: 1.6,
           }}>
             No data assets for this project yet.<br />
             Cohorts are released from a lab's dataset governance, and processing,
@@ -216,7 +184,7 @@ function Section({ title, hint, children }: {
     <div style={{ marginBottom: 22 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 8 }}>
         <div style={{
-          fontSize: 14, fontWeight: 700, letterSpacing: '0.1em',
+          fontSize: 14, fontWeight: 700, letterSpacing: '0.04em',
           fontFamily: 'var(--font-mono)', color: 'var(--text-heading)',
         }}>{title}</div>
         <div style={{ fontSize: 13, color: 'var(--text-3)', fontFamily: 'var(--font-mono)' }}>
@@ -252,7 +220,7 @@ function Row({ name, status, detail, usedBy, externalHref, onOpenExperiment }: {
       padding: '12px 16px',
     }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 20, color: 'var(--text-heading)' }}>{name}</div>
+        <div style={{ fontSize: 16, color: 'var(--text-heading)' }}>{name}</div>
         <div style={{
           fontSize: 13, color: 'var(--text-dim)',
           fontFamily: 'var(--font-mono)', marginTop: 2,
@@ -265,7 +233,7 @@ function Row({ name, status, detail, usedBy, externalHref, onOpenExperiment }: {
           }}>
             <span style={{
               fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-mono)',
-            }}>USED BY</span>
+            }}>Used by</span>
             {usedBy.map((l, i) => (
               <button
                 key={`${l.experiment_id}-${l.role}-${i}`}
@@ -273,9 +241,9 @@ function Row({ name, status, detail, usedBy, externalHref, onOpenExperiment }: {
                 title={`${l.role} in this experiment`}
                 style={{
                   cursor: 'pointer', padding: '1px 7px', borderRadius: 3,
-                  background: 'rgba(255,128,21,0.08)',
-                  border: '1px solid rgba(255,128,21,0.22)',
-                  color: '#ff8015', fontSize: 12, fontFamily: 'var(--font-mono)',
+                  background: 'rgba(var(--accent-rgb),0.08)',
+                  border: '1px solid rgba(var(--accent-rgb),0.22)',
+                  color: 'var(--accent)', fontSize: 12, fontFamily: 'var(--font-mono)',
                 }}
               >⚗ {l.experiment_name}</button>
             ))}
@@ -294,7 +262,7 @@ function Row({ name, status, detail, usedBy, externalHref, onOpenExperiment }: {
             background: 'transparent', border: '1px solid var(--border)',
             color: 'var(--text-muted)', fontSize: 13,
             fontFamily: 'var(--font-mono)', fontWeight: 700,
-          }}>OPEN ↗</button>
+          }}>Open ↗</button>
         </a>
       )}
     </div>

@@ -21,7 +21,7 @@ export function LabNotesTab({ comments, commentBody, setCommentBody, onSubmit, i
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{
           fontSize: 15, fontWeight: 700, color: 'var(--text-dim)',
-          letterSpacing: '0.12em', textTransform: 'uppercase',
+          letterSpacing: '0.04em', textTransform: 'uppercase',
           fontFamily: 'var(--font-mono)',
         }}>Lab Notes</span>
         <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
@@ -41,14 +41,14 @@ export function LabNotesTab({ comments, commentBody, setCommentBody, onSubmit, i
             border: '1px solid var(--border-subtle)',
             borderRadius: 7, padding: '10px 12px',
           }}>
-            <p style={{ margin: '0 0 5px', fontSize: 22, color: 'var(--text)', lineHeight: 1.55 }}>{c.body}</p>
+            <p style={{ margin: '0 0 5px', fontSize: 17, color: 'var(--text)', lineHeight: 1.55 }}>{c.body}</p>
             <p style={{ margin: 0, fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
               {c.created_at.slice(0, 10)}
             </p>
           </div>
         ))}
         {comments.length === 0 && (
-          <p style={{ color: 'var(--text-muted)', fontSize: 21, fontStyle: 'italic', padding: '4px 0' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: 17, fontStyle: 'italic', padding: '4px 0' }}>
             No lab notes yet.
           </p>
         )}
@@ -69,24 +69,24 @@ export function LabNotesTab({ comments, commentBody, setCommentBody, onSubmit, i
             background: 'var(--surface-input)',
             border: '1px solid var(--border)',
             borderRadius: 7, color: 'var(--text)',
-            fontSize: 21, outline: 'none',
+            fontSize: 17, outline: 'none',
             transition: 'border-color 0.14s',
           }}
-          onFocus={e => { e.currentTarget.style.borderColor = 'rgba(255,128,21,0.3)' }}
+          onFocus={e => { e.currentTarget.style.borderColor = 'rgba(var(--accent-rgb),0.3)' }}
           onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
         />
         <button
           type="submit"
           disabled={isPending}
           style={{
-            padding: '9px 16px', fontSize: 20, cursor: 'pointer',
-            background: 'rgba(255,128,21,0.1)',
-            border: '1px solid rgba(255,128,21,0.25)',
-            borderRadius: 7, color: '#ff8015', fontWeight: 700,
+            padding: '9px 16px', fontSize: 16, cursor: 'pointer',
+            background: 'rgba(var(--accent-rgb),0.1)',
+            border: '1px solid rgba(var(--accent-rgb),0.25)',
+            borderRadius: 7, color: 'var(--accent)', fontWeight: 700,
             letterSpacing: '0.05em', transition: 'background 0.14s',
             fontFamily: 'var(--font-mono)',
           }}
-        >POST</button>
+        >Post</button>
       </form>
     </div>
   )

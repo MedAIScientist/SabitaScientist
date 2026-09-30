@@ -113,16 +113,16 @@ export function LabDetail() {
   const inputStyle: React.CSSProperties = {
     padding: '9px 12px', background: 'var(--surface-input)',
     border: '1px solid var(--border)', borderRadius: 7,
-    color: 'var(--text)', fontSize: 22, outline: 'none', width: '100%',
+    color: 'var(--text)', fontSize: 17, outline: 'none', width: '100%',
   }
 
   if (loading) return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', padding: 40, fontFamily: 'var(--font-mono)', fontSize: 19 }}>
-      LOADING…
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', padding: 40, fontFamily: 'var(--font-mono)', fontSize: 16 }}>
+      Loading…
     </div>
   )
   if (error || !lab) return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', color: '#f43f5e', padding: 40, fontFamily: 'var(--font-mono)', fontSize: 19 }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', color: '#f43f5e', padding: 40, fontFamily: 'var(--font-mono)', fontSize: 16 }}>
       {error || 'Lab not found'}
     </div>
   )
@@ -142,16 +142,9 @@ export function LabDetail() {
         position: 'sticky', top: 0, zIndex: 10,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button onClick={() => navigate('/labs')} style={{
-            cursor: 'pointer', background: 'var(--surface-input)',
-            border: '1px solid var(--border)', borderRadius: 6,
-            color: 'var(--text-muted)', padding: '3px 9px', fontSize: 22, lineHeight: 1,
-          }}>←</button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <img src="/medipolLogo.png" alt="Medipol" style={{ height: 26, borderRadius: 4 }} />
-            <span style={{ color: 'var(--text-dim)', fontSize: 20, fontFamily: 'var(--font-mono)' }}>/labs</span>
-            <span style={{ color: 'var(--text-dim)', fontSize: 20 }}>/</span>
-            <span style={{ color: '#ff8015', fontSize: 21, fontFamily: 'var(--font-mono)' }}>{lab.name}</span>
+          <div>
+            <div className="crumbs"><a href="/labs" onClick={e => { e.preventDefault(); navigate('/labs') }}>Labs</a><span aria-hidden>/</span></div>
+            <h1 className="page-title" style={{ fontSize: 18 }}>{lab.name}</h1>
           </div>
         </div>
         <button onClick={() => navigate(`/labs/${id}/impact`)} style={{
@@ -159,27 +152,27 @@ export function LabDetail() {
           background: 'rgba(99,102,241,0.1)',
           border: '1px solid rgba(99,102,241,0.3)',
           borderRadius: 7, color: '#6366f1',
-          fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', marginRight: 8,
-        }}>📊 IMPACT</button>
+          fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', marginRight: 8,
+        }}>📊 Impact</button>
         <button onClick={() => navigate(`/labs/${id}/wiki`)} style={{
           cursor: 'pointer', padding: '7px 14px',
           background: 'rgba(16,185,129,0.1)',
           border: '1px solid rgba(16,185,129,0.3)',
           borderRadius: 7, color: '#10b981',
-          fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', marginRight: 8,
-        }}>📖 WIKI</button>
+          fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', marginRight: 8,
+        }}>📖 Wiki</button>
         {canManage && (
           <button onClick={() => setEditing(e => !e)} style={{
             cursor: 'pointer', padding: '7px 16px',
-            background: 'rgba(255,128,21,0.1)',
-            border: '1px solid rgba(255,128,21,0.3)',
-            borderRadius: 7, color: '#ff8015',
-            fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '0.08em',
+            background: 'rgba(var(--accent-rgb),0.1)',
+            border: '1px solid rgba(var(--accent-rgb),0.3)',
+            borderRadius: 7, color: 'var(--accent)',
+            fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em',
           }}>{editing ? 'CANCEL' : 'EDIT'}</button>
         )}
       </div>
 
-      <div style={{ maxWidth: 680, margin: '0 auto', padding: '32px 28px' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 28px' }}>
         {/* Info card */}
         <div style={{
           background: 'var(--surface-card)', border: '1px solid var(--border)',
@@ -189,25 +182,25 @@ export function LabDetail() {
             <form onSubmit={handleUpdate}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
                 <div>
-                  <label style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dim)', letterSpacing: '0.1em', fontFamily: 'var(--font-mono)' }}>NAME</label>
+                  <label style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dim)', letterSpacing: '0.04em', fontFamily: 'var(--font-mono)' }}>Name</label>
                   <input value={editName} onChange={e => setEditName(e.target.value)} required style={inputStyle} />
                 </div>
                 <div>
-                  <label style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dim)', letterSpacing: '0.1em', fontFamily: 'var(--font-mono)' }}>DEPARTMENT</label>
+                  <label style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dim)', letterSpacing: '0.04em', fontFamily: 'var(--font-mono)' }}>Department</label>
                   <input value={editDept} onChange={e => setEditDept(e.target.value)} style={inputStyle} />
                 </div>
               </div>
               <div style={{ marginBottom: 20 }}>
-                <label style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dim)', letterSpacing: '0.1em', fontFamily: 'var(--font-mono)' }}>UNIVERSITY</label>
+                <label style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dim)', letterSpacing: '0.04em', fontFamily: 'var(--font-mono)' }}>University</label>
                 <input value={editUni} onChange={e => setEditUni(e.target.value)} style={inputStyle} />
               </div>
               <button type="submit" style={{
                 padding: '9px 24px', cursor: 'pointer',
-                background: 'rgba(255,128,21,0.12)',
-                border: '1px solid rgba(255,128,21,0.28)',
-                borderRadius: 7, color: '#ff8015',
-                fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)',
-              }}>SAVE</button>
+                background: 'rgba(var(--accent-rgb),0.12)',
+                border: '1px solid rgba(var(--accent-rgb),0.28)',
+                borderRadius: 7, color: 'var(--accent)',
+                fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
+              }}>Save</button>
             </form>
           ) : (
             <>
@@ -216,17 +209,17 @@ export function LabDetail() {
                   width: 48, height: 48, borderRadius: 12,
                   background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 24, fontWeight: 700, color: '#fff',
+                  fontSize: 20, fontWeight: 700, color: '#fff',
                   fontFamily: 'var(--font-mono)',
                 }}>{lab.name[0].toUpperCase()}</div>
                 <div>
-                  <div style={{ fontSize: 28, fontWeight: 600, color: 'var(--text-heading)' }}>{lab.name}</div>
-                  <div style={{ fontSize: 18, color: 'var(--text-dim)', marginTop: 2 }}>
+                  <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--text-heading)' }}>{lab.name}</div>
+                  <div style={{ fontSize: 15, color: 'var(--text-dim)', marginTop: 2 }}>
                     {lab.department}{lab.department && lab.university ? ' · ' : ''}{lab.university}
                   </div>
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: 24, color: 'var(--text-2)', fontSize: 18, fontFamily: 'var(--font-mono)' }}>
+              <div style={{ display: 'flex', gap: 24, color: 'var(--text-2)', fontSize: 15, fontFamily: 'var(--font-mono)' }}>
                 <span>PI: {lab.pi_id ? lab.members.find(m => m.role === 'pi')?.username ?? lab.pi_id : '—'}</span>
                 <span>{lab.member_count} member{lab.member_count !== 1 ? 's' : ''}</span>
               </div>
@@ -236,30 +229,30 @@ export function LabDetail() {
 
         {/* Members */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <div style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', letterSpacing: '0.08em' }}>
+          <div style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', letterSpacing: '0.04em' }}>
             MEMBERS ({lab.member_count})
           </div>
           {canManage && (
             <button onClick={() => { setShowAdd(true); setAddError(null) }} style={{
               cursor: 'pointer', padding: '5px 12px',
-              background: 'rgba(255,128,21,0.1)',
-              border: '1px solid rgba(255,128,21,0.3)', borderRadius: 6, color: '#ff8015',
+              background: 'rgba(var(--accent-rgb),0.1)',
+              border: '1px solid rgba(var(--accent-rgb),0.3)', borderRadius: 6, color: 'var(--accent)',
               fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)',
-            }}>+ ADD</button>
+            }}>+ Add</button>
           )}
         </div>
 
         {showAdd && canManage && (
           <form onSubmit={handleAddMember} style={{
-            background: 'var(--surface-card)', border: '1px solid rgba(255,128,21,0.2)',
+            background: 'var(--surface-card)', border: '1px solid rgba(var(--accent-rgb),0.2)',
             borderRadius: 10, padding: '16px 20px', marginBottom: 12,
           }}>
             {addError && (
-              <div style={{ color: '#f43f5e', marginBottom: 10, fontSize: 17 }}>{addError}</div>
+              <div style={{ color: '#f43f5e', marginBottom: 10, fontSize: 15 }}>{addError}</div>
             )}
             <div style={{ display: 'flex', gap: 10, alignItems: 'end' }}>
               <div style={{ flex: 1, position: 'relative' }} ref={searchRef}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dim)', marginBottom: 4, fontFamily: 'var(--font-mono)' }}>USER</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dim)', marginBottom: 4, fontFamily: 'var(--font-mono)' }}>User</div>
                 <input
                   value={addUserId || userSearch}
                   onChange={e => { setUserSearch(e.target.value); setAddUserId('') }}
@@ -279,7 +272,7 @@ export function LabDetail() {
                         setUserSearch(u.username)
                         setUserResults([])
                       }} style={{
-                        padding: '8px 12px', cursor: 'pointer', fontSize: 17, color: 'var(--text)',
+                        padding: '8px 12px', cursor: 'pointer', fontSize: 15, color: 'var(--text)',
                         borderBottom: '1px solid var(--border-subtle)',
                         transition: 'background 0.1s',
                       }}
@@ -291,7 +284,7 @@ export function LabDetail() {
                 )}
               </div>
               <div style={{ width: 140 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dim)', marginBottom: 4, fontFamily: 'var(--font-mono)' }}>ROLE</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dim)', marginBottom: 4, fontFamily: 'var(--font-mono)' }}>Role</div>
                 <select value={addRole} onChange={e => setAddRole(e.target.value)} style={{
                   ...inputStyle, padding: '8px 10px', cursor: 'pointer',
                 }}>
@@ -326,11 +319,11 @@ export function LabDetail() {
                   width: 38, height: 38, borderRadius: '50%',
                   background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 20, fontWeight: 700, color: '#fff',
+                  fontSize: 16, fontWeight: 700, color: '#fff',
                   fontFamily: 'var(--font-mono)',
                 }}>{m.username[0].toUpperCase()}</div>
                 <div>
-                  <div style={{ fontSize: 22, fontWeight: 500, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)' }}>
+                  <div style={{ fontSize: 17, fontWeight: 500, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)' }}>
                     {m.username}
                   </div>
                   <div style={{ fontSize: 16, color: 'var(--text-dim)', marginTop: 2 }}>
@@ -344,7 +337,7 @@ export function LabDetail() {
                   color: roleColors[m.role] || '#6b7280',
                   background: `${roleColors[m.role] || '#6b7280'}14`,
                   border: `1px solid ${roleColors[m.role] || '#6b7280'}30`,
-                  borderRadius: 4, padding: '2px 8px', letterSpacing: '0.06em',
+                  borderRadius: 4, padding: '2px 8px', letterSpacing: '0.04em',
                 }}>{m.role.toUpperCase()}</span>
                 {canManage && (
                   <button onClick={() => handleRemoveMember(m.user_id)} style={{
@@ -358,8 +351,8 @@ export function LabDetail() {
             </div>
           ))}
           {lab.members.length === 0 && lab.member_count > 0 && (
-            <div style={{ color: 'var(--text-dim)', fontSize: 17, fontFamily: 'var(--font-mono)' }}>
-              ROSTER VISIBLE TO LAB MEMBERS ONLY
+            <div style={{ color: 'var(--text-dim)', fontSize: 15, fontFamily: 'var(--font-mono)' }}>
+              Roster visible to lab members only
             </div>
           )}
         </div>

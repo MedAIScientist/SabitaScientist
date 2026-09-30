@@ -133,7 +133,7 @@ export function CopilotPanel({ onClose }: { onClose: () => void }) {
 
   return (
     <div style={{
-      position: 'fixed', right: 0, top: 48, bottom: 0, width: 420,
+      position: 'fixed', right: 0, top: 0, bottom: 0, width: 'min(420px, 100vw)',
       background: 'var(--surface-panel)', borderLeft: '1px solid var(--border)',
       display: 'flex', flexDirection: 'column', zIndex: 50,
       fontFamily: 'system-ui, -apple-system, sans-serif',
@@ -146,7 +146,7 @@ export function CopilotPanel({ onClose }: { onClose: () => void }) {
           AI Copilot
         </span>
         <button onClick={onClose} style={{
-          background: 'none', border: 'none', cursor: 'pointer', fontSize: 20,
+          background: 'none', border: 'none', cursor: 'pointer', fontSize: 16,
           color: 'var(--text-dim)', padding: '2px 6px', borderRadius: 4,
         }}>✕</button>
       </div>
@@ -164,8 +164,8 @@ export function CopilotPanel({ onClose }: { onClose: () => void }) {
           <div key={i} style={{ marginBottom: 12 }}>
             <div style={{
               fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)',
-              color: m.role === 'user' ? '#ff8015' : 'var(--text-dim)',
-              marginBottom: 3, letterSpacing: '0.06em',
+              color: m.role === 'user' ? 'var(--accent)' : 'var(--text-dim)',
+              marginBottom: 3, letterSpacing: '0.04em',
             }}>{m.role === 'user' ? 'YOU' : 'COPILOT'}</div>
             <div style={{ fontSize: 15, lineHeight: 1.6, color: 'var(--text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
               {m.content}
@@ -188,10 +188,10 @@ export function CopilotPanel({ onClose }: { onClose: () => void }) {
         {streaming && (
           <div>
             <div style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', marginBottom: 3 }}>
-              COPILOT
+              Copilot
             </div>
             <div style={{ fontSize: 15, lineHeight: 1.6, color: 'var(--text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-              {accRef.current || ''}<span style={{ animation: 'blink 1s infinite', color: '#ff8015' }}>▍</span>
+              {accRef.current || ''}<span style={{ animation: 'blink 1s infinite', color: 'var(--accent)' }}>▍</span>
             </div>
             {toolRef.current && (
               <div style={{ fontSize: 13, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: 4, fontStyle: 'italic' }}>
@@ -222,14 +222,14 @@ export function CopilotPanel({ onClose }: { onClose: () => void }) {
               padding: '8px 14px', cursor: 'pointer', fontSize: 14, fontWeight: 700,
               fontFamily: 'var(--font-mono)', background: 'transparent',
               border: '1px solid #f43f5e', borderRadius: 6, color: '#f43f5e',
-            }}>STOP</button>
+            }}>Stop</button>
           ) : (
             <button onClick={send} disabled={!input.trim()} style={{
               padding: '8px 14px', cursor: input.trim() ? 'pointer' : 'default', fontSize: 14, fontWeight: 700,
-              fontFamily: 'var(--font-mono)', background: input.trim() ? '#ff8015' : 'var(--surface-input)',
+              fontFamily: 'var(--font-mono)', background: input.trim() ? 'var(--accent)' : 'var(--surface-input)',
               border: 'none', borderRadius: 6, color: input.trim() ? '#fff' : 'var(--text-muted)',
               opacity: input.trim() ? 1 : 0.5,
-            }}>SEND</button>
+            }}>Send</button>
           )}
         </div>
       </div>

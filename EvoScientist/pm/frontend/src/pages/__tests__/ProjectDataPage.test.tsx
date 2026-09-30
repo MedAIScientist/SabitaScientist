@@ -86,7 +86,7 @@ describe('ProjectDataPage', () => {
     expect(screen.getByText(/Run r1234567/)).toBeInTheDocument()
     expect(screen.getByText(/512 records/)).toBeInTheDocument()
     expect(screen.getByText(/120 images · 340 annotations/)).toBeInTheDocument()
-    expect(screen.getByText(/4 ASSETS/)).toBeInTheDocument()
+    expect(screen.getByText(/4 assets/)).toBeInTheDocument()
   })
 
   it('only shows datasets actually released to this project', async () => {
@@ -115,10 +115,10 @@ describe('ProjectDataPage', () => {
 
     renderPage()
 
-    expect(await screen.findByText('USED BY')).toBeInTheDocument()
+    expect(await screen.findByText(/^USED BY$/i)).toBeInTheDocument()
     expect(screen.getByText(/Denoise cohort/)).toBeInTheDocument()
     expect(screen.getByText(/Segment study/)).toBeInTheDocument()
-    expect(screen.getByText(/2 EXPERIMENT LINKS/)).toBeInTheDocument()
+    expect(screen.getByText(/2 experiment links/)).toBeInTheDocument()
   })
 
   it('explains itself when the project has no data yet', async () => {
@@ -135,7 +135,7 @@ describe('ProjectDataPage', () => {
 
     renderPage()
 
-    const link = await screen.findByRole('link', { name: /OPEN/ })
+    const link = await screen.findByRole('link', { name: /OPEN/i })
     expect(link).toHaveAttribute('href', '/cvat/')
     expect(link).toHaveAttribute('target', '_blank')
   })

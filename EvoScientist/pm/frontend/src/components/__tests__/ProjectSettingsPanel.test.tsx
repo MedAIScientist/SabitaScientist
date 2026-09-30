@@ -92,7 +92,7 @@ beforeEach(() => {
     return { mutate: mutates[idx], isPending: false } as any
   })
 
-  mockedUseAuth.mockReturnValue({ username: 'dr_chen', isAdmin: false, token: 'tok', login: vi.fn(), logout: vi.fn() })
+  mockedUseAuth.mockReturnValue({ username: 'dr_chen', isAdmin: false, role: 'student', token: 'tok', login: vi.fn(), logout: vi.fn() })
   mockedUseNavigate.mockReturnValue(vi.fn())
   mockedUseQueryClient.mockReturnValue({ invalidateQueries: vi.fn() } as any)
   mockedUseQuery.mockReturnValue({ data: [], isLoading: false } as any)
@@ -101,7 +101,7 @@ beforeEach(() => {
 describe('ProjectSettingsPanel', () => {
   test('renders PROJECT SETTINGS title', () => {
     renderPanel()
-    expect(screen.getByText('PROJECT SETTINGS')).toBeInTheDocument()
+    expect(screen.getByText(/^PROJECT SETTINGS$/i)).toBeInTheDocument()
   })
 
   test('renders project name input pre-filled', () => {

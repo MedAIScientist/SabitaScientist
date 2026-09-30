@@ -30,7 +30,7 @@ const labelStyle: React.CSSProperties = {
   fontSize: 15,
   fontWeight: 700,
   color: 'var(--text-dim)',
-  letterSpacing: '0.12em',
+  letterSpacing: '0.04em',
   textTransform: 'uppercase' as const,
   fontFamily: 'var(--font-mono)',
 }
@@ -39,7 +39,7 @@ const subLabelStyle: React.CSSProperties = {
   fontSize: 13,
   fontWeight: 700,
   color: 'var(--text-3)',
-  letterSpacing: '0.08em',
+  letterSpacing: '0.04em',
   textTransform: 'uppercase' as const,
   fontFamily: 'var(--font-mono)',
   marginBottom: 4,
@@ -85,15 +85,15 @@ const selectStyle: React.CSSProperties = {
 
 const addButtonStyle: React.CSSProperties = {
   padding: '4px 10px',
-  background: 'rgba(255,128,21,0.1)',
-  border: '1px solid rgba(255,128,21,0.25)',
+  background: 'rgba(var(--accent-rgb),0.1)',
+  border: '1px solid rgba(var(--accent-rgb),0.25)',
   borderRadius: 4,
-  color: '#ff8015',
+  color: 'var(--accent)',
   fontSize: 13,
   fontWeight: 700,
   fontFamily: 'var(--font-mono)',
   cursor: 'pointer',
-  letterSpacing: '0.06em',
+  letterSpacing: '0.04em',
   transition: 'background 0.14s',
   flexShrink: 0,
 }
@@ -324,7 +324,7 @@ export function DependencyPicker({ projectId, taskId, token, allTasks }: Depende
                       value="hard"
                       checked={depType === 'hard'}
                       onChange={() => setDepType('hard')}
-                      style={{ accentColor: '#ff8015' }}
+                      style={{ accentColor: 'var(--accent)' }}
                     />
                     hard
                   </label>
@@ -350,9 +350,9 @@ export function DependencyPicker({ projectId, taskId, token, allTasks }: Depende
                     }}
                     onMouseEnter={e => {
                       if (selectedTaskId && !addMutation.isPending)
-                        e.currentTarget.style.background = 'rgba(255,128,21,0.2)'
+                        e.currentTarget.style.background = 'rgba(var(--accent-rgb),0.2)'
                     }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,128,21,0.1)' }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(var(--accent-rgb),0.1)' }}
                   >
                     {addMutation.isPending ? '…' : '+ ADD'}
                   </button>

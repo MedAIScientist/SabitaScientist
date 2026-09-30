@@ -16,13 +16,13 @@ import { BulkActionBar } from '../components/board/BulkActionBar'
 import { ResearchToolsPanel } from '../components/ResearchToolsPanel'
 import { useTaskFilters } from '../hooks/useTaskFilters'
 import { useAuth } from '../auth'
-import { useTheme } from '../theme'
+import { ProjectHeader } from '../components/ProjectHeader'
 
 // ── Column definitions (lab context) ─────────────────────────────────────────
 const COLUMNS: { key: Task['status']; label: string; accent: string; glow: string }[] = [
-  { key: 'todo',        label: 'PLANNED',     accent: '#ff8015', glow: '34,211,238'  },
-  { key: 'in_progress', label: 'IN PROGRESS', accent: '#f59e0b', glow: '245,158,11'  },
-  { key: 'done',        label: 'COMPLETE',    accent: '#10b981', glow: '16,185,129'  },
+  { key: 'todo',        label: 'Planned',     accent: '#ff8015', glow: '34,211,238'  },
+  { key: 'in_progress', label: 'In progress', accent: '#f59e0b', glow: '245,158,11'  },
+  { key: 'done',        label: 'Complete',    accent: '#10b981', glow: '16,185,129'  },
 ]
 
 const AVATAR_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#ff8015', '#10b981', '#8b5cf6']
@@ -41,7 +41,6 @@ export function Board() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { username, token } = useAuth()
-  const { theme } = useTheme()
 
   const [selectedTask, setSelectedTask]   = useState<Task | null>(null)
   const [selectedExp,  setSelectedExp]    = useState<Experiment | null>(null)
@@ -219,186 +218,35 @@ export function Board() {
   return (
     <div style={{ background: 'var(--bg)', height: '100vh', display: 'flex', flexDirection: 'column', color: 'var(--text)' }}>
 
-      {/* ── Header row 1: project name + avatars ── */}
-      <div style={{
-        padding: '0 24px', height: 52,
-        borderBottom: '1px solid var(--border)',
-        display: 'flex', alignItems: 'center', gap: 14,
-        background: 'var(--surface-header)',
-        backdropFilter: 'blur(12px)',
-        position: 'sticky', top: 0, zIndex: 10,
-        flexShrink: 0,
-      }}>
-        <button
-          onClick={() => navigate('/projects')}
-          style={{
-            cursor: 'pointer',
-            background: 'var(--surface-input)',
-            border: '1px solid var(--border)',
-            borderRadius: 6, color: 'var(--text-muted)',
-            padding: '3px 9px', fontSize: 22, lineHeight: 1,
-            transition: 'color 0.15s, border-color 0.15s',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.color = '#ff8015'; e.currentTarget.style.borderColor = 'rgba(255,128,21,0.3)' }}
-          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
-        >←</button>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{
-            width: 6, height: 6, borderRadius: '50%',
-            background: '#ff8015', boxShadow: '0 0 6px #ff8015',
-            flexShrink: 0,
-          }} />
-          <h1 style={{
-            margin: 0, fontSize: 21, fontWeight: 600,
-            letterSpacing: '0.03em', color: 'var(--text-heading)',
-            fontFamily: 'var(--font-mono)',
-          }}>
-            {project?.name ?? '…'} — Kanban Board
-          </h1>
-        </div>
-
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <button
-            onClick={() => setShowExperimentsPanel(o => !o)}
-            style={{
-              background: showExperimentsPanel ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.08)',
-              border: showExperimentsPanel ? '1px solid rgba(16,185,129,0.35)' : '1px solid rgba(16,185,129,0.18)',
-              color: showExperimentsPanel ? '#10b981' : '#64748b',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 20,
-              padding: '4px 10px',
-              borderRadius: 4,
-              cursor: 'pointer',
-              letterSpacing: '0.08em',
-            }}
-            onMouseEnter={e => { if (!showExperimentsPanel) { e.currentTarget.style.color = '#10b981'; e.currentTarget.style.borderColor = 'rgba(16,185,129,0.35)' } }}
-            onMouseLeave={e => { if (!showExperimentsPanel) { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(16,185,129,0.18)' } }}
-          >
-            ⚗ EXPERIMENTS
-          </button>
-          <button
-            onClick={() => navigate(`/projects/${projectId}/data`)}
-            title="Imaging datasets, de-identification runs, annotations and sandboxes in this project"
-            style={{
-              background: 'rgba(139,92,246,0.08)',
-              border: '1px solid rgba(139,92,246,0.18)',
-              color: '#64748b',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 20,
-              padding: '4px 10px',
-              borderRadius: 4,
-              cursor: 'pointer',
-              letterSpacing: '0.08em',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.color = '#8b5cf6'; e.currentTarget.style.borderColor = 'rgba(139,92,246,0.35)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(139,92,246,0.18)' }}
-          >
-            🗄 DATA
-          </button>
-          <button
-            onClick={() => navigate(`/projects/${projectId}/report`)}
-            style={{
-              background: 'rgba(255,128,21,0.08)',
-              border: '1px solid rgba(255,128,21,0.18)',
-              color: '#64748b',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 20,
-              padding: '4px 10px',
-              borderRadius: 4,
-              cursor: 'pointer',
-              letterSpacing: '0.08em',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.color = '#ff8015'; e.currentTarget.style.borderColor = 'rgba(255,128,21,0.35)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(255,128,21,0.18)' }}
-          >
-            📊 REPORT
-          </button>
-          <button
-            onClick={() => setShowMode(m => m === 'both' ? 'tasks' : m === 'tasks' ? 'experiments' : 'both')}
-            title="Toggle board view: tasks / experiments / both"
-            style={{
-              background: showMode === 'both' ? 'rgba(16,185,129,0.12)' : 'rgba(16,185,129,0.06)',
-              border: '1px solid rgba(16,185,129,0.3)',
-              color: showMode === 'both' ? '#10b981' : '#64748b',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 16,
-              padding: '5px 12px',
-              borderRadius: 4,
-              cursor: 'pointer',
-              letterSpacing: '0.08em',
-            }}
-          >
-            {showMode === 'both' ? '⚗ BOTH' : showMode === 'tasks' ? '📋 TASKS' : '🔬 EXPS'}
-          </button>
-
-          {isOwner && (
-            <button
-              onClick={() => setSettingsPanelOpen(true)}
-              style={{
-                background: 'var(--surface-input)',
-                border: '1px solid var(--border)',
-                color: 'var(--text-muted)',
-                fontFamily: 'var(--font-mono)',
-                fontSize: 20,
-                padding: '4px 10px',
-                borderRadius: 4,
-                cursor: 'pointer',
-                letterSpacing: '0.08em',
-              }}
-            >
-              ⚙ SETTINGS
+      <ProjectHeader projectId={projectId!} name={project?.name} actions={<>
+        <div className="seg" role="group" aria-label="Show on board">
+          {(['tasks', 'experiments', 'both'] as const).map(m => (
+            <button key={m} aria-pressed={showMode === m} onClick={() => setShowMode(m)}>
+              {m === 'tasks' ? 'Tasks' : m === 'experiments' ? 'Experiments' : 'Both'}
             </button>
-          )}
-          <div style={{ display: 'flex', gap: 5 }}>
-            {project?.members.map((m, i) => (
-              <span
-                key={m.user_id}
-                title={`${m.username} (${m.role})`}
-                style={{
-                  width: 26, height: 26, borderRadius: '50%',
-                  background: AVATAR_COLORS[i % AVATAR_COLORS.length],
-                  color: '#fff', display: 'flex', alignItems: 'center',
-                  justifyContent: 'center', fontSize: 16, fontWeight: 700,
-                  border: '2px solid var(--bg)',
-                  fontFamily: 'var(--font-mono)',
-                  cursor: 'default',
-                }}>
-                {m.username[0].toUpperCase()}
-              </span>
-            ))}
-          </div>
-          <button
-            onClick={() => navigate('/profile')}
-            title={username ?? 'Profile'}
-            style={{
-              width: 28, height: 28, borderRadius: '50%', border: 'none',
-              background: theme === 'dark'
-                ? 'linear-gradient(135deg, rgba(255,128,21,0.25), rgba(139,92,246,0.25))'
-                : 'linear-gradient(135deg, rgba(255,128,21,0.4), rgba(139,92,246,0.4))',
-              color: '#ff8015',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 16, fontWeight: 700, cursor: 'pointer',
-              fontFamily: 'var(--font-mono)',
-              outline: '1px solid rgba(255,128,21,0.25)',
-              transition: 'outline-color 0.15s, box-shadow 0.15s',
-              flexShrink: 0,
-            }}
-            onMouseEnter={e => { e.currentTarget.style.outlineColor = 'rgba(255,128,21,0.6)'; e.currentTarget.style.boxShadow = '0 0 10px rgba(255,128,21,0.2)' }}
-            onMouseLeave={e => { e.currentTarget.style.outlineColor = 'rgba(255,128,21,0.25)'; e.currentTarget.style.boxShadow = '' }}
-          >
-            {username?.[0]?.toUpperCase() ?? '?'}
-          </button>
+          ))}
         </div>
-      </div>
+        <button className="btn" aria-pressed={showExperimentsPanel} onClick={() => setShowExperimentsPanel(o => !o)}>
+          {showExperimentsPanel ? 'Hide' : 'Show'} experiment panel
+        </button>
+        {isOwner && <button className="btn" onClick={() => setSettingsPanelOpen(true)}>⚙ Settings</button>}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          {project?.members.map((m, i) => (
+            <span key={m.user_id} title={`${m.username} (${m.role})`} style={{
+              width: 26, height: 26, borderRadius: '50%', marginLeft: i ? -6 : 0,
+              background: AVATAR_COLORS[i % AVATAR_COLORS.length], color: '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 12, fontWeight: 700, border: '2px solid var(--surface)',
+            }}>{m.username[0].toUpperCase()}</span>
+          ))}
+        </div>
+      </>} />
 
       {/* ── Header row 2: filter toolbar ── */}
       <div style={{
         padding: '0 24px',
         borderBottom: '1px solid var(--border)',
         background: 'var(--surface-header)',
-        backdropFilter: 'blur(12px)',
-        position: 'sticky', top: 52, zIndex: 9,
         flexShrink: 0,
       }}>
         <FilterToolbar
@@ -473,7 +321,7 @@ export function Board() {
                   <div key={col.key} style={{
                     flex: '0 0 290px',
                     fontSize: 15, fontWeight: 700,
-                    letterSpacing: '0.12em', textTransform: 'uppercase',
+                    letterSpacing: '0.04em', textTransform: 'uppercase',
                     color: col.accent, fontFamily: 'var(--font-mono)',
                     padding: '4px 0',
                   }}>
@@ -600,11 +448,11 @@ export function Board() {
                   background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.28)',
                   borderRadius: 4, padding: '2px 9px', color: '#10b981',
                   fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)',
-                  letterSpacing: '0.06em', cursor: 'pointer',
+                  letterSpacing: '0.04em', cursor: 'pointer',
                 }}
-              >+ NEW</button>
+              >+ New</button>
               <button onClick={() => setShowExperimentsPanel(false)} style={{
-                background: 'none', border: 'none', cursor: 'pointer', fontSize: 20,
+                background: 'none', border: 'none', cursor: 'pointer', fontSize: 16,
                 color: 'var(--text-dim)', padding: '2px 6px', borderRadius: 4,
               }}>✕</button>
             </div>
@@ -621,7 +469,7 @@ export function Board() {
                     padding: '5px 14px', color: '#10b981', fontSize: 15,
                     fontWeight: 700, fontFamily: 'var(--font-mono)', cursor: 'pointer',
                   }}
-                >+ NEW EXPERIMENT</button>
+                >+ New experiment</button>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -638,7 +486,7 @@ export function Board() {
                       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                        <span style={{ fontSize: 17, fontWeight: 600, color: 'var(--text-heading)', lineHeight: 1.3 }}>{exp.name}</span>
+                        <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-heading)', lineHeight: 1.3 }}>{exp.name}</span>
                         <span style={{
                           fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-mono)',
                           color: statusColor, background: `${statusColor}14`,
@@ -677,9 +525,9 @@ export function Board() {
           label="tasks"
           phases={phases}
           statusOptions={[
-            { value: 'todo', label: 'PLANNED' },
-            { value: 'in_progress', label: 'IN PROGRESS' },
-            { value: 'done', label: 'COMPLETE' },
+            { value: 'todo', label: 'Planned' },
+            { value: 'in_progress', label: 'In progress' },
+            { value: 'done', label: 'Complete' },
           ]}
           onStatusChange={status => applyBulkUpdate({ status: status as Task['status'] })}
           onPhaseChange={phaseId => applyBulkUpdate({ phase_id: phaseId as Task['phase_id'] })}
@@ -692,10 +540,10 @@ export function Board() {
           label="experiments"
           phases={phases}
           statusOptions={[
-            { value: 'planned', label: 'PLANNED' },
-            { value: 'running', label: 'RUNNING' },
-            { value: 'completed', label: 'COMPLETED' },
-            { value: 'abandoned', label: 'ABANDONED' },
+            { value: 'planned', label: 'Planned' },
+            { value: 'running', label: 'Running' },
+            { value: 'completed', label: 'Completed' },
+            { value: 'abandoned', label: 'Abandoned' },
           ]}
           onStatusChange={status => applyBulkExpUpdate({ status: status as Experiment['status'] })}
           onPhaseChange={phaseId => applyBulkExpUpdate({ phase_id: phaseId as Experiment['phase_id'] })}

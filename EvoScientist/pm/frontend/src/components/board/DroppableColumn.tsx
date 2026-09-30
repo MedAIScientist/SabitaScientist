@@ -66,17 +66,17 @@ function ExperimentCard({ exp, idx, onExpClick, isSelected, onToggleSelect }: Ex
       {/* Badge */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
         <span style={{
-          fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)',
-          letterSpacing: '0.08em', color: EXP_ACCENT,
+          fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
+          letterSpacing: '0.04em', color: EXP_ACCENT,
           background: `rgba(${EXP_GLOW},0.1)`,
           border: `1px solid rgba(${EXP_GLOW},0.25)`,
           borderRadius: 3, padding: '1px 5px',
         }}>
-          ⚗ EXP
+          ⚗ Exp
         </span>
       </div>
 
-      <p style={{ margin: '0 0 5px', fontWeight: 500, fontSize: 21, lineHeight: 1.4, color: 'var(--text-heading)' }}>
+      <p style={{ margin: '0 0 5px', fontWeight: 500, fontSize: 17, lineHeight: 1.4, color: 'var(--text-heading)' }}>
         {exp.name}
       </p>
 
@@ -94,11 +94,11 @@ function ExperimentCard({ exp, idx, onExpClick, isSelected, onToggleSelect }: Ex
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 6 }}>
         <span style={{
-          fontSize: 13, fontWeight: 700, color: '#ff8015',
-          background: 'rgba(255,128,21,0.1)',
-          border: '1px solid rgba(255,128,21,0.3)',
+          fontSize: 13, fontWeight: 700, color: 'var(--accent)',
+          background: 'rgba(var(--accent-rgb),0.1)',
+          border: '1px solid rgba(var(--accent-rgb),0.3)',
           borderRadius: 3, padding: '1px 5px',
-          fontFamily: 'var(--font-mono)', letterSpacing: '0.08em',
+          fontFamily: 'var(--font-mono)', letterSpacing: '0.04em',
           display: 'inline-flex', alignItems: 'center', gap: 3,
         }}>
           🔗 {exp.linked_task_count ?? 0}
@@ -110,7 +110,7 @@ function ExperimentCard({ exp, idx, onExpClick, isSelected, onToggleSelect }: Ex
             background: 'rgba(139,92,246,0.1)',
             border: '1px solid rgba(139,92,246,0.3)',
             borderRadius: 3, padding: '1px 5px',
-            fontFamily: 'var(--font-mono)', letterSpacing: '0.08em',
+            fontFamily: 'var(--font-mono)', letterSpacing: '0.04em',
             display: 'inline-flex', alignItems: 'center', gap: 3,
           }}>
             🗄 {exp.linked_asset_count}
@@ -183,7 +183,7 @@ export function DroppableColumn({
       }}>
         <span style={{
           fontSize: 16, fontWeight: 700,
-          letterSpacing: '0.12em', textTransform: 'uppercase',
+          letterSpacing: '0.04em', textTransform: 'uppercase',
           color: col.accent, fontFamily: 'var(--font-mono)',
         }}>
           {col.label}
@@ -253,20 +253,20 @@ export function DroppableColumn({
                 width: '100%', padding: '7px 10px', boxSizing: 'border-box', marginBottom: 5,
                 background: 'var(--surface-input)',
                 border: `1px solid rgba(${col.glow},0.3)`,
-                borderRadius: 6, color: 'var(--text)', fontSize: 21, outline: 'none',
+                borderRadius: 6, color: 'var(--text)', fontSize: 17, outline: 'none',
               }}
             />
             <div style={{ display: 'flex', gap: 4 }}>
               <button type="submit" style={{
-                flex: 1, padding: '5px 0', fontSize: 20, cursor: 'pointer',
+                flex: 1, padding: '5px 0', fontSize: 16, cursor: 'pointer',
                 background: col.accent, color: '#070b12',
                 border: 'none', borderRadius: 5, fontWeight: 700,
                 fontFamily: 'var(--font-mono)',
               }}>
-                ADD
+                Add
               </button>
               <button type="button" onClick={onAddCancel} style={{
-                padding: '5px 9px', fontSize: 20, cursor: 'pointer',
+                padding: '5px 9px', fontSize: 16, cursor: 'pointer',
                 background: 'var(--surface-input)',
                 border: '1px solid var(--border)',
                 borderRadius: 5, color: 'var(--text-muted)',
@@ -283,7 +283,7 @@ export function DroppableColumn({
               border: `1px dashed rgba(${col.glow},0.2)`,
               borderRadius: 6, padding: '7px 10px',
               cursor: 'pointer', color: 'var(--text-dim)',
-              fontSize: 20, textAlign: 'left',
+              fontSize: 16, textAlign: 'left',
               transition: 'border-color 0.14s, color 0.14s',
               fontFamily: 'var(--font-sans)',
             }}

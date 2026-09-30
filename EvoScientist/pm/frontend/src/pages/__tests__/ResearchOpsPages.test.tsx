@@ -35,15 +35,15 @@ describe('GrantsPage', () => {
 
   test('create form reveals the full grant fields on + NEW', () => {
     render(<GrantsPage />)
-    fireEvent.click(screen.getByText('+ NEW'))
+    fireEvent.click(screen.getByText(/^\+ NEW$/i))
     expect(screen.getByPlaceholderText('Project title')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('TÜBİTAK, TÜSEB, NIH…')).toBeInTheDocument()
     // the amounts and dates the old two-field form could not capture
-    expect(screen.getByText('AMOUNT REQUESTED')).toBeInTheDocument()
-    expect(screen.getByText('AMOUNT AWARDED')).toBeInTheDocument()
-    expect(screen.getByText('START DATE')).toBeInTheDocument()
-    expect(screen.getByText('END DATE')).toBeInTheDocument()
-    expect(screen.getByText('DESCRIPTION')).toBeInTheDocument()
+    expect(screen.getByText(/^AMOUNT REQUESTED$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^AMOUNT AWARDED$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^START DATE$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^END DATE$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^DESCRIPTION$/i)).toBeInTheDocument()
   })
 
   test('exposes search, status and sort controls', () => {
@@ -64,7 +64,7 @@ describe('ConferencesPage', () => {
 
   test('create form reveals conference name field on + NEW', () => {
     render(<ConferencesPage />)
-    fireEvent.click(screen.getByText('+ NEW'))
+    fireEvent.click(screen.getByText(/^\+ NEW$/i))
     expect(screen.getByPlaceholderText('Conference name')).toBeInTheDocument()
   })
 })
@@ -77,7 +77,7 @@ describe('IRBPage', () => {
 
   test('create form reveals protocol fields on + NEW', () => {
     render(<IRBPage />)
-    fireEvent.click(screen.getByText('+ NEW'))
+    fireEvent.click(screen.getByText(/^\+ NEW$/i))
     expect(screen.getByPlaceholderText('Protocol title')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Protocol #')).toBeInTheDocument()
   })

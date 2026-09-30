@@ -55,7 +55,7 @@ export function ResearchToolsPanel({ projectId, onClose }: Props) {
   const inputStyle: React.CSSProperties = {
     padding: '8px 11px', background: 'var(--surface-input)',
     border: '1px solid var(--border)', borderRadius: 6,
-    color: 'var(--text)', fontSize: 18, outline: 'none', width: '100%', boxSizing: 'border-box',
+    color: 'var(--text)', fontSize: 15, outline: 'none', width: '100%', boxSizing: 'border-box',
   }
 
   return (
@@ -68,10 +68,10 @@ export function ResearchToolsPanel({ projectId, onClose }: Props) {
         padding: '12px 14px 10px', borderBottom: '1px solid var(--border-subtle)',
         flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
-        <span style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', color: accent, letterSpacing: '0.08em' }}>
-          🧪 AI RESEARCH TOOLS
+        <span style={{ fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)', color: accent, letterSpacing: '0.04em' }}>
+          🧪 AI research tools
         </span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 22, cursor: 'pointer', padding: 2 }}>✕</button>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 17, cursor: 'pointer', padding: 2 }}>✕</button>
       </div>
 
       <div style={{ display: 'flex', gap: 2, padding: '6px 8px', borderBottom: '1px solid var(--border-subtle)', flexShrink: 0 }}>
@@ -92,7 +92,7 @@ export function ResearchToolsPanel({ projectId, onClose }: Props) {
         {tab === 'hypothesis' && (
           <>
             <div style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>TOPIC *</label>
+              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>Topic *</label>
               <input value={topic} onChange={e => setTopic(e.target.value)} placeholder="e.g. Role of X in Y pathway" style={inputStyle} />
             </div>
             <div style={{ marginBottom: 10 }}>
@@ -105,7 +105,7 @@ export function ResearchToolsPanel({ projectId, onClose }: Props) {
         {tab === 'ideation' && (
           <>
             <div style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>RESEARCH TOPIC *</label>
+              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>Research topic *</label>
               <input value={topic} onChange={e => setTopic(e.target.value)} placeholder="e.g. Neural mechanisms of learning" style={inputStyle} />
             </div>
             <div style={{ marginBottom: 10 }}>
@@ -113,7 +113,7 @@ export function ResearchToolsPanel({ projectId, onClose }: Props) {
               <input value={focusArea} onChange={e => setFocusArea(e.target.value)} placeholder="e.g. Reinforcement learning, hippocampus" style={inputStyle} />
             </div>
             <div style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>NUMBER OF IDEAS</label>
+              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>Number of ideas</label>
               <select value={ideaCount} onChange={e => setIdeaCount(Number(e.target.value))} style={inputStyle}>
                 {[3, 5, 10, 15, 20].map(n => <option key={n} value={n}>{n}</option>)}
               </select>
@@ -123,19 +123,19 @@ export function ResearchToolsPanel({ projectId, onClose }: Props) {
 
         {tab === 'methods' && (
           <div style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>PROPOSED METHODS *</label>
+            <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>Proposed methods *</label>
             <textarea value={methods} onChange={e => setMethods(e.target.value)}
               placeholder="Describe your experimental design, protocols, controls, and analysis plan in detail…"
-              rows={8} style={{ ...inputStyle, resize: 'vertical', fontSize: 17 }} />
+              rows={8} style={{ ...inputStyle, resize: 'vertical', fontSize: 15 }} />
           </div>
         )}
 
         {tab === 'citations' && (
           <div style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>CITATIONS *</label>
+            <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>Citations *</label>
             <textarea value={citations} onChange={e => setCitations(e.target.value)}
               placeholder="Paste your references/bibliography here. The AI will check each for plausibility and flag concerns."
-              rows={8} style={{ ...inputStyle, resize: 'vertical', fontSize: 17 }} />
+              rows={8} style={{ ...inputStyle, resize: 'vertical', fontSize: 15 }} />
           </div>
         )}
 
