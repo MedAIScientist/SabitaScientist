@@ -26,7 +26,7 @@ _DATASET_COLS = (
     "id,name,purpose,lab_id,requested_by,modality,accession_list,estimated_bytes,"
     "status,pi_approved_by,pi_approved_at,admin_approved_by,admin_approved_at,"
     "retention_until,pepper_generation,bucket,sealed_at,content_root_sha256,"
-    "renders,generation,created_at,updated_at"
+    "renders,generation,created_at,updated_at,project_id"
 )
 
 
@@ -51,6 +51,7 @@ def _row_to_dataset(r) -> Dataset:
         sealed_at=r["sealed_at"],
         content_root_sha256=r["content_root_sha256"],
         renders=bool(r["renders"]),
+        project_id=r["project_id"],
         generation=r["generation"],
         created_at=r["created_at"],
         updated_at=r["updated_at"],
@@ -84,14 +85,15 @@ def create_dataset(
     accession_list: list[str] | None = None,
     estimated_bytes: int | None = None,
     renders: bool = True,
+    project_id: str | None = None,
 ) -> Dataset:
     did = uuid.uuid4().hex
     now = datetime.now(UTC).isoformat()
     with get_db(db_path) as conn:
         conn.execute(
             "INSERT INTO datasets (id,name,purpose,lab_id,requested_by,modality,"
-            "accession_list,estimated_bytes,renders,status,generation,created_at,updated_at) "
-            "VALUES (?,?,?,?,?,?,?,?,?,'draft',0,?,?)",
+            "accession_list,estimated_bytes,renders,status,generation,created_at,updated_at,project_id) "
+            "VALUES (?,?,?,?,?,?,?,?,?,'draft',0,?,?,?)",
             (
                 did,
                 name,
@@ -104,6 +106,7 @@ def create_dataset(
                 1 if renders else 0,
                 now,
                 now,
+                project_id,
             ),
         )
     return get_dataset(db_path, did)
@@ -121,6 +124,7 @@ def list_datasets(
     db_path: Path,
     lab_ids: list[str] | None = None,
     status: str | None = None,
+    project_id: str | None = None,
 ) -> list[Dataset]:
     """All datasets, or only those in the given labs / with the given status."""
     query = f"SELECT {_DATASET_COLS} FROM datasets"
@@ -133,6 +137,9 @@ def list_datasets(
     if status is not None:
         where.append("status=?")
         params.append(status)
+    if project_id is not None:
+        where.append("project_id=?")
+        params.append(project_id)
     if where:
         query += " WHERE " + " AND ".join(where)
     query += " ORDER BY created_at DESC"

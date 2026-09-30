@@ -424,6 +424,7 @@ class Dataset:
     sealed_at: str | None = None
     content_root_sha256: str | None = None
     renders: bool = True
+    project_id: str | None = None
 
 
 @dataclass

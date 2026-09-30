@@ -153,6 +153,21 @@ export const api = {
     request<void>('DELETE', `/projects/${projectId}/experiments/${expId}/metrics/${metricId}`),
   // ── Data / imaging assets a lineage link can point at ────────────────────
   listDatasets: () => request<DatasetSummary[]>('GET', '/datasets'),
+  // ── Imaging-data requests (governance lives in routes/datasets.py) ───────
+  requestDataset: (data: {
+    name: string; purpose: string; lab_id: string; project_id: string; modality?: string
+    accession_list: string[]; irb_ids: string[]; renders: boolean; estimated_bytes?: number
+  }) => request<DatasetSummary>('POST', '/datasets', data),
+  listDatasetRequests: (projectId: string) =>
+    request<DatasetRequest[]>('GET', `/projects/${projectId}/dataset-requests`),
+  imagingInbox: () => request<ImagingInboxItem[]>('GET', '/imaging/inbox'),
+  piApproveDataset: (id: string) => request<DatasetSummary>('POST', `/datasets/${id}/pi-approve`),
+  adminApproveDataset: (id: string, retentionUntil: string) =>
+    request<DatasetSummary>('POST', `/datasets/${id}/admin-approve`, { retention_until: retentionUntil }),
+  proposeDatasetGrant: (id: string, projectId: string) =>
+    request<unknown>('POST', `/datasets/${id}/grants`, { project_id: projectId }),
+  approveDatasetGrant: (id: string, grantId: string) =>
+    request<unknown>('POST', `/datasets/${id}/grants/${grantId}/approve`),
   listProjectDeidRuns: (projectId: string) =>
     request<PipelineRunSummary[]>('GET', `/projects/${projectId}/deid-pipeline-runs`),
   listProjectCvat: (projectId: string) =>
@@ -500,6 +515,7 @@ export interface Project {
   id: string; name: string; description: string | null
   created_by: string; created_at: string; archived_at: string | null
   members: Member[]
+  lab_id?: string | null
 }
 export interface Member { user_id: string; username: string; role: string; added_at: string }
 export interface Lab {
@@ -1354,4 +1370,24 @@ export interface AiJob {
   error: string | null
   created_at: string
   finished_at: string | null
+}
+
+
+export interface DatasetStep { key: string; label: string; state: 'done' | 'current' | 'todo' }
+export interface IrbBrief { id: string; title: string; status: string; expiry_date: string | null }
+
+/** An imaging-data request as the project sees it: metadata and progress only. */
+export interface DatasetRequest {
+  id: string; name: string; modality: string | null; purpose: string; status: string
+  requested_by: string | null; accession_count: number; created_at: string
+  steps: DatasetStep[]; waiting_on: string | null; irbs: IrbBrief[]
+}
+
+/** A dataset step waiting on the signed-in PI or admin. */
+export interface ImagingInboxItem {
+  action: 'pi-approve' | 'admin-approve' | 'propose-grant' | 'approve-grant'
+  dataset_id: string; dataset_name: string; modality: string | null; purpose: string
+  lab_name: string | null; project_id: string | null; project_name: string | null
+  requested_by: string | null; accession_count: number; retention_until: string | null
+  grant_id: string | null; irbs: IrbBrief[]; blockers: string[]
 }

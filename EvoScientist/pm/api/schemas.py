@@ -1006,6 +1006,8 @@ class DatasetCreate(BaseModel):
     accession_list: list[str] = []
     estimated_bytes: int | None = Field(default=None, ge=0)
     irb_ids: list[str] = []
+    # The project this data is requested for (optional; tracked through to delivery).
+    project_id: str | None = None
     # Whether Curator derives viewing PNGs during delivery. A pure-ML cohort sets false and
     # never pays the render storage; annotation needs true (CVAT cannot read DICOM).
     renders: bool = True
@@ -1069,6 +1071,7 @@ class DatasetResponse(BaseModel):
     updated_at: str
     irb_ids: list[str] = []
     grants: list[DatasetGrantResponse] = []
+    project_id: str | None = None
 
 
 # ── Wiki Pages ────────────────────────────────────────────────────────────────

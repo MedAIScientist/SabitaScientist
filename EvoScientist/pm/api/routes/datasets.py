@@ -41,6 +41,7 @@ from ...crud.datasets import (
 from ...crud.irb import get_irb
 from ...crud.labs import get_lab, get_member_role as get_lab_member_role
 from ...crud.labs import list_labs_for_user
+from ...crud.projects import get_member_role as get_project_member_role
 from ...crud.projects import get_project
 from ...db import get_db_path
 from ...models import Dataset, User
@@ -125,6 +126,7 @@ def _dataset_resp(db, ds: Dataset) -> DatasetResponse:
         created_at=ds.created_at,
         updated_at=ds.updated_at,
         irb_ids=list_irb_ids(db, ds.id),
+        project_id=ds.project_id,
         grants=[_grant_resp(g) for g in list_grants(db, ds.id)],
     )
 
@@ -161,6 +163,13 @@ def create_new(
         raise HTTPException(
             status_code=400, detail="a dataset names at least one accession"
         )
+    if body.project_id and get_project_member_role(db, body.project_id, current_user.id) not in (
+        "owner", "editor",
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="requesting data for a project needs owner or editor role in it",
+        )
     ds = create_dataset(
         db,
         name=body.name,
@@ -171,6 +180,7 @@ def create_new(
         accession_list=body.accession_list,
         estimated_bytes=body.estimated_bytes,
         renders=body.renders,
+        project_id=body.project_id,
     )
     for irb_id in body.irb_ids:
         link_irb(db, ds.id, irb_id)
