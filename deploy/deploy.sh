@@ -58,19 +58,22 @@ rsync -avz --delete "${REPO_DIR}/EvoScientist/pm/frontend/dist/" "${SERVER}:/tmp
 ${SSH} "cd ${DEPLOY_DIR} && docker compose -f ${COMPOSE_FILE} pull nginx garage" 2>/dev/null || true
 
 # Stop only evoscientist (garage and nginx stay up)
-${SSH} "cd ${DEPLOY_DIR} && docker compose -f ${COMPOSE_FILE} up -d --no-deps --force-recreate evoscientist" &
-UP_PID=$!
+# Recreate in the foreground: polling health while this runs in the background
+# used to match the *old* container and report healthy before the swap.
+${SSH} "cd ${DEPLOY_DIR} && docker compose -f ${COMPOSE_FILE} up -d --no-deps --force-recreate evoscientist"
 
-# Wait for evoscientist to be healthy
-sleep 5
-echo "  ... waiting for evoscientist to become healthy"
-for i in $(seq 1 30); do
-    if ${SSH} "docker inspect evoscientist --format='{{.State.Health.Status}}' 2>/dev/null" | grep -q healthy; then
-        echo "  ✓ evoscientist healthy (after ${i}s)"
+echo "  ... waiting for the new evoscientist container to become healthy"
+HEALTHY=0
+for i in $(seq 1 60); do
+    STATUS=$(${SSH} "docker inspect evoscientist --format='{{.State.Health.Status}}' 2>/dev/null" || true)
+    if [ "${STATUS}" = "healthy" ]; then
+        echo "  ✓ evoscientist healthy (after $((i * 2))s)"
+        HEALTHY=1
         break
     fi
     sleep 2
 done
+[ "${HEALTHY}" = "1" ] || echo "  ⚠ evoscientist not healthy after 120s (status: ${STATUS:-unknown})"
 
 # Fast frontend deploy: docker cp the updated dist into the fresh container
 ${SSH} "docker cp /tmp/pm-frontend-dist/. evoscientist:/opt/venv/lib/python3.11/site-packages/EvoScientist/pm/frontend/dist/ 2>/dev/null" && echo "  ✓ Frontend hot-updated via docker cp"
@@ -81,9 +84,13 @@ ${SSH} "cd ${DEPLOY_DIR} && docker compose -f ${COMPOSE_FILE} up -d --no-deps ng
 # ── Step 5: Final health check ──────────────────────────────────────────
 echo ""
 echo "[5/5] Health check..."
-sleep 3
-sleep 3
-HEALTH=$(${SSH} "curl -sk https://localhost/api/v1/health 2>/dev/null" || echo "unreachable")
+# Retry: nginx can briefly return 502 while it re-resolves the new container.
+HEALTH="unreachable"
+for i in $(seq 1 15); do
+    HEALTH=$(${SSH} "curl -sk https://localhost/api/v1/health 2>/dev/null" || echo "unreachable")
+    echo "$HEALTH" | grep -q '"status":"ok"' && break
+    sleep 2
+done
 echo "  API: ${HEALTH}"
 
 if echo "$HEALTH" | grep -q '"status":"ok"'; then
