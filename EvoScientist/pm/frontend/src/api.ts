@@ -638,6 +638,8 @@ export interface ProjectAssetLink {
 
 export interface DatasetSummary {
   id: string; name: string; modality: string | null; status: string; lab_id: string
+  /** Object-storage bucket the cohort is delivered into (set on admin approval). */
+  bucket?: string | null
 }
 
 export interface PipelineRunSummary {
