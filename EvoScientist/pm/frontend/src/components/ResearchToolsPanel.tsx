@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { api } from '../api'
+import { AiJobList } from './AiJobList'
 
 interface Props {
   projectId: string
@@ -8,7 +10,19 @@ interface Props {
 
 type ToolTab = 'hypothesis' | 'ideation' | 'methods' | 'citations'
 
+const TABS: { key: ToolTab; label: string; description: string }[] = [
+  { key: 'hypothesis', label: 'Hypotheses', description: 'Generate 3–5 testable hypotheses from a topic.' },
+  { key: 'ideation', label: 'Ideas', description: 'Explore new research directions around a topic.' },
+  { key: 'methods', label: 'Methods review', description: 'Get a critical review of a proposed experimental design.' },
+  { key: 'citations', label: 'Citations', description: 'Check references against Semantic Scholar and flag doubtful ones.' },
+]
+
+/**
+ * AI research tools for one project. Each run is a background job: the list at
+ * the bottom shows it working, then links to the saved result or says why it failed.
+ */
 export function ResearchToolsPanel({ projectId, onClose }: Props) {
+  const qc = useQueryClient()
   const [tab, setTab] = useState<ToolTab>('hypothesis')
   const [topic, setTopic] = useState('')
   const [context, setContext] = useState('')
@@ -17,26 +31,25 @@ export function ResearchToolsPanel({ projectId, onClose }: Props) {
   const [methods, setMethods] = useState('')
   const [citations, setCitations] = useState('')
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  const ready = tab === 'methods' ? methods.trim() : tab === 'citations' ? citations.trim() : topic.trim()
+
   async function handleSubmit() {
+    if (!ready) return
     setLoading(true)
     setError(null)
-    setResult(null)
+    setNotice(null)
     try {
-      let res: { status: string; message: string }
-      if (tab === 'hypothesis') {
-        res = await api.generateHypothesis(projectId, topic, context || undefined)
-      } else if (tab === 'ideation') {
-        res = await api.researchIdeation(projectId, topic, focusArea || undefined, ideaCount)
-      } else if (tab === 'methods') {
-        res = await api.validateMethodology(projectId, methods)
-      } else {
-        res = await api.verifyCitations(projectId, citations)
-      }
-      setResult(res.message)
+      const res =
+        tab === 'hypothesis' ? await api.generateHypothesis(projectId, topic, context || undefined)
+        : tab === 'ideation' ? await api.researchIdeation(projectId, topic, focusArea || undefined, ideaCount)
+        : tab === 'methods' ? await api.validateMethodology(projectId, methods)
+        : await api.verifyCitations(projectId, citations)
+      setNotice(`${res.message} You can keep working — the result appears below when it is ready.`)
       setTopic(''); setContext(''); setFocusArea(''); setMethods(''); setCitations('')
+      qc.invalidateQueries({ queryKey: ['ai-jobs'] })
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Request failed')
     } finally {
@@ -44,121 +57,72 @@ export function ResearchToolsPanel({ projectId, onClose }: Props) {
     }
   }
 
-  const accent = '#8b5cf6'
-  const tabs: { key: ToolTab; label: string; description: string }[] = [
-    { key: 'hypothesis', label: '🔬 Hypothesis', description: 'Generate testable hypotheses from a topic' },
-    { key: 'ideation', label: '💡 Ideation', description: 'Explore novel research directions' },
-    { key: 'methods', label: '🔍 Methods Review', description: 'Validate proposed experimental methods' },
-    { key: 'citations', label: '📚 Citations', description: 'Verify citation plausibility' },
-  ]
-
-  const inputStyle: React.CSSProperties = {
-    padding: '8px 11px', background: 'var(--surface-input)',
-    border: '1px solid var(--border)', borderRadius: 6,
-    color: 'var(--text)', fontSize: 15, outline: 'none', width: '100%', boxSizing: 'border-box',
-  }
+  const current = TABS.find(t => t.key === tab)!
 
   return (
-    <div style={{
-      position: 'fixed', right: 0, top: 0, bottom: 0, width: 400,
-      background: 'var(--surface-panel)', borderLeft: '1px solid var(--border)',
-      zIndex: 31, display: 'flex', flexDirection: 'column', overflow: 'hidden',
-    }}>
-      <div style={{
-        padding: '12px 14px 10px', borderBottom: '1px solid var(--border-subtle)',
-        flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      }}>
-        <span style={{ fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)', color: accent, letterSpacing: '0.04em' }}>
-          🧪 AI research tools
-        </span>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 17, cursor: 'pointer', padding: 2 }}>✕</button>
-      </div>
+    <aside className="copilot" aria-label="AI research tools">
+      <header className="copilot-head">
+        <strong>AI research tools</strong>
+        <span style={{ flex: 1 }} />
+        <button className="icon-btn" onClick={onClose} aria-label="Close research tools">✕</button>
+      </header>
 
-      <div style={{ display: 'flex', gap: 2, padding: '6px 8px', borderBottom: '1px solid var(--border-subtle)', flexShrink: 0 }}>
-        {tabs.map(t => (
-          <button key={t.key} onClick={() => { setTab(t.key); setResult(null); setError(null) }} style={{
-            flex: 1, padding: '5px 4px', cursor: 'pointer', fontSize: 13, fontFamily: 'var(--font-mono)', fontWeight: 700,
-            background: tab === t.key ? `${accent}14` : 'transparent',
-            border: `1px solid ${tab === t.key ? `${accent}44` : 'transparent'}`,
-            borderRadius: 4, color: tab === t.key ? accent : 'var(--text-3)', letterSpacing: '0.04em',
-          }}>{t.key === 'hypothesis' ? '🔬' : t.key === 'ideation' ? '💡' : t.key === 'methods' ? '🔍' : '📚'}</button>
+      <nav className="tabs" style={{ padding: '0 10px', borderBottom: '1px solid var(--border)', marginTop: 0 }}>
+        {TABS.map(t => (
+          <a key={t.key} href="#" className="tab" aria-current={tab === t.key ? 'page' : undefined}
+            onClick={e => { e.preventDefault(); setTab(t.key); setNotice(null); setError(null) }}>{t.label}</a>
         ))}
-      </div>
+      </nav>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '10px 14px' }}>
-        <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-heading)', marginBottom: 4 }}>{tabs.find(t => t.key === tab)?.label}</div>
-        <div style={{ fontSize: 15, color: 'var(--text-dim)', marginBottom: 14 }}>{tabs.find(t => t.key === tab)?.description}</div>
+      <div className="copilot-body">
+        <p style={{ fontSize: 13.5, color: 'var(--text-2)' }}>{current.description}</p>
 
-        {tab === 'hypothesis' && (
-          <>
-            <div style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>Topic *</label>
-              <input value={topic} onChange={e => setTopic(e.target.value)} placeholder="e.g. Role of X in Y pathway" style={inputStyle} />
-            </div>
-            <div style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>CONTEXT (optional)</label>
-              <textarea value={context} onChange={e => setContext(e.target.value)} placeholder="Prior results, constraints, or background…" rows={4} style={{ ...inputStyle, resize: 'vertical' }} />
-            </div>
-          </>
+        {(tab === 'hypothesis' || tab === 'ideation') && (
+          <label className="field"><span>{tab === 'hypothesis' ? 'Topic' : 'Research topic'}</span>
+            <input className="input" value={topic} onChange={e => setTopic(e.target.value)}
+              placeholder={tab === 'hypothesis' ? 'e.g. Role of X in Y pathway' : 'e.g. Retinal biomarkers of dementia'} />
+          </label>
         )}
-
+        {tab === 'hypothesis' && (
+          <label className="field"><span>Context (optional)</span>
+            <textarea className="input" rows={4} value={context} onChange={e => setContext(e.target.value)}
+              placeholder="Prior results, constraints or background. Leave empty to use the project description." />
+          </label>
+        )}
         {tab === 'ideation' && (
           <>
-            <div style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>Research topic *</label>
-              <input value={topic} onChange={e => setTopic(e.target.value)} placeholder="e.g. Neural mechanisms of learning" style={inputStyle} />
-            </div>
-            <div style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>FOCUS AREA (optional)</label>
-              <input value={focusArea} onChange={e => setFocusArea(e.target.value)} placeholder="e.g. Reinforcement learning, hippocampus" style={inputStyle} />
-            </div>
-            <div style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>Number of ideas</label>
-              <select value={ideaCount} onChange={e => setIdeaCount(Number(e.target.value))} style={inputStyle}>
+            <label className="field"><span>Focus area (optional)</span>
+              <input className="input" value={focusArea} onChange={e => setFocusArea(e.target.value)} placeholder="e.g. Self-supervised learning" />
+            </label>
+            <label className="field"><span>Number of ideas</span>
+              <select className="input" value={ideaCount} onChange={e => setIdeaCount(Number(e.target.value))}>
                 {[3, 5, 10, 15, 20].map(n => <option key={n} value={n}>{n}</option>)}
               </select>
-            </div>
+            </label>
           </>
         )}
-
         {tab === 'methods' && (
-          <div style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>Proposed methods *</label>
-            <textarea value={methods} onChange={e => setMethods(e.target.value)}
-              placeholder="Describe your experimental design, protocols, controls, and analysis plan in detail…"
-              rows={8} style={{ ...inputStyle, resize: 'vertical', fontSize: 15 }} />
-          </div>
+          <label className="field"><span>Proposed methods</span>
+            <textarea className="input" rows={8} value={methods} onChange={e => setMethods(e.target.value)}
+              placeholder="Design, protocols, controls and analysis plan…" />
+          </label>
         )}
-
         {tab === 'citations' && (
-          <div style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>Citations *</label>
-            <textarea value={citations} onChange={e => setCitations(e.target.value)}
-              placeholder="Paste your references/bibliography here. The AI will check each for plausibility and flag concerns."
-              rows={8} style={{ ...inputStyle, resize: 'vertical', fontSize: 15 }} />
-          </div>
+          <label className="field"><span>References</span>
+            <textarea className="input" rows={8} value={citations} onChange={e => setCitations(e.target.value)}
+              placeholder="Paste your reference list, one per line." />
+          </label>
         )}
 
-        <button onClick={handleSubmit} disabled={loading}
-          style={{
-            width: '100%', padding: '8px 0', cursor: loading ? 'default' : 'pointer',
-            background: loading ? `${accent}07` : `${accent}12`,
-            border: `1px solid ${accent}44`, borderRadius: 6,
-            color: accent, fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)',
-            marginBottom: 10,
-          }}
-        >{loading ? 'Generating…' : 'Run'}</button>
+        <button className="btn btn-primary" style={{ justifyContent: 'center' }} onClick={handleSubmit} disabled={loading || !ready}>
+          {loading ? 'Starting…' : `Run ${current.label.toLowerCase()}`}
+        </button>
 
-        {error && (
-          <div style={{ padding: '8px 10px', background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)', borderRadius: 6, color: '#f43f5e', fontSize: 15, marginBottom: 10 }}>{error}</div>
-        )}
+        {error && <div className="msg msg-error" role="alert">{error}</div>}
+        {notice && <div className="tool-card" data-state="ok"><span className="tool-dot" aria-hidden /><span>{notice}</span></div>}
 
-        {result && (
-          <div style={{ padding: '8px 10px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 6, color: '#10b981', fontSize: 15 }}>
-            {result}
-          </div>
-        )}
+        <AiJobList projectId={projectId} />
       </div>
-    </div>
+    </aside>
   )
 }
