@@ -526,3 +526,98 @@ def test_annotate_grant_needs_renders_and_a_provisioned_cvat_project(client, tmp
     doc = build_desired_state(tmp_db, ds2["id"])
     assert doc["dataset"]["renders"] is True
     assert doc["grants"][0]["annotate"] == {"cvat_project_id": 42, "task_size": 20}
+
+
+# ── Requests tracked per project, and the approvals inbox ────────────────────
+
+
+def _steps(client, s, token=None):
+    r = client.get(
+        f"/api/v1/projects/{s['project']['id']}/dataset-requests",
+        headers=_auth(token or s["pi_token"]),
+    )
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def _inbox(client, token):
+    r = client.get("/api/v1/imaging/inbox", headers=_auth(token))
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def _current(req):
+    return next((st["key"] for st in req["steps"] if st["state"] == "current"), "ready")
+
+
+def test_request_is_tracked_for_its_project_through_every_step(client, tmp_db) -> None:
+    s = _scaffold(client, tmp_db)
+    pid = s["project"]["id"]
+    ds = _draft(client, s, project_id=pid).json()
+    assert ds["project_id"] == pid
+
+    (req,) = _steps(client, s)
+    assert _current(req) == "pi" and req["waiting_on"] == "Lab PI"
+    assert "accession_list" not in req and req["accession_count"] == 1  # metadata only
+
+    # The PI sees it in the inbox, with nothing blocking.
+    (item,) = _inbox(client, s["pi_token"])
+    assert item["action"] == "pi-approve" and item["blockers"] == []
+    client.post(f"/api/v1/datasets/{ds['id']}/pi-approve", headers=_auth(s["pi_token"]))
+    assert _current(_steps(client, s)[0]) == "admin"
+
+    # The admin sees the admin step; the PI no longer has anything.
+    (item,) = _inbox(client, s["admin_token"])
+    assert item["action"] == "admin-approve" and item["blockers"] == []
+    assert _inbox(client, s["pi_token"]) == []
+    r = client.post(f"/api/v1/datasets/{ds['id']}/admin-approve",
+                    json={"retention_until": _future(700)}, headers=_auth(s["admin_token"]))
+    assert r.status_code == 200, r.text
+    assert _steps(client, s)[0]["waiting_on"] == "Lab PI (share with the project)"
+
+    # Sharing with the requesting project is offered to the PI, then activated by the admin.
+    (item,) = _inbox(client, s["pi_token"])
+    assert item["action"] == "propose-grant" and item["project_id"] == pid
+    grant = client.post(f"/api/v1/datasets/{ds['id']}/grants", json={"project_id": pid},
+                        headers=_auth(s["pi_token"])).json()
+    assert _steps(client, s)[0]["waiting_on"] == "Platform admin (activate access)"
+    (item,) = [i for i in _inbox(client, s["admin_token"]) if i["action"] == "approve-grant"]
+    assert item["grant_id"] == grant["id"]
+    client.post(f"/api/v1/datasets/{ds['id']}/grants/{grant['id']}/approve", headers=_auth(s["admin_token"]))
+    req = _steps(client, s)[0]
+    assert _current(req) == "delivery" and req["waiting_on"] == "Delivery from PACS"
+
+
+def test_inbox_explains_why_a_step_is_blocked(client, tmp_db) -> None:
+    s = _scaffold(client, tmp_db)
+    ds = _draft(client, s, irb_ids=[]).json()
+    (item,) = _inbox(client, s["pi_token"])
+    assert item["action"] == "pi-approve"
+    assert item["blockers"] == ["Link an IRB approval first."]
+    assert ds["id"] == item["dataset_id"]
+
+
+def test_admin_who_approved_as_pi_is_not_offered_the_admin_step(client, tmp_db) -> None:
+    s = _scaffold(client, tmp_db)
+    ds = _draft(client, s).json()
+    client.post(f"/api/v1/datasets/{ds['id']}/pi-approve", headers=_auth(s["pi_token"]))
+    assert [i["action"] for i in _inbox(client, s["admin_token"])] == ["admin-approve"]
+    assert _inbox(client, s["ms_token"]) == []  # a student approves nothing
+
+
+def test_requesting_for_a_project_needs_write_access_to_it(client, tmp_db) -> None:
+    s = _scaffold(client, tmp_db)
+    body = {
+        "name": "x", "purpose": "y", "lab_id": s["lab"]["id"], "accession_list": ["A1"],
+        "irb_ids": [s["irb"]["id"]], "project_id": s["project"]["id"],
+    }
+    # The student is a lab member but not on the project.
+    r = client.post("/api/v1/datasets", json=body, headers=_auth(s["ms_token"]))
+    assert r.status_code == 403
+
+
+def test_non_members_cannot_see_a_projects_requests(client, tmp_db) -> None:
+    s = _scaffold(client, tmp_db)
+    _draft(client, s, project_id=s["project"]["id"])
+    r = client.get(f"/api/v1/projects/{s['project']['id']}/dataset-requests", headers=_auth(s["ms_token"]))
+    assert r.status_code == 404

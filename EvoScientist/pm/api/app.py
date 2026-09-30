@@ -18,6 +18,7 @@ from .routes import (
     ai_tools,
     ai_jobs,
     ai_usage,
+    imaging,
     assists,
     attachments,
     audit,
@@ -168,6 +169,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     app.include_router(conferences.router, prefix="/api/v1/conferences", tags=["conferences"])
     app.include_router(irb.router, prefix="/api/v1/irb", tags=["irb"])
     app.include_router(datasets.router, prefix="/api/v1/datasets", tags=["datasets"])
+    app.include_router(imaging.router, prefix="/api/v1", tags=["imaging"])
     app.include_router(wiki.router, prefix="/api/v1", tags=["wiki"])
     app.include_router(search.router, prefix="/api/v1", tags=["search"])
     app.include_router(

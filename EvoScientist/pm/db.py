@@ -913,6 +913,9 @@ _MIGRATIONS = [
     "ALTER TABLE publications ADD COLUMN funding_statement TEXT",
     # Task priority is three levels (high/medium/low); fold the retired "critical" level in.
     "UPDATE tasks SET priority = 'high' WHERE priority = 'critical'",
+    # The project an imaging-data request is for, so the request can be tracked
+    # from draft to "ready for this project". Optional: datasets predate it.
+    "ALTER TABLE datasets ADD COLUMN project_id TEXT REFERENCES projects(id) ON DELETE SET NULL",
 ]
 
 
