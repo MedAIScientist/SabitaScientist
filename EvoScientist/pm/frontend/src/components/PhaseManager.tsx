@@ -19,7 +19,7 @@ const sectionLabelStyle: React.CSSProperties = {
   fontSize: 16,
   color: 'var(--text-dim)',
   fontFamily: 'var(--font-mono)',
-  letterSpacing: '0.1em',
+  letterSpacing: '0.04em',
   fontWeight: 700,
   marginBottom: 10,
 }
@@ -154,15 +154,15 @@ function PhaseRow({
             disabled={updateMutation.isPending || !editName.trim()}
             style={{
               flex: 1,
-              background: 'rgba(255,128,21,0.12)',
-              border: '1px solid rgba(255,128,21,0.28)',
+              background: 'rgba(var(--accent-rgb),0.12)',
+              border: '1px solid rgba(var(--accent-rgb),0.28)',
               borderRadius: 4, padding: '4px 0',
-              color: '#ff8015', fontSize: 14, fontWeight: 700,
+              color: 'var(--accent)', fontSize: 14, fontWeight: 700,
               fontFamily: 'var(--font-mono)', cursor: 'pointer',
               opacity: updateMutation.isPending || !editName.trim() ? 0.5 : 1,
             }}
           >
-            {updateMutation.isPending ? '…' : 'SAVE'}
+            {updateMutation.isPending ? '…' : 'Save'}
           </button>
           <button
             onClick={() => setEditing(false)}
@@ -174,7 +174,7 @@ function PhaseRow({
               fontFamily: 'var(--font-mono)', cursor: 'pointer',
             }}
           >
-            CANCEL
+            Cancel
           </button>
         </div>
         {updateMutation.isError && (
@@ -320,8 +320,8 @@ export function PhaseManager({ projectId, token }: PhaseManagerProps) {
         flexDirection: 'column',
         gap: 6,
       }}>
-        <div style={{ fontSize: 13, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: '0.08em' }}>
-          + ADD PHASE
+        <div style={{ fontSize: 13, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: '0.04em' }}>
+          + Add phase
         </div>
         <input
           value={newName}
@@ -341,15 +341,15 @@ export function PhaseManager({ projectId, token }: PhaseManagerProps) {
           onClick={() => createMutation.mutate()}
           disabled={!newName.trim() || createMutation.isPending}
           style={{
-            background: 'rgba(255,128,21,0.12)',
-            border: '1px solid rgba(255,128,21,0.28)',
+            background: 'rgba(var(--accent-rgb),0.12)',
+            border: '1px solid rgba(var(--accent-rgb),0.28)',
             borderRadius: 4, padding: '5px 0',
-            color: '#ff8015', fontSize: 14, fontWeight: 700,
+            color: 'var(--accent)', fontSize: 14, fontWeight: 700,
             fontFamily: 'var(--font-mono)', cursor: 'pointer',
             opacity: !newName.trim() || createMutation.isPending ? 0.5 : 1,
           }}
         >
-          {createMutation.isPending ? 'saving…' : 'SAVE'}
+          {createMutation.isPending ? 'saving…' : 'Save'}
         </button>
         {createError && (
           <div style={{ fontSize: 14, color: '#f43f5e', fontFamily: 'var(--font-mono)' }}>

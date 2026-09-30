@@ -5,20 +5,20 @@ import { api, Admission } from '../api'
 import { useAuth } from '../auth'
 
 const STATUS_BADGE: Record<string, { label: string; color: string; bg: string }> = {
-  submitted: { label: 'SUBMITTED', color: '#818cf8', bg: 'rgba(99,102,241,0.1)' },
-  reviewing: { label: 'REVIEWING', color: '#fbbf24', bg: 'rgba(245,158,11,0.1)' },
-  accepted:  { label: 'ACCEPTED',  color: '#34d399', bg: 'rgba(16,185,129,0.1)' },
-  rejected:  { label: 'REJECTED',  color: '#fb7185', bg: 'rgba(244,63,94,0.1)' },
+  submitted: { label: 'Submitted', color: '#818cf8', bg: 'rgba(99,102,241,0.1)' },
+  reviewing: { label: 'Reviewing', color: '#fbbf24', bg: 'rgba(245,158,11,0.1)' },
+  accepted:  { label: 'Accepted',  color: '#34d399', bg: 'rgba(16,185,129,0.1)' },
+  rejected:  { label: 'Rejected',  color: '#fb7185', bg: 'rgba(244,63,94,0.1)' },
 }
 
 const labelStyle: React.CSSProperties = {
   fontSize: 15, fontWeight: 700, color: 'var(--text-dim)',
-  letterSpacing: '0.1em', fontFamily: 'var(--font-mono)',
+  letterSpacing: '0.04em', fontFamily: 'var(--font-mono)',
   marginBottom: 4,
 }
 
 const valueStyle: React.CSSProperties = {
-  fontSize: 20, color: 'var(--text-heading)',
+  fontSize: 16, color: 'var(--text-heading)',
   fontFamily: 'var(--font-mono)', lineHeight: 1.5,
 }
 
@@ -99,7 +99,7 @@ export function AdmissionDetail() {
   if (isLoading) {
     return (
       <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontSize: 19 }}>LOADING…</span>
+        <span style={{ color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontSize: 16 }}>Loading…</span>
       </div>
     )
   }
@@ -107,7 +107,7 @@ export function AdmissionDetail() {
   if (!admission) {
     return (
       <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ color: '#f43f5e', fontFamily: 'var(--font-mono)', fontSize: 19 }}>Admission not found.</span>
+        <span style={{ color: '#f43f5e', fontFamily: 'var(--font-mono)', fontSize: 16 }}>Admission not found.</span>
       </div>
     )
   }
@@ -132,21 +132,21 @@ export function AdmissionDetail() {
             style={{
               cursor: 'pointer', background: 'var(--surface-input)',
               border: '1px solid var(--border)', borderRadius: 6,
-              color: 'var(--text-muted)', padding: '3px 9px', fontSize: 22, lineHeight: 1,
+              color: 'var(--text-muted)', padding: '3px 9px', fontSize: 17, lineHeight: 1,
               transition: 'color 0.15s, border-color 0.15s',
             }}
-            onMouseEnter={e => { e.currentTarget.style.color = '#ff8015'; e.currentTarget.style.borderColor = 'rgba(255,128,21,0.3)' }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--accent)'; e.currentTarget.style.borderColor = 'rgba(var(--accent-rgb),0.3)' }}
             onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
           >←</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <span style={{ color: '#818cf8', fontSize: 21, fontFamily: 'var(--font-mono)' }}>
+            <span style={{ color: '#818cf8', fontSize: 17, fontFamily: 'var(--font-mono)' }}>
               {admission.applicant_name}
             </span>
             <span style={{
               fontSize: 13, fontFamily: 'var(--font-mono)', fontWeight: 600,
               color: badge.color, background: badge.bg,
               border: `1px solid ${badge.color}33`,
-              borderRadius: 4, padding: '2px 8px', letterSpacing: '0.06em',
+              borderRadius: 4, padding: '2px 8px', letterSpacing: '0.04em',
             }}>{badge.label}</span>
           </div>
         </div>
@@ -160,55 +160,55 @@ export function AdmissionDetail() {
                 background: 'rgba(16,185,129,0.1)',
                 border: '1px solid rgba(16,185,129,0.3)',
                 borderRadius: 7, color: '#10b981',
-                fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)',
-                letterSpacing: '0.08em', transition: 'background 0.14s',
+                fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                letterSpacing: '0.04em', transition: 'background 0.14s',
               }}
               onMouseEnter={e => { e.currentTarget.style.background = 'rgba(16,185,129,0.2)' }}
               onMouseLeave={e => { e.currentTarget.style.background = 'rgba(16,185,129,0.1)' }}
-            >PROJECT →</button>
+            >Project →</button>
           )}
         </div>
       </div>
 
-      <div style={{ maxWidth: 760, margin: '0 auto', padding: '32px 28px' }}>
+      <div style={{ maxWidth: 960, margin: '0 auto', padding: '32px 28px' }}>
 
         {/* Error */}
         {actionError && (
           <div style={{
             padding: '10px 14px', marginBottom: 16,
             background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)',
-            borderRadius: 6, color: '#f43f5e', fontSize: 18, fontFamily: 'var(--font-mono)',
+            borderRadius: 6, color: '#f43f5e', fontSize: 15, fontFamily: 'var(--font-mono)',
           }}>{actionError}</div>
         )}
 
         {/* Applicant info */}
         <div style={sectionStyle}>
-          <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)', marginBottom: 20, letterSpacing: '0.04em' }}>
-            APPLICANT INFORMATION
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)', marginBottom: 20, letterSpacing: '0.04em' }}>
+            Applicant information
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <div>
-              <div style={labelStyle}>NAME</div>
+              <div style={labelStyle}>Name</div>
               <div style={valueStyle}>{admission.applicant_name || '—'}</div>
             </div>
             <div>
-              <div style={labelStyle}>EMAIL</div>
+              <div style={labelStyle}>Email</div>
               <div style={{ ...valueStyle, color: '#818cf8' }}>{admission.email || '—'}</div>
             </div>
             <div>
-              <div style={labelStyle}>PHONE</div>
+              <div style={labelStyle}>Phone</div>
               <div style={valueStyle}>{admission.phone || '—'}</div>
             </div>
             <div>
-              <div style={labelStyle}>SUPERVISOR</div>
+              <div style={labelStyle}>Supervisor</div>
               <div style={valueStyle}>{admission.supervisor || '—'}</div>
             </div>
             <div>
-              <div style={labelStyle}>UNIVERSITY</div>
+              <div style={labelStyle}>University</div>
               <div style={valueStyle}>{admission.university || '—'}</div>
             </div>
             <div>
-              <div style={labelStyle}>DEPARTMENT</div>
+              <div style={labelStyle}>Department</div>
               <div style={valueStyle}>{admission.department || '—'}</div>
             </div>
           </div>
@@ -216,42 +216,42 @@ export function AdmissionDetail() {
 
         {/* Service details */}
         <div style={sectionStyle}>
-          <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)', marginBottom: 20, letterSpacing: '0.04em' }}>
-            SERVICE REQUEST DETAILS
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)', marginBottom: 20, letterSpacing: '0.04em' }}>
+            Service request details
           </div>
           <div style={{ marginBottom: 16 }}>
-            <div style={labelStyle}>AREAS REQUESTED</div>
+            <div style={labelStyle}>Areas requested</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {admission.service_areas.split(';').filter(Boolean).map((s, i) => (
                 <span key={i} style={{
                   padding: '4px 12px', borderRadius: 6,
                   background: 'rgba(129,140,248,0.1)',
                   border: '1px solid rgba(129,140,248,0.25)',
-                  color: '#a5b4fc', fontSize: 18, fontFamily: 'var(--font-mono)',
+                  color: '#a5b4fc', fontSize: 15, fontFamily: 'var(--font-mono)',
                 }}>{s.trim()}</span>
               ))}
             </div>
           </div>
           {admission.modas_members && (
             <div style={{ marginBottom: 16 }}>
-              <div style={labelStyle}>MODAS MEMBERS</div>
+              <div style={labelStyle}>Modas members</div>
               <div style={valueStyle}>{admission.modas_members.split(';').filter(Boolean).join(', ')}</div>
             </div>
           )}
           {admission.grant_context && (
             <div style={{ marginBottom: 16 }}>
-              <div style={labelStyle}>GRANT CONTEXT</div>
+              <div style={labelStyle}>Grant context</div>
               <div style={valueStyle}>{admission.grant_context}</div>
             </div>
           )}
           {admission.comments && (
             <div>
-              <div style={labelStyle}>COMMENTS</div>
+              <div style={labelStyle}>Comments</div>
               <div style={{
                 ...valueStyle, whiteSpace: 'pre-wrap',
                 background: 'var(--surface-input)',
                 padding: '12px', borderRadius: 6,
-                fontSize: 18, color: 'var(--text-2)',
+                fontSize: 15, color: 'var(--text-2)',
               }}>{admission.comments}</div>
             </div>
           )}
@@ -259,13 +259,13 @@ export function AdmissionDetail() {
 
         {/* Review section */}
         <div style={{ ...sectionStyle, borderColor: badge.color + '33' }}>
-          <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)', marginBottom: 20, letterSpacing: '0.04em' }}>
-            REVIEW
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)', marginBottom: 20, letterSpacing: '0.04em' }}>
+            Review
           </div>
 
           {admission.status === 'submitted' && (
             <div style={{ marginBottom: 16 }}>
-              <p style={{ color: 'var(--text-2)', fontSize: 18, marginBottom: 12 }}>
+              <p style={{ color: 'var(--text-2)', fontSize: 15, marginBottom: 12 }}>
                 This application has not been assigned a reviewer yet.
               </p>
             </div>
@@ -273,19 +273,19 @@ export function AdmissionDetail() {
 
           {admission.reviewed_at && (
             <div style={{ marginBottom: 16 }}>
-              <div style={labelStyle}>REVIEWED AT</div>
+              <div style={labelStyle}>Reviewed at</div>
               <div style={valueStyle}>{new Date(admission.reviewed_at).toLocaleString()}</div>
             </div>
           )}
 
           {admission.review_notes && (
             <div style={{ marginBottom: 16 }}>
-              <div style={labelStyle}>REVIEW NOTES</div>
+              <div style={labelStyle}>Review notes</div>
               <div style={{
                 ...valueStyle, whiteSpace: 'pre-wrap',
                 background: 'var(--surface-input)',
                 padding: '12px', borderRadius: 6,
-                fontSize: 18, color: 'var(--text-2)',
+                fontSize: 15, color: 'var(--text-2)',
               }}>{admission.review_notes}</div>
             </div>
           )}
@@ -307,12 +307,12 @@ export function AdmissionDetail() {
                     background: submitting ? 'rgba(16,185,129,0.06)' : 'rgba(16,185,129,0.1)',
                     border: '1px solid rgba(16,185,129,0.3)',
                     borderRadius: 7, color: '#10b981',
-                    fontSize: 19, fontWeight: 700, fontFamily: 'var(--font-mono)',
-                    letterSpacing: '0.08em', transition: 'background 0.14s',
+                    fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                    letterSpacing: '0.04em', transition: 'background 0.14s',
                   }}
                   onMouseEnter={e => { if (!submitting) e.currentTarget.style.background = 'rgba(16,185,129,0.2)' }}
                   onMouseLeave={e => { e.currentTarget.style.background = submitting ? 'rgba(16,185,129,0.06)' : 'rgba(16,185,129,0.1)' }}
-                >{submitting ? 'PROCESSING…' : '✓ ACCEPT & CREATE PROJECT'}</button>
+                >{submitting ? 'Processing…' : '✓ Accept & create project'}</button>
                 <button
                   onClick={() => {
                     if (!rejectNotes.trim()) {
@@ -330,12 +330,12 @@ export function AdmissionDetail() {
                     background: submitting ? 'rgba(244,63,94,0.06)' : 'rgba(244,63,94,0.1)',
                     border: '1px solid rgba(244,63,94,0.3)',
                     borderRadius: 7, color: '#f43f5e',
-                    fontSize: 19, fontWeight: 700, fontFamily: 'var(--font-mono)',
-                    letterSpacing: '0.08em', transition: 'background 0.14s',
+                    fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                    letterSpacing: '0.04em', transition: 'background 0.14s',
                   }}
                   onMouseEnter={e => { if (!submitting) e.currentTarget.style.background = 'rgba(244,63,94,0.2)' }}
                   onMouseLeave={e => { e.currentTarget.style.background = submitting ? 'rgba(244,63,94,0.06)' : 'rgba(244,63,94,0.1)' }}
-                >✕ REJECT</button>
+                >✕ Reject</button>
               </div>
 
               <div>
@@ -350,7 +350,7 @@ export function AdmissionDetail() {
                     background: 'var(--surface-input)',
                     border: '1px solid var(--border)',
                     borderRadius: 7, color: 'var(--text)',
-                    fontSize: 19, fontFamily: 'var(--font-mono)',
+                    fontSize: 16, fontFamily: 'var(--font-mono)',
                     outline: 'none', resize: 'vertical',
                     marginBottom: 8,
                   }}
@@ -360,7 +360,7 @@ export function AdmissionDetail() {
               </div>
 
               <div>
-                <div style={{ ...labelStyle, marginBottom: 6, color: '#f43f5e' }}>REJECTION REASON *</div>
+                <div style={{ ...labelStyle, marginBottom: 6, color: '#f43f5e' }}>Rejection reason *</div>
                 <textarea
                   value={rejectNotes}
                   onChange={e => setRejectNotes(e.target.value)}
@@ -371,7 +371,7 @@ export function AdmissionDetail() {
                     background: 'var(--surface-input)',
                     border: '1px solid rgba(244,63,94,0.2)',
                     borderRadius: 7, color: 'var(--text)',
-                    fontSize: 19, fontFamily: 'var(--font-mono)',
+                    fontSize: 16, fontFamily: 'var(--font-mono)',
                     outline: 'none', resize: 'vertical',
                   }}
                   onFocus={e => { e.currentTarget.style.borderColor = 'rgba(244,63,94,0.4)' }}
@@ -382,14 +382,14 @@ export function AdmissionDetail() {
           )}
 
           {!canReview && (admission.status === 'submitted' || admission.status === 'reviewing') && (
-            <p style={{ color: 'var(--text-dim)', fontSize: 18 }}>You are not the assigned reviewer for this application.</p>
+            <p style={{ color: 'var(--text-dim)', fontSize: 15 }}>You are not the assigned reviewer for this application.</p>
           )}
 
           {admission.status === 'accepted' && admission.created_project_id && (
             <div style={{
               padding: '14px 18px', background: 'rgba(16,185,129,0.06)',
               border: '1px solid rgba(16,185,129,0.18)', borderRadius: 8,
-              fontSize: 18, color: '#34d399', fontFamily: 'var(--font-mono)',
+              fontSize: 15, color: '#34d399', fontFamily: 'var(--font-mono)',
             }}>
               Project created.{' '}
               <span
@@ -403,13 +403,13 @@ export function AdmissionDetail() {
         {/* Financial Aid */}
         {admission.status === 'accepted' && (
           <div style={{ ...sectionStyle, borderColor: 'rgba(245,158,11,0.3)' }}>
-            <div style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)', marginBottom: 20, letterSpacing: '0.04em' }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)', marginBottom: 20, letterSpacing: '0.04em' }}>
               FINANCIAL AID
               {aidSaving && <span style={{ fontSize: 14, color: 'var(--text-3)', marginLeft: 10, fontWeight: 400 }}>saving…</span>}
             </div>
 
             <div style={{ marginBottom: 18 }}>
-              <div style={{ ...labelStyle, marginBottom: 10 }}>AID PERCENTAGE</div>
+              <div style={{ ...labelStyle, marginBottom: 10 }}>Aid percentage</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <input
                   type="range"
@@ -436,7 +436,7 @@ export function AdmissionDetail() {
                 />
                 <span style={{
                   minWidth: 60, textAlign: 'center',
-                  fontSize: 24, fontWeight: 700, color: '#fbbf24',
+                  fontSize: 20, fontWeight: 700, color: '#fbbf24',
                   fontFamily: 'var(--font-mono)',
                 }}>{aidPercent}%</span>
               </div>
@@ -476,7 +476,7 @@ export function AdmissionDetail() {
             </div>
 
             <div style={{ marginBottom: 18 }}>
-              <div style={labelStyle}>NOTES</div>
+              <div style={labelStyle}>Notes</div>
               <textarea
                 value={aidNotes}
                 onChange={e => {
@@ -499,7 +499,7 @@ export function AdmissionDetail() {
                   background: 'var(--surface-input)',
                   border: '1px solid var(--border)',
                   borderRadius: 7, color: 'var(--text)',
-                  fontSize: 19, fontFamily: 'var(--font-mono)',
+                  fontSize: 16, fontFamily: 'var(--font-mono)',
                   outline: 'none', resize: 'vertical',
                 }}
                 onFocus={e => { e.currentTarget.style.borderColor = 'rgba(245,158,11,0.4)' }}

@@ -34,13 +34,13 @@ export function Setup() {
         {error && <p style={{ color: 'red', margin: 0 }}>{error}</p>}
         <input
           placeholder="Admin username" value={username} onChange={e => setUsername(e.target.value)}
-          required style={{ padding: 8, fontSize: 21 }}
+          required style={{ padding: 8, fontSize: 17 }}
         />
         <input
           type="password" placeholder="Password (min 6 chars)" value={password} onChange={e => setPassword(e.target.value)}
-          required minLength={6} style={{ padding: 8, fontSize: 21 }}
+          required minLength={6} style={{ padding: 8, fontSize: 17 }}
         />
-        <button type="submit" disabled={loading} style={{ padding: 10, fontSize: 21, cursor: 'pointer' }}>
+        <button type="submit" disabled={loading} style={{ padding: 10, fontSize: 17, cursor: 'pointer' }}>
           {loading ? 'Creating\u2026' : 'Create admin account'}
         </button>
       </form>

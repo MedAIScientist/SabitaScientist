@@ -13,9 +13,9 @@ const EXP_STATUS_TO_COL: Record<Experiment['status'], Task['status']> = {
 
 // ── Column definitions (must match Board.tsx COLUMNS) ────────────────────────
 const COLUMNS: ColumnDef[] = [
-  { key: 'todo',        label: 'PLANNED',     accent: '#ff8015', glow: '34,211,238'  },
-  { key: 'in_progress', label: 'IN PROGRESS', accent: '#f59e0b', glow: '245,158,11'  },
-  { key: 'done',        label: 'COMPLETE',    accent: '#10b981', glow: '16,185,129'  },
+  { key: 'todo',        label: 'Planned',     accent: '#ff8015', glow: '34,211,238'  },
+  { key: 'in_progress', label: 'In progress', accent: '#f59e0b', glow: '245,158,11'  },
+  { key: 'done',        label: 'Complete',    accent: '#10b981', glow: '16,185,129'  },
 ]
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -79,7 +79,7 @@ export function PhaseSwimLane({
           fontWeight: 700,
           color: phaseColor,
           fontFamily: 'var(--font-mono)',
-          letterSpacing: '0.06em',
+          letterSpacing: '0.04em',
           wordBreak: 'break-word',
           lineHeight: 1.3,
         }}>

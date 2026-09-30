@@ -10,12 +10,13 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from ...config.settings import get_effective_config
-from ..db import create_schema
+from ..db import configure_db_path, create_schema
 from .audit_middleware import AuditMiddleware
 from .rate_limiter import RateLimitMiddleware
 from .routes import (
-    # admissions,
+    admissions,
     ai_tools,
+    ai_usage,
     assists,
     attachments,
     audit,
@@ -54,6 +55,7 @@ from .routes import (
     sandboxes,
     search,
     settings_routes,
+    supervision,
     task_history,
     tasks,
     templates,
@@ -66,7 +68,14 @@ _FRONTEND_DIST = Path(__file__).parent.parent / "frontend" / "dist"
 
 
 def create_app(db_path: Path | None = None) -> FastAPI:
-    """Create and configure the FastAPI application."""
+    """Create and configure the FastAPI application.
+
+    ``db_path`` becomes the database this process serves: it is bound process-wide
+    (see ``configure_db_path``) so every route, the audit middleware and the runner
+    resolve the same file the app was created with. Passing ``None`` leaves the
+    path to ``EVOSCIENTIST_PM_DB`` / ``DATA_DIR``.
+    """
+    configure_db_path(db_path)
     create_schema(db_path)  # idempotent — safe to call on every startup
     cfg = get_effective_config()
 
@@ -127,6 +136,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     app.include_router(peer_review.router, prefix="/api/v1", tags=["peer-review"])
     app.include_router(compute.router, prefix="/api/v1", tags=["compute"])
     app.include_router(ai_tools.router, prefix="/api/v1", tags=["ai-tools"])
+    app.include_router(ai_usage.router, prefix="/api/v1/ai", tags=["ai-usage"])
     app.include_router(pipelines.router, prefix="/api/v1", tags=["deid-pipelines"])
     app.include_router(sandboxes.router, prefix="/api/v1", tags=["sandboxes"])
     app.include_router(exports.router, prefix="/api/v1", tags=["exports"])
@@ -158,9 +168,10 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     app.include_router(
         publications.router, prefix="/api/v1/publications", tags=["publications"]
     )
-    # app.include_router(
-    #     admissions.router, prefix="/api/v1", tags=["admissions"]
-    # )
+    app.include_router(admissions.router, prefix="/api/v1", tags=["admissions"])
+    app.include_router(
+        supervision.router, prefix="/api/v1/supervision", tags=["supervision"]
+    )
 
     # Serve React SPA — only if the dist folder exists (i.e., frontend has been built)
     if _FRONTEND_DIST.exists():

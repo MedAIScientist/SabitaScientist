@@ -2322,3 +2322,43 @@ administrator or the development team.
 ---
 
 *EvoScientist PM — Research Project Management for University Labs*
+
+## Academic Supervision
+
+EvoScientist now includes a weekly supervision loop for professors and students.
+
+### Getting started by role
+
+**Students**
+1. Open **HOME** — your primary actions are Weekly update, My journey, and tasks.
+2. Each week, open **WEEKLY** and update every action point (progress %, blockers, help flags, next step).
+3. Add a short summary (accomplished / next focus / support needed) and **Submit for review**.
+4. Check **JOURNEY** for graduation readiness against your programme requirements.
+
+**Professors**
+1. Open **DASHBOARD** for group KPIs: submitted reports, reviews waiting, help requests, high risk.
+2. Use **MEETING** week-by-week to review each student, record attendance (on time / late / excused / absent), grant extensions, and save feedback.
+3. Capture "action for me" follow-ups so promised reviews stay on your task list.
+4. **REPORTS** filters all weekly submissions by status, review state, and risk.
+
+**Admins**
+1. In **USERS**, set each account's role to `student`, `professor`, or `admin`.
+2. Assign supervisors under the supervision API (or ask a professor to claim students).
+3. Define programme rules in **REQUIREMENTS** (research items such as journal or conference papers, and human-confirmed milestones).
+4. Use **ADMISSIONS** to accept applicants into the pipeline.
+
+### Weekly cadence
+
+| When | Student | Professor |
+|---|---|---|
+| Before the meeting | Submit weekly update | — |
+| During the meeting | Attend (recorded) | Record attendance, review report |
+| After the meeting | Apply feedback | Grant extensions, create follow-up tasks |
+
+Meeting schedule is versioned per professor — changing the day does not rewrite past weeks.
+
+### Graduation readiness
+
+**JOURNEY** shows a live readiness percentage from required rules (journal/conference paper counts) plus the student's degree context and thesis title. Milestone rules stay open until a human confirms them. Remove on **REQUIREMENTS** archives a rule — it never deletes student progress.
+
+Course credits, GPA, and transcripts are deliberately **not** tracked: this platform covers publication work, and the registrar owns the transcript.

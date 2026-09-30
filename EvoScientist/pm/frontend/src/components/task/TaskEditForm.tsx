@@ -38,7 +38,7 @@ export function TaskEditForm({
           value={editTitle}
           onChange={e => setEditTitle(e.target.value)}
           style={inputStyle}
-          onFocus={e => { e.currentTarget.style.borderColor = 'rgba(255,128,21,0.3)' }}
+          onFocus={e => { e.currentTarget.style.borderColor = 'rgba(var(--accent-rgb),0.3)' }}
           onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
         />
       </div>
@@ -50,9 +50,9 @@ export function TaskEditForm({
           onChange={e => setEditStatus(e.target.value as Task['status'])}
           style={selectStyle}
         >
-          <option value="todo">PLANNED</option>
-          <option value="in_progress">IN PROGRESS</option>
-          <option value="done">COMPLETE</option>
+          <option value="todo">Planned</option>
+          <option value="in_progress">In progress</option>
+          <option value="done">Complete</option>
         </select>
       </div>
 
@@ -63,9 +63,9 @@ export function TaskEditForm({
           onChange={e => setEditPriority(e.target.value as Task['priority'])}
           style={selectStyle}
         >
-          <option value="high">CRITICAL</option>
-          <option value="medium">STANDARD</option>
-          <option value="low">ROUTINE</option>
+          <option value="high">Critical</option>
+          <option value="medium">Standard</option>
+          <option value="low">Routine</option>
         </select>
       </div>
 
@@ -85,7 +85,7 @@ export function TaskEditForm({
           onChange={e => setEditDescription(e.target.value)}
           rows={4}
           style={{ ...inputStyle, resize: 'vertical', lineHeight: 1.55 }}
-          onFocus={e => { e.currentTarget.style.borderColor = 'rgba(255,128,21,0.3)' }}
+          onFocus={e => { e.currentTarget.style.borderColor = 'rgba(var(--accent-rgb),0.3)' }}
           onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
         />
       </div>
@@ -109,31 +109,31 @@ export function TaskEditForm({
           onClick={onSave}
           disabled={isSaving}
           style={{
-            flex: 1, padding: '9px 0', fontSize: 20, cursor: 'pointer',
-            background: 'rgba(255,128,21,0.1)',
-            border: '1px solid rgba(255,128,21,0.28)',
-            borderRadius: 7, color: '#ff8015', fontWeight: 700,
-            letterSpacing: '0.08em', fontFamily: 'var(--font-mono)',
+            flex: 1, padding: '9px 0', fontSize: 16, cursor: 'pointer',
+            background: 'rgba(var(--accent-rgb),0.1)',
+            border: '1px solid rgba(var(--accent-rgb),0.28)',
+            borderRadius: 7, color: 'var(--accent)', fontWeight: 700,
+            letterSpacing: '0.04em', fontFamily: 'var(--font-mono)',
             transition: 'background 0.14s',
             opacity: isSaving ? 0.6 : 1,
           }}
-          onMouseEnter={e => { if (!isSaving) e.currentTarget.style.background = 'rgba(255,128,21,0.2)' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,128,21,0.1)' }}
-        >{isSaving ? 'saving…' : 'SAVE'}</button>
+          onMouseEnter={e => { if (!isSaving) e.currentTarget.style.background = 'rgba(var(--accent-rgb),0.2)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(var(--accent-rgb),0.1)' }}
+        >{isSaving ? 'saving…' : 'Save'}</button>
       </div>
 
       <button
         onClick={onDeleteClick}
         disabled={isDeleting}
         style={{
-          width: '100%', padding: '8px 0', fontSize: 20, cursor: 'pointer',
+          width: '100%', padding: '8px 0', fontSize: 16, cursor: 'pointer',
           background: deleteConfirm ? 'rgba(244,63,94,0.15)' : 'rgba(244,63,94,0.07)',
           border: `1px solid ${deleteConfirm ? 'rgba(244,63,94,0.4)' : 'rgba(244,63,94,0.2)'}`,
           borderRadius: 7, color: '#f43f5e', fontWeight: 700,
-          letterSpacing: '0.08em', fontFamily: 'var(--font-mono)',
+          letterSpacing: '0.04em', fontFamily: 'var(--font-mono)',
           transition: 'all 0.18s',
         }}
-      >{deleteConfirm ? 'CONFIRM DELETE' : 'DELETE'}</button>
+      >{deleteConfirm ? 'Confirm delete' : 'Delete'}</button>
     </div>
   )
 }

@@ -36,7 +36,30 @@ def test_create_schema_creates_all_tables(tmp_path: Path) -> None:
         "researcher_pushes",
         "grant_budget_items", "grant_milestones", "grant_members",
         "experiment_assets",
+        "supervisor_assignments", "weekly_meeting_settings",
+        "weekly_reports", "weekly_report_items",
+        "meeting_attendance", "report_extensions",
+        "academic_journeys", "graduation_requirements",
+        "ai_usage",
     }
+
+
+def test_publications_has_the_submission_compliance_columns(tmp_path: Path) -> None:
+    """The readiness gate reads these, so their absence would silently pass papers."""
+    db_path = tmp_path / "test.db"
+    create_schema(db_path)
+
+    conn = sqlite3.connect(db_path)
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(publications)")}
+    conn.close()
+
+    assert {
+        "reporting_guideline",
+        "data_availability",
+        "code_availability",
+        "conflict_of_interest",
+        "funding_statement",
+    } <= cols
 
 
 def test_create_schema_is_idempotent(tmp_path: Path) -> None:
@@ -46,7 +69,7 @@ def test_create_schema_is_idempotent(tmp_path: Path) -> None:
 
     conn = sqlite3.connect(db_path)
     cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    assert len(cur.fetchall()) == 43
+    assert len(cur.fetchall()) == 52
     conn.close()
 
 

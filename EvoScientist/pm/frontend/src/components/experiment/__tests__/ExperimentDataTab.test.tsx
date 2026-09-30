@@ -93,7 +93,7 @@ describe('ExperimentDataTab', () => {
     respondWith({ 'asset-options': [{ id: 'd1', label: 'Cohort A', detail: 'approved' }] })
     render(<ExperimentDataTab projectId="p1" experimentId="e1" />)
 
-    const button = screen.getByRole('button', { name: /LINK AS INPUT/ })
+    const button = screen.getByRole('button', { name: /LINK AS INPUT/i })
     expect(button).toBeDisabled()
 
     fireEvent.change(screen.getByDisplayValue('— pick one —'), { target: { value: 'd1' } })
@@ -123,8 +123,8 @@ describe('ExperimentMetricsTab', () => {
     render(<ExperimentMetricsTab projectId="p1" experimentId="e1" />)
 
     expect(screen.getByText('0.8734 ± 0.012')).toBeInTheDocument()
-    expect(screen.getByText(/dice · test · n=42 · FROM CSV/)).toBeInTheDocument()
-    expect(screen.getByText(/1 METRIC · 1 FROM UPLOADED RESULTS/)).toBeInTheDocument()
+    expect(screen.getByText(/dice · test · n=42 · From CSV/)).toBeInTheDocument()
+    expect(screen.getByText(/1 METRIC · 1 FROM UPLOADED RESULTS/i)).toBeInTheDocument()
   })
 
   test('formats a metric with a unit', () => {
@@ -139,7 +139,7 @@ describe('ExperimentMetricsTab', () => {
     respondWith({})
     render(<ExperimentMetricsTab projectId="p1" experimentId="e1" />)
 
-    const button = screen.getByRole('button', { name: /RECORD METRIC/ })
+    const button = screen.getByRole('button', { name: /RECORD METRIC/i })
     expect(button).toBeDisabled()
 
     fireEvent.change(screen.getByPlaceholderText(/metric name/), { target: { value: 'dice' } })
@@ -157,7 +157,7 @@ describe('ExperimentMetricsTab', () => {
 
     fireEvent.change(screen.getByPlaceholderText(/metric name/), { target: { value: 'iou' } })
     fireEvent.change(screen.getByPlaceholderText('value'), { target: { value: '0.81' } })
-    fireEvent.click(screen.getByRole('button', { name: /RECORD METRIC/ }))
+    fireEvent.click(screen.getByRole('button', { name: /RECORD METRIC/i }))
 
     expect(mutate).toHaveBeenCalled()
   })

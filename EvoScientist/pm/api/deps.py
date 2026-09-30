@@ -51,6 +51,26 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
     return current_user
 
 
+def require_role(*allowed_roles: str):
+    """Return a dependency that checks the caller's platform role.
+
+    Platform admin (``is_admin``) always passes. Roles are the academic
+    supervision roles on ``users.role``: admin | professor | student.
+    """
+
+    def _dep(current_user: User = Depends(get_current_user)) -> User:
+        if current_user.is_admin:
+            return current_user
+        if current_user.role not in allowed_roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Role '{current_user.role}' not permitted here",
+            )
+        return current_user
+
+    return _dep
+
+
 def require_project_role(*allowed_roles: str):
     """Return a dependency that checks the caller's role in a project.
 

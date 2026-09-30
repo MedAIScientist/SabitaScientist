@@ -10,6 +10,7 @@ LLM calls, ``EvoScientist.prompts`` for structured writing guidance,
 from __future__ import annotations
 
 import json
+import time
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -17,6 +18,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from ..config.settings import get_effective_config
 from ..llm.models import DEFAULT_MODEL, get_chat_model
 from ..prompts import REPORT_TEMPLATE, WRITING_GUIDELINES
+from .crud.ai_usage import UsageContext, extract_usage, record_usage_safely
 
 # =========================================================================
 # Skill Integration
@@ -71,6 +73,40 @@ def _prepare_chat(
 
 
 # =========================================================================
+# Usage accounting
+# =========================================================================
+
+
+def _record_call(
+    context: UsageContext | None,
+    model_name: str,
+    system_prompt: str,
+    user_prompt: str,
+    result: object,
+    duration_ms: int,
+) -> None:
+    """Record one direct LLM call. Never raises: accounting must not break drafting.
+
+    When the provider reports usage we store the real counts; otherwise the
+    accounting layer derives an estimate and labels it as one.
+    """
+    if context is None:
+        return
+    prompt_tokens, completion_tokens, total_tokens = extract_usage(result)
+    output_text = str(getattr(result, "content", "") or "")
+    record_usage_safely(
+        context=context,
+        model=model_name,
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        total_tokens=total_tokens,
+        prompt_chars=len(system_prompt) + len(user_prompt),
+        output_chars=len(output_text),
+        duration_ms=duration_ms,
+    )
+
+
+# =========================================================================
 # Direct LLM Access (via EvoScientist.llm.get_chat_model)
 # =========================================================================
 
@@ -82,10 +118,20 @@ def run_llm_direct(
     temperature: float = 0.3,
     max_tokens: int | None = None,
     skill_guidance: list[str] | None = None,
+    context: UsageContext | None = None,
 ) -> str:
     """Run a direct LLM call through EvoScientist's model infrastructure."""
     chat, sp = _prepare_chat(system_prompt, skill_guidance, model, temperature, max_tokens)
+    started = time.monotonic()
     result = chat.invoke([SystemMessage(content=sp), HumanMessage(content=user_prompt)])
+    _record_call(
+        context,
+        getattr(chat, "model_name", None) or model or "unknown",
+        sp,
+        user_prompt,
+        result,
+        int((time.monotonic() - started) * 1000),
+    )
     return str(result.content)
 
 
@@ -96,10 +142,20 @@ async def run_llm_direct_async(
     temperature: float = 0.3,
     max_tokens: int | None = None,
     skill_guidance: list[str] | None = None,
+    context: UsageContext | None = None,
 ) -> str:
     """Async variant of ``run_llm_direct``."""
     chat, sp = _prepare_chat(system_prompt, skill_guidance, model, temperature, max_tokens)
+    started = time.monotonic()
     result = await chat.ainvoke([SystemMessage(content=sp), HumanMessage(content=user_prompt)])
+    _record_call(
+        context,
+        getattr(chat, "model_name", None) or model or "unknown",
+        sp,
+        user_prompt,
+        result,
+        int((time.monotonic() - started) * 1000),
+    )
     return str(result.content)
 
 
@@ -114,6 +170,7 @@ def generate_json_direct(
     model: str | None = None,
     temperature: float = 0.1,
     skill_guidance: list[str] | None = None,
+    context: UsageContext | None = None,
 ) -> dict[str, Any]:
     """Run a direct LLM call requesting JSON output.
 
@@ -130,10 +187,19 @@ def generate_json_direct(
 
     chat = get_chat_model(model_name, temperature=temperature)
 
+    started = time.monotonic()
     result = chat.invoke([
         SystemMessage(content=system_prompt + "\n\nRespond with valid JSON only."),
         HumanMessage(content=user_prompt),
     ])
+    _record_call(
+        context,
+        getattr(chat, "model_name", None) or model_name,
+        system_prompt,
+        user_prompt,
+        result,
+        int((time.monotonic() - started) * 1000),
+    )
     return json.loads(str(result.content))
 
 

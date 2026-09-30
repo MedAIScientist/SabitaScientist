@@ -44,7 +44,7 @@ describe('ExperimentDetail', () => {
   it('renders experiment name and status', () => {
     render(wrap(<ExperimentDetail experiment={MOCK_EXP} projectId="p1" onClose={vi.fn()} />))
     expect(screen.getByText('Western Blot #1')).toBeInTheDocument()
-    expect(screen.getByText('PLANNED')).toBeInTheDocument()
+    expect(screen.getByText(/^PLANNED$/i)).toBeInTheDocument()
   })
 
   it('renders OVERVIEW, NOTES, RESULTS tabs', () => {

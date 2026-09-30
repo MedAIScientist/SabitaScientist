@@ -143,9 +143,9 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
         onClick={() => setActiveTab(id)}
         style={{
           padding: '4px 10px', fontSize: 15, fontFamily: 'var(--font-mono)',
-          color: active ? '#ff8015' : 'var(--text-3)',
+          color: active ? 'var(--accent)' : 'var(--text-3)',
           background: 'none', border: 'none', borderBottomStyle: 'solid',
-          borderBottomWidth: 2, borderBottomColor: active ? '#ff8015' : 'transparent',
+          borderBottomWidth: 2, borderBottomColor: active ? 'var(--accent)' : 'transparent',
           cursor: 'pointer', fontWeight: active ? 700 : 400,
         }}
       >{label}</button>
@@ -181,7 +181,7 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
         {/* Title row */}
         <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
           <h2 style={{
-            flex: 1, margin: 0, fontSize: 24, fontWeight: 600,
+            flex: 1, margin: 0, fontSize: 20, fontWeight: 600,
             color: 'var(--text-heading)', lineHeight: 1.35,
             display: 'flex', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap',
           }}>
@@ -191,8 +191,8 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
                 fontSize: 13, fontWeight: 700, padding: '2px 8px', borderRadius: 4,
                 background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.28)',
                 color: '#f43f5e', fontFamily: 'var(--font-mono)',
-                letterSpacing: '0.08em', whiteSpace: 'nowrap', alignSelf: 'center',
-              }}>BLOCKED</span>
+                letterSpacing: '0.04em', whiteSpace: 'nowrap', alignSelf: 'center',
+              }}>Blocked</span>
             )}
           </h2>
           <button
@@ -201,7 +201,7 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
               flexShrink: 0, cursor: 'pointer',
               background: 'var(--border-subtle)', border: '1px solid var(--border)',
               borderRadius: 6, color: 'var(--text-3)',
-              width: 28, height: 28, fontSize: 21, lineHeight: 1,
+              width: 28, height: 28, fontSize: 17, lineHeight: 1,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               transition: 'color 0.14s, border-color 0.14s',
             }}

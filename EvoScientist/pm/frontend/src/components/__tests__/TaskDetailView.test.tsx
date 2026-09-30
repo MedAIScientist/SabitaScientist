@@ -30,7 +30,7 @@ describe('TaskDetailView', () => {
         token="tok" allTasks={[]} copied={false} onCopySessionId={vi.fn()}
       />
     )
-    expect(screen.getByText('PLANNED')).toBeInTheDocument()
+    expect(screen.getByText(/^PLANNED$/i)).toBeInTheDocument()
   })
 
   test('renders priority badge label', () => {
@@ -40,7 +40,7 @@ describe('TaskDetailView', () => {
         token="tok" allTasks={[]} copied={false} onCopySessionId={vi.fn()}
       />
     )
-    expect(screen.getByText('CRITICAL')).toBeInTheDocument()
+    expect(screen.getByText(/^CRITICAL$/i)).toBeInTheDocument()
   })
 
   test('renders BLOCKED badge when blocked_by is non-empty', () => {
@@ -51,7 +51,7 @@ describe('TaskDetailView', () => {
         token="tok" allTasks={[]} copied={false} onCopySessionId={vi.fn()}
       />
     )
-    expect(screen.getByText('BLOCKED')).toBeInTheDocument()
+    expect(screen.getByText(/^BLOCKED$/i)).toBeInTheDocument()
   })
 
   test('does not render BLOCKED badge when blocked_by is empty', () => {
@@ -62,7 +62,7 @@ describe('TaskDetailView', () => {
         token="tok" allTasks={[]} copied={false} onCopySessionId={vi.fn()}
       />
     )
-    expect(screen.queryByText('BLOCKED')).toBeNull()
+    expect(screen.queryByText(/^BLOCKED$/i)).toBeNull()
   })
 
   test('renders assignee username', () => {

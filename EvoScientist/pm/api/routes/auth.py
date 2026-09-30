@@ -35,7 +35,7 @@ def login(body: LoginRequest):
             (token, user.id, expires_at),
         )
     return TokenResponse(
-        token=token, user_id=user.id, username=user.username, is_admin=user.is_admin
+        token=token, user_id=user.id, username=user.username, is_admin=user.is_admin, role=user.role
     )
 
 

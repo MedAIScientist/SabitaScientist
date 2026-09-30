@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { ProjectHeader } from '../components/ProjectHeader'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, Experiment, listPhases } from '../api'
 import { ExperimentDetail } from '../components/ExperimentDetail'
@@ -75,54 +76,10 @@ export function ExperimentsPage() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
-      {/* Header */}
-      <div style={{
-        padding: '0 24px', height: 52,
-        borderBottom: '1px solid var(--border)',
-        display: 'flex', alignItems: 'center', gap: 14,
-        background: 'var(--surface-header)',
-        backdropFilter: 'blur(12px)',
-        position: 'sticky', top: 0, zIndex: 10, flexShrink: 0,
-      }}>
-        <button
-          onClick={() => navigate(`/projects/${projectId}`)}
-          style={{
-            cursor: 'pointer', background: 'var(--surface-input)',
-            border: '1px solid var(--border)', borderRadius: 6,
-            color: 'var(--text-muted)', padding: '3px 9px', fontSize: 22, lineHeight: 1,
-            transition: 'color 0.15s, border-color 0.15s',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.color = '#ff8015'; e.currentTarget.style.borderColor = 'rgba(255,128,21,0.3)' }}
-          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
-        >←</button>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 6px #10b981', flexShrink: 0 }} />
-          <h1 style={{ margin: 0, fontSize: 21, fontWeight: 600, letterSpacing: '0.03em', color: 'var(--text-heading)', fontFamily: 'var(--font-mono)' }}>
-            {project?.name ?? '…'} — Experiments
-          </h1>
-        </div>
-
-        {/* Two explicit buttons rather than a "+ NEW ▾" dropdown: creating an
-            experiment is the common action here and used to cost two clicks
-            through a menu that did not say what it made. */}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-          <HeaderAction
-            icon="⚗"
-            label="EXPERIMENT"
-            color="#10b981"
-            rgb="16,185,129"
-            onClick={() => openModal('experiment')}
-          />
-          <HeaderAction
-            icon="✦"
-            label="TASK"
-            color="#ff8015"
-            rgb="255,128,21"
-            onClick={() => openModal('task')}
-          />
-        </div>
-      </div>
+      <ProjectHeader projectId={projectId!} name={project?.name} actions={<>
+        <button className="btn" onClick={() => openModal('task')}>+ New task</button>
+        <button className="btn btn-primary" onClick={() => openModal('experiment')}>+ New experiment</button>
+      </>} />
 
       {/* Create experiment — a dedicated dialog that also captures the phase, so
           the new experiment does not land in "Unassigned" and need a second trip
@@ -151,8 +108,8 @@ export function ExperimentsPage() {
             borderRadius: 10, padding: 24, width: 360,
             animation: 'fadeInUp 0.15s ease',
           }}>
-            <div style={{ fontSize: 20, fontWeight: 700, color: accent, fontFamily: 'var(--font-mono)', marginBottom: 14, letterSpacing: '0.1em' }}>
-              ✦ NEW TASK
+            <div style={{ fontSize: 16, fontWeight: 700, color: accent, fontFamily: 'var(--font-mono)', marginBottom: 14, letterSpacing: '0.04em' }}>
+              ✦ New task
             </div>
             <input
               value={newName}
@@ -164,7 +121,7 @@ export function ExperimentsPage() {
                 width: '100%', boxSizing: 'border-box',
                 background: 'var(--surface-input)',
                 border: `1px solid rgba(${accentRgb},0.2)`,
-                borderRadius: 5, color: 'var(--text)', fontSize: 22, padding: '8px 10px',
+                borderRadius: 5, color: 'var(--text)', fontSize: 17, padding: '8px 10px',
                 fontFamily: 'inherit', outline: 'none', marginBottom: 14,
               }}
             />
@@ -179,7 +136,7 @@ export function ExperimentsPage() {
                   borderRadius: 4, padding: '6px 14px', color: 'var(--text-muted)',
                   fontSize: 16, cursor: 'pointer', fontFamily: 'var(--font-mono)',
                 }}
-              >CANCEL</button>
+              >Cancel</button>
               <button
                 onClick={handleCreate}
                 disabled={!newName.trim() || createTaskMutation.isPending}
@@ -189,7 +146,7 @@ export function ExperimentsPage() {
                   fontSize: 16, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font-mono)',
                   opacity: !newName.trim() ? 0.4 : 1,
                 }}
-              >CREATE</button>
+              >Create</button>
             </div>
           </div>
         </div>
@@ -219,8 +176,8 @@ export function ExperimentsPage() {
         )}
 
         {filteredExperiments.length === 0 ? (
-          <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontSize: 20, marginTop: 60 }}>
-            {experiments.length === 0 ? 'NO EXPERIMENTS YET' : 'NO EXPERIMENTS IN THIS PHASE'}
+          <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontSize: 16, marginTop: 60 }}>
+            {experiments.length === 0 ? 'No experiments yet' : 'No experiments in this phase'}
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
@@ -243,31 +200,6 @@ export function ExperimentsPage() {
   )
 }
 
-function HeaderAction({
-  icon, label, color, rgb, onClick,
-}: {
-  icon: string; label: string; color: string; rgb: string; onClick: () => void
-}) {
-  const [hovered, setHovered] = useState(false)
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        background: `rgba(${rgb},${hovered ? 0.15 : 0.08})`,
-        border: `1px solid rgba(${rgb},${hovered ? 0.35 : 0.22})`,
-        borderRadius: 4, padding: '5px 14px', color,
-        fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)',
-        letterSpacing: '0.08em', cursor: 'pointer',
-        display: 'flex', alignItems: 'center', gap: 6,
-        transition: 'background 0.14s, border-color 0.14s',
-      }}
-    >
-      <span style={{ fontSize: 18 }}>{icon}</span> {label}
-    </button>
-  )
-}
 
 function PhaseChip({
   label, color, active, onClick,
@@ -318,7 +250,7 @@ function ExperimentCard({ exp, onClick }: { exp: Experiment; onClick: () => void
       onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-subtle)')}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-        <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--text-heading)', lineHeight: 1.3 }}>{exp.name}</div>
+        <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--text-heading)', lineHeight: 1.3 }}>{exp.name}</div>
         <span style={{
           fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)',
           color, background: `${color}18`, border: `1px solid ${color}33`,

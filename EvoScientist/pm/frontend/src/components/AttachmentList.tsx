@@ -137,11 +137,11 @@ export function AttachmentList({ projectId, expId, entryId, accent }: Props) {
       >
         {uploadMutation.isPending ? (
           <span style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
-            UPLOADING...
+            Uploading...
           </span>
         ) : (
           <span style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
-            ↑ ATTACH FILE <span style={{ color: 'var(--text-3)', fontSize: 13 }}>({MAX_MB} MB max)</span>
+            ↑ Attach file <span style={{ color: 'var(--text-3)', fontSize: 13 }}>({MAX_MB} MB max)</span>
           </span>
         )}
       </div>

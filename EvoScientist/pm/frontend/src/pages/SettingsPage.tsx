@@ -26,7 +26,7 @@ function ModelTab() {
       <div style={{ maxHeight: 400, overflowY: 'auto' }}>
         {filtered?.map(p => (
           <div key={p.name} style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', marginBottom: 6, letterSpacing: '0.06em' }}>{p.name.toUpperCase()}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', marginBottom: 6, letterSpacing: '0.04em' }}>{p.name.toUpperCase()}</div>
             {p.models.map(m => {
               const isActive = m.short_name === current?.current_model
               return (
@@ -58,13 +58,13 @@ function SystemPromptTab() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <span style={{ fontSize: 16, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>Length: <b>{sp?.length?.toLocaleString() ?? '—'}</b> chars</span>
-        <button onClick={() => setExpanded(f => !f)} style={{ cursor: 'pointer', padding: '4px 10px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text-dim)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>{expanded ? 'COLLAPSE' : 'EXPAND'}</button>
+        <button onClick={() => setExpanded(f => !f)} style={{ cursor: 'pointer', padding: '4px 10px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text-dim)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>{expanded ? 'Collapse' : 'Expand'}</button>
       </div>
       {isLoading ? <p style={{ color: 'var(--text-dim)' }}>Loading...</p> : (
         <pre style={{
           background: 'var(--surface-input)', border: '1px solid var(--border)', borderRadius: 7,
           padding: 14, fontSize: 13, lineHeight: 1.5, overflow: 'auto', whiteSpace: 'pre-wrap',
-          maxHeight: expanded ? 'none' : 400, color: 'var(--text)', fontFamily: 'var(--font-mono)',
+          maxHeight: expanded ? 'none' : 400, color: 'var(--text)', fontFamily: 'var(--font-code)',
           margin: 0,
         }}>{(sp?.system_prompt ?? '').slice(0, expanded ? undefined : 5000)}</pre>
       )}
@@ -93,13 +93,13 @@ function CronTab() {
 
   return (
     <div>
-      <button onClick={() => setShowForm(f => !f)} style={{ cursor: 'pointer', padding: '7px 16px', background: 'rgba(255,128,21,0.1)', border: '1px solid rgba(255,128,21,0.3)', borderRadius: 7, color: '#ff8015', fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', marginBottom: 12 }}>+ NEW SCHEDULE</button>
+      <button onClick={() => setShowForm(f => !f)} style={{ cursor: 'pointer', padding: '7px 16px', background: 'rgba(var(--accent-rgb),0.1)', border: '1px solid rgba(var(--accent-rgb),0.3)', borderRadius: 7, color: 'var(--accent)', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)', marginBottom: 12 }}>+ New schedule</button>
       {showForm && (
         <form onSubmit={e => { e.preventDefault(); create.mutate() }} style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 16, marginBottom: 12 }}>
           <input value={cName} onChange={e => setCName(e.target.value)} required placeholder="Name (e.g. weekly-lit-review)" style={{ width: '100%', padding: '9px 12px', background: 'var(--surface-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text)', fontSize: 16, outline: 'none', boxSizing: 'border-box', marginBottom: 8, fontFamily: 'var(--font-mono)' }} />
           <input value={cron} onChange={e => setCron(e.target.value)} required placeholder="Cron expression (e.g. 0 9 * * 1)" style={{ width: '100%', padding: '9px 12px', background: 'var(--surface-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text)', fontSize: 16, outline: 'none', boxSizing: 'border-box', marginBottom: 8, fontFamily: 'var(--font-mono)' }} />
           <textarea value={cPrompt} onChange={e => setCPrompt(e.target.value)} required placeholder="Prompt sent to the scheduler agent on each trigger" rows={3} style={{ width: '100%', padding: '9px 12px', background: 'var(--surface-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text)', fontSize: 15, outline: 'none', boxSizing: 'border-box', fontFamily: 'var(--font-mono)', resize: 'vertical', marginBottom: 8 }} />
-          <button type="submit" disabled={create.isPending} style={{ cursor: 'pointer', padding: '7px 16px', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.28)', borderRadius: 7, color: '#10b981', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>CREATE</button>
+          <button type="submit" disabled={create.isPending} style={{ cursor: 'pointer', padding: '7px 16px', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.28)', borderRadius: 7, color: '#10b981', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>Create</button>
         </form>
       )}
       {(scheds?.schedules ?? []).length === 0 ? (
@@ -109,13 +109,13 @@ function CronTab() {
           <div key={s.cron_id} style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px', marginBottom: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 18, fontWeight: 500, color: 'var(--text-heading)' }}>{s.name}</div>
+                <div style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-heading)' }}>{s.name}</div>
                 <div style={{ fontSize: 14, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>{s.schedule}</div>
                 <div style={{ fontSize: 13, color: 'var(--text-dim)', marginTop: 4, whiteSpace: 'pre-wrap' }}>{s.prompt.slice(0, 200)}</div>
               </div>
               <div style={{ display: 'flex', gap: 6, marginLeft: 12, alignItems: 'center' }}>
-                <button onClick={() => toggle.mutate({ id: s.cron_id, enabled: !s.enabled })} style={{ cursor: 'pointer', padding: '4px 10px', background: s.enabled ? 'rgba(16,185,129,0.1)' : 'rgba(244,63,94,0.1)', border: '1px solid var(--border)', borderRadius: 5, color: s.enabled ? '#10b981' : '#f43f5e', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{s.enabled ? 'ON' : 'OFF'}</button>
-                <button onClick={() => del.mutate(s.cron_id)} style={{ cursor: 'pointer', padding: '4px 10px', background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.3)', borderRadius: 5, color: '#f43f5e', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>DEL</button>
+                <button onClick={() => toggle.mutate({ id: s.cron_id, enabled: !s.enabled })} style={{ cursor: 'pointer', padding: '4px 10px', background: s.enabled ? 'rgba(16,185,129,0.1)' : 'rgba(244,63,94,0.1)', border: '1px solid var(--border)', borderRadius: 5, color: s.enabled ? '#10b981' : '#f43f5e', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{s.enabled ? 'ON' : 'Off'}</button>
+                <button onClick={() => del.mutate(s.cron_id)} style={{ cursor: 'pointer', padding: '4px 10px', background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.3)', borderRadius: 5, color: '#f43f5e', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>Del</button>
               </div>
             </div>
           </div>
@@ -137,14 +137,14 @@ function McpTab() {
   return (
     <div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-        <button onClick={() => setTab2('marketplace')} style={{ cursor: 'pointer', padding: '5px 12px', background: tab2 === 'marketplace' ? 'rgba(99,102,241,0.15)' : 'transparent', border: tab2 === 'marketplace' ? '1px solid rgba(99,102,241,0.4)' : '1px solid var(--border)', borderRadius: 6, color: tab2 === 'marketplace' ? '#818cf8' : 'var(--text-dim)', fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>MARKETPLACE</button>
+        <button onClick={() => setTab2('marketplace')} style={{ cursor: 'pointer', padding: '5px 12px', background: tab2 === 'marketplace' ? 'rgba(99,102,241,0.15)' : 'transparent', border: tab2 === 'marketplace' ? '1px solid rgba(99,102,241,0.4)' : '1px solid var(--border)', borderRadius: 6, color: tab2 === 'marketplace' ? '#818cf8' : 'var(--text-dim)', fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>Marketplace</button>
         <button onClick={() => setTab2('installed')} style={{ cursor: 'pointer', padding: '5px 12px', background: tab2 === 'installed' ? 'rgba(99,102,241,0.15)' : 'transparent', border: tab2 === 'installed' ? '1px solid rgba(99,102,241,0.4)' : '1px solid var(--border)', borderRadius: 6, color: tab2 === 'installed' ? '#818cf8' : 'var(--text-dim)', fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>INSTALLED ({installed?.servers.length ?? 0})</button>
       </div>
       {tab2 === 'marketplace' && (
         <>
           {marketplace?.tags && marketplace.tags.length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 12 }}>
-              <button onClick={() => setTagFilter('')} style={{ cursor: 'pointer', padding: '2px 7px', background: !tagFilter ? 'rgba(99,102,241,0.15)' : 'var(--surface-input)', border: '1px solid var(--border)', borderRadius: 4, color: !tagFilter ? '#818cf8' : 'var(--text-dim)', fontSize: 11, fontFamily: 'var(--font-mono)' }}>ALL</button>
+              <button onClick={() => setTagFilter('')} style={{ cursor: 'pointer', padding: '2px 7px', background: !tagFilter ? 'rgba(99,102,241,0.15)' : 'var(--surface-input)', border: '1px solid var(--border)', borderRadius: 4, color: !tagFilter ? '#818cf8' : 'var(--text-dim)', fontSize: 11, fontFamily: 'var(--font-mono)' }}>All</button>
               {marketplace.tags.map(t => (
                 <button key={t} onClick={() => setTagFilter(t)} style={{ cursor: 'pointer', padding: '2px 7px', background: tagFilter === t ? 'rgba(99,102,241,0.15)' : 'var(--surface-input)', border: '1px solid var(--border)', borderRadius: 4, color: tagFilter === t ? '#818cf8' : 'var(--text-dim)', fontSize: 11, fontFamily: 'var(--font-mono)' }}>{t.toUpperCase()}</button>
               ))}
@@ -162,9 +162,9 @@ function McpTab() {
                   </div>
                 </div>
                 {s.installed ? (
-                  <button onClick={() => remove.mutate(s.name)} style={{ cursor: 'pointer', padding: '4px 10px', background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.3)', borderRadius: 5, color: '#f43f5e', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', marginLeft: 10, whiteSpace: 'nowrap' }}>REMOVE</button>
+                  <button onClick={() => remove.mutate(s.name)} style={{ cursor: 'pointer', padding: '4px 10px', background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.3)', borderRadius: 5, color: '#f43f5e', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', marginLeft: 10, whiteSpace: 'nowrap' }}>Remove</button>
                 ) : (
-                  <button onClick={() => install.mutate(s.name)} style={{ cursor: 'pointer', padding: '4px 10px', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.28)', borderRadius: 5, color: '#10b981', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', marginLeft: 10, whiteSpace: 'nowrap' }}>INSTALL</button>
+                  <button onClick={() => install.mutate(s.name)} style={{ cursor: 'pointer', padding: '4px 10px', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.28)', borderRadius: 5, color: '#10b981', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', marginLeft: 10, whiteSpace: 'nowrap' }}>Install</button>
                 )}
               </div>
             </div>
@@ -181,7 +181,7 @@ function McpTab() {
                 <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-heading)' }}>{s.name}</div>
                 <div style={{ fontSize: 13, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: 1 }}>{s.transport} {s.command ? `· ${s.command}` : ''}</div>
               </div>
-              <button onClick={() => remove.mutate(s.name)} style={{ cursor: 'pointer', padding: '4px 10px', background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.3)', borderRadius: 5, color: '#f43f5e', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>REMOVE</button>
+              <button onClick={() => remove.mutate(s.name)} style={{ cursor: 'pointer', padding: '4px 10px', background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.3)', borderRadius: 5, color: '#f43f5e', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>Remove</button>
             </div>
           </div>
         ))
@@ -201,13 +201,13 @@ function MemoryTab() {
     <div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
         <input value={pid} onChange={e => setPid(e.target.value)} placeholder="Project ID" style={{ flex: 1, padding: '7px 10px', background: 'var(--surface-input)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 15, outline: 'none', fontFamily: 'var(--font-mono)' }} />
-        <button onClick={() => setShowRec(f => !f)} style={{ cursor: 'pointer', padding: '5px 12px', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.28)', borderRadius: 6, color: '#10b981', fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>+ RECORD</button>
+        <button onClick={() => setShowRec(f => !f)} style={{ cursor: 'pointer', padding: '5px 12px', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.28)', borderRadius: 6, color: '#10b981', fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>+ Record</button>
       </div>
       {showRec && (
         <form onSubmit={e => { e.preventDefault(); record.mutate() }} style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 8, padding: 12, marginBottom: 12 }}>
           <input value={rt} onChange={e => setRt(e.target.value)} required placeholder="Title" style={{ width: '100%', padding: '7px 10px', background: 'var(--surface-input)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 15, outline: 'none', boxSizing: 'border-box', marginBottom: 6 }} />
           <textarea value={rb} onChange={e => setRb(e.target.value)} placeholder="Body" rows={3} style={{ width: '100%', padding: '7px 10px', background: 'var(--surface-input)', border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 14, outline: 'none', boxSizing: 'border-box', fontFamily: 'var(--font-mono)', resize: 'vertical', marginBottom: 6 }} />
-          <button type="submit" style={{ cursor: 'pointer', padding: '5px 12px', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.28)', borderRadius: 6, color: '#10b981', fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>SAVE</button>
+          <button type="submit" style={{ cursor: 'pointer', padding: '5px 12px', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.28)', borderRadius: 6, color: '#10b981', fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>Save</button>
         </form>
       )}
       {pid && (
@@ -241,20 +241,20 @@ function HealthTab() {
     <div>
       <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px', marginBottom: 8 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div><span style={{ fontSize: 17, fontWeight: 500, color: 'var(--text-heading)' }}>LangGraph Dev</span><div style={{ fontSize: 13, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: 1 }}>{h?.langgraph_dev?.url ?? '—'}</div></div>
-          <span style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', color: h?.langgraph_dev?.running ? '#10b981' : '#f43f5e', padding: '2px 7px', borderRadius: 3, background: h?.langgraph_dev?.running ? 'rgba(16,185,129,0.1)' : 'rgba(244,63,94,0.1)' }}>{h?.langgraph_dev?.running ? 'RUNNING' : 'OFFLINE'}</span>
+          <div><span style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-heading)' }}>LangGraph Dev</span><div style={{ fontSize: 13, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: 1 }}>{h?.langgraph_dev?.url ?? '—'}</div></div>
+          <span style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', color: h?.langgraph_dev?.running ? '#10b981' : '#f43f5e', padding: '2px 7px', borderRadius: 3, background: h?.langgraph_dev?.running ? 'rgba(16,185,129,0.1)' : 'rgba(244,63,94,0.1)' }}>{h?.langgraph_dev?.running ? 'Running' : 'Offline'}</span>
         </div>
       </div>
       <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px', marginBottom: 8 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div><span style={{ fontSize: 17, fontWeight: 500, color: 'var(--text-heading)' }}>Skills</span><div style={{ fontSize: 13, color: 'var(--text-dim)', marginTop: 1 }}>Installed Gazzali skills</div></div>
+          <div><span style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-heading)' }}>Skills</span><div style={{ fontSize: 13, color: 'var(--text-dim)', marginTop: 1 }}>Installed Gazzali skills</div></div>
           <span style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#818cf8' }}>{h?.skills_available ?? '—'}</span>
         </div>
       </div>
       <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div><span style={{ fontSize: 17, fontWeight: 500, color: 'var(--text-heading)' }}>Agent Runner</span><div style={{ fontSize: 13, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: 1 }}>PM drafting/research agents</div></div>
-          <span style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#10b981', padding: '2px 7px', borderRadius: 3, background: 'rgba(16,185,129,0.1)' }}>ACTIVE</span>
+          <div><span style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-heading)' }}>Agent Runner</span><div style={{ fontSize: 13, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: 1 }}>PM drafting/research agents</div></div>
+          <span style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#10b981', padding: '2px 7px', borderRadius: 3, background: 'rgba(16,185,129,0.1)' }}>Active</span>
         </div>
       </div>
     </div>
@@ -269,12 +269,12 @@ function AnalyticsTab() {
       {stats && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px' }}>
-            <div style={{ fontSize: 13, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', marginBottom: 2 }}>LANGGRAPH DEV</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: stats.langgraph_dev.running ? '#10b981' : '#f43f5e' }}>{stats.langgraph_dev.running ? 'ONLINE' : 'OFFLINE'}</div>
+            <div style={{ fontSize: 13, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', marginBottom: 2 }}>LangGraph dev</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: stats.langgraph_dev.running ? '#10b981' : '#f43f5e' }}>{stats.langgraph_dev.running ? 'Online' : 'Offline'}</div>
           </div>
           <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px' }}>
-            <div style={{ fontSize: 13, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', marginBottom: 2 }}>SKILLS</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#818cf8' }}>{stats.skills_available}</div>
+            <div style={{ fontSize: 13, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', marginBottom: 2 }}>Skills</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#818cf8' }}>{stats.skills_available}</div>
           </div>
         </div>
       )}
@@ -287,18 +287,18 @@ export function SettingsPage() {
   const [tab, setTab] = useState<'models' | 'prompt' | 'cron' | 'mcp' | 'memory' | 'health' | 'analytics'>('models')
 
   const tabs = [
-    { key: 'models', label: 'MODELS' },
-    { key: 'prompt', label: 'PROMPT' },
-    { key: 'cron', label: 'SCHEDULES' },
+    { key: 'models', label: 'Models' },
+    { key: 'prompt', label: 'Prompt' },
+    { key: 'cron', label: 'Schedules' },
     { key: 'mcp', label: 'MCP' },
-    { key: 'memory', label: 'MEMORY' },
-    { key: 'health', label: 'HEALTH' },
-    { key: 'analytics', label: 'ANALYTICS' },
+    { key: 'memory', label: 'Memory' },
+    { key: 'health', label: 'Health' },
+    { key: 'analytics', label: 'Analytics' },
   ]
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', padding: '32px 28px', maxWidth: 860, margin: '0 auto' }}>
-      <h1 style={{ margin: '0 0 24px', fontSize: 30, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>Settings</h1>
+      <h1 style={{ margin: '0 0 24px', fontSize: 24, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>Settings</h1>
 
       <div style={{ display: 'flex', gap: 6, marginBottom: 20, flexWrap: 'wrap' }}>
         {tabs.map(t => (

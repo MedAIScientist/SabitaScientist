@@ -11,22 +11,22 @@ import { GrantTeamTab } from '../components/grant/GrantTeamTab'
 type Tab = 'overview' | 'budget' | 'milestones' | 'team'
 
 const TABS: { key: Tab; label: string }[] = [
-  { key: 'overview', label: 'OVERVIEW' },
-  { key: 'budget', label: 'BUDGET' },
-  { key: 'milestones', label: 'MILESTONES' },
-  { key: 'team', label: 'TEAM' },
+  { key: 'overview', label: 'Overview' },
+  { key: 'budget', label: 'Budget' },
+  { key: 'milestones', label: 'Milestones' },
+  { key: 'team', label: 'Team' },
 ]
 
 const inputStyle: React.CSSProperties = {
   padding: '9px 12px', background: 'var(--surface-input)',
   border: '1px solid var(--border)', borderRadius: 7,
-  color: 'var(--text)', fontSize: 20, outline: 'none', width: '100%',
+  color: 'var(--text)', fontSize: 16, outline: 'none', width: '100%',
 }
 
 const labelStyle: React.CSSProperties = {
   display: 'flex', flexDirection: 'column', gap: 5,
   fontSize: 14, fontWeight: 700, color: 'var(--text-dim)',
-  fontFamily: 'var(--font-mono)', letterSpacing: '0.08em',
+  fontFamily: 'var(--font-mono)', letterSpacing: '0.04em',
 }
 
 type EditDraft = {
@@ -116,7 +116,7 @@ export function GrantDetail() {
     return (
       <div style={{
         padding: 40, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)',
-      }}>LOADING…</div>
+      }}>Loading…</div>
     )
   }
 
@@ -126,7 +126,7 @@ export function GrantDetail() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
-      <div style={{ maxWidth: 960, margin: '0 auto', padding: '32px 28px' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 28px' }}>
 
         <button
           onClick={() => navigate('/grants')}
@@ -134,7 +134,7 @@ export function GrantDetail() {
             cursor: 'pointer', background: 'var(--surface-input)',
             border: '1px solid var(--border)', borderRadius: 6,
             color: 'var(--text-muted)', padding: '3px 9px',
-            fontSize: 22, lineHeight: 1, marginBottom: 16,
+            fontSize: 17, lineHeight: 1, marginBottom: 16,
           }}
         >←</button>
 
@@ -145,9 +145,9 @@ export function GrantDetail() {
         }}>
           <div style={{ flex: 1 }}>
             <h1 style={{
-              margin: 0, fontSize: 28, fontWeight: 600, color: 'var(--text-heading)',
+              margin: 0, fontSize: 24, fontWeight: 600, color: 'var(--text-heading)',
             }}>{grant.title}</h1>
-            <div style={{ fontSize: 18, color: 'var(--text-dim)', marginTop: 5 }}>
+            <div style={{ fontSize: 15, color: 'var(--text-dim)', marginTop: 5 }}>
               {grant.funder}
               {grant.pi_username ? ` · PI ${grant.pi_username}` : ''}
             </div>
@@ -180,12 +180,12 @@ export function GrantDetail() {
                 onClick={() => { setEditing(e => !e); setError(null) }}
                 style={{
                   cursor: 'pointer', padding: '7px 16px',
-                  background: editing ? 'rgba(16,185,129,0.12)' : 'rgba(255,128,21,0.1)',
-                  border: `1px solid ${editing ? 'rgba(16,185,129,0.3)' : 'rgba(255,128,21,0.3)'}`,
-                  borderRadius: 7, color: editing ? '#10b981' : '#ff8015',
+                  background: editing ? 'rgba(16,185,129,0.12)' : 'rgba(var(--accent-rgb),0.1)',
+                  border: `1px solid ${editing ? 'rgba(16,185,129,0.3)' : 'rgba(var(--accent-rgb),0.3)'}`,
+                  borderRadius: 7, color: editing ? '#10b981' : 'var(--accent)',
                   fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)',
                 }}
-              >{editing ? 'DONE' : 'EDIT'}</button>
+              >{editing ? 'Done' : 'Edit'}</button>
               <button
                 onClick={() => {
                   if (window.confirm(`Delete "${grant.title}"? This also removes its budget, milestones and team.`)) {
@@ -198,7 +198,7 @@ export function GrantDetail() {
                   color: '#f43f5e', fontSize: 16, fontWeight: 700,
                   fontFamily: 'var(--font-mono)',
                 }}
-              >DELETE</button>
+              >Delete</button>
             </div>
           )}
         </div>
@@ -207,7 +207,7 @@ export function GrantDetail() {
           <div style={{
             padding: '10px 14px', marginBottom: 16, background: 'rgba(244,63,94,0.08)',
             border: '1px solid rgba(244,63,94,0.2)', borderRadius: 7,
-            color: '#f43f5e', fontSize: 19, fontFamily: 'var(--font-mono)',
+            color: '#f43f5e', fontSize: 16, fontFamily: 'var(--font-mono)',
           }}>{error}</div>
         )}
 
@@ -222,8 +222,8 @@ export function GrantDetail() {
               style={{
                 cursor: 'pointer', padding: '9px 16px', background: 'transparent',
                 border: 'none', borderBottom: `2px solid ${tab === t.key ? '#ff8015' : 'transparent'}`,
-                color: tab === t.key ? '#ff8015' : 'var(--text-muted)',
-                fontSize: 15, fontWeight: 700, letterSpacing: '0.1em',
+                color: tab === t.key ? 'var(--accent)' : 'var(--text-muted)',
+                fontSize: 15, fontWeight: 700, letterSpacing: '0.04em',
                 fontFamily: 'var(--font-mono)', marginBottom: -1,
               }}
             >{t.label}</button>
@@ -235,27 +235,27 @@ export function GrantDetail() {
             <form
               onSubmit={e => { e.preventDefault(); save.mutate(d) }}
               style={{
-                background: 'var(--surface-card)', border: '1px solid rgba(255,128,21,0.2)',
+                background: 'var(--surface-card)', border: '1px solid rgba(var(--accent-rgb),0.2)',
                 borderRadius: 10, padding: 20,
               }}
             >
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
                 <label style={labelStyle}>
-                  TITLE
+                  Title
                   <input
                     required value={d.title}
                     onChange={e => setDraft({ ...d, title: e.target.value })} style={inputStyle}
                   />
                 </label>
                 <label style={labelStyle}>
-                  FUNDER
+                  Funder
                   <input
                     required value={d.funder}
                     onChange={e => setDraft({ ...d, funder: e.target.value })} style={inputStyle}
                   />
                 </label>
                 <label style={labelStyle}>
-                  STATUS
+                  Status
                   <select
                     value={d.status}
                     onChange={e => setDraft({ ...d, status: e.target.value })} style={inputStyle}
@@ -266,7 +266,7 @@ export function GrantDetail() {
                   </select>
                 </label>
                 <label style={labelStyle}>
-                  CURRENCY
+                  Currency
                   <select
                     value={d.currency}
                     onChange={e => setDraft({ ...d, currency: e.target.value })} style={inputStyle}
@@ -275,7 +275,7 @@ export function GrantDetail() {
                   </select>
                 </label>
                 <label style={labelStyle}>
-                  AMOUNT REQUESTED
+                  Amount requested
                   <input
                     type="number" min="0" step="any" value={d.amount_requested}
                     onChange={e => setDraft({ ...d, amount_requested: e.target.value })}
@@ -283,7 +283,7 @@ export function GrantDetail() {
                   />
                 </label>
                 <label style={labelStyle}>
-                  AMOUNT AWARDED
+                  Amount awarded
                   <input
                     type="number" min="0" step="any" value={d.amount_awarded}
                     onChange={e => setDraft({ ...d, amount_awarded: e.target.value })}
@@ -291,28 +291,28 @@ export function GrantDetail() {
                   />
                 </label>
                 <label style={labelStyle}>
-                  SUBMITTED
+                  Submitted
                   <input
                     type="date" value={d.submitted_at}
                     onChange={e => setDraft({ ...d, submitted_at: e.target.value })} style={inputStyle}
                   />
                 </label>
                 <label style={labelStyle}>
-                  AWARDED ON
+                  Awarded on
                   <input
                     type="date" value={d.awarded_at}
                     onChange={e => setDraft({ ...d, awarded_at: e.target.value })} style={inputStyle}
                   />
                 </label>
                 <label style={labelStyle}>
-                  START DATE
+                  Start date
                   <input
                     type="date" value={d.start_date}
                     onChange={e => setDraft({ ...d, start_date: e.target.value })} style={inputStyle}
                   />
                 </label>
                 <label style={labelStyle}>
-                  END DATE
+                  End date
                   <input
                     type="date" value={d.end_date}
                     onChange={e => setDraft({ ...d, end_date: e.target.value })} style={inputStyle}
@@ -327,7 +327,7 @@ export function GrantDetail() {
                   />
                 </label>
                 <label style={labelStyle}>
-                  LAB
+                  Lab
                   <select
                     value={d.lab_id}
                     onChange={e => setDraft({ ...d, lab_id: e.target.value })} style={inputStyle}
@@ -337,7 +337,7 @@ export function GrantDetail() {
                   </select>
                 </label>
                 <label style={labelStyle}>
-                  PROJECT
+                  Project
                   <select
                     value={d.project_id}
                     onChange={e => setDraft({ ...d, project_id: e.target.value })} style={inputStyle}
@@ -347,7 +347,7 @@ export function GrantDetail() {
                   </select>
                 </label>
                 <label style={{ ...labelStyle, gridColumn: '1 / -1' }}>
-                  DESCRIPTION
+                  Description
                   <textarea
                     value={d.description}
                     onChange={e => setDraft({ ...d, description: e.target.value })}
@@ -362,11 +362,11 @@ export function GrantDetail() {
                   disabled={save.isPending}
                   style={{
                     padding: '9px 24px', cursor: 'pointer', border: 'none', borderRadius: 7,
-                    background: save.isPending ? 'rgba(255,128,21,0.4)' : '#ff8015',
-                    color: '#06091a', fontSize: 17, fontWeight: 700,
+                    background: save.isPending ? 'rgba(var(--accent-rgb),0.4)' : 'var(--accent)',
+                    color: '#fff', fontSize: 15, fontWeight: 700,
                     fontFamily: 'var(--font-mono)',
                   }}
-                >{save.isPending ? 'SAVING…' : 'SAVE'}</button>
+                >{save.isPending ? 'Saving…' : 'Save'}</button>
                 <button
                   type="button"
                   onClick={() => { setEditing(false); setDraft(toDraft(grant)); setError(null) }}
@@ -375,7 +375,7 @@ export function GrantDetail() {
                     background: 'transparent', border: '1px solid var(--border)',
                     color: 'var(--text-muted)', fontSize: 16, fontFamily: 'var(--font-mono)',
                   }}
-                >CANCEL</button>
+                >Cancel</button>
               </div>
             </form>
           ) : (
@@ -402,9 +402,9 @@ export function GrantDetail() {
                 <div style={{ gridColumn: '1 / -1' }}>
                   <div style={{
                     fontSize: 14, fontWeight: 700, color: 'var(--text-dim)',
-                    fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', marginBottom: 4,
-                  }}>DESCRIPTION</div>
-                  <div style={{ fontSize: 19, color: 'var(--text-2)', whiteSpace: 'pre-wrap' }}>
+                    fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', marginBottom: 4,
+                  }}>Description</div>
+                  <div style={{ fontSize: 16, color: 'var(--text-2)', whiteSpace: 'pre-wrap' }}>
                     {grant.description}
                   </div>
                 </div>
@@ -430,9 +430,9 @@ function InfoRow({ label, value }: { label: string; value: string }) {
     <div>
       <div style={{
         fontSize: 14, fontWeight: 700, color: 'var(--text-dim)',
-        fontFamily: 'var(--font-mono)', letterSpacing: '0.08em',
+        fontFamily: 'var(--font-mono)', letterSpacing: '0.04em',
       }}>{label.toUpperCase()}</div>
-      <div style={{ fontSize: 19, color: 'var(--text-2)', marginTop: 2 }}>{value}</div>
+      <div style={{ fontSize: 16, color: 'var(--text-2)', marginTop: 2 }}>{value}</div>
     </div>
   )
 }

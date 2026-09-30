@@ -38,7 +38,7 @@ export function Login() {
     setLoading(true)
     try {
       await login(username, password)
-      navigate('/projects')
+      navigate('/home')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed')
     } finally {
@@ -48,7 +48,7 @@ export function Login() {
 
   const btnBase: React.CSSProperties = {
     padding: '10px', fontSize: 16, cursor: 'pointer', borderRadius: 7,
-    fontWeight: 700, letterSpacing: '0.1em', fontFamily: 'var(--font-mono)',
+    fontWeight: 700, letterSpacing: '0.04em', fontFamily: 'var(--font-mono)',
     transition: 'background 0.14s', border: '1px solid',
   }
 
@@ -60,8 +60,8 @@ export function Login() {
       <div style={{
         position: 'fixed', inset: 0, pointerEvents: 'none',
         backgroundImage:
-          'linear-gradient(rgba(255,128,21,0.025) 1px, transparent 1px),' +
-          'linear-gradient(90deg, rgba(255,128,21,0.025) 1px, transparent 1px)',
+          'linear-gradient(rgba(var(--accent-rgb),0.025) 1px, transparent 1px),' +
+          'linear-gradient(90deg, rgba(var(--accent-rgb),0.025) 1px, transparent 1px)',
         backgroundSize: '44px 44px',
       }} />
 
@@ -76,8 +76,8 @@ export function Login() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
           <img src="/medipolLogo.png" alt="Medipol" style={{ height: 38, borderRadius: 6 }} />
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 15, color: 'var(--text-dim)', letterSpacing: '0.1em', lineHeight: 1.5 }}>
-            RESEARCH · PM
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 15, color: 'var(--text-dim)', letterSpacing: '0.04em', lineHeight: 1.5 }}>
+            Research · PM
           </div>
         </div>
 
@@ -87,7 +87,7 @@ export function Login() {
           <div style={{
             padding: '8px 12px', background: 'rgba(244,63,94,0.08)',
             border: '1px solid rgba(244,63,94,0.2)', borderRadius: 6, color: '#f43f5e',
-            fontSize: 20, fontFamily: 'var(--font-mono)',
+            fontSize: 16, fontFamily: 'var(--font-mono)',
           }}>{error}</div>
         )}
 
@@ -95,7 +95,7 @@ export function Login() {
           <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
             <label style={{
               fontSize: 15, fontWeight: 700, color: 'var(--text-dim)',
-              letterSpacing: '0.12em', fontFamily: 'var(--font-mono)',
+              letterSpacing: '0.04em', fontFamily: 'var(--font-mono)',
             }}>{label}</label>
             <input
               type={i === 1 ? 'password' : 'text'}
@@ -106,9 +106,9 @@ export function Login() {
               style={{
                 padding: '9px 11px', background: 'var(--surface-input)',
                 border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text)',
-                fontSize: 22, outline: 'none', transition: 'border-color 0.14s',
+                fontSize: 17, outline: 'none', transition: 'border-color 0.14s',
               }}
-              onFocus={e => { e.currentTarget.style.borderColor = 'rgba(255,128,21,0.32)' }}
+              onFocus={e => { e.currentTarget.style.borderColor = 'rgba(var(--accent-rgb),0.32)' }}
               onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
             />
           </div>
@@ -116,12 +116,12 @@ export function Login() {
 
         <button type="submit" disabled={loading} style={{
           ...btnBase, marginTop: 4,
-          background: loading ? 'rgba(255,128,21,0.07)' : 'rgba(255,128,21,0.12)',
-          borderColor: 'rgba(255,128,21,0.28)', color: '#ff8015',
+          background: loading ? 'rgba(var(--accent-rgb),0.07)' : 'rgba(var(--accent-rgb),0.12)',
+          borderColor: 'rgba(var(--accent-rgb),0.28)', color: 'var(--accent)',
         }}
-          onMouseEnter={e => { if (!loading) e.currentTarget.style.background = 'rgba(255,128,21,0.22)' }}
-          onMouseLeave={e => { e.currentTarget.style.background = loading ? 'rgba(255,128,21,0.07)' : 'rgba(255,128,21,0.12)' }}
-        >{loading ? 'AUTHENTICATING…' : 'SIGN IN'}</button>
+          onMouseEnter={e => { if (!loading) e.currentTarget.style.background = 'rgba(var(--accent-rgb),0.22)' }}
+          onMouseLeave={e => { e.currentTarget.style.background = loading ? 'rgba(var(--accent-rgb),0.07)' : 'rgba(var(--accent-rgb),0.12)' }}
+        >{loading ? 'Authenticating…' : 'Sign in'}</button>
 
         {oidcAvailable && (
           <>
@@ -138,7 +138,7 @@ export function Login() {
               }}
                 onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.18)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.08)' }}
-              >SIGN IN WITH MICROSOFT</button>
+              >Sign in with Microsoft</button>
             </a>
           </>
         )}

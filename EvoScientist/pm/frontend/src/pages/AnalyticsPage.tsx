@@ -63,7 +63,7 @@ function DonutChart({ data }: { data: { label: string; value: number; color: str
           )
         })}
         <text x={80} y={80} textAnchor="middle" dominantBaseline="central"
-          style={{ fontSize: 28, fontWeight: 700, fill: 'var(--text-heading)', fontFamily: 'var(--font-mono)' }}>
+          style={{ fontSize: 24, fontWeight: 700, fill: 'var(--text-heading)', fontFamily: 'var(--font-mono)' }}>
           {total}
         </text>
       </svg>
@@ -94,7 +94,7 @@ export function AnalyticsPage() {
       .finally(() => setLoading(false))
   }, [token])
 
-  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-dim)', fontSize: 19, fontFamily: 'var(--font-mono)' }}>LOADING…</div>
+  if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-dim)', fontSize: 16, fontFamily: 'var(--font-mono)' }}>Loading…</div>
   if (error) return <div style={{ padding: 40, color: '#f43f5e' }}>{error}</div>
   if (!stats) return null
 
@@ -118,8 +118,8 @@ export function AnalyticsPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '32px 28px' }}>
-        <h1 style={{ margin: '0 0 24px', fontSize: 30, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 28px' }}>
+        <h1 style={{ margin: '0 0 24px', fontSize: 24, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>
           Lab Analytics
         </h1>
 
@@ -134,11 +134,11 @@ export function AnalyticsPage() {
         {/* Charts row */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 28 }}>
           <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 20 }}>
-            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)', marginBottom: 16 }}>Tasks</div>
+            <div style={{ fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)', marginBottom: 16 }}>Tasks</div>
             <DonutChart data={taskData} />
           </div>
           <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 20 }}>
-            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)', marginBottom: 16 }}>Experiments</div>
+            <div style={{ fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)', marginBottom: 16 }}>Experiments</div>
             <DonutChart data={expData} />
           </div>
         </div>
@@ -146,7 +146,7 @@ export function AnalyticsPage() {
         {/* Publications */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 28 }}>
           <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 10, padding: 20 }}>
-            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)', marginBottom: 16 }}>Publications</div>
+            <div style={{ fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)', marginBottom: 16 }}>Publications</div>
             <DonutChart data={pubData} />
           </div>
           {stats.publications_over_time.length > 0 && (
@@ -161,7 +161,7 @@ export function AnalyticsPage() {
         </div>
 
         {/* Labs */}
-        <h2 style={{ margin: '0 0 16px', fontSize: 22, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>Labs</h2>
+        <h2 style={{ margin: '0 0 16px', fontSize: 17, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>Labs</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {stats.labs.map((lab, i) => (
             <div key={lab.id} style={{
@@ -170,10 +170,10 @@ export function AnalyticsPage() {
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             }}>
               <div>
-                <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--text-heading)' }}>{lab.name}</div>
-                <div style={{ fontSize: 17, color: 'var(--text-dim)', marginTop: 2 }}>{lab.department}</div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-heading)' }}>{lab.name}</div>
+                <div style={{ fontSize: 15, color: 'var(--text-dim)', marginTop: 2 }}>{lab.department}</div>
               </div>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 17, color: 'var(--text-dim)' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 15, color: 'var(--text-dim)' }}>
                 {lab.member_count} member{lab.member_count !== 1 ? 's' : ''}
               </div>
             </div>
@@ -181,7 +181,7 @@ export function AnalyticsPage() {
         </div>
 
         {/* Recent projects */}
-        <h2 style={{ margin: '28px 0 16px', fontSize: 22, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>Recent Projects</h2>
+        <h2 style={{ margin: '28px 0 16px', fontSize: 17, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>Recent Projects</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {stats.recent_projects.map(p => (
             <div key={p.id} style={{
@@ -189,7 +189,7 @@ export function AnalyticsPage() {
               borderRadius: 10, padding: '12px 18px',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             }}>
-              <span style={{ fontSize: 19, fontWeight: 500, color: 'var(--text-heading)' }}>{p.name}</span>
+              <span style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-heading)' }}>{p.name}</span>
               <span style={{ fontFamily: 'var(--font-mono)', fontSize: 15, color: 'var(--text-dim)' }}>{new Date(p.created_at).toLocaleDateString()}</span>
             </div>
           ))}
@@ -202,8 +202,8 @@ export function AnalyticsPage() {
 function SummaryCard({ value, label, color }: { value: number; label: string; color: string }) {
   return (
     <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 20px', textAlign: 'center' }}>
-      <div style={{ fontSize: 36, fontWeight: 700, color, fontFamily: 'var(--font-mono)' }}>{value}</div>
-      <div style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: 4, letterSpacing: '0.08em' }}>{label}</div>
+      <div style={{ fontSize: 28, fontWeight: 700, color, fontFamily: 'var(--font-mono)' }}>{value}</div>
+      <div style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: 4, letterSpacing: '0.04em' }}>{label}</div>
     </div>
   )
 }

@@ -42,57 +42,42 @@ export function AdminDashboard() {
     borderRadius: 10, padding: '18px 20px', textAlign: 'center',
   }
   const value: React.CSSProperties = {
-    fontSize: 36, fontWeight: 700, color: '#ff8015', fontFamily: 'var(--font-mono)',
+    fontSize: 28, fontWeight: 700, color: 'var(--accent)', fontFamily: 'var(--font-mono)',
   }
   const label: React.CSSProperties = {
-    fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: 4, letterSpacing: '0.08em',
+    fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: 4, letterSpacing: '0.04em',
   }
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
-      <div style={{
-        padding: '0 28px', height: 54,
-        borderBottom: '1px solid var(--border)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        background: 'var(--surface-header)', backdropFilter: 'blur(12px)',
-        position: 'sticky', top: 0, zIndex: 10,
-      }}>
+      <div className="page-header" style={{ maxWidth: 1100, margin: '0 auto', padding: '28px 32px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button onClick={() => navigate(-1)} style={{
-            cursor: 'pointer', background: 'var(--surface-input)',
-            border: '1px solid var(--border)', borderRadius: 6,
-            color: 'var(--text-muted)', padding: '3px 9px', fontSize: 22, lineHeight: 1,
-          }}>←</button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <img src="/medipolLogo.png" alt="Medipol" style={{ height: 26, borderRadius: 4 }} />
-            <span style={{ color: 'var(--text-dim)', fontSize: 20, fontFamily: 'var(--font-mono)' }}>/</span>
-            <span style={{ color: '#ff8015', fontSize: 21, fontFamily: 'var(--font-mono)' }}>admin</span>
-          </div>
+          <h1 className="page-title">System administration</h1>
         </div>
-        <span style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', background: 'rgba(255,128,21,0.1)', padding: '2px 8px', borderRadius: 4, border: '1px solid rgba(255,128,21,0.2)' }}>ADMIN</span>
+        <span style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', background: 'rgba(var(--accent-rgb),0.1)', padding: '2px 8px', borderRadius: 4, border: '1px solid rgba(var(--accent-rgb),0.2)' }}>Admin</span>
       </div>
 
-      <div style={{ maxWidth: 800, margin: '0 auto', padding: '32px 28px' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 32px 40px' }}>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontSize: 19 }}>LOADING…</div>
+          <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontSize: 16 }}>Loading…</div>
         ) : error ? (
-          <div style={{ color: '#f43f5e', fontFamily: 'var(--font-mono)', fontSize: 19 }}>{error}</div>
+          <div style={{ color: '#f43f5e', fontFamily: 'var(--font-mono)', fontSize: 16 }}>{error}</div>
         ) : stats ? (
           <>
-            <h1 style={{ margin: '0 0 24px', fontSize: 30, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>
+            <h1 style={{ margin: '0 0 24px', fontSize: 24, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>
               System Overview
             </h1>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 32 }}>
-              <div style={card}><div style={value}>{stats.labs}</div><div style={label}>LABS</div></div>
-              <div style={card}><div style={value}>{stats.users}</div><div style={label}>USERS</div></div>
-              <div style={card}><div style={value}>{stats.projects}</div><div style={label}>PROJECTS</div></div>
-              <div style={card}><div style={value}>{stats.tasks}</div><div style={label}>TASKS</div></div>
-              <div style={card}><div style={value}>{stats.experiments}</div><div style={label}>EXPERIMENTS</div></div>
-              <div style={card}><div style={value}>{stats.assists}</div><div style={label}>AI ASSISTS</div></div>
-              <div style={card}><div style={value}>{stats.admissions}</div><div style={label}>ADMISSIONS</div></div>
+              <div style={card}><div style={value}>{stats.labs}</div><div style={label}>Labs</div></div>
+              <div style={card}><div style={value}>{stats.users}</div><div style={label}>Users</div></div>
+              <div style={card}><div style={value}>{stats.projects}</div><div style={label}>Projects</div></div>
+              <div style={card}><div style={value}>{stats.tasks}</div><div style={label}>Tasks</div></div>
+              <div style={card}><div style={value}>{stats.experiments}</div><div style={label}>Experiments</div></div>
+              <div style={card}><div style={value}>{stats.assists}</div><div style={label}>AI assists</div></div>
+              <div style={card}><div style={value}>{stats.admissions}</div><div style={label}>Admissions</div></div>
             </div>
 
-            <h2 style={{ margin: '0 0 16px', fontSize: 24, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>
+            <h2 style={{ margin: '0 0 16px', fontSize: 20, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>
               Labs
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -103,10 +88,10 @@ export function AdminDashboard() {
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 }}>
                   <div>
-                    <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--text-heading)' }}>{lab.name}</div>
-                    <div style={{ fontSize: 17, color: 'var(--text-dim)', marginTop: 2 }}>{lab.department}{lab.department && lab.university ? ' · ' : ''}{lab.university}</div>
+                    <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-heading)' }}>{lab.name}</div>
+                    <div style={{ fontSize: 15, color: 'var(--text-dim)', marginTop: 2 }}>{lab.department}{lab.department && lab.university ? ' · ' : ''}{lab.university}</div>
                   </div>
-                  <div style={{ display: 'flex', gap: 16, fontFamily: 'var(--font-mono)', fontSize: 17, color: 'var(--text-dim)' }}>
+                  <div style={{ display: 'flex', gap: 16, fontFamily: 'var(--font-mono)', fontSize: 15, color: 'var(--text-dim)' }}>
                     <span>{lab.member_count} members</span>
                     <span>{lab.project_count} projects</span>
                   </div>

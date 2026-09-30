@@ -14,7 +14,7 @@ const ROLE_COLORS: Record<string, string> = {
 const inputStyle: React.CSSProperties = {
   padding: '8px 10px', background: 'var(--surface-input)',
   border: '1px solid var(--border)', borderRadius: 6,
-  color: 'var(--text)', fontSize: 19, outline: 'none', width: '100%',
+  color: 'var(--text)', fontSize: 16, outline: 'none', width: '100%',
 }
 
 const smallBtn: React.CSSProperties = {
@@ -27,7 +27,7 @@ const smallBtn: React.CSSProperties = {
 const labelStyle: React.CSSProperties = {
   display: 'flex', flexDirection: 'column', gap: 5,
   fontSize: 14, fontWeight: 700, color: 'var(--text-dim)',
-  fontFamily: 'var(--font-mono)', letterSpacing: '0.08em',
+  fontFamily: 'var(--font-mono)', letterSpacing: '0.04em',
 }
 
 export function GrantTeamTab({ grantId, canEdit }: { grantId: string; canEdit: boolean }) {
@@ -77,14 +77,14 @@ export function GrantTeamTab({ grantId, canEdit }: { grantId: string; canEdit: b
         marginBottom: 14,
       }}>
         <div style={{ fontSize: 16, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
-          {members.length} MEMBER{members.length !== 1 ? 'S' : ''}
+          {members.length} member{members.length !== 1 ? 's' : ''}
         </div>
         {totalShare > 0 && (
           <div style={{
             fontSize: 15, fontFamily: 'var(--font-mono)',
             color: totalShare > 100 ? '#f43f5e' : 'var(--text-dim)',
           }}>
-            {totalShare}% ALLOCATED{totalShare > 100 ? ' · OVER 100%' : ''}
+            {totalShare}% ALLOCATED{totalShare > 100 ? ' · Over 100%' : ''}
           </div>
         )}
       </div>
@@ -93,28 +93,28 @@ export function GrantTeamTab({ grantId, canEdit }: { grantId: string; canEdit: b
         <div style={{
           padding: '8px 12px', marginBottom: 12, background: 'rgba(244,63,94,0.08)',
           border: '1px solid rgba(244,63,94,0.2)', borderRadius: 6, color: '#f43f5e',
-          fontSize: 18, fontFamily: 'var(--font-mono)',
+          fontSize: 15, fontFamily: 'var(--font-mono)',
         }}>{error}</div>
       )}
 
       {canEdit && (
         <div style={{
-          background: 'var(--surface-card)', border: '1px solid rgba(255,128,21,0.2)',
+          background: 'var(--surface-card)', border: '1px solid rgba(var(--accent-rgb),0.2)',
           borderRadius: 10, padding: 16, marginBottom: 16,
           display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 10, alignItems: 'end',
         }}>
           <label style={labelStyle}>
-            PERSON
+            Person
             <UserPicker value={userId} onChange={setUserId} placeholder="search by username…" />
           </label>
           <label style={labelStyle}>
-            ROLE
+            Role
             <select value={role} onChange={e => setRole(e.target.value)} style={inputStyle}>
               {GRANT_MEMBER_ROLES.map(r => <option key={r} value={r}>{r.replace('_', '-')}</option>)}
             </select>
           </label>
           <label style={labelStyle}>
-            SHARE %
+            Share %
             <input
               type="number" min="0" max="100" step="any"
               value={share}
@@ -130,16 +130,16 @@ export function GrantTeamTab({ grantId, canEdit }: { grantId: string; canEdit: b
               style={{
                 cursor: !userId ? 'default' : 'pointer', padding: '9px 20px',
                 borderRadius: 7, border: 'none',
-                background: !userId || add.isPending ? 'rgba(255,128,21,0.4)' : '#ff8015',
-                color: '#06091a', fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                background: !userId || add.isPending ? 'rgba(var(--accent-rgb),0.4)' : 'var(--accent)',
+                color: '#fff', fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)',
               }}
-            >{add.isPending ? 'ADDING…' : 'ADD TO TEAM'}</button>
+            >{add.isPending ? 'Adding…' : 'Add to team'}</button>
           </div>
         </div>
       )}
 
       {isLoading ? (
-        <Muted>LOADING…</Muted>
+        <Muted>Loading…</Muted>
       ) : members.length === 0 ? (
         <Muted>No team members yet.</Muted>
       ) : (
@@ -154,10 +154,10 @@ export function GrantTeamTab({ grantId, canEdit }: { grantId: string; canEdit: b
                 width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
                 background: 'linear-gradient(135deg, #ff8015, #8b5cf6)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#fff', fontWeight: 700, fontSize: 20,
+                color: '#fff', fontWeight: 700, fontSize: 16,
               }}>{(m.username ?? '?')[0]?.toUpperCase()}</div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 20, color: 'var(--text-heading)' }}>
+                <div style={{ fontSize: 16, color: 'var(--text-heading)' }}>
                   {m.username ?? m.user_id.slice(0, 8)}
                 </div>
                 <div style={{
@@ -167,7 +167,7 @@ export function GrantTeamTab({ grantId, canEdit }: { grantId: string; canEdit: b
               </div>
               <span style={{
                 fontSize: 14, fontFamily: 'var(--font-mono)', fontWeight: 700,
-                letterSpacing: '0.06em', color: ROLE_COLORS[m.role] ?? '#6b7280',
+                letterSpacing: '0.04em', color: ROLE_COLORS[m.role] ?? '#6b7280',
                 background: `${ROLE_COLORS[m.role] ?? '#6b7280'}14`,
                 border: `1px solid ${ROLE_COLORS[m.role] ?? '#6b7280'}30`,
                 borderRadius: 4, padding: '2px 8px',
@@ -202,12 +202,12 @@ export function GrantTeamTab({ grantId, canEdit }: { grantId: string; canEdit: b
                         remove.mutate(m.id)
                       }
                     }}
-                  >REMOVE</button>
+                  >Remove</button>
                 </>
               ) : (
                 m.share_percent != null && (
                   <span style={{
-                    fontSize: 18, fontFamily: 'var(--font-mono)', color: 'var(--text-2)',
+                    fontSize: 15, fontFamily: 'var(--font-mono)', color: 'var(--text-2)',
                   }}>{m.share_percent}%</span>
                 )
               )}
@@ -223,7 +223,7 @@ function Muted({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
       padding: '20px 0', color: 'var(--text-dim)',
-      fontFamily: 'var(--font-mono)', fontSize: 18,
+      fontFamily: 'var(--font-mono)', fontSize: 15,
     }}>{children}</div>
   )
 }

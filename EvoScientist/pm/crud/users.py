@@ -16,15 +16,16 @@ def create_user(
     password_hash: str,
     email: str | None = None,
     is_admin: bool = False,
+    role: str = "student",
 ) -> User:
     """Insert a new user and return the created User."""
     user_id = uuid.uuid4().hex
     now = datetime.now(UTC).isoformat()
     with get_db(db_path) as conn:
         conn.execute(
-            """INSERT INTO users (id, username, email, password_hash, is_admin, created_at)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (user_id, username, email, password_hash, int(is_admin), now),
+            """INSERT INTO users (id, username, email, password_hash, is_admin, role, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (user_id, username, email, password_hash, int(is_admin), role, now),
         )
     return User(
         id=user_id,
@@ -33,6 +34,7 @@ def create_user(
         password_hash=password_hash,
         is_admin=is_admin,
         created_at=now,
+        role=role,
     )
 
 
@@ -40,7 +42,7 @@ def get_user_by_id(db_path: Path, user_id: str) -> User | None:
     """Return User by primary key, or None."""
     with get_db(db_path) as conn:
         row = conn.execute(
-            "SELECT id, username, email, password_hash, is_admin, created_at FROM users WHERE id = ?",
+            "SELECT id, username, email, password_hash, is_admin, role, created_at FROM users WHERE id = ?",
             (user_id,),
         ).fetchone()
     return _row_to_user(row) if row else None
@@ -50,7 +52,7 @@ def get_user_by_username(db_path: Path, username: str) -> User | None:
     """Return User by username, or None."""
     with get_db(db_path) as conn:
         row = conn.execute(
-            "SELECT id, username, email, password_hash, is_admin, created_at FROM users WHERE username = ?",
+            "SELECT id, username, email, password_hash, is_admin, role, created_at FROM users WHERE username = ?",
             (username,),
         ).fetchone()
     return _row_to_user(row) if row else None
@@ -62,7 +64,7 @@ def get_user_by_email(db_path: Path, email: str | None) -> User | None:
         return None
     with get_db(db_path) as conn:
         row = conn.execute(
-            "SELECT id, username, email, password_hash, is_admin, created_at FROM users WHERE email = ? COLLATE NOCASE",
+            "SELECT id, username, email, password_hash, is_admin, role, created_at FROM users WHERE email = ? COLLATE NOCASE",
             (email,),
         ).fetchone()
     return _row_to_user(row) if row else None
@@ -80,7 +82,7 @@ def get_user_by_identifier(db_path: Path, identifier: str) -> User | None:
         return None
     with get_db(db_path) as conn:
         row = conn.execute(
-            """SELECT id, username, email, password_hash, is_admin, created_at FROM users
+            """SELECT id, username, email, password_hash, is_admin, role, created_at FROM users
                WHERE username = ? COLLATE NOCASE OR email = ? COLLATE NOCASE
                ORDER BY (username = ?) DESC, username
                LIMIT 1""",
@@ -93,7 +95,7 @@ def list_users(db_path: Path) -> list[User]:
     """Return all users ordered by username."""
     with get_db(db_path) as conn:
         rows = conn.execute(
-            "SELECT id, username, email, password_hash, is_admin, created_at FROM users ORDER BY username",
+            "SELECT id, username, email, password_hash, is_admin, role, created_at FROM users ORDER BY username",
         ).fetchall()
     return [_row_to_user(r) for r in rows]
 
@@ -106,7 +108,7 @@ def search_users(db_path: Path, q: str, limit: int = 20) -> list[User]:
     escaped = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
     with get_db(db_path) as conn:
         rows = conn.execute(
-            """SELECT id, username, email, password_hash, is_admin, created_at
+            """SELECT id, username, email, password_hash, is_admin, role, created_at
                FROM users WHERE username LIKE ? ESCAPE '\\' ORDER BY username LIMIT ?""",
             (f"%{escaped}%", limit),
         ).fetchall()
@@ -243,6 +245,7 @@ def update_user(
     username: str | None = None,
     email: str | None = None,
     is_admin: bool | None = None,
+    role: str | None = None,
 ) -> User | None:
     """Update user fields. Returns updated User or None if not found."""
     fields: list[str] = []
@@ -256,6 +259,9 @@ def update_user(
     if is_admin is not None:
         fields.append("is_admin = ?")
         params.append(int(is_admin))
+    if role is not None:
+        fields.append("role = ?")
+        params.append(role)
     if not fields:
         return get_user_by_id(db_path, user_id)
     params.append(user_id)
@@ -275,4 +281,5 @@ def _row_to_user(row) -> User:
         password_hash=row["password_hash"],
         is_admin=bool(row["is_admin"]),
         created_at=row["created_at"],
+        role=row["role"] if "role" in row.keys() else "student",
     )

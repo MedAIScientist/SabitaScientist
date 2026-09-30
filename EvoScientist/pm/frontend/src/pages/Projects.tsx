@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, Project, Task, Experiment, Template } from '../api'
 import { useAuth } from '../auth'
-import { useTheme } from '../theme'
 
 const ACCENT_CYCLE = ['#ff8015', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#f43f5e']
 
@@ -68,7 +67,7 @@ function ProjectCard({ project, accent, index }: { project: Project; accent: str
       <div style={{ padding: '14px 18px 10px' }}>
         {/* Title row */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
-          <strong style={{ fontSize: 21, fontWeight: 600, color: 'var(--text-heading)', lineHeight: 1.3, flex: 1, marginRight: 12 }}>
+          <strong style={{ fontSize: 17, fontWeight: 600, color: 'var(--text-heading)', lineHeight: 1.3, flex: 1, marginRight: 12 }}>
             {project.name}
           </strong>
           {/* Quick-action buttons */}
@@ -77,26 +76,26 @@ function ProjectCard({ project, accent, index }: { project: Project; accent: str
               onClick={() => navigate(`/projects/${project.id}`)}
               title="Kanban Board"
               style={{
-                background: 'rgba(255,128,21,0.08)', border: '1px solid rgba(255,128,21,0.22)',
-                borderRadius: 4, padding: '3px 8px', fontSize: 15, color: '#ff8015',
-                cursor: 'pointer', fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: '0.06em',
+                background: 'rgba(var(--accent-rgb),0.08)', border: '1px solid rgba(var(--accent-rgb),0.22)',
+                borderRadius: 4, padding: '3px 8px', fontSize: 13, color: 'var(--accent)',
+                cursor: 'pointer', fontFamily: 'var(--font-mono)', fontWeight: 600,
               }}
-            >⊞ BOARD</button>
+            >Board</button>
             <button
               onClick={() => navigate(`/projects/${project.id}/experiments`)}
               title="Experiments"
               style={{
                 background: 'rgba(16,185,129,0.07)', border: '1px solid rgba(16,185,129,0.2)',
-                borderRadius: 4, padding: '3px 8px', fontSize: 15, color: '#10b981',
-                cursor: 'pointer', fontFamily: 'var(--font-mono)', fontWeight: 700, letterSpacing: '0.06em',
+                borderRadius: 4, padding: '3px 8px', fontSize: 13, color: '#10b981',
+                cursor: 'pointer', fontFamily: 'var(--font-mono)', fontWeight: 600,
               }}
-            >⚗ EXPS</button>
+            >Experiments</button>
           </div>
         </div>
 
         {/* Description */}
         {project.description && (
-          <p style={{ margin: '0 0 10px', color: 'var(--text-2)', fontSize: 20, lineHeight: 1.5 }}>
+          <p style={{ margin: '0 0 10px', color: 'var(--text-2)', fontSize: 16, lineHeight: 1.5 }}>
             {project.description}
           </p>
         )}
@@ -106,7 +105,7 @@ function ProjectCard({ project, accent, index }: { project: Project; accent: str
           <div style={{ marginBottom: 10 }}>
             <div style={{ display: 'flex', height: 4, borderRadius: 2, overflow: 'hidden', gap: 1 }}>
               {todo > 0 && (
-                <div style={{ flex: todo, background: 'rgba(255,128,21,0.45)', borderRadius: 2 }} title={`${todo} planned`} />
+                <div style={{ flex: todo, background: 'rgba(var(--accent-rgb),0.45)', borderRadius: 2 }} title={`${todo} planned`} />
               )}
               {inProgress > 0 && (
                 <div style={{ flex: inProgress, background: '#f59e0b', borderRadius: 2 }} title={`${inProgress} in progress`} />
@@ -124,40 +123,40 @@ function ProjectCard({ project, accent, index }: { project: Project; accent: str
           {total > 0 ? (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               {todo > 0 && (
-                <span style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: 3 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(255,128,21,0.6)', display: 'inline-block' }} />
-                  {todo} PLANNED
+                <span style={{ fontSize: 13, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'rgba(var(--accent-rgb),0.6)', display: 'inline-block' }} />
+                  {todo} planned
                 </span>
               )}
               {inProgress > 0 && (
-                <span style={{ fontSize: 15, color: '#f59e0b', fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                <span style={{ fontSize: 13, color: '#f59e0b', fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: 3 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} />
-                  {inProgress} ACTIVE
+                  {inProgress} active
                 </span>
               )}
               {done > 0 && (
-                <span style={{ fontSize: 15, color: '#10b981', fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                <span style={{ fontSize: 13, color: '#10b981', fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: 3 }}>
                   <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
-                  {done} DONE
+                  {done} done
                 </span>
               )}
             </div>
           ) : (
-            <span style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>NO TASKS</span>
+            <span style={{ fontSize: 13, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>No tasks</span>
           )}
 
           {/* Experiment counts */}
           {experiments.length > 0 && (
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <span style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>·</span>
+              <span style={{ fontSize: 13, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>·</span>
               {expPlanned > 0 && (
-                <span style={{ fontSize: 15, color: '#f59e0b', fontFamily: 'var(--font-mono)' }}>⚗ {expPlanned} PLANNED</span>
+                <span style={{ fontSize: 13, color: '#f59e0b', fontFamily: 'var(--font-mono)' }}>{expPlanned} exp. planned</span>
               )}
               {expRunning > 0 && (
-                <span style={{ fontSize: 15, color: '#ff8015', fontFamily: 'var(--font-mono)' }}>⚗ {expRunning} RUNNING</span>
+                <span style={{ fontSize: 13, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>{expRunning} running</span>
               )}
               {expCompleted > 0 && (
-                <span style={{ fontSize: 15, color: '#10b981', fontFamily: 'var(--font-mono)' }}>⚗ {expCompleted} DONE</span>
+                <span style={{ fontSize: 13, color: '#10b981', fontFamily: 'var(--font-mono)' }}>{expCompleted} exp. done</span>
               )}
             </div>
           )}
@@ -181,7 +180,7 @@ function ProjectCard({ project, accent, index }: { project: Project; accent: str
                 width: 20, height: 20, borderRadius: '50%',
                 background: ACCENT_CYCLE[(mi + 1) % ACCENT_CYCLE.length],
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 18, fontWeight: 700, color: '#fff',
+                fontSize: 11, fontWeight: 700, color: '#fff',
                 fontFamily: 'var(--font-mono)',
                 border: '1px solid var(--surface-card)',
                 marginLeft: mi > 0 ? -4 : 0,
@@ -193,14 +192,14 @@ function ProjectCard({ project, accent, index }: { project: Project; accent: str
             </div>
           ))}
           {extraMembers > 0 && (
-            <span style={{ fontSize: 18, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginLeft: 4 }}>
+            <span style={{ fontSize: 13, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginLeft: 4 }}>
               +{extraMembers}
             </span>
           )}
         </div>
 
         {/* Created date */}
-        <span style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+        <span style={{ fontSize: 13, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
           {formatDate(project.created_at)}
         </span>
       </div>
@@ -210,8 +209,6 @@ function ProjectCard({ project, accent, index }: { project: Project; accent: str
 
 // ── Main Projects page ────────────────────────────────────────────────────────
 export function Projects() {
-  const { username } = useAuth()
-  const { theme } = useTheme()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [newName, setNewName] = useState('')
@@ -252,179 +249,48 @@ export function Projects() {
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       height: '100vh', color: 'var(--text-muted)',
-      fontFamily: 'var(--font-mono)', fontSize: 20, letterSpacing: '0.08em',
+      fontFamily: 'var(--font-mono)', fontSize: 16, letterSpacing: '0.04em',
     }}>
-      LOADING…
+      Loading…
     </div>
   )
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
-
-      {/* ── Header ── */}
-      <div style={{
-        padding: '0 28px', height: 54,
-        borderBottom: '1px solid var(--border)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        background: 'var(--surface-header)', backdropFilter: 'blur(12px)',
-        position: 'sticky', top: 0, zIndex: 10,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-          <img src="/medipolLogo.png" alt="Medipol" style={{ height: 26, borderRadius: 4, display: 'block' }} />
-          <span style={{ color: 'var(--text-dim)', fontSize: 20, fontFamily: 'var(--font-mono)' }}>/</span>
-          <span style={{ color: '#ff8015', fontSize: 21, fontFamily: 'var(--font-mono)' }}>projects</span>
+    <div className="page">
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">Research Projects</h1>
+          <p className="page-sub">{projects.length} project{projects.length !== 1 ? 's' : ''}</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button
-            onClick={() => navigate('/reports')}
-            style={{
-              background: 'rgba(255,128,21,0.08)',
-              border: '1px solid rgba(255,128,21,0.18)',
-              color: '#64748b',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 16,
-              padding: '5px 12px',
-              borderRadius: 4,
-              cursor: 'pointer',
-              letterSpacing: '0.08em',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.color = '#ff8015'; e.currentTarget.style.borderColor = 'rgba(255,128,21,0.35)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = '#64748b'; e.currentTarget.style.borderColor = 'rgba(255,128,21,0.18)' }}
-          >
-            📊 REPORTS
-          </button>
-          <button
-            onClick={() => navigate('/profile')}
-            title={username ?? 'Profile'}
-            style={{
-              width: 30, height: 30, borderRadius: '50%', border: 'none',
-              background: theme === 'dark'
-                ? 'linear-gradient(135deg, rgba(255,128,21,0.25), rgba(139,92,246,0.25))'
-                : 'linear-gradient(135deg, rgba(255,128,21,0.4), rgba(139,92,246,0.4))',
-              color: '#ff8015',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 20, fontWeight: 700, cursor: 'pointer',
-              fontFamily: 'var(--font-mono)',
-              outline: '1px solid rgba(255,128,21,0.25)',
-              transition: 'outline-color 0.15s, box-shadow 0.15s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.outlineColor = 'rgba(255,128,21,0.6)'; e.currentTarget.style.boxShadow = '0 0 10px rgba(255,128,21,0.2)' }}
-            onMouseLeave={e => { e.currentTarget.style.outlineColor = 'rgba(255,128,21,0.25)'; e.currentTarget.style.boxShadow = '' }}
-          >
-            {username?.[0]?.toUpperCase() ?? '?'}
-          </button>
+        <div className="page-actions">
+          <button className="btn" onClick={() => navigate('/reports')}>Reports</button>
+          <button className="btn" onClick={() => { setShowTemplateWizard(true); setSelectedTemplate(null); setTemplateProjectName('') }}>From template</button>
+          <button className="btn btn-primary" onClick={() => setCreating(true)}>+ New project</button>
         </div>
-      </div>
+      </header>
 
-      {/* ── Content ── */}
-      <div style={{ maxWidth: 760, margin: '0 auto', padding: '40px 28px' }}>
-        <div style={{ marginBottom: 28 }}>
-          <h1 style={{ margin: '0 0 5px', fontSize: 38, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>
-            Research Projects
-          </h1>
-          <p style={{ margin: 0, fontSize: 16, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', letterSpacing: '0.06em' }}>
-            {projects.length} PROJECT{projects.length !== 1 ? 'S' : ''} · SYNCS EVERY 30S
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 24 }}>
-          {projects.map((p: Project, i: number) => (
-            <ProjectCard
-              key={p.id}
-              project={p}
-              accent={ACCENT_CYCLE[i % ACCENT_CYCLE.length]}
-              index={i}
-            />
-          ))}
-          {projects.length === 0 && (
-            <p style={{ color: 'var(--text-muted)', fontSize: 21, padding: '10px 0', fontStyle: 'italic' }}>
-              No projects yet. Create your first one below.
-            </p>
-          )}
-        </div>
-
-        {creating ? (
-          <form
-            onSubmit={e => { e.preventDefault(); createMutation.mutate({ name: newName, description: newDesc || undefined }) }}
-            style={{
-              display: 'flex', flexDirection: 'column', gap: 8, padding: 14,
-              background: 'var(--surface-card)',
-              border: '1px solid rgba(255,128,21,0.18)',
-              borderRadius: 8, animation: 'fadeInUp 0.18s ease',
-            }}
-          >
-            <input
-              autoFocus value={newName}
-              onChange={e => setNewName(e.target.value)}
-              placeholder="Project name…" required
-              style={{
-                padding: '8px 11px',
-                background: 'var(--surface-input)',
-                border: '1px solid rgba(255,128,21,0.2)',
-                borderRadius: 6, color: 'var(--text)', fontSize: 22, outline: 'none',
-              }}
-            />
-            <textarea
-              value={newDesc}
-              onChange={e => setNewDesc(e.target.value)}
-              placeholder="Brief description (optional)…"
-              rows={2}
-              style={{
-                padding: '6px 11px',
-                background: 'var(--surface-input)',
-                border: '1px solid rgba(255,128,21,0.2)',
-                borderRadius: 6, color: 'var(--text)', fontSize: 21, outline: 'none',
-                resize: 'none', fontFamily: 'inherit',
-              }}
-            />
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button type="submit" disabled={createMutation.isPending} style={{
-                padding: '8px 16px', cursor: 'pointer',
-                background: '#ff8015', color: '#06091a',
-                border: 'none', borderRadius: 6, fontSize: 16, fontWeight: 700,
-                letterSpacing: '0.06em', fontFamily: 'var(--font-mono)',
-              }}>CREATE</button>
-              <button type="button" onClick={() => setCreating(false)} style={{
-                padding: '8px 12px', cursor: 'pointer',
-                background: 'var(--surface-input)',
-                border: '1px solid var(--border-subtle)',
-                borderRadius: 6, color: 'var(--text-3)', fontSize: 21,
-              }}>✕</button>
-            </div>
-          </form>
-        ) : (
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button
-              onClick={() => setCreating(true)}
-              style={{
-                padding: '9px 18px', cursor: 'pointer',
-                background: 'rgba(255,128,21,0.07)',
-                border: '1px solid rgba(255,128,21,0.18)',
-                borderRadius: 7, color: '#ff8015',
-                fontSize: 16, fontWeight: 700, letterSpacing: '0.08em',
-                transition: 'background 0.14s',
-                fontFamily: 'var(--font-mono)',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,128,21,0.13)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,128,21,0.07)' }}
-            >+ NEW PROJECT</button>
-            <button
-              onClick={() => { setShowTemplateWizard(true); setSelectedTemplate(null); setTemplateProjectName('') }}
-              style={{
-                padding: '9px 18px', cursor: 'pointer',
-                background: 'rgba(139,92,246,0.07)',
-                border: '1px solid rgba(139,92,246,0.18)',
-                borderRadius: 7, color: '#a78bfa',
-                fontSize: 16, fontWeight: 700, letterSpacing: '0.08em',
-                transition: 'background 0.14s',
-                fontFamily: 'var(--font-mono)',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(139,92,246,0.13)' }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(139,92,246,0.07)' }}
-            >🧬 FROM TEMPLATE</button>
+      {creating && (
+        <form
+          onSubmit={e => { e.preventDefault(); createMutation.mutate({ name: newName, description: newDesc || undefined }) }}
+          className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16, animation: 'fadeInUp 0.18s ease' }}
+        >
+          <input className="input" autoFocus value={newName} onChange={e => setNewName(e.target.value)} placeholder="Project name" required />
+          <textarea className="input" value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Brief description (optional)" rows={2} style={{ resize: 'vertical' }} />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button type="submit" className="btn btn-primary" disabled={createMutation.isPending}>Create</button>
+            <button type="button" className="btn" onClick={() => setCreating(false)}>Cancel</button>
           </div>
-        )}
+        </form>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 12 }}>
+        {projects.map((p: Project, i: number) => (
+          <ProjectCard key={p.id} project={p} accent={ACCENT_CYCLE[i % ACCENT_CYCLE.length]} index={i} />
+        ))}
       </div>
+      {projects.length === 0 && !creating && (
+        <div className="empty">No projects yet — create your first one to get started.</div>
+      )}
 
       {/* ── Template wizard modal ── */}
       {showTemplateWizard && (
@@ -445,10 +311,10 @@ export function Projects() {
           >
             {!selectedTemplate ? (
               <>
-                <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>
-                  PROJECT TEMPLATES
+                <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)', marginBottom: 6 }}>
+                  Project templates
                 </div>
-                <div style={{ fontSize: 18, color: 'var(--text-dim)', marginBottom: 24 }}>
+                <div style={{ fontSize: 15, color: 'var(--text-dim)', marginBottom: 24 }}>
                   Choose a template to pre-populate phases, tasks, and experiment types.
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -466,10 +332,10 @@ export function Projects() {
                       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--surface-card)' }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                        <div style={{ fontSize: 32 }}>{t.icon}</div>
+                        <div style={{ fontSize: 26 }}>{t.icon}</div>
                         <div>
-                          <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--text-heading)' }}>{t.name}</div>
-                          <div style={{ fontSize: 17, color: 'var(--text-2)', marginTop: 2 }}>{t.description}</div>
+                          <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--text-heading)' }}>{t.name}</div>
+                          <div style={{ fontSize: 15, color: 'var(--text-2)', marginTop: 2 }}>{t.description}</div>
                           <div style={{ fontSize: 15, color: 'var(--text-dim)', marginTop: 4, fontFamily: 'var(--font-mono)' }}>
                             {t.phases.length} phases · {t.tasks.length} tasks · {t.experiment_types.length} experiment types
                           </div>
@@ -484,18 +350,18 @@ export function Projects() {
                     marginTop: 20, padding: '9px 18px', cursor: 'pointer',
                     background: 'transparent', border: '1px solid var(--border)',
                     borderRadius: 7, color: 'var(--text-muted)',
-                    fontSize: 18, fontFamily: 'var(--font-mono)',
+                    fontSize: 15, fontFamily: 'var(--font-mono)',
                   }}
-                >CANCEL</button>
+                >Cancel</button>
               </>
             ) : (
               <>
-                <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)', marginBottom: 10 }}>
+                <div style={{ fontSize: 20, fontWeight: 600, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)', marginBottom: 10 }}>
                   {selectedTemplate.icon} {selectedTemplate.name}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    <label style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>PROJECT NAME *</label>
+                    <label style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>Project name *</label>
                     <input
                       autoFocus value={templateProjectName}
                       onChange={e => setTemplateProjectName(e.target.value)}
@@ -503,14 +369,14 @@ export function Projects() {
                       style={{
                         padding: '9px 12px', background: 'var(--surface-input)',
                         border: '1px solid var(--border)', borderRadius: 7,
-                        color: 'var(--text)', fontSize: 22, outline: 'none',
+                        color: 'var(--text)', fontSize: 17, outline: 'none',
                       }}
                     />
                   </div>
 
                   {/* Preview */}
                   <div style={{ background: 'var(--surface-2)', borderRadius: 8, padding: 14 }}>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginBottom: 8, letterSpacing: '0.06em' }}>PHASES</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginBottom: 8, letterSpacing: '0.04em' }}>Phases</div>
                     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                       {selectedTemplate.phases.map(p => (
                         <span key={p.name} style={{
@@ -520,8 +386,8 @@ export function Projects() {
                         }}>{p.name}</span>
                       ))}
                     </div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', margin: '10px 0 6px', letterSpacing: '0.06em' }}>TASKS ({selectedTemplate.tasks.length})</div>
-                    <div style={{ fontSize: 17, color: 'var(--text-2)' }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', margin: '10px 0 6px', letterSpacing: '0.04em' }}>TASKS ({selectedTemplate.tasks.length})</div>
+                    <div style={{ fontSize: 15, color: 'var(--text-2)' }}>
                       {selectedTemplate.tasks.slice(0, 4).map(t => t.title).join(' · ')}
                       {selectedTemplate.tasks.length > 4 ? ' …' : ''}
                     </div>
@@ -552,9 +418,9 @@ export function Projects() {
                       background: creatingFromTemplate ? 'rgba(139,92,246,0.07)' : 'rgba(139,92,246,0.12)',
                       border: '1px solid rgba(139,92,246,0.28)',
                       borderRadius: 7, color: '#a78bfa',
-                      fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                      fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
                     }}
-                  >{creatingFromTemplate ? 'CREATING…' : 'CREATE PROJECT'}</button>
+                  >{creatingFromTemplate ? 'Creating…' : 'Create project'}</button>
                   <button
                     onClick={() => setSelectedTemplate(null)}
                     disabled={creatingFromTemplate}
@@ -562,9 +428,9 @@ export function Projects() {
                       padding: '9px 18px', cursor: 'pointer',
                       background: 'transparent', border: '1px solid var(--border)',
                       borderRadius: 7, color: 'var(--text-muted)',
-                      fontSize: 18, fontFamily: 'var(--font-mono)',
+                      fontSize: 15, fontFamily: 'var(--font-mono)',
                     }}
-                  >BACK</button>
+                  >Back</button>
                 </div>
               </>
             )}

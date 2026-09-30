@@ -1,7 +1,6 @@
 """Tests for attachment upload/download/delete API endpoints."""
 from __future__ import annotations
 
-from contextlib import contextmanager
 from io import BytesIO
 from pathlib import Path
 from unittest.mock import patch
@@ -12,44 +11,12 @@ from fastapi.testclient import TestClient
 from EvoScientist.pm.api.app import create_app
 from EvoScientist.pm.auth import hash_password
 from EvoScientist.pm.crud.users import create_user
-from EvoScientist.pm.db import create_schema
-
-
-def _make_app(tmp_db: Path) -> TestClient:
-    """Create an app with all get_db_path / get_db calls redirected to tmp_db."""
-    import EvoScientist.pm.api.deps as deps_mod
-    import EvoScientist.pm.api.routes.attachments as att_r
-    import EvoScientist.pm.api.routes.auth as auth_r
-    import EvoScientist.pm.api.routes.experiments as exps_r
-    import EvoScientist.pm.api.routes.projects as proj_r
-    import EvoScientist.pm.api.routes.runs as runs_r
-    import EvoScientist.pm.api.routes.tasks as tasks_r
-    import EvoScientist.pm.api.routes.users as users_r
-    import EvoScientist.pm.crud.experiment_entries as entries_mod
-    import EvoScientist.pm.crud.experiments as exps_mod
-    import EvoScientist.pm.crud.projects as proj_mod
-    import EvoScientist.pm.crud.tasks as tasks_mod
-    import EvoScientist.pm.crud.users as users_mod
-    from EvoScientist.pm.db import get_db as _real_get_db
-
-    for mod in [
-        deps_mod, users_mod, proj_mod, tasks_mod, exps_mod, entries_mod,
-        auth_r, users_r, proj_r, tasks_r, runs_r, exps_r, att_r,
-    ]:
-        if hasattr(mod, "get_db_path"):
-            mod.get_db_path = lambda _db=tmp_db: _db
-
-    # Patch get_db in the attachments routes module so it always uses the temp DB
-    att_r.get_db = lambda: _real_get_db(tmp_db)
-
-    return create_app(tmp_db)
 
 
 @pytest.fixture
 def auth_client(tmp_db: Path):
     """Return a TestClient with a valid auth token and project/experiment/entry IDs."""
-    app = _make_app(tmp_db)
-    tc = TestClient(app, raise_server_exceptions=True)
+    tc = TestClient(create_app(tmp_db), raise_server_exceptions=True)
 
     # Create user via CRUD and log in via API to get a real token
     create_user(tmp_db, username="alice", password_hash=hash_password("pass123"), is_admin=True)

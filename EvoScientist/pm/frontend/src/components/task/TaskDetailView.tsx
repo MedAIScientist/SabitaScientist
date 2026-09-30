@@ -44,13 +44,13 @@ export function TaskDetailView({ task, projectId, members, token, allTasks, copi
           padding: '3px 10px', borderRadius: 4,
           background: status.bg, border: `1px solid ${status.color}28`,
           color: status.color, fontSize: 15, fontWeight: 700,
-          letterSpacing: '0.12em', fontFamily: 'var(--font-mono)',
+          letterSpacing: '0.04em', fontFamily: 'var(--font-mono)',
         }}>{status.label}</span>
         <span style={{
           padding: '3px 10px', borderRadius: 4,
           background: priority.bg, border: `1px solid ${priority.color}28`,
           color: priority.color, fontSize: 15, fontWeight: 700,
-          letterSpacing: '0.12em', fontFamily: 'var(--font-mono)',
+          letterSpacing: '0.04em', fontFamily: 'var(--font-mono)',
         }}>{priority.label}</span>
         {task.deadline && (
           <span style={deadlineBadgeStyle}>⏱ {task.deadline}</span>
@@ -61,8 +61,8 @@ export function TaskDetailView({ task, projectId, members, token, allTasks, copi
             background: 'rgba(244,63,94,0.1)',
             border: '1px solid rgba(244,63,94,0.28)',
             color: '#f43f5e', fontSize: 15, fontWeight: 700,
-            letterSpacing: '0.08em', fontFamily: 'var(--font-mono)',
-          }}>BLOCKED</span>
+            letterSpacing: '0.04em', fontFamily: 'var(--font-mono)',
+          }}>Blocked</span>
         )}
       </div>
 
@@ -70,7 +70,7 @@ export function TaskDetailView({ task, projectId, members, token, allTasks, copi
 
       {/* Description */}
       {task.description && (
-        <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 22, lineHeight: 1.65 }}>
+        <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 17, lineHeight: 1.65 }}>
           {task.description}
         </p>
       )}
@@ -79,7 +79,7 @@ export function TaskDetailView({ task, projectId, members, token, allTasks, copi
       {task.assignee_id && (
         <div>
           <span style={labelStyle}>Assigned Researcher</span>
-          <span style={{ color: 'var(--text-2)', fontSize: 18 }}>
+          <span style={{ color: 'var(--text-2)', fontSize: 15 }}>
             {members.find(m => m.user_id === task.assignee_id)?.username ?? task.assignee_id}
           </span>
         </div>
@@ -88,24 +88,24 @@ export function TaskDetailView({ task, projectId, members, token, allTasks, copi
       {/* Linked session */}
       {task.session_id && (
         <div style={{
-          background: 'rgba(255,128,21,0.04)',
-          border: '1px solid rgba(255,128,21,0.14)',
+          background: 'rgba(var(--accent-rgb),0.04)',
+          border: '1px solid rgba(var(--accent-rgb),0.14)',
           borderRadius: 8, padding: '12px 14px',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 9 }}>
             <span style={{
               width: 5, height: 5, borderRadius: '50%',
-              background: '#ff8015', boxShadow: '0 0 5px #ff8015',
+              background: 'var(--accent)', boxShadow: '0 0 5px var(--accent)',
             }} />
             <span style={{
-              fontSize: 15, fontWeight: 700, color: '#ff8015',
-              letterSpacing: '0.12em', fontFamily: 'var(--font-mono)',
-            }}>LINKED SESSION</span>
+              fontSize: 15, fontWeight: 700, color: 'var(--accent)',
+              letterSpacing: '0.04em', fontFamily: 'var(--font-mono)',
+            }}>Linked session</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <code style={{
-              flex: 1, fontSize: 20, color: 'var(--text-2)',
-              fontFamily: 'var(--font-mono)',
+              flex: 1, fontSize: 16, color: 'var(--text-2)',
+              fontFamily: 'var(--font-code)',
               overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
             }}>
               {task.session_id}
@@ -115,9 +115,9 @@ export function TaskDetailView({ task, projectId, members, token, allTasks, copi
               aria-label={copied ? 'Copied' : 'Copy'}
               style={{
                 flexShrink: 0, padding: '3px 10px', fontSize: 16, cursor: 'pointer',
-                background: copied ? 'rgba(16,185,129,0.12)' : 'rgba(255,128,21,0.08)',
-                border: `1px solid ${copied ? 'rgba(16,185,129,0.28)' : 'rgba(255,128,21,0.22)'}`,
-                borderRadius: 5, color: copied ? '#10b981' : '#ff8015',
+                background: copied ? 'rgba(16,185,129,0.12)' : 'rgba(var(--accent-rgb),0.08)',
+                border: `1px solid ${copied ? 'rgba(16,185,129,0.28)' : 'rgba(var(--accent-rgb),0.22)'}`,
+                borderRadius: 5, color: copied ? '#10b981' : 'var(--accent)',
                 fontFamily: 'var(--font-mono)', transition: 'all 0.2s',
               }}
             >{copied ? '✓ Copied' : 'Copy'}</button>
@@ -143,10 +143,10 @@ export function TaskDetailView({ task, projectId, members, token, allTasks, copi
 
       {/* Linked experiments */}
       <div>
-        <span style={labelStyle}>LINKED EXPERIMENTS</span>
+        <span style={labelStyle}>Linked experiments</span>
         {linkedExperiments.length === 0 ? (
           <span style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
-            NO LINKED EXPERIMENTS
+            No linked experiments
           </span>
         ) : (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>

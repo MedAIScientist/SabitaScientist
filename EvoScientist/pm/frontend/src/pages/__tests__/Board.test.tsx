@@ -141,9 +141,9 @@ beforeEach(() => {
 describe('Board', () => {
   test('renders three lab column headers: PLANNED, IN PROGRESS, COMPLETE', () => {
     renderBoard()
-    expect(screen.getByText('PLANNED')).toBeInTheDocument()
-    expect(screen.getByText('IN PROGRESS')).toBeInTheDocument()
-    expect(screen.getByText('COMPLETE')).toBeInTheDocument()
+    expect(screen.getByText(/^PLANNED$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^IN PROGRESS$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^COMPLETE$/i)).toBeInTheDocument()
   })
 
   test('renders FilterToolbar (search input with 🔬 placeholder present)', () => {
@@ -210,7 +210,7 @@ describe('Board', () => {
       .mockReturnValueOnce({ data: [] } as any)
 
     renderBoard()
-    expect(screen.getByText(/⚙ SETTINGS/i)).toBeInTheDocument()
+    expect(screen.getByText(/Settings/i)).toBeInTheDocument()
   })
 
   test('⚙ SETTINGS button is hidden for non-owner members', () => {
@@ -228,7 +228,7 @@ describe('Board', () => {
       .mockReturnValueOnce({ data: [] } as any)
 
     renderBoard()
-    expect(screen.queryByText(/⚙ SETTINGS/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Settings/i)).not.toBeInTheDocument()
   })
 
   it('renders swimlanes when phases exist', () => {

@@ -40,7 +40,7 @@ export function StatCard({ value, label, accent, sublabel }: StatCardProps) {
         fontSize: 15,
         color: 'var(--text-dim)',
         fontFamily: 'var(--font-mono)',
-        letterSpacing: '0.1em',
+        letterSpacing: '0.04em',
         textTransform: 'uppercase' as const,
       }}>
         {label}

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel, Field
 
 from ...auth import hash_password
 from ...crud.users import (
@@ -34,6 +35,7 @@ def _to_response(u: User) -> UserResponse:
         email=u.email,
         is_admin=u.is_admin,
         created_at=u.created_at,
+        role=u.role,
     )
 
 
@@ -52,6 +54,8 @@ def create_new_user(body: UserCreate, _admin: User = Depends(require_admin)):
             username=body.username,
             password_hash=hash_password(body.password),
             email=body.email,
+            is_admin=body.is_admin,
+            role=body.role,
         )
     except Exception as exc:
         raise HTTPException(
@@ -107,6 +111,7 @@ def update_existing_user(
         username=body.username,
         email=body.email,
         is_admin=body.is_admin,
+        role=body.role,
     )
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -155,5 +160,42 @@ def create_admin(body: UserCreate):
         password_hash=hash_password(body.password),
         email=body.email,
         is_admin=True,
+        role="admin",
     )
     return _to_response(user)
+
+
+class BulkUserRow(BaseModel):
+    username: str = Field(min_length=1, max_length=64)
+    password: str = Field(min_length=6)
+    email: str | None = None
+    role: str = "student"
+
+
+class BulkImportRequest(BaseModel):
+    rows: list[BulkUserRow] = Field(min_length=1, max_length=500)
+
+
+class BulkImportResponse(BaseModel):
+    created: int
+    errors: list[str]
+
+
+@router.post("/bulk-import", response_model=BulkImportResponse)
+def bulk_import_users(body: BulkImportRequest, _admin: User = Depends(require_admin)):
+    """Create many users at once (CSV import). Partial success is reported."""
+    created = 0
+    errors: list[str] = []
+    for row in body.rows:
+        try:
+            create_user(
+                get_db_path(),
+                username=row.username,
+                password_hash=hash_password(row.password),
+                email=row.email,
+                role=row.role if row.role in ("student", "professor", "admin") else "student",
+            )
+            created += 1
+        except Exception as exc:
+            errors.append(f"{row.username}: {exc}")
+    return BulkImportResponse(created=created, errors=errors)

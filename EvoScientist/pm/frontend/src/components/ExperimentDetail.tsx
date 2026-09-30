@@ -8,10 +8,10 @@ import { ExperimentDataTab } from './experiment/ExperimentDataTab'
 import { ExperimentMetricsTab } from './experiment/ExperimentMetricsTab'
 
 const STATUS_META: Record<string, { color: string; label: string }> = {
-  planned:   { color: '#f59e0b', label: 'PLANNED' },
-  running:   { color: '#ff8015', label: 'RUNNING' },
-  completed: { color: '#10b981', label: 'COMPLETED' },
-  abandoned: { color: '#6b7280', label: 'ABANDONED' },
+  planned:   { color: '#f59e0b', label: 'Planned' },
+  running:   { color: '#ff8015', label: 'Running' },
+  completed: { color: '#10b981', label: 'Completed' },
+  abandoned: { color: '#6b7280', label: 'Abandoned' },
 }
 
 interface Phase { id: string; name: string; color?: string }
@@ -119,9 +119,9 @@ export function ExperimentDetail({ experiment, projectId, onClose, phases }: Pro
 
   const tabStyle = (t: Tab): React.CSSProperties => ({
     padding: '5px 12px', fontSize: 15, fontFamily: 'var(--font-mono)',
-    color: tab === t ? '#ff8015' : 'var(--text-3)',
+    color: tab === t ? 'var(--accent)' : 'var(--text-3)',
     background: 'none', border: 'none', borderBottomStyle: 'solid',
-    borderBottomWidth: 2, borderBottomColor: tab === t ? '#ff8015' : 'transparent',
+    borderBottomWidth: 2, borderBottomColor: tab === t ? 'var(--accent)' : 'transparent',
     cursor: 'pointer', fontWeight: tab === t ? 700 : 400,
   })
 
@@ -138,12 +138,12 @@ export function ExperimentDetail({ experiment, projectId, onClose, phases }: Pro
       }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
           <div>
-            <div style={{ fontSize: 21, fontWeight: 600, color: 'var(--text-heading)', marginBottom: 4 }}>
+            <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--text-heading)', marginBottom: 4 }}>
               {experiment.name}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{
-                fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
                 color: status.color, background: `${status.color}18`,
                 border: `1px solid ${status.color}33`,
                 borderRadius: 2, padding: '1px 5px',
@@ -178,22 +178,22 @@ export function ExperimentDetail({ experiment, projectId, onClose, phases }: Pro
                 }
               }}
               style={{
-                background: isEditing ? 'rgba(16,185,129,0.12)' : 'rgba(255,128,21,0.08)',
-                border: isEditing ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(255,128,21,0.18)',
-                borderRadius: 4, color: isEditing ? '#10b981' : '#ff8015', fontSize: 18,
+                background: isEditing ? 'rgba(16,185,129,0.12)' : 'rgba(var(--accent-rgb),0.08)',
+                border: isEditing ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(var(--accent-rgb),0.18)',
+                borderRadius: 4, color: isEditing ? '#10b981' : 'var(--accent)', fontSize: 15,
                 cursor: 'pointer', padding: '2px 8px',
                 fontFamily: 'var(--font-mono)', fontWeight: 700,
               }}
               title={isEditing ? 'Save changes' : 'Edit experiment'}
             >
-              {isEditing ? '💾 SAVE' : '✎ EDIT'}
+              {isEditing ? '💾 Save' : '✎ Edit'}
             </button>
             <button
               onClick={() => setShowAiPanel(p => !p)}
               style={{
                 background: showAiPanel ? 'rgba(167,139,250,0.12)' : 'none',
                 border: showAiPanel ? '1px solid rgba(167,139,250,0.3)' : '1px solid transparent',
-                borderRadius: 4, color: '#a78bfa', fontSize: 18,
+                borderRadius: 4, color: '#a78bfa', fontSize: 15,
                 cursor: 'pointer', padding: '2px 8px',
                 fontFamily: 'var(--font-mono)', fontWeight: 700,
               }}
@@ -204,7 +204,7 @@ export function ExperimentDetail({ experiment, projectId, onClose, phases }: Pro
             <button
               onClick={onClose}
               aria-label="✕"
-              style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 24, cursor: 'pointer', padding: 4 }}
+              style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 20, cursor: 'pointer', padding: 4 }}
             >
               ✕
             </button>
@@ -213,11 +213,11 @@ export function ExperimentDetail({ experiment, projectId, onClose, phases }: Pro
 
         {/* Tab bar */}
         <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', marginTop: 4 }}>
-          <button style={tabStyle('overview')} onClick={() => setTab('overview')}>OVERVIEW</button>
-          <button style={tabStyle('data')} onClick={() => setTab('data')}>DATA</button>
-          <button style={tabStyle('metrics')} onClick={() => setTab('metrics')}>METRICS</button>
-          <button style={tabStyle('notes')} onClick={() => { setTab('notes'); setShowEditor(false) }}>NOTES</button>
-          <button style={tabStyle('results')} onClick={() => { setTab('results'); setShowEditor(false) }}>RESULTS</button>
+          <button style={tabStyle('overview')} onClick={() => setTab('overview')}>Overview</button>
+          <button style={tabStyle('data')} onClick={() => setTab('data')}>Data</button>
+          <button style={tabStyle('metrics')} onClick={() => setTab('metrics')}>Metrics</button>
+          <button style={tabStyle('notes')} onClick={() => { setTab('notes'); setShowEditor(false) }}>Notes</button>
+          <button style={tabStyle('results')} onClick={() => { setTab('results'); setShowEditor(false) }}>Results</button>
         </div>
       </div>
 
@@ -246,41 +246,41 @@ export function ExperimentDetail({ experiment, projectId, onClose, phases }: Pro
                   borderRadius: 4, color: '#f43f5e', fontSize: 14, cursor: 'pointer',
                   fontFamily: 'var(--font-mono)', padding: '3px 8px', marginBottom: 10,
                 }}
-              >✕ CANCEL</button>
+              >✕ Cancel</button>
             )}
             <div style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>NAME</label>
+              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>Name</label>
               <input value={editName} onChange={e => setEditName(e.target.value)}
                 style={{ width: '100%', boxSizing: 'border-box', padding: '8px 11px', background: 'var(--surface-input)',
-                  border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 20, outline: 'none' }} />
+                  border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 16, outline: 'none' }} />
             </div>
             <div style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>STATUS</label>
+              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>Status</label>
               <select value={editStatus} onChange={e => setEditStatus(e.target.value)}
                 style={{ width: '100%', boxSizing: 'border-box', padding: '8px 11px', background: 'var(--surface-input)',
-                  border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 20, outline: 'none' }}>
+                  border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 16, outline: 'none' }}>
                 {Object.entries(STATUS_META).map(([k, v]) => (
                   <option key={k} value={k}>{v.label}</option>
                 ))}
               </select>
             </div>
             <div style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>HYPOTHESIS</label>
+              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>Hypothesis</label>
               <textarea value={editHypothesis} onChange={e => setEditHypothesis(e.target.value)} rows={4}
                 style={{ width: '100%', boxSizing: 'border-box', padding: '8px 11px', background: 'var(--surface-input)',
-                  border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 18, outline: 'none', resize: 'vertical' }} />
+                  border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 15, outline: 'none', resize: 'vertical' }} />
             </div>
             <div style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>PROTOCOL</label>
+              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>Protocol</label>
               <textarea value={editProtocol} onChange={e => setEditProtocol(e.target.value)} rows={4}
                 style={{ width: '100%', boxSizing: 'border-box', padding: '8px 11px', background: 'var(--surface-input)',
-                  border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 18, outline: 'none', resize: 'vertical' }} />
+                  border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 15, outline: 'none', resize: 'vertical' }} />
             </div>
             <div style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>PHASE</label>
+              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>Phase</label>
               <select value={editPhaseId} onChange={e => setEditPhaseId(e.target.value)}
                 style={{ width: '100%', boxSizing: 'border-box', padding: '8px 11px', background: 'var(--surface-input)',
-                  border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 20, outline: 'none' }}>
+                  border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 16, outline: 'none' }}>
                 <option value="">No phase</option>
                 {(phases ?? []).map(p => (
                   <option key={p.id} value={p.id}>{p.name}</option>
@@ -288,10 +288,10 @@ export function ExperimentDetail({ experiment, projectId, onClose, phases }: Pro
               </select>
             </div>
             <div style={{ marginBottom: 10 }}>
-              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>DEADLINE</label>
+              <label style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>Deadline</label>
               <input type="date" value={editDeadline} onChange={e => setEditDeadline(e.target.value)}
                 style={{ width: '100%', boxSizing: 'border-box', padding: '8px 11px', background: 'var(--surface-input)',
-                  border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 20, outline: 'none' }} />
+                  border: '1px solid var(--border)', borderRadius: 6, color: 'var(--text)', fontSize: 16, outline: 'none' }} />
             </div>
           </div>
         )}
@@ -356,8 +356,8 @@ function OverviewTab({
   phases?: Phase[]
 }) {
   const fieldLabel: React.CSSProperties = {
-    fontSize: 18, fontWeight: 700, color: 'var(--text-dim)',
-    letterSpacing: '0.1em', fontFamily: 'var(--font-mono)',
+    fontSize: 15, fontWeight: 700, color: 'var(--text-dim)',
+    letterSpacing: '0.04em', fontFamily: 'var(--font-mono)',
     marginBottom: 4, marginTop: 10, display: 'block',
   }
   const currentPhase = phases?.find(p => p.id === experiment.phase_id)
@@ -366,9 +366,9 @@ function OverviewTab({
     <div>
       {currentPhase && (
         <>
-          <span style={fieldLabel}>PHASE</span>
+          <span style={fieldLabel}>Phase</span>
           <p style={{
-            fontSize: 20, color: 'var(--text-2)', margin: '0 0 8px',
+            fontSize: 16, color: 'var(--text-2)', margin: '0 0 8px',
             display: 'inline-block',
             background: `${currentPhase.color ?? '#ff8015'}14`,
             border: `1px solid ${currentPhase.color ?? '#ff8015'}30`,
@@ -381,15 +381,15 @@ function OverviewTab({
       )}
       {experiment.hypothesis && (
         <>
-          <span style={fieldLabel}>HYPOTHESIS</span>
-          <p style={{ fontSize: 20, color: 'var(--text-2)', margin: '0 0 8px', lineHeight: 1.6 }}>
+          <span style={fieldLabel}>Hypothesis</span>
+          <p style={{ fontSize: 16, color: 'var(--text-2)', margin: '0 0 8px', lineHeight: 1.6 }}>
             {experiment.hypothesis}
           </p>
         </>
       )}
       {experiment.protocol && (
         <>
-          <span style={fieldLabel}>PROTOCOL</span>
+          <span style={fieldLabel}>Protocol</span>
           <pre style={{ fontSize: 16, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', whiteSpace: 'pre-wrap', margin: '0 0 8px' }}>
             {experiment.protocol}
           </pre>
@@ -397,17 +397,17 @@ function OverviewTab({
       )}
       {experiment.deadline && (
         <>
-          <span style={fieldLabel}>DEADLINE</span>
-          <p style={{ fontSize: 20, color: 'var(--text-2)', margin: '0 0 8px' }}>{experiment.deadline}</p>
+          <span style={fieldLabel}>Deadline</span>
+          <p style={{ fontSize: 16, color: 'var(--text-2)', margin: '0 0 8px' }}>{experiment.deadline}</p>
         </>
       )}
 
-      <span style={fieldLabel}>LINKED TASKS</span>
+      <span style={fieldLabel}>Linked tasks</span>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
         {linkedTasks.map((t: Task) => (
           <span key={t.id} style={{
-            fontSize: 15, color: '#ff8015', background: 'rgba(255,128,21,0.06)',
-            border: '1px solid rgba(255,128,21,0.18)', borderRadius: 3, padding: '2px 7px',
+            fontSize: 15, color: 'var(--accent)', background: 'rgba(var(--accent-rgb),0.06)',
+            border: '1px solid rgba(var(--accent-rgb),0.18)', borderRadius: 3, padding: '2px 7px',
             display: 'flex', alignItems: 'center', gap: 4,
           }}>
             {t.title}
@@ -420,7 +420,7 @@ function OverviewTab({
           </span>
         ))}
         {linkedTasks.length === 0 && (
-          <span style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>NO LINKED TASKS</span>
+          <span style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>No linked tasks</span>
         )}
       </div>
       <input
@@ -440,7 +440,7 @@ function OverviewTab({
           onClick={() => onLink(t.id)}
           style={{
             display: 'block', width: '100%', textAlign: 'left',
-            background: 'rgba(255,128,21,0.04)', border: '1px solid rgba(255,128,21,0.1)',
+            background: 'rgba(var(--accent-rgb),0.04)', border: '1px solid rgba(var(--accent-rgb),0.1)',
             borderRadius: 3, padding: '4px 8px', color: 'var(--text-2)', fontSize: 16,
             cursor: 'pointer', marginTop: 2,
           }}
@@ -472,7 +472,7 @@ function EntriesTab({
   expId: string
 }) {
   const [expanded, setExpanded] = useState<string | null>(null)
-  const label = type === 'note' ? 'NOTE' : 'RESULT'
+  const label = type === 'note' ? 'Note' : 'Result'
   const accent = type === 'note' ? '#ff8015' : '#10b981'
 
   return (
@@ -482,7 +482,7 @@ function EntriesTab({
         style={{
           width: '100%', background: `${accent}14`, border: `1px solid ${accent}55`,
           borderRadius: 4, padding: '6px', color: accent, fontSize: 15, fontWeight: 700,
-          fontFamily: 'var(--font-mono)', letterSpacing: '0.08em', cursor: 'pointer', marginBottom: 10,
+          fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', cursor: 'pointer', marginBottom: 10,
         }}
       >
         + ADD {label}
@@ -495,7 +495,7 @@ function EntriesTab({
       )}
 
       {entries.length === 0 && !showEditor && (
-        <div style={{ fontSize: 18, color: 'var(--text-dim)', textAlign: 'center', fontFamily: 'var(--font-mono)', marginTop: 12 }}>
+        <div style={{ fontSize: 15, color: 'var(--text-dim)', textAlign: 'center', fontFamily: 'var(--font-mono)', marginTop: 12 }}>
           NO {label}S YET
         </div>
       )}
@@ -542,8 +542,8 @@ function EntriesTab({
                     accent={accent}
                   />
                   <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
-                    <button onClick={() => onEdit(entry)} style={{ fontSize: 18, color: '#ff8015', background: 'rgba(255,128,21,0.06)', border: '1px solid rgba(255,128,21,0.15)', borderRadius: 2, padding: '2px 6px', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>✏ Edit</button>
-                    <button onClick={() => onDelete(entry.id)} style={{ fontSize: 18, color: '#f43f5e', background: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.15)', borderRadius: 2, padding: '2px 6px', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>✕ Delete</button>
+                    <button onClick={() => onEdit(entry)} style={{ fontSize: 15, color: 'var(--accent)', background: 'rgba(var(--accent-rgb),0.06)', border: '1px solid rgba(var(--accent-rgb),0.15)', borderRadius: 2, padding: '2px 6px', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>✏ Edit</button>
+                    <button onClick={() => onDelete(entry.id)} style={{ fontSize: 15, color: '#f43f5e', background: 'rgba(244,63,94,0.06)', border: '1px solid rgba(244,63,94,0.15)', borderRadius: 2, padding: '2px 6px', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>✕ Delete</button>
                   </div>
                 </div>
               )}

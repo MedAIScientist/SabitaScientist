@@ -56,7 +56,7 @@ export function UserPicker({
           <span style={{
             flex: 1, padding: '8px 11px', background: 'var(--surface-input)',
             border: '1px solid var(--border)', borderRadius: 7,
-            color: 'var(--text)', fontSize: 20,
+            color: 'var(--text)', fontSize: 16,
           }}>{shown}</span>
           <button
             type="button"
@@ -66,7 +66,7 @@ export function UserPicker({
               background: 'transparent', border: '1px solid var(--border)',
               color: 'var(--text-muted)', fontSize: 15, fontFamily: 'var(--font-mono)',
             }}
-          >CLEAR</button>
+          >Clear</button>
         </div>
       ) : (
         <input
@@ -78,7 +78,7 @@ export function UserPicker({
           style={{
             width: '100%', padding: '9px 11px', background: 'var(--surface-input)',
             border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text)',
-            fontSize: 20, outline: 'none',
+            fontSize: 16, outline: 'none',
           }}
         />
       )}
@@ -100,7 +100,7 @@ export function UserPicker({
                 setOpen(false)
               }}
               style={{
-                padding: '8px 11px', cursor: 'pointer', fontSize: 19,
+                padding: '8px 11px', cursor: 'pointer', fontSize: 16,
                 color: 'var(--text)', borderBottom: '1px solid var(--border-subtle)',
               }}
               onMouseEnter={e => { e.currentTarget.style.background = 'var(--surface-card-hover)' }}

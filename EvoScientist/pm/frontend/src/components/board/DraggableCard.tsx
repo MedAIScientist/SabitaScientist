@@ -13,10 +13,9 @@ export interface ColumnDef {
 
 // ── Priority labels / colors ─────────────────────────────────────────────────
 const PRIORITY: Record<string, { color: string; label: string }> = {
-  critical: { color: '#dc2626', label: 'CRIT' },
-  high:     { color: '#f43f5e', label: 'HIGH' },
-  medium:   { color: '#f59e0b', label: 'NORM' },
-  low:      { color: '#10b981', label: 'ROUT' },
+  high:     { color: '#f43f5e', label: 'Critical' },
+  medium:   { color: '#f59e0b', label: 'Standard' },
+  low:      { color: '#10b981', label: 'Routine' },
 }
 
 // ── Overdue helper ────────────────────────────────────────────────────────────
@@ -54,7 +53,7 @@ export function DraggableCard({
 
   const cardStyle: React.CSSProperties = {
     background: 'var(--surface-card)',
-    border: isSelected ? '1px solid rgba(255,128,21,0.45)' : '1px solid var(--border-subtle)',
+    border: isSelected ? '1px solid rgba(var(--accent-rgb),0.45)' : '1px solid var(--border-subtle)',
     borderLeft: overdue ? '3px solid #f43f5e' : undefined,
     borderRadius: 7,
     padding: '11px 13px',
@@ -90,7 +89,7 @@ export function DraggableCard({
         setIsHovered(false)
         const el = e.currentTarget
         el.style.transform = CSS.Transform.toString(transform) ?? ''
-        el.style.borderColor = isSelected ? 'rgba(255,128,21,0.45)' : (overdue ? '#f43f5e' : 'var(--border-subtle)')
+        el.style.borderColor = isSelected ? 'rgba(var(--accent-rgb),0.45)' : (overdue ? '#f43f5e' : 'var(--border-subtle)')
         el.style.boxShadow = ''
       }}
     >
@@ -109,18 +108,18 @@ export function DraggableCard({
             position: 'absolute',
             top: 8,
             left: 8,
-            accentColor: '#ff8015',
+            accentColor: 'var(--accent)',
             zIndex: 2,
           }}
         />
       )}
 
-      <p style={{ margin: '0 0 6px', fontWeight: 500, fontSize: 22, lineHeight: 1.4, color: 'var(--text-heading)' }}>
+      <p style={{ margin: '0 0 6px', fontWeight: 500, fontSize: 17, lineHeight: 1.4, color: 'var(--text-heading)' }}>
         {task.title}
       </p>
 
       {descSnippet && (
-        <p style={{ margin: '0 0 8px', fontSize: 20, color: 'var(--text-dim)', lineHeight: 1.4 }}>
+        <p style={{ margin: '0 0 8px', fontSize: 16, color: 'var(--text-dim)', lineHeight: 1.4 }}>
           {descSnippet}
         </p>
       )}
@@ -137,7 +136,7 @@ export function DraggableCard({
             border: '1px solid rgba(244,63,94,0.3)',
             borderRadius: 3, padding: '1px 5px',
             fontFamily: 'var(--font-mono)',
-            letterSpacing: '0.08em',
+            letterSpacing: '0.04em',
             flexShrink: 0,
             display: 'inline-flex', alignItems: 'center', gap: 3,
           }}>
@@ -151,7 +150,7 @@ export function DraggableCard({
             border: '1px solid rgba(16,185,129,0.3)',
             borderRadius: 3, padding: '1px 5px',
             fontFamily: 'var(--font-mono)',
-            letterSpacing: '0.08em',
+            letterSpacing: '0.04em',
             flexShrink: 0,
             display: 'inline-flex', alignItems: 'center', gap: 3,
           }}>
@@ -163,9 +162,9 @@ export function DraggableCard({
             title={assignee.username}
             style={{
               width: 18, height: 18, borderRadius: '50%',
-              background: 'rgba(255,128,21,0.18)',
-              border: '1px solid rgba(255,128,21,0.3)',
-              color: '#ff8015', fontSize: 15, fontWeight: 700,
+              background: 'rgba(var(--accent-rgb),0.18)',
+              border: '1px solid rgba(var(--accent-rgb),0.3)',
+              color: 'var(--accent)', fontSize: 15, fontWeight: 700,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontFamily: 'var(--font-mono)', flexShrink: 0,
             }}

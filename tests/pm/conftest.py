@@ -2,26 +2,30 @@
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
 
-from EvoScientist.pm.db import create_schema, get_db
 from EvoScientist.pm.api.app import create_app
 from EvoScientist.pm.auth import hash_password
+from EvoScientist.pm.db import configure_db_path, create_schema
 
 
 @pytest.fixture
-def tmp_db(tmp_path: Path, monkeypatch) -> Path:
-    """Return path to a fresh temporary projects.db.
+def tmp_db(tmp_path: Path) -> Iterator[Path]:
+    """A fresh PM database, bound process-wide for the duration of one test.
 
-    Sets EVOSCIENTIST_PM_DB so get_db_path() resolves to the temp DB in every
-    module (routes, audit_helper, crud) without per-module patching.
+    Binding it here — instead of pointing each module's ``get_db_path`` at the
+    file — is what ``create_app`` does in production too, so tests exercise the
+    real resolution path. The binding is cleared afterwards, so no test can
+    observe another test's database.
     """
     db_path = tmp_path / "projects.db"
+    configure_db_path(db_path)
     create_schema(db_path)
-    monkeypatch.setenv("EVOSCIENTIST_PM_DB", str(db_path))
-    return db_path
+    yield db_path
+    configure_db_path(None)
 
 
 @pytest.fixture
@@ -34,37 +38,9 @@ def db_conn(tmp_db: Path):
     conn.close()
 
 
-def monkeypatch_db(db_path: Path, *modules) -> None:
-    """Replace get_db_path() in each module to return db_path."""
-    for mod in modules:
-        if hasattr(mod, "get_db_path"):
-            mod.get_db_path = lambda: db_path
-
-
 @pytest.fixture
 def app(tmp_db: Path):
-    """Return a FastAPI test app backed by a temp DB."""
-    import EvoScientist.pm.api.deps as deps_mod
-    import EvoScientist.pm.auth as auth_mod
-    import EvoScientist.pm.crud.users as users_mod
-    import EvoScientist.pm.crud.projects as projects_mod
-    import EvoScientist.pm.crud.tasks as tasks_mod
-    import EvoScientist.pm.api.routes.auth as auth_routes_mod
-    import EvoScientist.pm.api.routes.users as users_routes_mod
-    import EvoScientist.pm.api.routes.projects as projects_routes_mod
-    import EvoScientist.pm.api.routes.tasks as tasks_routes_mod
-    import EvoScientist.pm.api.routes.phases as phases_routes_mod
-    import EvoScientist.pm.api.routes.dependencies as dependencies_routes_mod
-    import EvoScientist.pm.api.audit_middleware as audit_mid_mod
-    import EvoScientist.pm.crud.dependencies as dependencies_crud_mod
-
-    # Patch all DB path lookups to use the temp DB
-    monkeypatch_db(
-        tmp_db, deps_mod, auth_mod, users_mod, projects_mod, tasks_mod,
-        auth_routes_mod, users_routes_mod, projects_routes_mod, tasks_routes_mod,
-        phases_routes_mod, dependencies_routes_mod, dependencies_crud_mod,
-        audit_mid_mod,
-    )
+    """Return a FastAPI test app bound to the temp DB."""
     return create_app(tmp_db)
 
 

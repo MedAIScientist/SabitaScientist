@@ -9,6 +9,13 @@ class RunRequest(BaseModel):
     agent_type: str = Field(pattern="^(research|code|data_analysis|writing)$")
     prompt: str = Field(min_length=1)
     workspace_dir: str
+    # Attribution, so the tokens this run burns can be reported against the person
+    # and the paper that asked for it. Optional on purpose: missing bookkeeping
+    # must never reject a run.
+    task: str | None = None
+    user_id: str | None = None
+    project_id: str | None = None
+    publication_id: str | None = None
 
 
 class RunEvent(BaseModel):

@@ -5,49 +5,12 @@ never recorded cannot reach a drafting prompt".
 """
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
-from fastapi.testclient import TestClient
 
-from EvoScientist.pm.api.app import create_app
 from EvoScientist.pm.auth import hash_password
 from EvoScientist.pm.crud.experiment_metrics import create_metrics, list_metrics
 from EvoScientist.pm.crud.users import create_user
 from EvoScientist.pm.metrics_csv import parse_metrics_csv
-
-
-@pytest.fixture
-def app(tmp_db: Path):
-    """App with every DB lookup pinned to tmp_db.
-
-    Other test modules overwrite ``get_db_path`` on these shared modules
-    permanently, so each binding is rebound here with a default argument
-    rather than a closure — otherwise this test depends on file ordering.
-    """
-    import EvoScientist.pm.api.deps as deps_mod
-    import EvoScientist.pm.api.routes.attachments as att_r
-    import EvoScientist.pm.api.routes.auth as auth_r
-    import EvoScientist.pm.api.routes.drafting_helpers as helpers_mod
-    import EvoScientist.pm.api.routes.experiments as exps_r
-    import EvoScientist.pm.api.routes.projects as proj_r
-    import EvoScientist.pm.crud.experiment_entries as entries_mod
-    import EvoScientist.pm.crud.experiments as exps_mod
-    import EvoScientist.pm.crud.projects as proj_mod
-    import EvoScientist.pm.crud.users as users_mod
-    from EvoScientist.pm.db import get_db as _real_get_db
-
-    for mod in [deps_mod, users_mod, proj_mod, exps_mod, entries_mod,
-                auth_r, proj_r, exps_r, att_r, helpers_mod]:
-        if hasattr(mod, "get_db_path"):
-            mod.get_db_path = lambda _db=tmp_db: _db
-    att_r.get_db = lambda _db=tmp_db: _real_get_db(_db)
-    return create_app(tmp_db)
-
-
-@pytest.fixture
-def client(app):
-    return TestClient(app)
 
 
 @pytest.fixture
@@ -148,8 +111,7 @@ def test_csv_upload_records_metrics(client, headers, experiment, tmp_db):
     ).json()
 
     with patch("EvoScientist.pm.api.routes.attachments.upload_file"), \
-         patch("EvoScientist.pm.api.routes.attachments.generate_presigned_url", return_value="http://x"), \
-         patch("EvoScientist.pm.api.routes.attachments.get_db_path", lambda: tmp_db):
+         patch("EvoScientist.pm.api.routes.attachments.generate_presigned_url", return_value="http://x"):
         resp = client.post(
             f"/api/v1/projects/{project_id}/experiments/{exp_id}/entries/{entry['id']}/attachments",
             files={"file": ("results.csv", b"split,accuracy\ntest,0.88\n", "text/csv")},

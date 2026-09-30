@@ -47,11 +47,11 @@ describe('GrantBudgetTab', () => {
     render(<GrantBudgetTab grantId="g1" currency="TRY" canEdit />)
 
     // 1000 planned, 400 spent, 600 remaining
-    expect(screen.getByText('1,000 TRY')).toBeInTheDocument()
-    expect(screen.getByText('400 TRY')).toBeInTheDocument()
-    expect(screen.getByText('600 TRY')).toBeInTheDocument()
-    expect(screen.getByText('40% OF BUDGET SPENT')).toBeInTheDocument()
-    expect(screen.getByText('EQUIPMENT')).toBeInTheDocument()
+    expect(screen.getByText(/^1,000 TRY$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^400 TRY$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^600 TRY$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^40% OF BUDGET SPENT$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^EQUIPMENT$/i)).toBeInTheDocument()
     expect(screen.getByText('Sequencer')).toBeInTheDocument()
   })
 
@@ -61,23 +61,23 @@ describe('GrantBudgetTab', () => {
       isLoading: false,
     } as any)
     render(<GrantBudgetTab grantId="g1" currency="TRY" canEdit />)
-    expect(screen.getByText(/OVER BUDGET/)).toBeInTheDocument()
+    expect(screen.getByText(/OVER BUDGET/i)).toBeInTheDocument()
   })
 
   test('a reader gets no add or edit affordances', () => {
     mockedUseQuery.mockReturnValue({ data: [budgetItem], isLoading: false } as any)
     render(<GrantBudgetTab grantId="g1" currency="TRY" canEdit={false} />)
-    expect(screen.queryByText('+ ADD BUDGET LINE')).toBeNull()
-    expect(screen.queryByText('EDIT')).toBeNull()
-    expect(screen.queryByText('DELETE')).toBeNull()
+    expect(screen.queryByText(/^\+ ADD BUDGET LINE$/i)).toBeNull()
+    expect(screen.queryByText(/^EDIT$/i)).toBeNull()
+    expect(screen.queryByText(/^DELETE$/i)).toBeNull()
   })
 
   test('an editor can reveal the add-line form', () => {
     mockedUseQuery.mockReturnValue({ data: [], isLoading: false } as any)
     render(<GrantBudgetTab grantId="g1" currency="TRY" canEdit />)
-    fireEvent.click(screen.getByText('+ ADD BUDGET LINE'))
-    expect(screen.getByText('CATEGORY')).toBeInTheDocument()
-    expect(screen.getByText('ADD LINE')).toBeInTheDocument()
+    fireEvent.click(screen.getByText(/^\+ ADD BUDGET LINE$/i))
+    expect(screen.getByText(/^CATEGORY$/i)).toBeInTheDocument()
+    expect(screen.getByText(/^ADD LINE$/i)).toBeInTheDocument()
   })
 })
 
@@ -95,8 +95,8 @@ describe('GrantMilestonesTab', () => {
     render(<GrantMilestonesTab grantId="g1" canEdit />)
     expect(screen.getByText('Interim report')).toBeInTheDocument()
     // the row itself is flagged, and the header counts it
-    expect(screen.getByText('DUE 2020-01-01 · OVERDUE')).toBeInTheDocument()
-    expect(screen.getByText(/1 OVERDUE/)).toBeInTheDocument()
+    expect(screen.getByText(/^DUE 2020\-01\-01 · OVERDUE$/i)).toBeInTheDocument()
+    expect(screen.getByText(/1 OVERDUE/i)).toBeInTheDocument()
   })
 
   test('a completed item is not overdue', () => {
@@ -107,8 +107,8 @@ describe('GrantMilestonesTab', () => {
       } as any)
       .mockReturnValueOnce({ data: [], isLoading: false } as any)
     render(<GrantMilestonesTab grantId="g1" canEdit />)
-    expect(screen.queryByText(/OVERDUE/)).toBeNull()
-    expect(screen.getByText(/DONE 2020-02-01/)).toBeInTheDocument()
+    expect(screen.queryByText(/OVERDUE/i)).toBeNull()
+    expect(screen.getByText(/DONE 2020-02-01/i)).toBeInTheDocument()
   })
 
   test('ticking the checkbox completes the item', () => {
@@ -129,7 +129,7 @@ describe('GrantMilestonesTab', () => {
       .mockReturnValueOnce({ data: [], isLoading: false } as any)
     render(<GrantMilestonesTab grantId="g1" canEdit={false} />)
     expect(screen.getByRole('checkbox')).toBeDisabled()
-    expect(screen.queryByText('DELETE')).toBeNull()
-    expect(screen.queryByText('+ ADD')).toBeNull()
+    expect(screen.queryByText(/^DELETE$/i)).toBeNull()
+    expect(screen.queryByText(/^\+ ADD$/i)).toBeNull()
   })
 })

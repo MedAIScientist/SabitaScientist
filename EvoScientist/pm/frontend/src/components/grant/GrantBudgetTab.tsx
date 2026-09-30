@@ -6,7 +6,7 @@ import { money } from './shared'
 const inputStyle: React.CSSProperties = {
   padding: '8px 10px', background: 'var(--surface-input)',
   border: '1px solid var(--border)', borderRadius: 6,
-  color: 'var(--text)', fontSize: 19, outline: 'none', width: '100%',
+  color: 'var(--text)', fontSize: 16, outline: 'none', width: '100%',
 }
 
 const smallBtn: React.CSSProperties = {
@@ -100,15 +100,15 @@ export function GrantBudgetTab({ grantId, currency, canEdit }: {
           }}>
             <div style={{
               width: `${pct}%`, height: '100%',
-              background: overspent ? '#f43f5e' : '#ff8015',
+              background: overspent ? '#f43f5e' : 'var(--accent)',
               transition: 'width 0.2s',
             }} />
           </div>
           <div style={{
             fontSize: 14, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)',
-            marginTop: 5, letterSpacing: '0.06em',
+            marginTop: 5, letterSpacing: '0.04em',
           }}>
-            {pct}% OF BUDGET SPENT{overspent ? ' · OVER BUDGET' : ''}
+            {pct}% OF BUDGET SPENT{overspent ? ' · Over budget' : ''}
           </div>
         </div>
       </div>
@@ -118,7 +118,7 @@ export function GrantBudgetTab({ grantId, currency, canEdit }: {
       {canEdit && (
         draft ? (
           <div style={{
-            background: 'var(--surface-card)', border: '1px solid rgba(255,128,21,0.2)',
+            background: 'var(--surface-card)', border: '1px solid rgba(var(--accent-rgb),0.2)',
             borderRadius: 10, padding: 16, marginBottom: 14,
           }}>
             <DraftFields
@@ -135,14 +135,14 @@ export function GrantBudgetTab({ grantId, currency, canEdit }: {
             onClick={() => setDraft({ ...emptyDraft })}
             style={{
               ...smallBtn, marginBottom: 14, padding: '7px 14px',
-              borderColor: 'rgba(255,128,21,0.3)', color: '#ff8015',
+              borderColor: 'rgba(var(--accent-rgb),0.3)', color: 'var(--accent)',
             }}
-          >+ ADD BUDGET LINE</button>
+          >+ Add budget line</button>
         )
       )}
 
       {isLoading ? (
-        <Muted>LOADING…</Muted>
+        <Muted>Loading…</Muted>
       ) : items.length === 0 ? (
         <Muted>No budget lines yet.</Muted>
       ) : (
@@ -173,25 +173,25 @@ export function GrantBudgetTab({ grantId, currency, canEdit }: {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <span style={{
                     fontSize: 14, fontFamily: 'var(--font-mono)', fontWeight: 700,
-                    letterSpacing: '0.06em', color: '#ff8015',
-                    background: 'rgba(255,128,21,0.1)', border: '1px solid rgba(255,128,21,0.25)',
+                    letterSpacing: '0.04em', color: 'var(--accent)',
+                    background: 'rgba(var(--accent-rgb),0.1)', border: '1px solid rgba(var(--accent-rgb),0.25)',
                     borderRadius: 4, padding: '2px 8px', flexShrink: 0,
                   }}>{item.category.toUpperCase()}</span>
-                  <span style={{ flex: 1, fontSize: 20, color: 'var(--text)' }}>
+                  <span style={{ flex: 1, fontSize: 16, color: 'var(--text)' }}>
                     {item.description || '—'}
                   </span>
-                  <span style={{ fontSize: 19, fontFamily: 'var(--font-mono)', color: 'var(--text-2)' }}>
+                  <span style={{ fontSize: 16, fontFamily: 'var(--font-mono)', color: 'var(--text-2)' }}>
                     {money(item.spent_amount, currency)} / {money(item.planned_amount, currency)}
                   </span>
                   {canEdit && (
                     <span style={{ display: 'flex', gap: 6 }}>
-                      <button style={smallBtn} onClick={() => startEdit(item)}>EDIT</button>
+                      <button style={smallBtn} onClick={() => startEdit(item)}>Edit</button>
                       <button
                         style={{ ...smallBtn, borderColor: 'rgba(244,63,94,0.3)', color: '#f43f5e' }}
                         onClick={() => {
                           if (window.confirm('Delete this budget line?')) remove.mutate(item.id)
                         }}
-                      >DELETE</button>
+                      >Delete</button>
                     </span>
                   )}
                 </div>
@@ -215,7 +215,7 @@ function DraftFields({ draft, setDraft, onSubmit, onCancel, submitLabel, busy }:
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
       <label style={labelStyle}>
-        CATEGORY
+        Category
         <select
           value={draft.category}
           onChange={e => setDraft({ ...draft, category: e.target.value })}
@@ -225,7 +225,7 @@ function DraftFields({ draft, setDraft, onSubmit, onCancel, submitLabel, busy }:
         </select>
       </label>
       <label style={labelStyle}>
-        DESCRIPTION
+        Description
         <input
           value={draft.description}
           onChange={e => setDraft({ ...draft, description: e.target.value })}
@@ -234,7 +234,7 @@ function DraftFields({ draft, setDraft, onSubmit, onCancel, submitLabel, busy }:
         />
       </label>
       <label style={labelStyle}>
-        PLANNED
+        Planned
         <input
           type="number" min="0" step="any"
           value={draft.planned_amount}
@@ -244,7 +244,7 @@ function DraftFields({ draft, setDraft, onSubmit, onCancel, submitLabel, busy }:
         />
       </label>
       <label style={labelStyle}>
-        SPENT
+        Spent
         <input
           type="number" min="0" step="any"
           value={draft.spent_amount}
@@ -259,11 +259,11 @@ function DraftFields({ draft, setDraft, onSubmit, onCancel, submitLabel, busy }:
           disabled={busy}
           style={{
             cursor: 'pointer', padding: '9px 20px', borderRadius: 7, border: 'none',
-            background: busy ? 'rgba(255,128,21,0.4)' : '#ff8015', color: '#06091a',
+            background: busy ? 'rgba(var(--accent-rgb),0.4)' : 'var(--accent)', color: '#fff',
             fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)',
           }}
-        >{busy ? 'SAVING…' : submitLabel}</button>
-        <button style={{ ...smallBtn, padding: '9px 14px' }} onClick={onCancel}>CANCEL</button>
+        >{busy ? 'Saving…' : submitLabel}</button>
+        <button style={{ ...smallBtn, padding: '9px 14px' }} onClick={onCancel}>Cancel</button>
       </div>
     </div>
   )
@@ -272,7 +272,7 @@ function DraftFields({ draft, setDraft, onSubmit, onCancel, submitLabel, busy }:
 const labelStyle: React.CSSProperties = {
   display: 'flex', flexDirection: 'column', gap: 5,
   fontSize: 14, fontWeight: 700, color: 'var(--text-dim)',
-  fontFamily: 'var(--font-mono)', letterSpacing: '0.08em',
+  fontFamily: 'var(--font-mono)', letterSpacing: '0.04em',
 }
 
 function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
@@ -280,9 +280,9 @@ function Stat({ label, value, color }: { label: string; value: string; color?: s
     <div>
       <div style={{
         fontSize: 13, fontWeight: 700, color: 'var(--text-dim)',
-        fontFamily: 'var(--font-mono)', letterSpacing: '0.1em',
+        fontFamily: 'var(--font-mono)', letterSpacing: '0.04em',
       }}>{label}</div>
-      <div style={{ fontSize: 22, color: color ?? 'var(--text-heading)', marginTop: 3 }}>{value}</div>
+      <div style={{ fontSize: 17, color: color ?? 'var(--text-heading)', marginTop: 3 }}>{value}</div>
     </div>
   )
 }
@@ -291,7 +291,7 @@ function Muted({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
       padding: '20px 0', color: 'var(--text-dim)',
-      fontFamily: 'var(--font-mono)', fontSize: 18,
+      fontFamily: 'var(--font-mono)', fontSize: 15,
     }}>{children}</div>
   )
 }
@@ -301,7 +301,7 @@ function Banner({ color, children }: { color: string; children: React.ReactNode 
     <div style={{
       padding: '8px 12px', marginBottom: 12,
       background: `${color}14`, border: `1px solid ${color}30`,
-      borderRadius: 6, color, fontSize: 18, fontFamily: 'var(--font-mono)',
+      borderRadius: 6, color, fontSize: 15, fontFamily: 'var(--font-mono)',
     }}>{children}</div>
   )
 }

@@ -21,7 +21,7 @@ const labelStyle: React.CSSProperties = {
   fontSize: 15,
   color: 'var(--text-dim)',
   fontFamily: 'var(--font-mono)',
-  letterSpacing: '0.1em',
+  letterSpacing: '0.04em',
   display: 'block',
   marginBottom: 3,
   marginTop: 10,
@@ -35,7 +35,7 @@ const inputStyle: React.CSSProperties = {
   borderRadius: 4,
   color: 'var(--text)',
   padding: '5px 8px',
-  fontSize: 20,
+  fontSize: 16,
   fontFamily: 'var(--font-mono)',
   boxSizing: 'border-box' as const,
   outline: 'none',
@@ -203,12 +203,12 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         flexShrink: 0,
       }}>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 700, color: '#ff8015', letterSpacing: '0.08em' }}>
-          PROJECT SETTINGS
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 16, fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.04em' }}>
+          Project settings
         </span>
         <button
           onClick={onClose}
-          style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 21, cursor: 'pointer', padding: '2px 6px' }}
+          style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 17, cursor: 'pointer', padding: '2px 6px' }}
         >×</button>
       </div>
 
@@ -216,14 +216,14 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
 
         {/* Section 1: Project Details */}
         <div style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: 16, marginBottom: 16 }}>
-          <div style={{ marginTop: 14, fontSize: 16, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', fontWeight: 700 }}>
-            PROJECT DETAILS
+          <div style={{ marginTop: 14, fontSize: 16, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', fontWeight: 700 }}>
+            Project details
           </div>
 
-          <label style={labelStyle}>NAME</label>
+          <label style={labelStyle}>Name</label>
           <input value={editName} onChange={e => setEditName(e.target.value)} style={inputStyle} />
 
-          <label style={labelStyle}>DESCRIPTION</label>
+          <label style={labelStyle}>Description</label>
           <textarea
             value={editDesc}
             onChange={e => setEditDesc(e.target.value)}
@@ -236,15 +236,15 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
             disabled={updateProject.isPending || !editName.trim()}
             style={{
               marginTop: 10, width: '100%',
-              background: 'rgba(255,128,21,0.12)',
-              border: '1px solid rgba(255,128,21,0.28)',
+              background: 'rgba(var(--accent-rgb),0.12)',
+              border: '1px solid rgba(var(--accent-rgb),0.28)',
               borderRadius: 4, padding: '6px 0',
-              color: '#ff8015', fontSize: 16, fontWeight: 700,
+              color: 'var(--accent)', fontSize: 16, fontWeight: 700,
               fontFamily: 'var(--font-mono)', cursor: 'pointer',
               opacity: updateProject.isPending ? 0.5 : 1,
             }}
           >
-            {updateProject.isPending ? 'saving…' : 'SAVE'}
+            {updateProject.isPending ? 'saving…' : 'Save'}
           </button>
           {saveError && (
             <div style={{ marginTop: 5, fontSize: 15, color: '#f43f5e', fontFamily: 'var(--font-mono)' }}>{saveError}</div>
@@ -261,15 +261,15 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
               fontFamily: 'var(--font-mono)', cursor: 'pointer',
             }}
           >
-            {deleteConfirm ? 'CONFIRM DELETE ?' : 'DELETE PROJECT'}
+            {deleteConfirm ? 'Confirm delete ?' : 'Delete project'}
           </button>
           {deleteError && (
-            <div style={{ color: '#f43f5e', fontSize: 20, marginTop: 4 }}>{deleteError}</div>
+            <div style={{ color: '#f43f5e', fontSize: 16, marginTop: 4 }}>{deleteError}</div>
           )}
         </div>
 
         {/* Section 2: Team Members */}
-        <div style={{ fontSize: 16, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 10 }}>
+        <div style={{ fontSize: 16, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', fontWeight: 700, marginBottom: 10 }}>
           TEAM MEMBERS · {project.members.length}
         </div>
 
@@ -281,14 +281,14 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
                 display: 'flex', alignItems: 'center', gap: 8,
                 background: 'var(--surface-comment)', borderRadius: 5, padding: '7px 10px',
               }}>
-                <span style={{ flex: 1, fontSize: 20, color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>
+                <span style={{ flex: 1, fontSize: 16, color: 'var(--text)', fontFamily: 'var(--font-mono)' }}>
                   {m.username}
                 </span>
                 <span style={{
                   fontSize: 15, fontWeight: 700,
                   fontFamily: 'var(--font-mono)',
                   color: ROLE_COLORS[m.role] ?? '#64748b',
-                  letterSpacing: '0.08em',
+                  letterSpacing: '0.04em',
                   padding: '1px 4px',
                   border: `1px solid ${ROLE_COLORS[m.role] ?? '#64748b'}40`,
                   borderRadius: 3,
@@ -311,9 +311,9 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
                     opacity: isSelf ? 0.5 : 1,
                   }}
                 >
-                  <option value="owner">OWNER</option>
-                  <option value="editor">EDITOR</option>
-                  <option value="viewer">VIEWER</option>
+                  <option value="owner">Owner</option>
+                  <option value="editor">Editor</option>
+                  <option value="viewer">Viewer</option>
                 </select>
                 <button
                   disabled={isSelf}
@@ -333,8 +333,8 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
         </div>
 
         {/* Add Researcher */}
-        <div style={{ fontSize: 16, color: '#3d4e64', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 8 }}>
-          ADD RESEARCHER
+        <div style={{ fontSize: 16, color: '#3d4e64', fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', fontWeight: 700, marginBottom: 8 }}>
+          Add researcher
         </div>
 
         <div style={{ position: 'relative' }}>
@@ -348,7 +348,7 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
             <div style={{
               position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
               background: 'var(--surface-panel)',
-              border: '1px solid rgba(255,128,21,0.2)',
+              border: '1px solid rgba(var(--accent-rgb),0.2)',
               borderRadius: 4,
               boxShadow: '0 8px 20px rgba(0,0,0,0.4)',
             }}>
@@ -358,12 +358,12 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
                   onClick={() => handleSelectUser(u)}
                   style={{
                     padding: '7px 10px',
-                    fontSize: 20, color: 'var(--text)',
+                    fontSize: 16, color: 'var(--text)',
                     fontFamily: 'var(--font-mono)',
                     cursor: 'pointer',
                     borderBottom: '1px solid var(--border-subtle)',
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,128,21,0.07)' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(var(--accent-rgb),0.07)' }}
                   onMouseLeave={e => { e.currentTarget.style.background = '' }}
                 >
                   {u.username}
@@ -379,17 +379,17 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
             onChange={e => setAddRole(e.target.value as typeof addRole)}
             style={{ ...inputStyle, cursor: 'pointer', flex: 1 }}
           >
-            <option value="owner">OWNER</option>
-            <option value="editor">EDITOR</option>
-            <option value="viewer">VIEWER</option>
+            <option value="owner">Owner</option>
+            <option value="editor">Editor</option>
+            <option value="viewer">Viewer</option>
           </select>
           <button
             onClick={handleAddMember}
             disabled={!selectedUser || addMemberMutation.isPending}
             style={{
-              background: 'rgba(255,128,21,0.1)',
-              border: '1px solid rgba(255,128,21,0.25)',
-              borderRadius: 4, color: '#ff8015',
+              background: 'rgba(var(--accent-rgb),0.1)',
+              border: '1px solid rgba(var(--accent-rgb),0.25)',
+              borderRadius: 4, color: 'var(--accent)',
               fontSize: 16, fontWeight: 700,
               fontFamily: 'var(--font-mono)',
               padding: '5px 12px',
@@ -397,7 +397,7 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
               opacity: !selectedUser || addMemberMutation.isPending ? 0.5 : 1,
             }}
           >
-            {addMemberMutation.isPending ? '…' : 'ADD'}
+            {addMemberMutation.isPending ? '…' : 'Add'}
           </button>
         </div>
         {addError && (
@@ -407,8 +407,8 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
         {/* Section 3: Phases */}
         {token && (
           <div style={{ borderTop: '1px solid var(--border-subtle)', marginTop: 20, paddingTop: 16 }}>
-            <div style={{ fontSize: 16, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', fontWeight: 700, marginBottom: 10 }}>
-              PHASES
+            <div style={{ fontSize: 16, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', fontWeight: 700, marginBottom: 10 }}>
+              Phases
             </div>
             <PhaseManager projectId={projectId} token={token} />
           </div>

@@ -5,38 +5,13 @@ back, and that the disclosure statement reports only what actually happened.
 """
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
-from fastapi.testclient import TestClient
 
-from EvoScientist.pm.api.app import create_app
 from EvoScientist.pm.auth import hash_password
 from EvoScientist.pm.crud.publications import create_version, get_version
 from EvoScientist.pm.crud.users import create_user
 
 LONG_DRAFT = "Results: accuracy was 0.912 on the held-out split. " * 200
-
-
-@pytest.fixture
-def app(tmp_db: Path):
-    import EvoScientist.pm.api.deps as deps_mod
-    import EvoScientist.pm.api.routes.auth as auth_r
-    import EvoScientist.pm.api.routes.projects as proj_r
-    import EvoScientist.pm.api.routes.publications as pubs_r
-    import EvoScientist.pm.crud.projects as proj_mod
-    import EvoScientist.pm.crud.publications as pubs_mod
-    import EvoScientist.pm.crud.users as users_mod
-
-    for mod in [deps_mod, users_mod, proj_mod, pubs_mod, auth_r, proj_r, pubs_r]:
-        if hasattr(mod, "get_db_path"):
-            mod.get_db_path = lambda _db=tmp_db: _db
-    return create_app(tmp_db)
-
-
-@pytest.fixture
-def client(app):
-    return TestClient(app)
 
 
 @pytest.fixture

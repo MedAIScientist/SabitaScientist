@@ -62,7 +62,7 @@ describe('GlobalReportPage', () => {
 
   it('renders reports heading', async () => {
     render(wrap(<GlobalReportPage />))
-    await waitFor(() => expect(screen.getByText('reports')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('Reports')).toBeInTheDocument())
   })
 
   it('shows 0 total projects with empty list', async () => {
@@ -93,7 +93,7 @@ describe('GlobalReportPage', () => {
     vi.mocked(api.listExperiments).mockResolvedValue([])
     render(wrap(<GlobalReportPage />))
     await waitFor(() => {
-      const links = screen.getAllByText(/VIEW REPORT/)
+      const links = screen.getAllByText(/VIEW REPORT/i)
       expect(links.length).toBe(2)
     })
   })

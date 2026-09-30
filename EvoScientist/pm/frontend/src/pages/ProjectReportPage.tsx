@@ -1,6 +1,7 @@
 // src/pages/ProjectReportPage.tsx
 import React, { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { ProjectHeader } from '../components/ProjectHeader'
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { api } from '../api'
 import { StatCard } from '../components/report/StatCard'
@@ -61,7 +62,7 @@ function ErrorBanner({ message, onRetry }: { message: string; onRetry: () => voi
           padding: '3px 8px', fontFamily: 'var(--font-mono)',
         }}
       >
-        RETRY
+        Retry
       </button>
     </div>
   )
@@ -131,43 +132,10 @@ export function ProjectReportPage() {
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
       <style>{PRINT_CSS}</style>
 
-      {/* Header */}
-      <div className="no-print" style={{
-        padding: '0 28px', height: 54,
-        borderBottom: '1px solid var(--border)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        background: 'var(--surface-header)', backdropFilter: 'blur(12px)',
-        position: 'sticky', top: 0, zIndex: 10,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button
-            onClick={() => navigate(`/projects/${projectId}`)}
-            style={{
-              cursor: 'pointer', background: 'var(--surface-input)',
-              border: '1px solid var(--border)', borderRadius: 6,
-              color: 'var(--text-muted)', padding: '3px 9px', fontSize: 22, lineHeight: 1,
-            }}
-          >←</button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <img src="/medipolLogo.png" alt="Medipol" style={{ height: 26, borderRadius: 4, display: 'block' }} />
-            <span style={{ color: 'var(--text-dim)', fontSize: 20, fontFamily: 'var(--font-mono)' }}>/</span>
-            <span style={{ color: '#ff8015', fontSize: 21, fontFamily: 'var(--font-mono)' }}>
-              {project?.name ?? '…'}
-            </span>
-            <span style={{ color: 'var(--text-dim)', fontSize: 20, fontFamily: 'var(--font-mono)' }}>/</span>
-            <span style={{ color: 'var(--text-muted)', fontSize: 20, fontFamily: 'var(--font-mono)' }}>report</span>
-          </div>
-        </div>
-        <button
-          onClick={() => window.print()}
-          style={{
-            background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.18)',
-            color: '#10b981', fontFamily: 'var(--font-mono)', fontSize: 16,
-            padding: '5px 14px', borderRadius: 4, cursor: 'pointer', letterSpacing: '0.08em',
-          }}
-        >
-          ⬇ PDF
-        </button>
+      <div className="no-print">
+        <ProjectHeader projectId={projectId!} name={project?.name} actions={
+          <button className="btn" onClick={() => window.print()}>⬇ Export PDF</button>
+        } />
       </div>
 
       {/* Content */}
@@ -196,31 +164,31 @@ export function ProjectReportPage() {
           <div style={{ display: 'flex', gap: 32, alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <DonutChart
               segments={[
-                { value: todoCount,       color: '#ff8015', label: 'PLANNED' },
-                { value: inProgressCount, color: '#f59e0b', label: 'IN PROG' },
-                { value: doneCount,       color: '#10b981', label: 'DONE' },
+                { value: todoCount,       color: '#ff8015', label: 'Planned' },
+                { value: inProgressCount, color: '#f59e0b', label: 'In progress' },
+                { value: doneCount,       color: '#10b981', label: 'Done' },
               ]}
               size={140}
               strokeWidth={22}
             />
             <div style={{ flex: 1, minWidth: 200 }}>
               {[
-                { label: 'PLANNED',     count: todoCount,       color: '#ff8015' },
-                { label: 'IN PROGRESS', count: inProgressCount, color: '#f59e0b' },
-                { label: 'DONE',        count: doneCount,       color: '#10b981' },
+                { label: 'Planned',     count: todoCount,       color: '#ff8015' },
+                { label: 'In progress', count: inProgressCount, color: '#f59e0b' },
+                { label: 'Done',        count: doneCount,       color: '#10b981' },
               ].map(({ label, count, color }) => (
                 <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                   <span style={{ width: 10, height: 10, borderRadius: 2, background: color, flexShrink: 0 }} />
                   <span style={{ fontSize: 16, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', flex: 1 }}>{label}</span>
-                  <span style={{ fontSize: 20, fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-heading)' }}>{count}</span>
+                  <span style={{ fontSize: 16, fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-heading)' }}>{count}</span>
                   <span style={{ fontSize: 15, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', width: 36, textAlign: 'right' }}>
                     {tasks.length > 0 ? Math.round((count / tasks.length) * 100) : 0}%
                   </span>
                 </div>
               ))}
               <div style={{ marginTop: 16, borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
-                <div style={{ fontSize: 18, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', letterSpacing: '0.1em', marginBottom: 8 }}>
-                  PRIORITY BREAKDOWN
+                <div style={{ fontSize: 15, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', letterSpacing: '0.04em', marginBottom: 8 }}>
+                  Priority breakdown
                 </div>
                 {(['high', 'medium', 'low'] as const).map(pri => {
                   const count = tasks.filter(t => t.priority === pri).length
@@ -246,23 +214,23 @@ export function ProjectReportPage() {
           <div style={{ display: 'flex', gap: 32, alignItems: 'flex-start', flexWrap: 'wrap', marginBottom: 20 }}>
             <DonutChart
               segments={[
-                { value: plannedCount,   color: '#f59e0b', label: 'PLANNED' },
-                { value: runningCount,   color: '#ff8015', label: 'RUNNING' },
-                { value: completedCount, color: '#10b981', label: 'DONE' },
+                { value: plannedCount,   color: '#f59e0b', label: 'Planned' },
+                { value: runningCount,   color: '#ff8015', label: 'Running' },
+                { value: completedCount, color: '#10b981', label: 'Done' },
               ]}
               size={140}
               strokeWidth={22}
             />
             <div style={{ flex: 1, minWidth: 200 }}>
               {[
-                { label: 'PLANNED',   count: plannedCount,   color: '#f59e0b' },
-                { label: 'RUNNING',   count: runningCount,   color: '#ff8015' },
-                { label: 'COMPLETED', count: completedCount, color: '#10b981' },
+                { label: 'Planned',   count: plannedCount,   color: '#f59e0b' },
+                { label: 'Running',   count: runningCount,   color: '#ff8015' },
+                { label: 'Completed', count: completedCount, color: '#10b981' },
               ].map(({ label, count, color }) => (
                 <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                   <span style={{ width: 10, height: 10, borderRadius: 2, background: color, flexShrink: 0 }} />
                   <span style={{ fontSize: 16, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', flex: 1 }}>{label}</span>
-                  <span style={{ fontSize: 20, fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-heading)' }}>{count}</span>
+                  <span style={{ fontSize: 16, fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--text-heading)' }}>{count}</span>
                 </div>
               ))}
             </div>
@@ -271,7 +239,7 @@ export function ProjectReportPage() {
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
                 {['NAME', 'STATUS', 'DEADLINE', 'NOTES', 'RESULTS'].map(h => (
-                  <th key={h} style={{ padding: '6px 8px', textAlign: 'left', fontSize: 18, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', letterSpacing: '0.1em' }}>
+                  <th key={h} style={{ padding: '6px 8px', textAlign: 'left', fontSize: 15, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', letterSpacing: '0.04em' }}>
                     {h}
                   </th>
                 ))}
@@ -286,7 +254,7 @@ export function ProjectReportPage() {
                     <td style={{ padding: '8px', color: 'var(--text-heading)', fontWeight: 500 }}>{exp.name}</td>
                     <td style={{ padding: '8px' }}>
                       <span style={{
-                        fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                        fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
                         color: statusColor, background: `${statusColor}18`,
                         border: `1px solid ${statusColor}33`,
                         borderRadius: 3, padding: '2px 6px',
@@ -328,11 +296,11 @@ export function ProjectReportPage() {
                     <span style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
                       {isOpen ? '▾' : '▸'}
                     </span>
-                    <span style={{ flex: 1, fontSize: 20, fontWeight: 500, color: 'var(--text-heading)' }}>
+                    <span style={{ flex: 1, fontSize: 16, fontWeight: 500, color: 'var(--text-heading)' }}>
                       {exp.name}
                     </span>
                     <span style={{
-                      fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                      fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
                       color: statusColor, background: `${statusColor}18`,
                       border: `1px solid ${statusColor}33`,
                       borderRadius: 3, padding: '2px 6px',
@@ -348,20 +316,20 @@ export function ProjectReportPage() {
                     }}>
                       {exp.hypothesis && (
                         <div style={{ marginBottom: 10 }}>
-                          <div style={{ fontSize: 18, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', letterSpacing: '0.1em', marginBottom: 4 }}>
-                            HYPOTHESIS
+                          <div style={{ fontSize: 15, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', letterSpacing: '0.04em', marginBottom: 4 }}>
+                            Hypothesis
                           </div>
-                          <p style={{ fontSize: 18, color: 'var(--text)', lineHeight: 1.5, margin: 0 }}>
+                          <p style={{ fontSize: 15, color: 'var(--text)', lineHeight: 1.5, margin: 0 }}>
                             {exp.hypothesis.slice(0, 200)}{exp.hypothesis.length > 200 ? '…' : ''}
                           </p>
                         </div>
                       )}
                       {exp.protocol && (
                         <div style={{ marginBottom: 10 }}>
-                          <div style={{ fontSize: 18, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', letterSpacing: '0.1em', marginBottom: 4 }}>
-                            PROTOCOL
+                          <div style={{ fontSize: 15, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', letterSpacing: '0.04em', marginBottom: 4 }}>
+                            Protocol
                           </div>
-                          <p style={{ fontSize: 18, color: 'var(--text)', lineHeight: 1.5, margin: 0 }}>
+                          <p style={{ fontSize: 15, color: 'var(--text)', lineHeight: 1.5, margin: 0 }}>
                             {exp.protocol.slice(0, 200)}{exp.protocol.length > 200 ? '…' : ''}
                           </p>
                         </div>
@@ -402,15 +370,15 @@ export function ProjectReportPage() {
                     background: AVATAR_COLORS[i % AVATAR_COLORS.length],
                     color: '#fff',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 20, fontWeight: 700, fontFamily: 'var(--font-mono)', flexShrink: 0,
+                    fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)', flexShrink: 0,
                   }}>
                     {member.username[0].toUpperCase()}
                   </span>
-                  <span style={{ flex: 1, fontSize: 20, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)' }}>
+                  <span style={{ flex: 1, fontSize: 16, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)' }}>
                     {member.username}
                   </span>
                   <span style={{
-                    fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                    fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
                     color: roleColor, background: `${roleColor}18`,
                     border: `1px solid ${roleColor}33`,
                     borderRadius: 3, padding: '2px 6px',

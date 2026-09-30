@@ -1,40 +1,13 @@
 # tests/pm/test_api_runs.py
 """Tests for PM run API endpoints."""
 from __future__ import annotations
-from pathlib import Path
+
 from unittest.mock import AsyncMock, patch
+
 import pytest
-from fastapi.testclient import TestClient
-from EvoScientist.pm.api.app import create_app
+
 from EvoScientist.pm.auth import hash_password
 from EvoScientist.pm.crud.users import create_user
-from EvoScientist.pm.crud.projects import create_project
-from EvoScientist.pm.crud.tasks import create_task
-from EvoScientist.pm.db import create_schema
-
-
-@pytest.fixture
-def app(tmp_db: Path):
-    import EvoScientist.pm.api.deps as deps_mod
-    import EvoScientist.pm.crud.users as users_mod
-    import EvoScientist.pm.crud.projects as proj_mod
-    import EvoScientist.pm.crud.tasks as tasks_mod
-    import EvoScientist.pm.crud.runs as runs_mod
-    import EvoScientist.pm.api.routes.auth as auth_r
-    import EvoScientist.pm.api.routes.users as users_r
-    import EvoScientist.pm.api.routes.projects as proj_r
-    import EvoScientist.pm.api.routes.tasks as tasks_r
-    import EvoScientist.pm.api.routes.runs as runs_r
-    for mod in [deps_mod, users_mod, proj_mod, tasks_mod, runs_mod,
-                auth_r, users_r, proj_r, tasks_r, runs_r]:
-        if hasattr(mod, "get_db_path"):
-            mod.get_db_path = lambda: tmp_db
-    return create_app(tmp_db)
-
-
-@pytest.fixture
-def client(app):
-    return TestClient(app)
 
 
 @pytest.fixture

@@ -19,6 +19,7 @@ class User:
     is_admin: bool
     created_at: str
     email: str | None = None
+    role: str = "student"  # 'admin' | 'professor' | 'student'
 
 
 @dataclass
@@ -245,6 +246,12 @@ class Publication:
     submitted_at: str | None = None
     accepted_at: str | None = None
     published_at: str | None = None
+    # Submission compliance statements — see the readiness gate in the paper workspace.
+    reporting_guideline: str | None = None
+    data_availability: str | None = None
+    code_availability: str | None = None
+    conflict_of_interest: str | None = None
+    funding_statement: str | None = None
 
 
 @dataclass
@@ -595,3 +602,152 @@ class WebKnossosDataset:
     segmentation_status: str = "pending"
     num_skeletons: int = 0
     num_volumes: int = 0
+
+
+# ── Academic supervision ─────────────────────────────────────────────────────
+
+
+@dataclass
+class SupervisorAssignment:
+    id: str
+    student_id: str
+    professor_id: str
+    active_from: str
+    created_at: str
+    active_until: str | None = None
+
+
+@dataclass
+class WeeklyMeetingSetting:
+    id: str
+    professor_id: str
+    weekday: int
+    effective_from: str
+    created_at: str
+    time_local: str | None = None
+    timezone: str | None = None
+
+
+@dataclass
+class WeeklyReport:
+    id: str
+    student_id: str
+    week_start: str
+    status: str
+    review_status: str
+    risk_level: str
+    created_at: str
+    updated_at: str
+    risk_override: str | None = None
+    accomplished: str | None = None
+    next_focus: str | None = None
+    support_requested: str | None = None
+    submitted_at: str | None = None
+    reviewed_at: str | None = None
+    reviewed_by: str | None = None
+    feedback: str | None = None
+
+
+@dataclass
+class WeeklyReportItem:
+    id: str
+    report_id: str
+    item_title: str
+    progress_pct: int
+    risk_level: str
+    needs_help: bool
+    sort_order: int
+    task_id: str | None = None
+    publication_id: str | None = None
+    experiment_id: str | None = None
+    item_kind: str | None = None
+    status: str | None = None
+    blocker: str | None = None
+    what_changed: str | None = None
+    next_step: str | None = None
+    next_deadline: str | None = None
+
+
+@dataclass
+class MeetingAttendance:
+    id: str
+    professor_id: str
+    student_id: str
+    week_start: str
+    status: str
+    recorded_at: str
+    joined_mode: str | None = None
+    note: str | None = None
+
+
+@dataclass
+class ReportExtension:
+    id: str
+    student_id: str
+    professor_id: str
+    week_start: str
+    new_deadline: str
+    created_at: str
+    report_id: str | None = None
+    reason: str | None = None
+
+
+@dataclass
+class AcademicJourney:
+    id: str
+    student_id: str
+    level: str
+    status: str
+    created_at: str
+    updated_at: str
+    programme: str | None = None
+    university: str | None = None
+    department: str | None = None
+    start_year: int | None = None
+    start_date: str | None = None
+    expected_end: str | None = None
+    thesis_title: str | None = None
+
+
+@dataclass
+class GraduationRequirement:
+    id: str
+    level: str
+    title: str
+    req_type: str
+    target_value: float
+    created_at: str
+    description: str | None = None
+    research_item_type: str | None = None
+    min_stage: str | None = None
+    unit: str | None = None
+    required: bool = True
+    active: bool = True
+
+
+# Where AI usage is attributed. ``DIRECT`` is pm/_ai.py's in-process call;
+# ``AGENT`` is a run dispatched to the agent runner service.
+AI_USAGE_SOURCES = ("direct", "agent")
+# ``provider`` means the model API reported the counts; ``estimated`` means we
+# derived them from character counts. Never blur the two in a report.
+AI_USAGE_TOKEN_SOURCES = ("provider", "estimated")
+
+
+@dataclass
+class AiUsage:
+    id: str
+    task: str
+    source: str
+    token_source: str
+    created_at: str
+    user_id: str | None = None
+    project_id: str | None = None
+    publication_id: str | None = None
+    run_id: str | None = None
+    model: str | None = None
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    total_tokens: int | None = None
+    prompt_chars: int | None = None
+    output_chars: int | None = None
+    duration_ms: int | None = None

@@ -5,7 +5,7 @@ import { api, ExperimentMetric } from '../../api'
 const inputStyle: React.CSSProperties = {
   width: '100%', boxSizing: 'border-box', padding: '7px 10px',
   background: 'var(--surface-input)', border: '1px solid var(--border)',
-  borderRadius: 6, color: 'var(--text)', fontSize: 18, outline: 'none',
+  borderRadius: 6, color: 'var(--text)', fontSize: 15, outline: 'none',
 }
 
 function formatValue(m: ExperimentMetric): string {
@@ -105,14 +105,14 @@ export function ExperimentMetricsTab({ projectId, experimentId }: {
           style={{
             width: '100%', marginTop: 8, padding: '7px 0', borderRadius: 5,
             cursor: canSubmit ? 'pointer' : 'default', border: 'none',
-            background: !canSubmit || create.isPending ? 'rgba(255,128,21,0.35)' : '#ff8015',
-            color: '#06091a', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
+            background: !canSubmit || create.isPending ? 'rgba(var(--accent-rgb),0.35)' : 'var(--accent)',
+            color: '#fff', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
           }}
-        >{create.isPending ? 'RECORDING…' : '+ RECORD METRIC'}</button>
+        >{create.isPending ? 'Recording…' : '+ Record metric'}</button>
       </div>
 
       {isLoading ? (
-        <Muted>LOADING…</Muted>
+        <Muted>Loading…</Muted>
       ) : metrics.length === 0 ? (
         <Muted>No results recorded yet.</Muted>
       ) : (
@@ -121,7 +121,7 @@ export function ExperimentMetricsTab({ projectId, experimentId }: {
             fontSize: 13, color: 'var(--text-3)', fontFamily: 'var(--font-mono)',
             marginBottom: 6,
           }}>
-            {metrics.length} METRIC{metrics.length === 1 ? '' : 'S'}
+            {metrics.length} metric{metrics.length === 1 ? '' : 's'}
             {fromUpload > 0 ? ` · ${fromUpload} FROM UPLOADED RESULTS` : ''}
           </div>
           {metrics.map(m => (
@@ -131,7 +131,7 @@ export function ExperimentMetricsTab({ projectId, experimentId }: {
               borderRadius: 5, padding: '7px 9px', marginBottom: 5,
             }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 17, color: 'var(--text)' }}>{formatValue(m)}</div>
+                <div style={{ fontSize: 15, color: 'var(--text)' }}>{formatValue(m)}</div>
                 <div style={{
                   fontSize: 12, color: 'var(--text-3)', fontFamily: 'var(--font-mono)',
                   marginTop: 1,
@@ -139,7 +139,7 @@ export function ExperimentMetricsTab({ projectId, experimentId }: {
                   {m.name}
                   {m.split ? ` · ${m.split}` : ''}
                   {m.n != null ? ` · n=${m.n}` : ''}
-                  {m.source_attachment_id ? ' · FROM CSV' : ''}
+                  {m.source_attachment_id ? ' · From CSV' : ''}
                 </div>
               </div>
               <button

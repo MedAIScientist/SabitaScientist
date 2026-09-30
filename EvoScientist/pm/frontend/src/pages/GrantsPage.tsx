@@ -8,13 +8,13 @@ import { UserPicker } from '../components/grant/UserPicker'
 const inputStyle: React.CSSProperties = {
   padding: '9px 12px', background: 'var(--surface-input)',
   border: '1px solid var(--border)', borderRadius: 7,
-  color: 'var(--text)', fontSize: 20, outline: 'none', width: '100%',
+  color: 'var(--text)', fontSize: 16, outline: 'none', width: '100%',
 }
 
 const labelStyle: React.CSSProperties = {
   display: 'flex', flexDirection: 'column', gap: 5,
   fontSize: 14, fontWeight: 700, color: 'var(--text-dim)',
-  fontFamily: 'var(--font-mono)', letterSpacing: '0.08em',
+  fontFamily: 'var(--font-mono)', letterSpacing: '0.04em',
 }
 
 type CreateDraft = {
@@ -91,30 +91,23 @@ export function GrantsPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
-      <div style={{ maxWidth: 960, margin: '0 auto', padding: '32px 28px' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 28px' }}>
         <div style={{
           display: 'flex', justifyContent: 'space-between',
           alignItems: 'center', marginBottom: 20,
         }}>
           <div>
             <h1 style={{
-              margin: 0, fontSize: 30, fontWeight: 600,
+              margin: 0, fontSize: 24, fontWeight: 600,
               fontFamily: 'var(--font-mono)', color: 'var(--text-heading)',
             }}>Grants</h1>
             <p style={{
               margin: '4px 0 0', fontSize: 16, color: 'var(--text-dim)',
               fontFamily: 'var(--font-mono)',
-            }}>{grants.length} SHOWN</p>
+            }}>{grants.length} shown</p>
           </div>
           <button
-            onClick={() => setShowForm(f => !f)}
-            style={{
-              cursor: 'pointer', padding: '7px 16px',
-              background: 'rgba(255,128,21,0.1)', border: '1px solid rgba(255,128,21,0.3)',
-              borderRadius: 7, color: '#ff8015', fontSize: 18, fontWeight: 700,
-              fontFamily: 'var(--font-mono)',
-            }}
-          >+ NEW</button>
+            onClick={() => setShowForm(f => !f)} className="btn btn-primary">+ New grant</button>
         </div>
 
         {/* Stats */}
@@ -162,7 +155,7 @@ export function GrantsPage() {
           <form
             onSubmit={e => { e.preventDefault(); create.mutate() }}
             style={{
-              background: 'var(--surface-card)', border: '1px solid rgba(255,128,21,0.2)',
+              background: 'var(--surface-card)', border: '1px solid rgba(var(--accent-rgb),0.2)',
               borderRadius: 10, padding: 24, marginBottom: 20,
             }}
           >
@@ -170,12 +163,12 @@ export function GrantsPage() {
               <div style={{
                 padding: '8px 12px', marginBottom: 14, background: 'rgba(244,63,94,0.08)',
                 border: '1px solid rgba(244,63,94,0.2)', borderRadius: 6,
-                color: '#f43f5e', fontSize: 18, fontFamily: 'var(--font-mono)',
+                color: '#f43f5e', fontSize: 15, fontFamily: 'var(--font-mono)',
               }}>{error}</div>
             )}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               <label style={labelStyle}>
-                TITLE *
+                Title *
                 <input
                   required value={draft.title}
                   onChange={e => set('title', e.target.value)}
@@ -183,7 +176,7 @@ export function GrantsPage() {
                 />
               </label>
               <label style={labelStyle}>
-                FUNDER *
+                Funder *
                 <input
                   required value={draft.funder}
                   onChange={e => set('funder', e.target.value)}
@@ -191,7 +184,7 @@ export function GrantsPage() {
                 />
               </label>
               <label style={labelStyle}>
-                STATUS
+                Status
                 <select
                   value={draft.status}
                   onChange={e => set('status', e.target.value)}
@@ -201,7 +194,7 @@ export function GrantsPage() {
                 </select>
               </label>
               <label style={labelStyle}>
-                CURRENCY
+                Currency
                 <select
                   value={draft.currency}
                   onChange={e => set('currency', e.target.value)}
@@ -211,7 +204,7 @@ export function GrantsPage() {
                 </select>
               </label>
               <label style={labelStyle}>
-                AMOUNT REQUESTED
+                Amount requested
                 <input
                   type="number" min="0" step="any" value={draft.amount_requested}
                   onChange={e => set('amount_requested', e.target.value)}
@@ -219,7 +212,7 @@ export function GrantsPage() {
                 />
               </label>
               <label style={labelStyle}>
-                AMOUNT AWARDED
+                Amount awarded
                 <input
                   type="number" min="0" step="any" value={draft.amount_awarded}
                   onChange={e => set('amount_awarded', e.target.value)}
@@ -227,21 +220,21 @@ export function GrantsPage() {
                 />
               </label>
               <label style={labelStyle}>
-                SUBMITTED
+                Submitted
                 <input
                   type="date" value={draft.submitted_at}
                   onChange={e => set('submitted_at', e.target.value)} style={inputStyle}
                 />
               </label>
               <label style={labelStyle}>
-                START DATE
+                Start date
                 <input
                   type="date" value={draft.start_date}
                   onChange={e => set('start_date', e.target.value)} style={inputStyle}
                 />
               </label>
               <label style={labelStyle}>
-                END DATE
+                End date
                 <input
                   type="date" value={draft.end_date}
                   onChange={e => set('end_date', e.target.value)} style={inputStyle}
@@ -256,7 +249,7 @@ export function GrantsPage() {
                 />
               </label>
               <label style={labelStyle}>
-                LAB
+                Lab
                 <select
                   value={draft.lab_id}
                   onChange={e => set('lab_id', e.target.value)} style={inputStyle}
@@ -266,7 +259,7 @@ export function GrantsPage() {
                 </select>
               </label>
               <label style={labelStyle}>
-                PROJECT
+                Project
                 <select
                   value={draft.project_id}
                   onChange={e => set('project_id', e.target.value)} style={inputStyle}
@@ -276,7 +269,7 @@ export function GrantsPage() {
                 </select>
               </label>
               <label style={{ ...labelStyle, gridColumn: '1 / -1' }}>
-                DESCRIPTION
+                Description
                 <textarea
                   value={draft.description}
                   onChange={e => set('description', e.target.value)}
@@ -292,10 +285,10 @@ export function GrantsPage() {
                 disabled={create.isPending}
                 style={{
                   padding: '9px 24px', cursor: 'pointer', border: 'none', borderRadius: 7,
-                  background: create.isPending ? 'rgba(255,128,21,0.4)' : '#ff8015',
-                  color: '#06091a', fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                  background: create.isPending ? 'rgba(var(--accent-rgb),0.4)' : 'var(--accent)',
+                  color: '#fff', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
                 }}
-              >{create.isPending ? 'CREATING…' : 'CREATE'}</button>
+              >{create.isPending ? 'Creating…' : 'Create'}</button>
               <button
                 type="button"
                 onClick={() => { setShowForm(false); setError(null) }}
@@ -304,7 +297,7 @@ export function GrantsPage() {
                   background: 'transparent', border: '1px solid var(--border)',
                   color: 'var(--text-muted)', fontSize: 16, fontFamily: 'var(--font-mono)',
                 }}
-              >CANCEL</button>
+              >Cancel</button>
             </div>
           </form>
         )}
@@ -335,11 +328,11 @@ export function GrantsPage() {
           <div style={{
             padding: 40, textAlign: 'center', color: 'var(--text-dim)',
             fontFamily: 'var(--font-mono)',
-          }}>LOADING…</div>
+          }}>Loading…</div>
         ) : grants.length === 0 ? (
           <div style={{
             padding: 40, textAlign: 'center', color: 'var(--text-dim)',
-            fontFamily: 'var(--font-mono)', fontSize: 18,
+            fontFamily: 'var(--font-mono)', fontSize: 15,
           }}>
             {q || status ? 'No grants match these filters.' : 'No grants yet.'}
           </div>
@@ -361,15 +354,15 @@ export function GrantsPage() {
                     borderRadius: '0 10px 10px 0', padding: '16px 20px',
                     cursor: 'pointer',
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(255,128,21,0.35)' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(var(--accent-rgb),0.35)' }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--text-heading)' }}>
+                      <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--text-heading)' }}>
                         {g.title}
                       </div>
-                      <div style={{ fontSize: 17, color: 'var(--text-2)', marginTop: 3 }}>
+                      <div style={{ fontSize: 15, color: 'var(--text-2)', marginTop: 3 }}>
                         {g.funder}
                         {g.pi_username ? ` · PI ${g.pi_username}` : ''}
                       </div>
@@ -414,10 +407,10 @@ function StatCard({ label, value, hint, color }: {
     }}>
       <div style={{
         fontSize: 13, fontWeight: 700, color: 'var(--text-dim)',
-        fontFamily: 'var(--font-mono)', letterSpacing: '0.1em',
+        fontFamily: 'var(--font-mono)', letterSpacing: '0.04em',
       }}>{label}</div>
       <div style={{
-        fontSize: 21, color: color ?? 'var(--text-heading)', marginTop: 4,
+        fontSize: 17, color: color ?? 'var(--text-heading)', marginTop: 4,
         overflowWrap: 'anywhere',
       }}>{value}</div>
       {hint && (

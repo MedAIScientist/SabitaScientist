@@ -74,7 +74,7 @@ describe('DonutChart', () => {
         { value: 8, color: '#10b981', label: 'BIG' },
       ]} />
     )
-    expect(screen.getByText('BIG')).toBeInTheDocument()
+    expect(screen.getByText(/^BIG$/i)).toBeInTheDocument()
   })
 })
 import { BarChart } from '../BarChart'

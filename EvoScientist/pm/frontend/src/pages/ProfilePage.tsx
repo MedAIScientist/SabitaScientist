@@ -45,37 +45,14 @@ export function ProfilePage() {
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
 
       {/* Header */}
-      <div style={{
-        padding: '0 28px', height: 54,
-        borderBottom: '1px solid var(--border)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        background: 'var(--surface-header)', backdropFilter: 'blur(12px)',
-        position: 'sticky', top: 0, zIndex: 10,
-      }}>
+      <div className="page-header" style={{ maxWidth: 480, margin: '0 auto', padding: '28px 32px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button
-            onClick={() => navigate(-1)}
-            style={{
-              cursor: 'pointer',
-              background: 'var(--surface-input)',
-              border: '1px solid var(--border)',
-              borderRadius: 6, color: 'var(--text-muted)',
-              padding: '3px 9px', fontSize: 22, lineHeight: 1,
-              transition: 'color 0.15s, border-color 0.15s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.color = '#ff8015'; e.currentTarget.style.borderColor = 'rgba(255,128,21,0.3)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border)' }}
-          >←</button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-            <img src="/medipolLogo.png" alt="Medipol" style={{ height: 26, borderRadius: 4, display: 'block' }} />
-            <span style={{ color: 'var(--text-dim)', fontSize: 20, fontFamily: 'var(--font-mono)' }}>/</span>
-            <span style={{ color: '#ff8015', fontSize: 21, fontFamily: 'var(--font-mono)' }}>profile</span>
-          </div>
+          <h1 className="page-title">Profile</h1>
         </div>
       </div>
 
       {/* Content */}
-      <div style={{ maxWidth: 480, margin: '48px auto', padding: '0 28px' }}>
+      <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 32px 40px' }}>
 
         {/* Avatar + name */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginBottom: 36 }}>
@@ -83,18 +60,18 @@ export function ProfilePage() {
             width: 56, height: 56, borderRadius: '50%',
             background: 'linear-gradient(135deg, #ff8015, #8b5cf6)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 38, fontWeight: 700, color: '#fff',
+            fontSize: 28, fontWeight: 700, color: '#fff',
             fontFamily: 'var(--font-mono)',
-            boxShadow: '0 0 20px rgba(255,128,21,0.25)',
+            boxShadow: '0 0 20px rgba(var(--accent-rgb),0.25)',
           }}>
             {username?.[0]?.toUpperCase() ?? '?'}
           </div>
           <div>
-            <div style={{ fontSize: 30, fontWeight: 600, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)' }}>
+            <div style={{ fontSize: 24, fontWeight: 600, color: 'var(--text-heading)', fontFamily: 'var(--font-mono)' }}>
               {username}
             </div>
-            <div style={{ fontSize: 16, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: 2, letterSpacing: '0.06em' }}>
-              RESEARCHER
+            <div style={{ fontSize: 16, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: 2, letterSpacing: '0.04em' }}>
+              Researcher
             </div>
           </div>
         </div>
@@ -114,11 +91,11 @@ export function ProfilePage() {
             borderBottom: '1px solid var(--border-subtle)',
           }}>
             <div>
-              <div style={{ fontSize: 22, fontWeight: 500, color: 'var(--text-heading)', marginBottom: 2 }}>
+              <div style={{ fontSize: 17, fontWeight: 500, color: 'var(--text-heading)', marginBottom: 2 }}>
                 Appearance
               </div>
-              <div style={{ fontSize: 20, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
-                {isDark ? 'DARK MODE' : 'LIGHT MODE'}
+              <div style={{ fontSize: 16, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+                {isDark ? 'Dark mode' : 'Light mode'}
               </div>
             </div>
             <button
@@ -127,11 +104,11 @@ export function ProfilePage() {
               style={{
                 width: 52, height: 28, borderRadius: 14,
                 border: 'none', cursor: 'pointer',
-                background: isDark ? 'rgba(255,128,21,0.15)' : 'rgba(255,128,21,0.25)',
+                background: isDark ? 'rgba(var(--accent-rgb),0.15)' : 'rgba(var(--accent-rgb),0.25)',
                 position: 'relative',
                 transition: 'background 0.2s',
                 flexShrink: 0,
-                outline: '1px solid rgba(255,128,21,0.3)',
+                outline: '1px solid rgba(var(--accent-rgb),0.3)',
               }}
               aria-pressed={!isDark}
             >
@@ -142,7 +119,7 @@ export function ProfilePage() {
                 letterSpacing: '0.04em',
                 left: isDark ? 'auto' : 8,
                 right: isDark ? 8 : 'auto',
-                color: '#ff8015',
+                color: 'var(--accent)',
                 opacity: 0.8,
               }}>
                 {isDark ? '🌙' : '☀'}
@@ -152,8 +129,8 @@ export function ProfilePage() {
                 position: 'absolute', top: 4,
                 left: isDark ? 4 : 24,
                 width: 20, height: 20, borderRadius: '50%',
-                background: isDark ? '#ff8015' : '#f59e0b',
-                boxShadow: isDark ? '0 0 8px rgba(255,128,21,0.5)' : '0 0 8px rgba(245,158,11,0.5)',
+                background: isDark ? 'var(--accent)' : '#f59e0b',
+                boxShadow: isDark ? '0 0 8px rgba(var(--accent-rgb),0.5)' : '0 0 8px rgba(245,158,11,0.5)',
                 transition: 'left 0.2s, background 0.2s, box-shadow 0.2s',
               }} />
             </button>
@@ -165,17 +142,17 @@ export function ProfilePage() {
             padding: '16px 20px',
           }}>
             <div>
-              <div style={{ fontSize: 22, fontWeight: 500, color: 'var(--text-heading)', marginBottom: 2 }}>
+              <div style={{ fontSize: 17, fontWeight: 500, color: 'var(--text-heading)', marginBottom: 2 }}>
                 Username
               </div>
-              <div style={{ fontSize: 20, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+              <div style={{ fontSize: 16, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
                 {username}
               </div>
             </div>
             <span style={{
               fontSize: 15, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)',
-              letterSpacing: '0.06em',
-            }}>READ-ONLY</span>
+              letterSpacing: '0.04em',
+            }}>Read-only</span>
           </div>
         </div>
 
@@ -187,14 +164,14 @@ export function ProfilePage() {
           padding: '16px 20px',
           marginBottom: 16,
         }}>
-          <div style={{ fontSize: 22, fontWeight: 500, color: 'var(--text-heading)', marginBottom: 2 }}>
+          <div style={{ fontSize: 17, fontWeight: 500, color: 'var(--text-heading)', marginBottom: 2 }}>
             Password
           </div>
           <div style={{
-            fontSize: 17, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)',
+            fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)',
             marginBottom: 14, lineHeight: 1.5,
           }}>
-            SET A LOCAL PASSWORD TO SIGN IN WITHOUT MICROSOFT
+            Set a local password to sign in without Microsoft
           </div>
 
           {passwordError && (
@@ -203,7 +180,7 @@ export function ProfilePage() {
               background: 'rgba(244,63,94,0.08)',
               border: '1px solid rgba(244,63,94,0.2)',
               borderRadius: 6, color: '#f43f5e',
-              fontSize: 17, fontFamily: 'var(--font-mono)',
+              fontSize: 15, fontFamily: 'var(--font-mono)',
             }}>{passwordError}</div>
           )}
 
@@ -213,8 +190,8 @@ export function ProfilePage() {
               background: 'rgba(16,185,129,0.08)',
               border: '1px solid rgba(16,185,129,0.2)',
               borderRadius: 6, color: '#10b981',
-              fontSize: 17, fontFamily: 'var(--font-mono)',
-            }}>PASSWORD UPDATED</div>
+              fontSize: 15, fontFamily: 'var(--font-mono)',
+            }}>Password updated</div>
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -231,9 +208,9 @@ export function ProfilePage() {
                 style={{
                   padding: '9px 11px', background: 'var(--surface-input)',
                   border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text)',
-                  fontSize: 20, fontFamily: 'var(--font-mono)', outline: 'none',
+                  fontSize: 16, fontFamily: 'var(--font-mono)', outline: 'none',
                 }}
-                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(255,128,21,0.32)' }}
+                onFocus={e => { e.currentTarget.style.borderColor = 'rgba(var(--accent-rgb),0.32)' }}
                 onBlur={e => { e.currentTarget.style.borderColor = 'var(--border)' }}
               />
             ))}
@@ -242,13 +219,13 @@ export function ProfilePage() {
               disabled={passwordSaving || !newPassword}
               style={{
                 padding: '10px 0', cursor: passwordSaving || !newPassword ? 'default' : 'pointer',
-                background: passwordSaving || !newPassword ? 'rgba(255,128,21,0.07)' : 'rgba(255,128,21,0.12)',
-                border: '1px solid rgba(255,128,21,0.28)',
-                borderRadius: 8, color: '#ff8015',
-                fontSize: 16, fontWeight: 700, letterSpacing: '0.1em',
+                background: passwordSaving || !newPassword ? 'rgba(var(--accent-rgb),0.07)' : 'rgba(var(--accent-rgb),0.12)',
+                border: '1px solid rgba(var(--accent-rgb),0.28)',
+                borderRadius: 8, color: 'var(--accent)',
+                fontSize: 16, fontWeight: 700, letterSpacing: '0.04em',
                 fontFamily: 'var(--font-mono)',
               }}
-            >{passwordSaving ? 'SAVING…' : 'SET PASSWORD'}</button>
+            >{passwordSaving ? 'Saving…' : 'Set password'}</button>
           </div>
         </div>
 
@@ -258,16 +235,16 @@ export function ProfilePage() {
             onClick={() => navigate('/users')}
             style={{
               width: '100%', padding: '11px 0', cursor: 'pointer', marginBottom: 10,
-              background: 'rgba(255,128,21,0.07)',
-              border: '1px solid rgba(255,128,21,0.2)',
-              borderRadius: 8, color: '#ff8015',
-              fontSize: 16, fontWeight: 700, letterSpacing: '0.1em',
+              background: 'rgba(var(--accent-rgb),0.07)',
+              border: '1px solid rgba(var(--accent-rgb),0.2)',
+              borderRadius: 8, color: 'var(--accent)',
+              fontSize: 16, fontWeight: 700, letterSpacing: '0.04em',
               transition: 'background 0.14s',
               fontFamily: 'var(--font-mono)',
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,128,21,0.14)' }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,128,21,0.07)' }}
-          >MANAGE USERS</button>
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(var(--accent-rgb),0.14)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(var(--accent-rgb),0.07)' }}
+          >Manage users</button>
         )}
 
         {/* Logout */}
@@ -278,13 +255,13 @@ export function ProfilePage() {
             background: 'rgba(244,63,94,0.07)',
             border: '1px solid rgba(244,63,94,0.18)',
             borderRadius: 8, color: '#f43f5e',
-            fontSize: 16, fontWeight: 700, letterSpacing: '0.1em',
+            fontSize: 16, fontWeight: 700, letterSpacing: '0.04em',
             transition: 'background 0.14s',
             fontFamily: 'var(--font-mono)',
           }}
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(244,63,94,0.14)' }}
           onMouseLeave={e => { e.currentTarget.style.background = 'rgba(244,63,94,0.07)' }}
-        >SIGN OUT</button>
+        >Sign out</button>
       </div>
     </div>
   )

@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../api'
 
 const SECTION_STYLES = `
-.help-content h1 { font-size: 1.6em; border-bottom: 2px solid #ff8015; padding-bottom: 8px; margin: 0 0 16px; color: var(--text-heading); }
+.help-content h1 { font-size: 1.6em; border-bottom: 2px solid var(--accent); padding-bottom: 8px; margin: 0 0 16px; color: var(--text-heading); }
 .help-content h2 { font-size: 1.25em; margin: 1.4em 0 0.6em; color: var(--text-heading); }
 .help-content h3 { font-size: 1.08em; margin: 1.2em 0 0.4em; }
 .help-content p { margin: 0.5em 0; }
@@ -13,9 +13,9 @@ const SECTION_STYLES = `
 .help-content table { border-collapse: collapse; width: 100%; margin: 12px 0; }
 .help-content th, .help-content td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
 .help-content th { background: var(--surface-input); font-weight: 700; }
-.help-content blockquote { border-left: 3px solid #ff8015; margin: 12px 0; padding: 8px 16px; background: var(--surface-input); border-radius: 0 4px 4px 0; }
+.help-content blockquote { border-left: 3px solid var(--accent); margin: 12px 0; padding: 8px 16px; background: var(--surface-input); border-radius: 0 4px 4px 0; }
 .help-content hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
-.help-content a { color: #ff8015; }
+.help-content a { color: var(--accent); }
 .help-content img { max-width: 100%; }
 .help-content ul, .help-content ol { padding-left: 24px; }
 .help-content li { margin: 0.3em 0; }
@@ -58,7 +58,7 @@ export function HelpPage() {
   }
 
   if (isLoading) {
-    return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontSize: 19 }}>LOADING…</div>
+    return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontSize: 16 }}>Loading…</div>
   }
 
   if (error || !data) {
@@ -77,16 +77,16 @@ export function HelpPage() {
         padding: '16px 0',
       }}>
         <div style={{ padding: '0 16px 12px', fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)', letterSpacing: '0.04em' }}>
-          GUIDE
+          Guide
         </div>
         {contentSections.map(s => (
           <button key={s.slug} onClick={() => selectSection(s.slug)} style={{
             display: 'block', width: '100%', textAlign: 'left',
             padding: '7px 16px', cursor: 'pointer', fontSize: 15,
             fontFamily: 'var(--font-mono)',
-            background: activeSlug === s.slug ? 'rgba(255,128,21,0.1)' : 'transparent',
-            border: 'none', borderLeft: activeSlug === s.slug ? '3px solid #ff8015' : '3px solid transparent',
-            color: activeSlug === s.slug ? '#ff8015' : 'var(--text-2)',
+            background: activeSlug === s.slug ? 'rgba(var(--accent-rgb),0.1)' : 'transparent',
+            border: 'none', borderLeft: activeSlug === s.slug ? '3px solid var(--accent)' : '3px solid transparent',
+            color: activeSlug === s.slug ? 'var(--accent)' : 'var(--text-2)',
             transition: 'background 0.1s',
           }}
             onMouseEnter={e => { if (activeSlug !== s.slug) { e.currentTarget.style.background = 'var(--surface-input)' } }}

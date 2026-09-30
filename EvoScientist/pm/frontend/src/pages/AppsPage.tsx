@@ -27,7 +27,7 @@ export function AppsPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
-      <div style={{ maxWidth: 960, margin: '0 auto', padding: '32px 28px' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 28px' }}>
 
         <div style={{
           display: 'flex', justifyContent: 'space-between',
@@ -35,14 +35,14 @@ export function AppsPage() {
         }}>
           <div>
             <h1 style={{
-              margin: 0, fontSize: 30, fontWeight: 600,
+              margin: 0, fontSize: 24, fontWeight: 600,
               fontFamily: 'var(--font-mono)', color: 'var(--text-heading)',
             }}>Apps</h1>
             <p style={{
               margin: '4px 0 0', fontSize: 16, color: 'var(--text-dim)',
               fontFamily: 'var(--font-mono)',
             }}>
-              {apps.length} SERVICE{apps.length !== 1 ? 'S' : ''}
+              {apps.length} service{apps.length !== 1 ? 's' : ''}
               {down > 0 && <span style={{ color: '#f43f5e' }}> · {down} UNREACHABLE</span>}
             </p>
           </div>
@@ -51,11 +51,11 @@ export function AppsPage() {
             disabled={isFetching}
             style={{
               cursor: isFetching ? 'default' : 'pointer', padding: '7px 16px',
-              background: 'rgba(255,128,21,0.1)', border: '1px solid rgba(255,128,21,0.3)',
-              borderRadius: 7, color: '#ff8015', fontSize: 15, fontWeight: 700,
+              background: 'rgba(var(--accent-rgb),0.1)', border: '1px solid rgba(var(--accent-rgb),0.3)',
+              borderRadius: 7, color: 'var(--accent)', fontSize: 15, fontWeight: 700,
               fontFamily: 'var(--font-mono)',
             }}
-          >{isFetching ? 'CHECKING…' : 'CHECK AGAIN'}</button>
+          >{isFetching ? 'Checking…' : 'Check again'}</button>
         </div>
 
         <div style={{
@@ -71,7 +71,7 @@ export function AppsPage() {
           <div style={{
             padding: '10px 14px', marginBottom: 16, background: 'rgba(244,63,94,0.08)',
             border: '1px solid rgba(244,63,94,0.2)', borderRadius: 7,
-            color: '#f43f5e', fontSize: 18, fontFamily: 'var(--font-mono)',
+            color: '#f43f5e', fontSize: 15, fontFamily: 'var(--font-mono)',
           }}>
             Could not read service status. The apps may still be reachable directly.
           </div>
@@ -81,7 +81,7 @@ export function AppsPage() {
           <div style={{
             padding: 40, textAlign: 'center', color: 'var(--text-dim)',
             fontFamily: 'var(--font-mono)',
-          }}>LOADING…</div>
+          }}>Loading…</div>
         ) : (
           <div style={{
             display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 14,
@@ -114,19 +114,19 @@ function AppCard({ app }: { app: IntegrationStatus }) {
           color: accent, fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
         }}>{KIND_MONOGRAM[app.kind] ?? '??'}</div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 22, fontWeight: 600, color: 'var(--text-heading)' }}>
+          <div style={{ fontSize: 17, fontWeight: 600, color: 'var(--text-heading)' }}>
             {app.name}
           </div>
           <div style={{
             fontSize: 13, color: 'var(--text-muted)',
-            fontFamily: 'var(--font-mono)', letterSpacing: '0.06em',
+            fontFamily: 'var(--font-mono)', letterSpacing: '0.04em',
           }}>{app.path}</div>
         </div>
         <StatusBadge app={app} />
       </div>
 
       <div style={{
-        fontSize: 17, color: 'var(--text-2)', lineHeight: 1.5,
+        fontSize: 15, color: 'var(--text-2)', lineHeight: 1.5,
         flex: 1, marginBottom: 16,
       }}>{app.description}</div>
 
@@ -138,12 +138,12 @@ function AppCard({ app }: { app: IntegrationStatus }) {
       >
         <button style={{
           width: '100%', padding: '9px 0', cursor: 'pointer',
-          background: app.up ? 'rgba(255,128,21,0.12)' : 'var(--surface-input)',
-          border: `1px solid ${app.up ? 'rgba(255,128,21,0.3)' : 'var(--border)'}`,
-          borderRadius: 7, color: app.up ? '#ff8015' : 'var(--text-muted)',
-          fontSize: 16, fontWeight: 700, letterSpacing: '0.1em',
+          background: app.up ? 'rgba(var(--accent-rgb),0.12)' : 'var(--surface-input)',
+          border: `1px solid ${app.up ? 'rgba(var(--accent-rgb),0.3)' : 'var(--border)'}`,
+          borderRadius: 7, color: app.up ? 'var(--accent)' : 'var(--text-muted)',
+          fontSize: 16, fontWeight: 700, letterSpacing: '0.04em',
           fontFamily: 'var(--font-mono)',
-        }}>OPEN ↗</button>
+        }}>Open ↗</button>
       </a>
 
       {!app.up && (
@@ -168,6 +168,6 @@ function StatusBadge({ app }: { app: IntegrationStatus }) {
         color, background: `${color}14`, border: `1px solid ${color}30`,
         borderRadius: 4, padding: '2px 8px', whiteSpace: 'nowrap', flexShrink: 0,
       }}
-    >{app.up ? 'UP' : 'DOWN'}</span>
+    >{app.up ? 'Up' : 'Down'}</span>
   )
 }

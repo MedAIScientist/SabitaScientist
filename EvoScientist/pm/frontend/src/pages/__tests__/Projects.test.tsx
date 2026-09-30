@@ -24,7 +24,7 @@ const mockedUseNavigate = vi.mocked(useNavigate)
 const mockedUseAuth = vi.mocked(useAuth)
 
 beforeEach(() => {
-  mockedUseAuth.mockReturnValue({ username: 'admin', isAdmin: true, token: 'tok', login: vi.fn(), logout: vi.fn() })
+  mockedUseAuth.mockReturnValue({ username: 'admin', isAdmin: true, role: 'admin', token: 'tok', login: vi.fn(), logout: vi.fn() })
   mockedUseNavigate.mockReturnValue(vi.fn())
   mockedUseQueryClient.mockReturnValue({ invalidateQueries: vi.fn() } as any)
   mockedUseMutation.mockReturnValue({ mutate: vi.fn(), isPending: false } as any)
@@ -39,7 +39,7 @@ describe('Projects', () => {
 
   test('description textarea appears in create form when creating', () => {
     render(<Projects />)
-    fireEvent.click(screen.getByText('+ NEW PROJECT'))
-    expect(screen.getByPlaceholderText('Brief description (optional)…')).toBeInTheDocument()
+    fireEvent.click(screen.getByText('+ New project'))
+    expect(screen.getByPlaceholderText('Brief description (optional)')).toBeInTheDocument()
   })
 })

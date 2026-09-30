@@ -87,7 +87,7 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose, phases }
     fontSize: 15,
     color: 'var(--text-dim)',
     fontFamily: 'var(--font-mono)',
-    letterSpacing: '0.1em',
+    letterSpacing: '0.04em',
     display: 'block',
     marginBottom: 3,
     marginTop: 8,
@@ -100,7 +100,7 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose, phases }
     color: 'var(--text)',
     borderRadius: 4,
     padding: '4px 8px',
-    fontSize: 20,
+    fontSize: 16,
     fontFamily: 'var(--font-mono)',
     boxSizing: 'border-box',
   }
@@ -116,14 +116,14 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose, phases }
         left,
         width,
         background: 'var(--surface-panel)',
-        border: '1px solid rgba(255,128,21,0.25)',
+        border: '1px solid rgba(var(--accent-rgb),0.25)',
         borderRadius: 6,
         padding: 12,
         boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
         zIndex: 1000,
       }}
     >
-      <label style={labelStyle}>EXPERIMENT TITLE</label>
+      <label style={labelStyle}>Experiment title</label>
       <input
         autoFocus
         value={title}
@@ -132,19 +132,18 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose, phases }
         style={fieldStyle}
       />
 
-      <label style={labelStyle}>PRIORITY</label>
+      <label style={labelStyle}>Priority</label>
       <select
         value={priority}
         onChange={e => setPriority(e.target.value as Task['priority'])}
         style={fieldStyle}
       >
-        <option value="critical">CRITICAL</option>
-        <option value="high">HIGH</option>
-        <option value="medium">MEDIUM</option>
-        <option value="low">LOW</option>
+        <option value="high">Critical</option>
+        <option value="medium">Standard</option>
+        <option value="low">Routine</option>
       </select>
 
-      <label style={labelStyle}>PHASE</label>
+      <label style={labelStyle}>Phase</label>
       <select value={phaseId} onChange={e => setPhaseId(e.target.value)} style={fieldStyle}>
         <option value="">No phase</option>
         {(phases ?? []).map(p => (
@@ -152,7 +151,7 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose, phases }
         ))}
       </select>
 
-      <label style={labelStyle}>DEADLINE</label>
+      <label style={labelStyle}>Deadline</label>
       <DeadlinePicker
         value={deadline}
         onChange={setDeadline}
@@ -165,9 +164,9 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose, phases }
         style={{
           marginTop: 10,
           width: '100%',
-          background: 'rgba(255,128,21,0.12)',
-          border: '1px solid rgba(255,128,21,0.28)',
-          color: '#ff8015',
+          background: 'rgba(var(--accent-rgb),0.12)',
+          border: '1px solid rgba(var(--accent-rgb),0.28)',
+          color: 'var(--accent)',
           borderRadius: 4,
           padding: '5px 0',
           fontSize: 16,
@@ -177,7 +176,7 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose, phases }
           opacity: updateMutation.isPending ? 0.5 : 1,
         }}
       >
-        {updateMutation.isPending ? 'saving…' : 'SAVE'}
+        {updateMutation.isPending ? 'saving…' : 'Save'}
       </button>
       {saveError && (
         <div style={{ marginTop: 6, fontSize: 15, color: '#f43f5e', fontFamily: 'var(--font-mono)' }}>
