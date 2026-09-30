@@ -1616,3 +1616,16 @@ class AiUsageRecord(BaseModel):
 
 class AiUsageRecords(BaseModel):
     records: list[AiUsageRecord]
+
+
+class AiJobResponse(BaseModel):
+    id: str
+    kind: str
+    title: str
+    project_id: str | None = None
+    publication_id: str | None = None
+    status: Literal["running", "done", "failed"]
+    result_path: str | None = None
+    error: str | None = None
+    created_at: str
+    finished_at: str | None = None

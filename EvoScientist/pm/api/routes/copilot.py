@@ -1,20 +1,45 @@
-"""Unified AI Copilot — uses the authenticated user for all tool operations."""
+"""AI copilot: a streamed chat that can read and (with confirmation) change PM data.
+
+Design, from the user's side:
+
+* Native tool calling (``bind_tools``): arguments arrive as validated JSON instead
+  of a ``TOOL_CALL: name(k="v")`` line parsed by regex, which broke on any
+  argument containing ")" and allowed one call per turn.
+* Text is streamed as the model produces it.
+* The client sends the recent conversation, so follow-ups ("add a task to that
+  project") work. History is plain text; it grants nothing, because every tool
+  re-checks the signed-in user's permissions.
+* Read tools run immediately. Write tools (``WRITE_TOOL_NAMES``) are not run:
+  the stream ends with a ``confirm`` event, and the tool runs only when the user
+  approves it, in a follow-up request carrying ``approve``.
+
+Stream events (``data: {"type": ..., ...}``):
+``token`` text · ``tool_start``/``tool_end`` a read tool ran · ``confirm`` a write
+awaits approval · ``error`` readable message · ``status`` ``done`` (always last).
+"""
 
 from __future__ import annotations
 
 import json
 import logging
-import re as _re
+import re
 import uuid
 from collections.abc import AsyncGenerator
-from typing import Any
+from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from langchain_core.messages import (
+    AIMessage,
+    BaseMessage,
+    HumanMessage,
+    SystemMessage,
+    ToolMessage,
+)
+from pydantic import BaseModel, Field
 
 from EvoScientist.pm.models import User
-from EvoScientist.tools.pm_tools import PM_TOOLS, current_user_id
+from EvoScientist.tools.pm_tools import PM_TOOLS, WRITE_TOOL_NAMES, current_user_id
 
 from ....config.settings import get_effective_config
 from ....llm.models import DEFAULT_MODEL, get_chat_model
@@ -23,176 +48,214 @@ from ..deps import get_current_user
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-_MAX_TOOL_ITERATIONS = 10
+_MAX_TOOL_ROUNDS = 8
+_MAX_HISTORY_TURNS = 20
+_TOOLS_BY_NAME = {t.name: t for t in PM_TOOLS}
+
+# What the user sees instead of function names.
+TOOL_LABELS: dict[str, str] = {
+    "pm_create_project": "Create project",
+    "pm_list_projects": "Look up your projects",
+    "pm_get_project": "Read project details",
+    "pm_create_task": "Create task",
+    "pm_list_tasks": "Look up tasks",
+    "pm_create_experiment": "Create experiment",
+    "pm_list_experiments": "Look up experiments",
+    "pm_add_experiment_entry": "Add experiment entry",
+    "pm_list_experiment_entries": "Read experiment entries",
+    "pm_list_publications": "Look up papers",
+    "pm_get_publication": "Read paper details",
+    "pm_create_publication": "Create paper",
+    "pm_create_lab": "Create lab",
+    "pm_list_labs": "Look up labs",
+    "pm_get_lab": "Read lab details",
+    "pm_list_grants": "Look up grants",
+    "pm_list_conferences": "Look up conferences",
+    "pm_list_irbs": "Look up ethics approvals",
+    "pm_global_search": "Search",
+    "pm_search_memory": "Search project memory",
+}
 
 
-def _get_model(streaming: bool = True):
+def _get_model():
     config = get_effective_config()
-    model_name = config.auxiliary_model or DEFAULT_MODEL
-    return get_chat_model(model_name, temperature=0.3, streaming=streaming)
+    return get_chat_model(config.auxiliary_model or DEFAULT_MODEL, temperature=0.3, streaming=True)
 
 
-_TOOL_DESCRIPTIONS = "\n".join(
-    f"- {t.name}({', '.join(t.args)}): {t.description.split(chr(10))[0]}"
-    for t in PM_TOOLS
-)
-
-
-def _build_system_prompt(context: dict | None = None) -> str:
+def _system_prompt(context: dict | None) -> str:
     ctx = context or {}
-    page = ctx.get("page", "")
-    project_id = ctx.get("project_id", "")
     parts = [
-        "You are an AI research assistant for the Gazzali Project Management platform.",
-        "You have access to tools. When you need to use a tool, respond with EXACTLY:",
-        "",
-        'TOOL_CALL: tool_name(param1="value1", param2="value2")',
-        "",
-        "Then wait for the tool result before continuing.",
-        "Available tools:",
-        _TOOL_DESCRIPTIONS,
-        "",
-        "IMPORTANT:",
-        "- The pm_create_project tool auto-detects templates from the project name (ML keywords → ml-research).",
-        "- NEVER include lab_id when calling pm_create_project unless the user explicitly names a lab.",
-        "- When creating a task, ensure the project_id is valid.",
-        "- If you get an error, check what data is available and retry with correct parameters.",
-        "",
-        "If you don't need a tool, respond normally in natural language.",
-        "Be concise and proactive.",
+        "You are the AI research assistant of a university research-management platform.",
+        "Use the tools to look things up instead of guessing ids or facts.",
+        "Tools that create things are shown to the user for confirmation before they run,",
+        "so call them directly with complete arguments when the user asks for a change.",
+        "Never invent results, numbers or citations. Answer concisely, in the user's language.",
     ]
-    if page:
-        parts.insert(1, f"The user is on page: {page}")
-    if project_id:
-        parts.insert(1, f"Active project ID: {project_id}")
+    if ctx.get("project_id"):
+        parts.append(f"The user is looking at project {ctx['project_id']}; assume that project unless they name another.")
+    if ctx.get("page"):
+        parts.append(f"Current page: {ctx['page']}")
     return "\n".join(parts)
 
 
-def _parse_tool_call(text: str):
-    m = _re.search(
-        r"TOOL_CALL:\s*(\w+)\(([^)]*)\)\s*$",
-        text.strip(),
-        _re.MULTILINE | _re.DOTALL,
-    )
-    if not m:
+def _text_of(content: Any) -> str:
+    """Chunk content is a string for most providers, a list of blocks for some."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        return "".join(b.get("text", "") if isinstance(b, dict) else str(b) for b in content)
+    return ""
+
+
+def _created_id(result: str) -> str | None:
+    m = re.search(r"\bid=([A-Za-z0-9_-]+)", result)
+    return m.group(1) if m else None
+
+
+def result_link(name: str, args: dict, result: str) -> str | None:
+    """UI path for what a write tool created, so the user can open it in one click."""
+    if result.startswith("Error"):
         return None
-    name = m.group(1)
-    args_str = m.group(2).strip()
-    args: dict[str, Any] = {}
-    if args_str:
-        for pair in _re.findall(r'(\w+)=("[^"]*"|\'[^\']*\'|[\w\.-]+)', args_str):
-            k, v = pair
-            v = v.strip("\"'")
-            args[k] = v
-    return name, args
+    new_id = _created_id(result)
+    if name == "pm_create_project" and new_id:
+        return f"/projects/{new_id}"
+    if name == "pm_create_task" and args.get("project_id"):
+        return f"/projects/{args['project_id']}"
+    if name == "pm_create_experiment" and new_id and args.get("project_id"):
+        return f"/projects/{args['project_id']}/experiments?exp={new_id}"
+    if name == "pm_create_publication" and new_id:
+        return f"/publications/{new_id}"
+    if name == "pm_create_lab" and new_id:
+        return f"/labs/{new_id}"
+    return None
 
 
-async def _execute_tool(name: str, args: dict) -> str:
-    found = next((t for t in PM_TOOLS if t.name == name), None)
-    if not found:
-        return f"Error: tool '{name}' not found."
+def _event(kind: str, **data: Any) -> str:
+    return f"data: {json.dumps({'type': kind, **data})}\n\n"
+
+
+async def _call_tool(name: str, args: dict) -> str:
+    tool = _TOOLS_BY_NAME.get(name)
+    if tool is None:
+        return f"Error: unknown tool '{name}'."
     try:
-        result = await found.ainvoke(args)
-        return str(result)
-    except Exception as exc:
-        return f"Error: {exc}"
+        return str(await tool.ainvoke(args))
+    except Exception as exc:  # a tool bug must not end the conversation
+        logger.exception("Copilot tool %s failed", name)
+        return f"Error: {name} failed ({type(exc).__name__})."
 
 
-async def _run_tool_loop(
-    session_id: str,
-    user_message: str,
-    user_id: str,
-    context: dict | None = None,
-) -> AsyncGenerator[str, None]:
+class ChatTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(max_length=8000)
+
+
+class ApprovedAction(BaseModel):
+    name: str
+    args: dict[str, Any] = {}
+
+
+class CopilotRequest(BaseModel):
+    message: str = Field(default="", max_length=8000)
+    history: list[ChatTurn] = []
+    context: dict | None = None
+    approve: ApprovedAction | None = None
+    session_id: str = ""  # accepted for compatibility; history now travels with the request
+
+
+def _initial_messages(body: CopilotRequest) -> list[BaseMessage]:
+    messages: list[BaseMessage] = [SystemMessage(_system_prompt(body.context))]
+    for turn in body.history[-_MAX_HISTORY_TURNS:]:
+        messages.append(HumanMessage(turn.content) if turn.role == "user" else AIMessage(turn.content))
+    if body.message.strip():
+        messages.append(HumanMessage(body.message.strip()))
+    return messages
+
+
+async def _copilot_steps(body: CopilotRequest, user_id: str) -> AsyncGenerator[str, None]:
     token = current_user_id.set(user_id)
     try:
-        model = _get_model(streaming=True)
-        system_prompt = _build_system_prompt(context)
-        messages: list[dict] = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_message},
-        ]
+        messages = _initial_messages(body)
 
-        for iteration in range(_MAX_TOOL_ITERATIONS):
-            accumulated = ""
-            async for chunk in model.astream(messages):
-                content = chunk.content if hasattr(chunk, "content") else ""
-                if content:
-                    accumulated += content
-
-            parsed = _parse_tool_call(accumulated)
-
-            if not parsed:
-                yield f"data: {json.dumps({'type': 'token', 'data': accumulated})}\n\n"
-                yield f"data: {json.dumps({'type': 'status', 'data': 'done'})}\n\n"
+        if body.approve is not None:
+            name, args = body.approve.name, body.approve.args
+            if name not in WRITE_TOOL_NAMES:
+                yield _event("error", message="Only actions that change data need approval.")
                 return
+            # The tool itself re-checks the user's permissions on the project.
+            result = await _call_tool(name, args)
+            ok = not result.startswith("Error")
+            yield _event("tool_end", name=name, label=TOOL_LABELS.get(name, name), ok=ok,
+                         summary=result[:300], link=result_link(name, args, result))
+            call_id = f"approved-{uuid.uuid4().hex[:8]}"
+            messages.append(AIMessage(content="", tool_calls=[{"id": call_id, "name": name, "args": args}]))
+            messages.append(ToolMessage(result, tool_call_id=call_id))
 
-            name, args = parsed
-            visible = _re.sub(r"\nTOOL_CALL:\s*\w+\([^)]*\)\s*$", "", accumulated.strip(), flags=_re.MULTILINE)
-            if visible:
-                yield f"data: {json.dumps({'type': 'token', 'data': visible})}\n\n"
+        try:
+            model = _get_model().bind_tools(PM_TOOLS)
+        except NotImplementedError:
+            yield _event("error", message="The configured AI model cannot use tools. Choose another model in Settings.")
+            return
 
-            yield f"data: {json.dumps({'type': 'tool_start', 'data': name})}\n\n"
-            result = await _execute_tool(name, args)
-            yield f"data: {json.dumps({'type': 'tool_end', 'data': result[:200]})}\n\n"
-
-            messages.append({"role": "assistant", "content": accumulated})
-            messages.append({"role": "user", "content": f"Tool result for {name}:\n{result}\n\nSummarize for the user."})
-
-        yield f"data: {json.dumps({'type': 'error', 'data': 'Max iterations reached.'})}\n\n"
-        yield f"data: {json.dumps({'type': 'status', 'data': 'done'})}\n\n"
+        for _ in range(_MAX_TOOL_ROUNDS):
+            full: Any = None
+            async for chunk in model.astream(messages):
+                full = chunk if full is None else full + chunk
+                if text := _text_of(chunk.content):
+                    yield _event("token", data=text)
+            if full is None:
+                return
+            calls = list(getattr(full, "tool_calls", None) or [])
+            if not calls:
+                return
+            messages.append(AIMessage(content=full.content, tool_calls=calls))
+            for call in calls:
+                name, args = call["name"], call.get("args") or {}
+                if name in WRITE_TOOL_NAMES:
+                    # Stop here: the user decides. Later calls in this turn are dropped;
+                    # the model can repeat them after the approval round-trip.
+                    yield _event("confirm", name=name, label=TOOL_LABELS.get(name, name), args=args)
+                    return
+                yield _event("tool_start", name=name, label=TOOL_LABELS.get(name, name))
+                result = await _call_tool(name, args)
+                yield _event("tool_end", name=name, label=TOOL_LABELS.get(name, name),
+                             ok=not result.startswith("Error"), summary=result[:300], link=None)
+                messages.append(ToolMessage(result, tool_call_id=call["id"]))
+        yield _event("error", message="Stopped after several tool steps. Try a more specific request.")
+    except Exception:
+        logger.exception("Copilot failed")
+        yield _event("error", message="The assistant ran into a problem. Please try again.")
     finally:
         current_user_id.reset(token)
 
 
-class CopilotRequest(BaseModel):
-    message: str
-    session_id: str = ""
-    context: dict | None = None
+async def _run_copilot(body: CopilotRequest, user_id: str) -> AsyncGenerator[str, None]:
+    """Every stream ends with ``status: done``, including early returns and errors."""
+    async for event in _copilot_steps(body, user_id):
+        yield event
+    yield _event("status", data="done")
 
 
 @router.post("/copilot/stream")
 async def copilot_stream(body: CopilotRequest, user: User = Depends(get_current_user)):
-    session_id = body.session_id or str(uuid.uuid4())
     return StreamingResponse(
-        _run_tool_loop(session_id, body.message, user.id, body.context),
+        _run_copilot(body, user.id),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Session-Id": session_id,
-        },
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
 
 @router.post("/copilot")
 async def copilot_sync(body: CopilotRequest, user: User = Depends(get_current_user)):
-    session_id = body.session_id or str(uuid.uuid4())
-    token = current_user_id.set(user.id)
-    try:
-        model = _get_model(streaming=False)
-        system_prompt = _build_system_prompt(body.context)
-        messages: list[dict] = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": body.message},
-        ]
-
-        for iteration in range(_MAX_TOOL_ITERATIONS):
-            result = await model.ainvoke(messages)
-            text = result.content if hasattr(result, "content") else str(result)
-
-            parsed = _parse_tool_call(text)
-            if not parsed:
-                return {"response": text, "session_id": session_id}
-
-            name, args = parsed
-            tool_result = await _execute_tool(name, args)
-            messages.append({"role": "assistant", "content": text})
-            messages.append({"role": "user", "content": f"Tool result for {name}:\n{tool_result}\n\nSummarize for the user."})
-
-        return {"response": "Max iterations reached.", "session_id": session_id}
-    except Exception as exc:
-        logger.exception("Copilot sync error")
-        raise HTTPException(status_code=500, detail=str(exc))
-    finally:
-        current_user_id.reset(token)
+    """Non-streaming variant: the same conversation, collected into one reply."""
+    text: list[str] = []
+    pending: dict | None = None
+    async for raw in _run_copilot(body, user.id):
+        event = json.loads(raw[len("data: "):])
+        if event["type"] == "token":
+            text.append(event["data"])
+        elif event["type"] == "confirm":
+            pending = {"name": event["name"], "args": event["args"]}
+        elif event["type"] == "error":
+            text.append(f"\n{event['message']}")
+    return {"response": "".join(text), "pending_action": pending}

@@ -6,9 +6,12 @@ EvoScientist's skill guidance for specialized AI tasks.
 
 from __future__ import annotations
 
+from functools import partial
+
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 
 from ..._ai import run_llm_direct_async
+from ...crud.ai_jobs import create_job, run_tracked
 from ...crud.ai_usage import UsageContext
 from ...crud.experiment_entries import create_entry, list_entries
 from ...crud.experiments import get_experiment, list_linked_tasks
@@ -125,11 +128,13 @@ async def draft_grant_proposal(
         abstract=f"AI-generated {body.grant_type} grant proposal (in progress).",
     )
 
-    background_tasks.add_task(_run_grant_writer, pub.id, prompt, current_user.id)
-    return {"status": "drafting", "publication_id": pub.id, "grant_type": body.grant_type}
+    job = create_job(get_db_path(), kind="grant-proposal", title=pub_title[:120],
+                     user_id=current_user.id, project_id=project_id, publication_id=pub.id)
+    background_tasks.add_task(run_tracked, job.id, partial(_run_grant_writer, pub.id, prompt, current_user.id))
+    return {"status": "drafting", "publication_id": pub.id, "grant_type": body.grant_type, "job_id": job.id}
 
 
-async def _run_grant_writer(pub_id: str, prompt: str, user_id: str) -> None:
+async def _run_grant_writer(pub_id: str, prompt: str, user_id: str) -> str | None:
     """Run grant writing through EvoScientist's get_chat_model directly, with skill guidance."""
     from ...crud.publications import get_publication
     from ...crud.publications import update_publication as _up
@@ -145,8 +150,17 @@ async def _run_grant_writer(pub_id: str, prompt: str, user_id: str) -> None:
             publication_id=pub_id,
         ),
     )
-    if text:
-        _up(get_db_path(), pub_id, abstract=text[:800].strip(), status="draft")
+    if not text:
+        return None
+    # The full proposal goes into a version; the abstract keeps a preview. Only the
+    # first 800 characters used to be kept, so the rest of the proposal was lost.
+    from ...crud.publications import create_version
+    _up(get_db_path(), pub_id, abstract=text[:800].strip(), status="draft")
+    create_version(
+        get_db_path(), pub_id, created_by=user_id, notes=f"AI grant proposal ({len(text)} chars)",
+        content=text, section="grant-proposal", generated_by="ai-direct",
+    )
+    return f"/publications/{pub_id}"
 
 
 # =============================================================================
@@ -192,11 +206,13 @@ async def generate_figures(
         parts.append(e.body or "")
 
     prompt = "--- Experiment Data ---\n" + "\n".join(parts) + "\n" + GROUNDING_RULE
-    background_tasks.add_task(_run_figure_generator, exp_id, current_user.id, prompt)
-    return {"status": "generating", "experiment_id": exp_id}
+    job = create_job(get_db_path(), kind="generate-figures", title=f"Figures: {exp.name[:80]}",
+                     user_id=current_user.id, project_id=project_id)
+    background_tasks.add_task(run_tracked, job.id, partial(_run_figure_generator, exp_id, current_user.id, prompt))
+    return {"status": "generating", "experiment_id": exp_id, "job_id": job.id}
 
 
-async def _run_figure_generator(exp_id: str, user_id: str, prompt: str) -> None:
+async def _run_figure_generator(exp_id: str, user_id: str, prompt: str) -> str | None:
     from ...crud.experiments import get_experiment
     exp = get_experiment(get_db_path(), exp_id)
     text = await run_llm_direct_async(
@@ -209,14 +225,16 @@ async def _run_figure_generator(exp_id: str, user_id: str, prompt: str) -> None:
             project_id=exp.project_id if exp else None,
         ),
     )
-    if text:
-        create_entry(
-            get_db_path(),
-            experiment_id=exp_id,
-            entry_type="result",
-            title="AI-Generated Figures & Analysis",
-            body=text, author_id=user_id,
-        )
+    if not text:
+        return None
+    create_entry(
+        get_db_path(),
+        experiment_id=exp_id,
+        entry_type="result",
+        title="AI-Generated Figures & Analysis",
+        body=text, author_id=user_id,
+    )
+    return f"/projects/{exp.project_id}/experiments?exp={exp_id}" if exp else None
 
 
 # =============================================================================

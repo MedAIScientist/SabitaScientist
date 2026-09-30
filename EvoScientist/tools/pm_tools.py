@@ -26,6 +26,38 @@ def _uid() -> str:
     return uid
 
 
+# The agent acts as the signed-in user, so every tool applies the same rule the
+# REST API does (deps.require_project_role): any member may read, only owners and
+# editors may write, and a non-member is told "not found" so the tool cannot be
+# used to discover other groups' projects.
+_READ_ROLES = ("owner", "editor", "viewer")
+_WRITE_ROLES = ("owner", "editor")
+_NOT_FOUND = "Error: project {pid} not found, or you are not a member of it."
+
+
+def _project_denied(project_id: str, roles: tuple[str, ...] = _READ_ROLES) -> str | None:
+    """Return an error message if the caller may not act on the project, else None."""
+    from EvoScientist.pm.crud.projects import get_member_role
+
+    role = get_member_role(get_db_path(), project_id, _uid()) if project_id else None
+    if role is None:
+        return _NOT_FOUND.format(pid=project_id)
+    if role not in roles:
+        return f"Error: your role in project {project_id} is '{role}'; this needs owner or editor."
+    return None
+
+
+def _experiment_denied(experiment_id: str, roles: tuple[str, ...] = _READ_ROLES) -> str | None:
+    """Same rule as _project_denied, resolved through the experiment's project."""
+    from EvoScientist.pm.crud.experiments import get_experiment
+
+    exp = get_experiment(get_db_path(), experiment_id)
+    if exp is None:
+        return f"Error: experiment {experiment_id} not found, or you are not a member of its project."
+    denied = _project_denied(exp.project_id, roles)
+    return denied and f"Error: experiment {experiment_id} not found, or you are not a member of its project."
+
+
 # ── Projects ──────────────────────────────────────────────────────────────
 
 
@@ -127,6 +159,8 @@ def pm_get_project(project_id: str) -> str:
     Returns:
         Project details as formatted text
     """
+    if denied := _project_denied(project_id):
+        return denied
     db = get_db_path()
     project = get_project(db, project_id)
     if not project:
@@ -155,6 +189,11 @@ def pm_create_task(project_id: str, title: str, description: str = "", priority:
     Returns:
         Task ID and title on success
     """
+    if denied := _project_denied(project_id, _WRITE_ROLES):
+        return denied
+    priority = "high" if priority == "critical" else priority
+    if priority not in ("high", "medium", "low"):
+        return "Error: priority must be high, medium or low."
     db = get_db_path()
     task = create_task(
         db,
@@ -177,6 +216,8 @@ def pm_list_tasks(project_id: str) -> str:
     Returns:
         Formatted list of tasks with status and priority
     """
+    if denied := _project_denied(project_id):
+        return denied
     db = get_db_path()
     tasks = list_tasks(db, project_id)
     if not tasks:
@@ -203,6 +244,8 @@ def pm_create_experiment(project_id: str, name: str, hypothesis: str = "", proto
     Returns:
         Experiment ID on success
     """
+    if denied := _project_denied(project_id, _WRITE_ROLES):
+        return denied
     db = get_db_path()
     exp = create_experiment(
         db,
@@ -225,6 +268,8 @@ def pm_list_experiments(project_id: str) -> str:
     Returns:
         Formatted list of experiments
     """
+    if denied := _project_denied(project_id):
+        return denied
     db = get_db_path()
     experiments = list_experiments(db, project_id)
     if not experiments:
@@ -248,11 +293,15 @@ def pm_add_experiment_entry(experiment_id: str, entry_type: str, title: str, bod
     Returns:
         Entry ID on success
     """
+    if denied := _experiment_denied(experiment_id, _WRITE_ROLES):
+        return denied
+    if entry_type not in ("note", "result"):
+        return "Error: entry_type must be 'note' or 'result'."
     db = get_db_path()
     entry = create_entry(
         db,
         experiment_id=experiment_id,
-        type=entry_type,
+        entry_type=entry_type,
         title=title,
         body=body,
         author_id=_uid(),
@@ -270,6 +319,8 @@ def pm_list_experiment_entries(experiment_id: str) -> str:
     Returns:
         Formatted list of entries
     """
+    if denied := _experiment_denied(experiment_id):
+        return denied
     db = get_db_path()
     entries = list_entries(db, experiment_id)
     if not entries:
@@ -346,6 +397,8 @@ def pm_create_publication(title: str, project_id: str = "", venue: str = "", ven
         Publication ID on success
     """
     from EvoScientist.pm.crud.publications import create_publication
+    if project_id and (denied := _project_denied(project_id, _WRITE_ROLES)):
+        return denied
     db = get_db_path()
     pub = create_publication(
         db,
@@ -444,9 +497,14 @@ def pm_list_grants(lab_id: str = "") -> str:
     Returns:
         Formatted list of grants
     """
+    from EvoScientist.pm.api.routes.grants import _may_read_grant
     from EvoScientist.pm.crud.grants import list_grants
+    from EvoScientist.pm.crud.users import get_user_by_id
     db = get_db_path()
-    grants = list_grants(db, lab_id=lab_id or None)
+    user = get_user_by_id(db, _uid())
+    if user is None:
+        return "Error: unknown user."
+    grants = [g for g in list_grants(db, lab_id=lab_id or None) if _may_read_grant(user, g, db)]
     if not grants:
         return "No grants found."
     lines = ["Grants:"]
@@ -508,24 +566,38 @@ def pm_list_irbs(project_id: str = "") -> str:
 
 @tool
 def pm_global_search(query: str) -> str:
-    """Search across all PM entities (projects, tasks, experiments, publications).
+    """Search your projects, their tasks and experiments, and publications by keyword.
 
     Args:
-        query: Search query string
+        query: Search query string (at least 2 characters)
 
     Returns:
         Search results as formatted text
     """
-    from EvoScientist.pm.api.routes.search import global_search
+    from EvoScientist.pm.crud.publications import list_publications
+
+    q = query.strip().lower()
+    if len(q) < 2:
+        return "Error: search query must be at least 2 characters."
     db = get_db_path()
-    results = global_search(db, query)
+    # Only the caller's projects: search must not reveal other groups' work.
+    projects = list_projects_for_user(db, _uid())
+    hits: dict[str, list[str]] = {"projects": [], "tasks": [], "experiments": [], "publications": []}
+    for p in projects:
+        if q in p.name.lower() or q in (p.description or "").lower():
+            hits["projects"].append(f"[{p.id}] {p.name}")
+        hits["tasks"] += [f"[{t.id}] {t.title} (project {p.id})" for t in list_tasks(db, p.id)
+                          if q in t.title.lower() or q in (t.description or "").lower()]
+        hits["experiments"] += [f"[{e.id}] {e.name} (project {p.id})" for e in list_experiments(db, p.id)
+                                if q in e.name.lower() or q in (e.hypothesis or "").lower()]
+    # Publications are readable by every signed-in user in the REST API as well.
+    hits["publications"] = [f"[{pub.id}] {pub.title}" for pub in list_publications(db)
+                            if q in pub.title.lower() or q in (pub.abstract or "").lower()]
     lines = []
-    for cat in ("projects", "tasks", "experiments", "publications"):
-        items = results.get(cat, [])
+    for cat, items in hits.items():
         if items:
             lines.append(f"{cat.upper()}:")
-            for item in items[:5]:
-                lines.append(f"  [{item.get('id','')}] {item.get('name') or item.get('title','')}")
+            lines += [f"  {i}" for i in items[:5]]
     return "\n".join(lines) if lines else "No results found."
 
 
@@ -543,6 +615,8 @@ def pm_search_memory(project_id: str, query: str) -> str:
     Returns:
         Relevant observations
     """
+    if denied := _project_denied(project_id):
+        return denied
     from EvoScientist.pm._ai import search_project_knowledge
     results = search_project_knowledge(project_id=project_id, query=query)
     if not results:
@@ -555,6 +629,12 @@ def pm_search_memory(project_id: str, query: str) -> str:
             lines.append(f"    {body}")
     return "\n".join(lines)
 
+
+# Tools that create or change data. The copilot asks the user to confirm these.
+WRITE_TOOL_NAMES = frozenset({
+    "pm_create_project", "pm_create_task", "pm_create_experiment",
+    "pm_add_experiment_entry", "pm_create_publication", "pm_create_lab",
+})
 
 PM_TOOLS = [
     pm_create_project,

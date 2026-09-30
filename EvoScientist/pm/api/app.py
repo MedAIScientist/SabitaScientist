@@ -16,6 +16,7 @@ from .rate_limiter import RateLimitMiddleware
 from .routes import (
     admissions,
     ai_tools,
+    ai_jobs,
     ai_usage,
     assists,
     attachments,
@@ -77,6 +78,9 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     """
     configure_db_path(db_path)
     create_schema(db_path)  # idempotent — safe to call on every startup
+    # Background jobs run in this process; any still "running" died with the last one.
+    from ..crud.ai_jobs import fail_stale_jobs
+    fail_stale_jobs(db_path)
     cfg = get_effective_config()
 
     app = FastAPI(
@@ -137,6 +141,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     app.include_router(compute.router, prefix="/api/v1", tags=["compute"])
     app.include_router(ai_tools.router, prefix="/api/v1", tags=["ai-tools"])
     app.include_router(ai_usage.router, prefix="/api/v1/ai", tags=["ai-usage"])
+    app.include_router(ai_jobs.router, prefix="/api/v1", tags=["ai-jobs"])
     app.include_router(pipelines.router, prefix="/api/v1", tags=["deid-pipelines"])
     app.include_router(sandboxes.router, prefix="/api/v1", tags=["sandboxes"])
     app.include_router(exports.router, prefix="/api/v1", tags=["exports"])
