@@ -95,7 +95,7 @@ export function ProjectDataPage() {
     <div>
       <ProjectHeader projectId={projectId!} name={project?.name} actions={<>
         <AppLink app={apps.find(a => a.key === 'curator')} label="Open Curator (PACS)" />
-        <AppLink app={apps.find(a => a.key === 'jupyter')} label="Open JupyterHub" />
+        <AppLink app={apps.find(a => a.key === 'jupyter')} label="Open JupyterHub" subpath="hub/user-redirect/lab" />
         {activeSandbox?.access_url && (
           <a className="btn" href={activeSandbox.access_url} target="_blank" rel="noopener noreferrer"
             title={activeSandbox.expires_at ? `Workspace access ends ${activeSandbox.expires_at.slice(0, 10)}` : undefined}>
@@ -112,6 +112,8 @@ export function ProjectDataPage() {
         </p>
 
         <DatasetRequests projectId={projectId} />
+
+        {grantedDatasets.length > 0 && <JupyterAccess datasets={grantedDatasets} hubPath={apps.find(a => a.key === 'jupyter')?.path} />}
 
         <Section title="IMAGING DATASETS" hint="cohorts granted to this project">
           {grantedDatasets.map(d => (
@@ -290,11 +292,60 @@ function Row({ name, status, detail, usedBy, externalHref, onOpenExperiment }: {
 
 
 /** A companion app link; shown disabled (with the reason) when the probe says it is down. */
-function AppLink({ app, label }: { app?: { path: string; up: boolean; http_status: number | null }; label: string }) {
+function AppLink({ app, label, subpath = '' }: {
+  app?: { path: string; up: boolean; http_status: number | null }; label: string
+  /** Deep link inside the app, e.g. JupyterHub's user-redirect to the caller's own server. */
+  subpath?: string
+}) {
   if (!app) return null
   if (!app.up) {
     return <span className="btn" aria-disabled="true" style={{ opacity: 0.55, cursor: 'not-allowed' }}
       title={`Not reachable right now${app.http_status ? ` (HTTP ${app.http_status})` : ''}`}>{label} · offline</span>
   }
-  return <a className="btn" href={app.path} target="_blank" rel="noopener noreferrer">{label} ↗</a>
+  return <a className="btn" href={app.path + subpath} target="_blank" rel="noopener noreferrer">{label} ↗</a>
+}
+
+
+/** Where a granted cohort is in delivery, in the words a researcher needs. */
+const DELIVERY: Record<string, string> = {
+  approved: 'approved, waiting for delivery from PACS',
+  delivering: 'being delivered — files are still arriving',
+  sealed: 'delivered and sealed',
+}
+
+/**
+ * How to reach the granted cohorts from a notebook. Access follows project
+ * membership: platform-control grants each researcher's NEXT JupyterHub session
+ * key read access to the buckets of every dataset granted to their projects.
+ */
+function JupyterAccess({ datasets, hubPath }: { datasets: DatasetSummary[]; hubPath?: string }) {
+  const [copied, setCopied] = useState<string | null>(null)
+  const copy = (text: string) => {
+    navigator.clipboard?.writeText(text).then(() => { setCopied(text); setTimeout(() => setCopied(null), 1500) })
+  }
+  return (
+    <details className="request" style={{ marginBottom: 24 }} open>
+      <summary style={{ cursor: 'pointer', fontWeight: 600, color: 'var(--text-heading)' }}>Using this data in JupyterHub</summary>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10, fontSize: 13.5, color: 'var(--text-2)' }}>
+        <p>
+          As a member of this project, your JupyterHub session can read the buckets below. Access is added to your
+          <b> next</b> session: if a dataset was granted after you started your server, restart it
+          {hubPath ? <> (<a href={`${hubPath}hub/home`} target="_blank" rel="noopener noreferrer">Hub control panel</a> → Stop My Server → Start)</> : ''}.
+        </p>
+        <table className="bucket-table">
+          <thead><tr><th>Dataset</th><th>Bucket</th><th>Status</th><th /></tr></thead>
+          <tbody>
+            {datasets.map(d => (
+              <tr key={d.id}>
+                <td>{d.name}</td>
+                <td><code>{d.bucket || '—'}</code></td>
+                <td>{DELIVERY[d.status] ?? d.status}</td>
+                <td>{d.bucket && <button className="btn" style={{ height: 26 }} onClick={() => copy(d.bucket!)}>{copied === d.bucket ? 'Copied' : 'Copy'}</button>}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  )
 }

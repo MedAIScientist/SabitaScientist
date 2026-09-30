@@ -221,6 +221,10 @@ fieldset.field { border: 0; }
 .blockers { font-size: 13px; color: var(--rose); padding-left: 18px; }
 .inbox-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }
 
+.bucket-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.bucket-table th { text-align: left; font-weight: 600; color: var(--text-3); padding: 4px 8px 4px 0; border-bottom: 1px solid var(--border); }
+.bucket-table td { padding: 6px 8px 6px 0; border-bottom: 1px solid var(--border-subtle); color: var(--text); }
+
 /* ── App shell: sidebar + one-viewport scrollable main ─────────────────── */
 .shell { display: flex; height: 100vh; overflow: hidden; }
 .shell-main { flex: 1; min-width: 0; height: 100vh; overflow: auto; position: relative; }

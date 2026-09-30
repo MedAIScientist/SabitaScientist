@@ -35,7 +35,7 @@ function renderPage() {
 }
 
 const grantedDataset = {
-  id: 'd1', name: 'DX ankle cohort', modality: 'DX', status: 'approved', lab_id: 'l1',
+  id: 'd1', name: 'DX ankle cohort', modality: 'DX', status: 'approved', lab_id: 'l1', bucket: 'ds-d1',
   grants: [{ project_id: 'p1', admin_approved_at: '2026-08-01', revoked_at: null }],
 }
 const ungrantedDataset = {
@@ -43,7 +43,7 @@ const ungrantedDataset = {
   grants: [{ project_id: 'p9', admin_approved_at: '2026-08-01', revoked_at: null }],
 }
 const revokedDataset = {
-  id: 'd3', name: 'Revoked cohort', modality: 'MR', status: 'approved', lab_id: 'l1',
+  id: 'd3', name: 'Revoked cohort', modality: 'MR', status: 'approved', lab_id: 'l1', bucket: 'ds-d3',
   grants: [{ project_id: 'p1', admin_approved_at: '2026-08-01', revoked_at: '2026-09-01' }],
 }
 
@@ -96,9 +96,21 @@ describe('ProjectDataPage', () => {
 
     renderPage()
 
-    expect(await screen.findByText('DX ankle cohort')).toBeInTheDocument()
+    // Listed twice: as an asset row and in the JupyterHub bucket table.
+    expect((await screen.findAllByText('DX ankle cohort')).length).toBeGreaterThan(0)
     expect(screen.queryByText('Someone else cohort')).toBeNull()
     expect(screen.queryByText('Revoked cohort')).toBeNull()
+  })
+
+  it('shows the bucket of each granted dataset for use in JupyterHub, and only those', async () => {
+    mocked.listDatasets.mockResolvedValue([grantedDataset, revokedDataset] as any)
+
+    renderPage()
+
+    expect(await screen.findByText('Using this data in JupyterHub')).toBeInTheDocument()
+    expect(screen.getByText('ds-d1')).toBeInTheDocument()
+    expect(screen.queryByText('ds-d3')).toBeNull()  // revoked grant: no access, no bucket shown
+    expect(screen.getAllByText(/approved, waiting for delivery/).length).toBeGreaterThan(0)
   })
 
   it('names the experiments using each asset (reverse lineage)', async () => {
