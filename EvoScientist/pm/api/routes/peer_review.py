@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-import httpx
+from functools import partial
+
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 
 from ....paths import RUNS_DIR
-from ..._evoscientist import get_runner_url
+from ...crud.ai_jobs import create_job, run_tracked
 from ...crud.publications import (
     create_review,
     get_publication,
@@ -20,7 +21,6 @@ from ..deps import get_current_user
 from ..schemas import ReviewAssignmentRequest
 
 router = APIRouter()
-RUNNER_URL = get_runner_url()
 
 _REVIEW_PROMPT = """You are an expert peer reviewer for a scientific journal. Review the publication context below and produce a structured review.
 
@@ -119,46 +119,28 @@ async def generate_ai_review(
     run_id = f"review-{pub_id}-{__import__('time').time():.0f}"
     workspace_dir = str(RUNS_DIR / "reviews" / run_id)
 
-    background_tasks.add_task(_run_ai_review, pub_id, run_id, prompt, workspace_dir)
-    return {"status": "started", "publication_id": pub_id}
+    job = create_job(get_db_path(), kind="ai-peer-review", title=f"AI review: {pub.title[:80]}",
+                     user_id=current_user.id, project_id=pub.project_id, publication_id=pub_id)
+    background_tasks.add_task(run_tracked, job.id, partial(
+        _run_ai_review, pub_id, run_id, prompt, workspace_dir, current_user.id))
+    return {"status": "started", "publication_id": pub_id, "job_id": job.id}
 
 
-async def _run_ai_review(pub_id: str, run_id: str, prompt: str, workspace_dir: str) -> None:
-    db = get_db_path()
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(f"{RUNNER_URL}/runs", json={
-                "run_id": run_id, "agent_type": "research",
-                "prompt": prompt, "workspace_dir": workspace_dir,
-            })
-            if resp.status_code != 200:
-                return
+async def _run_ai_review(pub_id: str, run_id: str, prompt: str, workspace_dir: str, user_id: str) -> str | None:
+    from ...crud.ai_usage import UsageContext
+    from .drafting import _run_agent_and_get_output
 
-        accumulated: list[str] = []
-        async with httpx.AsyncClient(timeout=httpx.Timeout(300.0)) as client:
-            async with client.stream("GET", f"{RUNNER_URL}/runs/{run_id}/stream") as stream:
-                async for line in stream.aiter_lines():
-                    if line.startswith("data: "):
-                        try:
-                            ev = __import__("json").loads(line[6:])
-                            if ev.get("type") == "token":
-                                accumulated.append(ev["data"])
-                            elif ev.get("type") == "error":
-                                return
-                        except Exception:
-                            pass
-
-        text = "".join(accumulated)
-        if text:
-            # Extract decision from the review text
-            decision = None
-            for d in ["accept", "minor_revision", "major_revision", "reject"]:
-                if d.lower() in text[:500].lower():
-                    decision = d
-                    break
-            create_review(db, pub_id, round=1, reviewer_name="AI Reviewer", comments=text[:2000], decision=decision)
-    except Exception:
-        pass
+    text = await _run_agent_and_get_output(
+        run_id, prompt, workspace_dir, agent_type="research",
+        context=UsageContext(task="ai-peer-review", user_id=user_id, publication_id=pub_id),
+    )
+    if not text:
+        return None
+    # Extract decision from the review text
+    decision = next((d for d in ("accept", "minor_revision", "major_revision", "reject")
+                     if d in text[:500].lower()), None)
+    create_review(get_db_path(), pub_id, round=1, reviewer_name="AI Reviewer", comments=text[:2000], decision=decision)
+    return f"/publications/{pub_id}"
 
 
 @router.get("/publications/{pub_id}/reviews")

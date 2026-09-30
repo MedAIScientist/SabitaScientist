@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import time
+from functools import partial
 from pathlib import Path
 
 import httpx
@@ -11,6 +12,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, s
 
 from ....paths import RUNS_DIR
 from ..._evoscientist import get_runner_url
+from ...crud.ai_jobs import AiJobError, create_job, run_tracked
 from ...crud.ai_usage import UsageContext
 from ...crud.experiment_entries import create_entry, list_entries
 from ...crud.experiments import (
@@ -335,25 +337,33 @@ async def _run_agent_and_get_output(
             )
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(f"{RUNNER_URL}/runs", json=payload)
-            if resp.status_code != 200:
-                return None
+    except httpx.HTTPError as exc:
+        raise AiJobError("The AI service is not reachable right now. Please try again in a minute.") from exc
+    # The runner answers 202 Accepted. Checking for exactly 200 used to discard
+    # every successful start, so no runner-backed feature ever saved a result.
+    if not resp.is_success:
+        raise AiJobError(f"The AI service refused the request (HTTP {resp.status_code}).")
 
-        accumulated: list[str] = []
+    accumulated: list[str] = []
+    try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(300.0)) as client:
             async with client.stream("GET", f"{RUNNER_URL}/runs/{run_id}/stream") as stream:
                 async for line in stream.aiter_lines():
-                    if line.startswith("data: "):
-                        try:
-                            event = json.loads(line[6:])
-                            if event.get("type") == "token":
-                                accumulated.append(event["data"])
-                            elif event.get("type") == "error":
-                                return None
-                        except Exception:
-                            pass
-        return "".join(accumulated) or None
-    except Exception:
-        return None
+                    if not line.startswith("data: "):
+                        continue
+                    try:
+                        event = json.loads(line[6:])
+                    except json.JSONDecodeError:
+                        continue
+                    if event.get("type") == "token":
+                        accumulated.append(event["data"])
+                    elif event.get("type") == "error":
+                        raise AiJobError(f"The AI model reported an error: {event.get('data')}")
+    except httpx.TimeoutException as exc:
+        raise AiJobError("The AI took too long to answer (over 5 minutes).") from exc
+    except httpx.HTTPError as exc:
+        raise AiJobError("Lost the connection to the AI service while it was working.") from exc
+    return "".join(accumulated) or None
 
 
 # ── Section drafting ───────────────────────────────────────────────────────────
@@ -385,34 +395,39 @@ async def draft_section(
         notes=f"AI drafted section: {body.section} ({body.style}) — in progress",
     )
 
-    background_tasks.add_task(_run_section_and_save, pub_id, body.section, run_id, prompt, workspace_dir, current_user.id)
+    job = create_job(get_db_path(), kind="draft-section", title=f"Draft {body.section}", user_id=current_user.id, project_id=pub.project_id, publication_id=pub_id)
+    background_tasks.add_task(run_tracked, job.id, partial(
+        _run_section_and_save, pub_id, body.section, f"{run_id}-{job.id}", prompt, workspace_dir, current_user.id))
 
     return {
         "publication_id": pub_id,
         "section": body.section,
         "style": body.style,
         "status": "drafting",
+        "job_id": job.id,
     }
 
 
-async def _run_section_and_save(pub_id: str, section: str, run_id: str, prompt: str, workspace_dir: str, user_id: str) -> None:
+async def _run_section_and_save(pub_id: str, section: str, run_id: str, prompt: str, workspace_dir: str, user_id: str) -> str | None:
     text = await _run_agent_and_get_output(
         run_id, prompt, workspace_dir,
         context=_publication_context(pub_id, user_id, "draft-section"),
     )
-    if text:
-        db = get_db_path()
-        file_path = _save_section_file(workspace_dir, section, text)
-        create_version(
-            db, pub_id,
-            created_by=user_id,
-            file_path=file_path,
-            notes=f"AI-generated {section} ({len(text)} chars)",
-            content=text,
-            section=section,
-            generated_by="ai-agent",
-            prompt_hash=prompt_fingerprint(prompt),
-        )
+    if not text:
+        return None
+    db = get_db_path()
+    file_path = _save_section_file(workspace_dir, section, text)
+    create_version(
+        db, pub_id,
+        created_by=user_id,
+        file_path=file_path,
+        notes=f"AI-generated {section} ({len(text)} chars)",
+        content=text,
+        section=section,
+        generated_by="ai-agent",
+        prompt_hash=prompt_fingerprint(prompt),
+    )
+    return f"/publications/{pub_id}"
 
 
 # ── Draft from experiment (experiment-to-section) ────────────────────────────
@@ -451,13 +466,16 @@ async def draft_from_experiment(
     workspace_dir = str(RUNS_DIR / "sections" / f"exp-{experiment_id}")
     run_id = f"exp-{experiment_id}-{section}"
 
-    background_tasks.add_task(_run_section_and_save, pub.id, section, run_id, prompt, workspace_dir, current_user.id)
+    job = create_job(get_db_path(), kind="draft-from-experiment", title=f"Draft {section} from {exp.name}", user_id=current_user.id, project_id=project_id, publication_id=pub.id)
+    background_tasks.add_task(run_tracked, job.id, partial(
+        _run_section_and_save, pub.id, section, f"{run_id}-{job.id}", prompt, workspace_dir, current_user.id))
 
     return {
         "publication_id": pub.id,
         "experiment_id": experiment_id,
         "section": section,
         "status": "drafting",
+        "job_id": job.id,
     }
 
 
@@ -493,32 +511,37 @@ async def revise_publication(
         notes=f"AI revision: {body.instructions[:80]}{'…' if len(body.instructions) > 80 else ''}",
     )
 
-    background_tasks.add_task(_run_revision_and_save, pub_id, run_id, prompt, workspace_dir, current_user.id)
+    job = create_job(get_db_path(), kind="revise", title="Revise text", user_id=current_user.id, project_id=pub.project_id, publication_id=pub_id)
+    background_tasks.add_task(run_tracked, job.id, partial(
+        _run_revision_and_save, pub_id, f"{run_id}-{job.id}", prompt, workspace_dir, current_user.id))
 
     return {
         "publication_id": pub_id,
         "status": "revising",
+        "job_id": job.id,
     }
 
 
-async def _run_revision_and_save(pub_id: str, run_id: str, prompt: str, workspace_dir: str, user_id: str) -> None:
+async def _run_revision_and_save(pub_id: str, run_id: str, prompt: str, workspace_dir: str, user_id: str) -> str | None:
     text = await _run_agent_and_get_output(
         run_id, prompt, workspace_dir,
         context=_publication_context(pub_id, user_id, "revise"),
     )
-    if text:
-        db = get_db_path()
-        file_path = _save_section_file(workspace_dir, "revision", text)
-        create_version(
-            db, pub_id,
-            created_by="system",
-            file_path=file_path,
-            notes=f"AI revision ({len(text)} chars)",
-            content=text,
-            section="revision",
-            generated_by="ai-agent",
-            prompt_hash=prompt_fingerprint(prompt),
-        )
+    if not text:
+        return None
+    db = get_db_path()
+    file_path = _save_section_file(workspace_dir, "revision", text)
+    create_version(
+        db, pub_id,
+        created_by="system",
+        file_path=file_path,
+        notes=f"AI revision ({len(text)} chars)",
+        content=text,
+        section="revision",
+        generated_by="ai-agent",
+        prompt_hash=prompt_fingerprint(prompt),
+    )
+    return f"/publications/{pub_id}"
 
 
 # ── Reviewer response ─────────────────────────────────────────────────────────
@@ -544,34 +567,37 @@ async def respond_to_reviewers(
     workspace_dir = str(RUNS_DIR / "responses" / pub_id)
     run_id = f"response-{pub_id}"
 
-    background_tasks.add_task(
-        _run_response_and_save, pub_id, body.reviewer_comments, run_id, prompt, workspace_dir, current_user.id,
-    )
+    job = create_job(get_db_path(), kind="respond-to-reviewers", title="Response to reviewers", user_id=current_user.id, project_id=pub.project_id, publication_id=pub_id)
+    background_tasks.add_task(run_tracked, job.id, partial(
+        _run_response_and_save, pub_id, body.reviewer_comments, f"{run_id}-{job.id}", prompt, workspace_dir, current_user.id))
 
     return {
         "publication_id": pub_id,
         "status": "generating",
+        "job_id": job.id,
     }
 
 
-async def _run_response_and_save(pub_id: str, comments: str, run_id: str, prompt: str, workspace_dir: str, user_id: str) -> None:
+async def _run_response_and_save(pub_id: str, comments: str, run_id: str, prompt: str, workspace_dir: str, user_id: str) -> str | None:
     text = await _run_agent_and_get_output(
         run_id, prompt, workspace_dir,
         context=_publication_context(pub_id, user_id, "respond-to-reviewers"),
     )
-    if text:
-        db = get_db_path()
-        file_path = _save_section_file(workspace_dir, "reviewer-response", text)
-        create_version(
-            db, pub_id,
-            created_by=user_id,
-            file_path=file_path,
-            notes=f"AI-generated reviewer response ({len(comments)} chars of comments)",
-            content=text,
-            section="reviewer-response",
-            generated_by="ai-agent",
-            prompt_hash=prompt_fingerprint(prompt),
-        )
+    if not text:
+        return None
+    db = get_db_path()
+    file_path = _save_section_file(workspace_dir, "reviewer-response", text)
+    create_version(
+        db, pub_id,
+        created_by=user_id,
+        file_path=file_path,
+        notes=f"AI-generated reviewer response ({len(comments)} chars of comments)",
+        content=text,
+        section="reviewer-response",
+        generated_by="ai-agent",
+        prompt_hash=prompt_fingerprint(prompt),
+    )
+    return f"/publications/{pub_id}"
 
 
 # ── Full paper draft (kept for backward compatibility) ────────────────────────
@@ -605,34 +631,38 @@ async def draft_paper_from_project(
     )
 
     workspace_dir = str(RUNS_DIR / "drafts" / pub.id)
-    background_tasks.add_task(_run_draft_agent, pub.id, prompt, workspace_dir, current_user.id)
+    job = create_job(get_db_path(), kind="draft-paper", title=f"Full draft: {project.name}", user_id=current_user.id, project_id=project_id, publication_id=pub.id)
+    background_tasks.add_task(run_tracked, job.id, partial(_run_draft_agent, pub.id, prompt, workspace_dir, current_user.id))
 
     return {
         "publication_id": pub.id,
         "status": "drafting",
+        "job_id": job.id,
     }
 
 
-async def _run_draft_agent(pub_id: str, prompt: str, workspace_dir: str, user_id: str) -> None:
+async def _run_draft_agent(pub_id: str, prompt: str, workspace_dir: str, user_id: str) -> str | None:
     text = await _run_agent_and_get_output(
         f"draft-{pub_id}", prompt, workspace_dir,
         context=_publication_context(pub_id, user_id, "draft-paper"),
     )
-    if text:
-        file_path = _save_section_file(workspace_dir, "full-draft", text)
-        # The full text lives in the version row; `abstract` keeps only a preview
-        # so the publication list stays readable.
-        update_publication(get_db_path(), pub_id, abstract=text[:2000].strip(), status="draft")
-        create_version(
-            get_db_path(), pub_id,
-            created_by="system",
-            file_path=file_path,
-            notes=f"Full AI-generated draft ({len(text)} chars)",
-            content=text,
-            section="full-draft",
-            generated_by="ai-agent",
-            prompt_hash=prompt_fingerprint(prompt),
-        )
+    if not text:
+        return None
+    file_path = _save_section_file(workspace_dir, "full-draft", text)
+    # The full text lives in the version row; `abstract` keeps only a preview
+    # so the publication list stays readable.
+    update_publication(get_db_path(), pub_id, abstract=text[:2000].strip(), status="draft")
+    create_version(
+        get_db_path(), pub_id,
+        created_by="system",
+        file_path=file_path,
+        notes=f"Full AI-generated draft ({len(text)} chars)",
+        content=text,
+        section="full-draft",
+        generated_by="ai-agent",
+        prompt_hash=prompt_fingerprint(prompt),
+    )
+    return f"/publications/{pub_id}"
 
 
 # ── Hypothesis Generation ──────────────────────────────────────────────────────
@@ -674,22 +704,26 @@ async def generate_hypothesis(
     run_id = f"hypothesis-{project_id}-{time.time():.0f}"
     workspace_dir = str(RUNS_DIR / "research" / run_id)
 
-    background_tasks.add_task(_save_hypothesis_output, project_id, current_user.id, run_id, prompt, workspace_dir, body.topic)
+    job = create_job(get_db_path(), kind="generate-hypothesis", title=f"Hypotheses: {body.topic[:80]}", user_id=current_user.id, project_id=project_id, publication_id=None)
+    background_tasks.add_task(run_tracked, job.id, partial(
+        _save_hypothesis_output, project_id, current_user.id, run_id, prompt, workspace_dir, body.topic))
 
-    return {"status": "generating", "message": "Hypothesis generation started — results will be saved as an experiment entry."}
+    return {"status": "generating", "message": "Hypothesis generation started — results will be saved as an experiment entry.", "job_id": job.id}
 
 
 async def _save_hypothesis_output(
     project_id: str, user_id: str, run_id: str, prompt: str, workspace_dir: str, topic: str,
-) -> None:
+) -> str | None:
     text = await _run_agent_and_get_output(
         run_id, prompt, workspace_dir, agent_type="research",
         context=UsageContext(task="generate-hypothesis", user_id=user_id, project_id=project_id),
     )
-    if text:
-        db = get_db_path()
-        exp = create_experiment(db, project_id=project_id, name=f"Hypothesis: {topic[:80]}", created_by=user_id)
-        create_entry(db, experiment_id=exp.id, entry_type="result", title=f"AI-Generated Hypotheses for: {topic}", body=text, author_id=user_id)
+    if not text:
+        return None
+    db = get_db_path()
+    exp = create_experiment(db, project_id=project_id, name=f"Hypothesis: {topic[:80]}", created_by=user_id)
+    create_entry(db, experiment_id=exp.id, entry_type="result", title=f"AI-Generated Hypotheses for: {topic}", body=text, author_id=user_id)
+    return f"/projects/{project_id}/experiments?exp={exp.id}"
 
 
 # ── Research Ideation ──────────────────────────────────────────────────────────
@@ -732,22 +766,26 @@ async def research_ideation(
     run_id = f"ideation-{project_id}-{time.time():.0f}"
     workspace_dir = str(RUNS_DIR / "research" / run_id)
 
-    background_tasks.add_task(_save_ideation_output, project_id, current_user.id, run_id, prompt, workspace_dir, body.topic)
+    job = create_job(get_db_path(), kind="research-ideation", title=f"Research ideas: {body.topic[:80]}", user_id=current_user.id, project_id=project_id, publication_id=None)
+    background_tasks.add_task(run_tracked, job.id, partial(
+        _save_ideation_output, project_id, current_user.id, run_id, prompt, workspace_dir, body.topic))
 
-    return {"status": "generating", "message": "Research ideation started — results will be saved as an experiment entry."}
+    return {"status": "generating", "message": "Research ideation started — results will be saved as an experiment entry.", "job_id": job.id}
 
 
 async def _save_ideation_output(
     project_id: str, user_id: str, run_id: str, prompt: str, workspace_dir: str, topic: str,
-) -> None:
+) -> str | None:
     text = await _run_agent_and_get_output(
         run_id, prompt, workspace_dir, agent_type="research",
         context=UsageContext(task="research-ideation", user_id=user_id, project_id=project_id),
     )
-    if text:
-        db = get_db_path()
-        exp = create_experiment(db, project_id=project_id, name=f"Ideation: {topic[:80]}", created_by=user_id, status="planned")
-        create_entry(db, experiment_id=exp.id, entry_type="result", title=f"Research Ideas for: {topic}", body=text, author_id=user_id)
+    if not text:
+        return None
+    db = get_db_path()
+    exp = create_experiment(db, project_id=project_id, name=f"Ideation: {topic[:80]}", created_by=user_id, status="planned")
+    create_entry(db, experiment_id=exp.id, entry_type="result", title=f"Research Ideas for: {topic}", body=text, author_id=user_id)
+    return f"/projects/{project_id}/experiments?exp={exp.id}"
 
 
 # ── Methodology Validation ─────────────────────────────────────────────────────
@@ -785,20 +823,24 @@ async def validate_methodology(
     run_id = f"validation-{project_id}-{time.time():.0f}"
     workspace_dir = str(RUNS_DIR / "research" / run_id)
 
-    background_tasks.add_task(_save_validation_output, project_id, current_user.id, run_id, prompt, workspace_dir)
+    job = create_job(get_db_path(), kind="validate-methodology", title="Methodology review", user_id=current_user.id, project_id=project_id, publication_id=None)
+    background_tasks.add_task(run_tracked, job.id, partial(
+        _save_validation_output, project_id, current_user.id, run_id, prompt, workspace_dir))
 
-    return {"status": "generating", "message": "Methodology validation started — results will be saved as an experiment entry."}
+    return {"status": "generating", "message": "Methodology validation started — results will be saved as an experiment entry.", "job_id": job.id}
 
 
-async def _save_validation_output(project_id: str, user_id: str, run_id: str, prompt: str, workspace_dir: str) -> None:
+async def _save_validation_output(project_id: str, user_id: str, run_id: str, prompt: str, workspace_dir: str) -> str | None:
     text = await _run_agent_and_get_output(
         run_id, prompt, workspace_dir, agent_type="research",
         context=UsageContext(task="validate-methodology", user_id=user_id, project_id=project_id),
     )
-    if text:
-        db = get_db_path()
-        exp = create_experiment(db, project_id=project_id, name="Methodology Review", created_by=user_id)
-        create_entry(db, experiment_id=exp.id, entry_type="result", title="Methodology Validation Report", body=text, author_id=user_id)
+    if not text:
+        return None
+    db = get_db_path()
+    exp = create_experiment(db, project_id=project_id, name="Methodology Review", created_by=user_id)
+    create_entry(db, experiment_id=exp.id, entry_type="result", title="Methodology Validation Report", body=text, author_id=user_id)
+    return f"/projects/{project_id}/experiments?exp={exp.id}"
 
 
 # ── Citation Verification ──────────────────────────────────────────────────────
@@ -853,16 +895,16 @@ async def verify_citations(
     else:
         raw_results = "Semantic Scholar database not available. Using AI-only analysis."
 
-    background_tasks.add_task(
-        _save_citation_output, project_id, current_user.id, run_id, prompt, workspace_dir, raw_results,
-    )
+    job = create_job(get_db_path(), kind="verify-citations", title="Citation check", user_id=current_user.id, project_id=project_id, publication_id=None)
+    background_tasks.add_task(run_tracked, job.id, partial(
+        _save_citation_output, project_id, current_user.id, run_id, prompt, workspace_dir, raw_results))
 
     status_msg = (
         f"Found {s2_results.get('verified', 0)}/{s2_results.get('total_citations', 0)} citations in database. "
         f"Analysis in progress."
     ) if s2_results.get("available") else "Semantic Scholar DB not configured. Using AI-only analysis. Set S2_DB_PATH env var."
 
-    return {"status": "generating", "message": status_msg}
+    return {"status": "generating", "message": status_msg, "job_id": job.id}
 
 
 def _format_s2_results(s2_results: dict) -> str:
@@ -897,16 +939,18 @@ def _format_s2_results(s2_results: dict) -> str:
     return "\n".join(lines)
 
 
-async def _save_citation_output(project_id: str, user_id: str, run_id: str, prompt: str, workspace_dir: str, raw_results: str = "") -> None:
+async def _save_citation_output(project_id: str, user_id: str, run_id: str, prompt: str, workspace_dir: str, raw_results: str = "") -> str | None:
     text = await _run_agent_and_get_output(
         run_id, prompt, workspace_dir, agent_type="research",
         context=UsageContext(task="verify-citations", user_id=user_id, project_id=project_id),
     )
-    if text:
-        db = get_db_path()
-        exp = create_experiment(db, project_id=project_id, name="Citation Review", created_by=user_id)
-        # Save AI analysis as the main entry
-        create_entry(db, experiment_id=exp.id, entry_type="result", title="Citation Verification Report — AI Analysis", body=text, author_id=user_id)
-        # Save raw DB results as a note
-        if raw_results:
-            create_entry(db, experiment_id=exp.id, entry_type="note", title="Raw Database Results", body=raw_results, author_id=user_id)
+    if not text:
+        return None
+    db = get_db_path()
+    exp = create_experiment(db, project_id=project_id, name="Citation Review", created_by=user_id)
+    # Save AI analysis as the main entry
+    create_entry(db, experiment_id=exp.id, entry_type="result", title="Citation Verification Report — AI Analysis", body=text, author_id=user_id)
+    # Save raw DB results as a note
+    if raw_results:
+        create_entry(db, experiment_id=exp.id, entry_type="note", title="Raw Database Results", body=raw_results, author_id=user_id)
+    return f"/projects/{project_id}/experiments?exp={exp.id}"

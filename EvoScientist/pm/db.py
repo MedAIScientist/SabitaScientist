@@ -841,6 +841,25 @@ CREATE INDEX IF NOT EXISTS idx_ai_usage_created ON ai_usage(created_at);
 CREATE INDEX IF NOT EXISTS idx_ai_usage_user ON ai_usage(user_id);
 CREATE INDEX IF NOT EXISTS idx_ai_usage_publication ON ai_usage(publication_id);
 CREATE INDEX IF NOT EXISTS idx_ai_usage_task ON ai_usage(task);
+
+-- Background AI work a user started (drafts, hypotheses, reviews...). Lets the UI
+-- show progress, link to the result, and say why a job failed instead of
+-- leaving the user to guess whether anything happened.
+CREATE TABLE IF NOT EXISTS ai_jobs (
+    id             TEXT PRIMARY KEY,
+    kind           TEXT NOT NULL,
+    title          TEXT NOT NULL,
+    user_id        TEXT REFERENCES users(id) ON DELETE CASCADE,
+    project_id     TEXT REFERENCES projects(id) ON DELETE CASCADE,
+    publication_id TEXT REFERENCES publications(id) ON DELETE CASCADE,
+    status         TEXT NOT NULL DEFAULT 'running'
+                   CHECK(status IN ('running', 'done', 'failed')),
+    result_path    TEXT,
+    error          TEXT,
+    created_at     TEXT NOT NULL,
+    finished_at    TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_ai_jobs_user ON ai_jobs(user_id, created_at);
 """
 
 _MIGRATIONS = [

@@ -13,7 +13,8 @@ set -euo pipefail
 
 SERVER="${1:-medaiadm@medai-prod}"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SSH="ssh ${SERVER}"
+# Keep-alives: a session that dies mid-build (e.g. a Tailscale re-auth) fails in ~2 min instead of hanging.
+SSH="ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=4 ${SERVER}"
 DEPLOY_DIR="/home/medaiadm/EvoScientist"
 COMPOSE_FILE="deploy/docker-compose.prod.yml"
 

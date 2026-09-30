@@ -226,6 +226,7 @@ export function Board() {
             </button>
           ))}
         </div>
+        <button className="btn" onClick={() => setShowResearchTools(o => !o)}>✦ AI tools</button>
         <button className="btn" aria-pressed={showExperimentsPanel} onClick={() => setShowExperimentsPanel(o => !o)}>
           {showExperimentsPanel ? 'Hide' : 'Show'} experiment panel
         </button>

@@ -54,6 +54,22 @@ def _build_skill_augmented_system_prompt(
 # =========================================================================
 
 
+def pm_model_choice(model: str | None = None) -> tuple[str, str | None]:
+    """The (model, provider) the PM's direct AI calls and the copilot use.
+
+    ``auxiliary_model`` + ``auxiliary_provider`` from the settings (env:
+    EVOSCIENTIST_AUXILIARY_MODEL / EVOSCIENTIST_AUXILIARY_PROVIDER). The provider
+    matters: one model name can be served by several providers (deepseek-v4-flash
+    by DeepSeek and by OpenRouter), and it was previously ignored.
+    """
+    if model:
+        return model, None
+    config = get_effective_config()
+    if config.auxiliary_model:
+        return config.auxiliary_model, config.auxiliary_provider or None
+    return DEFAULT_MODEL, None
+
+
 def _prepare_chat(
     system_prompt: str,
     skill_guidance: list[str] | None = None,
@@ -66,9 +82,8 @@ def _prepare_chat(
         system_prompt = _build_skill_augmented_system_prompt(
             system_prompt, skill_guidance
         )
-    config = get_effective_config()
-    model_name = model or config.auxiliary_model or DEFAULT_MODEL
-    chat = get_chat_model(model_name, temperature=temperature, max_tokens=max_tokens)
+    model_name, provider = pm_model_choice(model)
+    chat = get_chat_model(model_name, provider=provider, temperature=temperature, max_tokens=max_tokens)
     return chat, system_prompt
 
 

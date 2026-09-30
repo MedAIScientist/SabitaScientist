@@ -1,6 +1,7 @@
-import React, { useState } from 'react'
+import React, { useCallback, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { AiJobList } from '../components/AiJobList'
 import { api, Publication_, Version, Review, Pipeline } from '../api'
 
 const STATUS_OPTIONS = ['draft', 'submitted', 'reviewing', 'accepted', 'published', 'rejected']
@@ -149,9 +150,16 @@ export function PublicationDetail() {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['reviews', id] }); setShowNewReview(false); setReviewerName(''); setReviewComments(''); setReviewDecision('') },
   })
 
+  const refreshAfterAi = useCallback(() => {
+    qc.invalidateQueries({ queryKey: ['versions', id] })
+    qc.invalidateQueries({ queryKey: ['publication', id] })
+    qc.invalidateQueries({ queryKey: ['reviews', id] })
+  }, [qc, id])
+
   const draftSectionMutation = useMutation({
     mutationFn: () => api.draftSection(id!, aiSection, aiStyle),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ai-jobs'] })
       qc.invalidateQueries({ queryKey: ['versions', id] })
       setAiTab(null)
     },
@@ -161,6 +169,7 @@ export function PublicationDetail() {
     mutationFn: ({ expId, section }: { expId: string; section: string }) =>
       api.draftFromExperiment(pub!.project_id!, expId, section, aiStyle),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ai-jobs'] })
       qc.invalidateQueries({ queryKey: ['versions', id] })
     },
   })
@@ -168,6 +177,7 @@ export function PublicationDetail() {
   const reviseMutation = useMutation({
     mutationFn: () => api.revisePublication(id!, reviseInstructions, pub?.abstract || undefined),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ai-jobs'] })
       qc.invalidateQueries({ queryKey: ['publication', id] })
       qc.invalidateQueries({ queryKey: ['versions', id] })
       setAiTab(null); setReviseInstructions('')
@@ -177,6 +187,7 @@ export function PublicationDetail() {
   const respondMutation = useMutation({
     mutationFn: () => api.respondToReviewers(id!, reviewerComments),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ai-jobs'] })
       qc.invalidateQueries({ queryKey: ['versions', id] })
       setAiTab(null); setReviewerComments('')
     },
@@ -506,6 +517,10 @@ export function PublicationDetail() {
                 >{respondMutation.isPending ? '…' : 'Generate response'}</button>
               </div>
             )}
+          </div>
+
+          <div style={{ marginBottom: 24 }}>
+            <AiJobList publicationId={id} title="AI jobs for this paper" onFinished={refreshAfterAi} />
           </div>
 
           {/* Versions */}

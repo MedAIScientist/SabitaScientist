@@ -323,15 +323,23 @@ export const api = {
       'POST', `/publications/${pubId}/respond-to-reviewers`, { reviewer_comments: reviewerComments }
     ),
 
+  // ── Background AI jobs ───────────────────────────────────────────────────
+  listAiJobs: (params: { projectId?: string; publicationId?: string } = {}) => {
+    const q = new URLSearchParams()
+    if (params.projectId) q.set('project_id', params.projectId)
+    if (params.publicationId) q.set('publication_id', params.publicationId)
+    return request<AiJob[]>('GET', `/ai-jobs${q.toString() ? `?${q}` : ''}`)
+  },
+
   // ── AI Research Tools ─────────────────────────────────────────────────────
   generateHypothesis: (projectId: string, topic: string, context?: string) =>
-    request<{ status: string; message: string }>('POST', `/projects/${projectId}/generate-hypothesis`, { topic, context }),
+    request<{ status: string; message: string; job_id: string }>('POST', `/projects/${projectId}/generate-hypothesis`, { topic, context }),
   researchIdeation: (projectId: string, topic: string, focusArea?: string, count: number = 5) =>
-    request<{ status: string; message: string }>('POST', `/projects/${projectId}/research-ideation`, { topic, focus_area: focusArea, count }),
+    request<{ status: string; message: string; job_id: string }>('POST', `/projects/${projectId}/research-ideation`, { topic, focus_area: focusArea, count }),
   validateMethodology: (projectId: string, proposedMethods: string) =>
-    request<{ status: string; message: string }>('POST', `/projects/${projectId}/validate-methodology`, { proposed_methods: proposedMethods }),
+    request<{ status: string; message: string; job_id: string }>('POST', `/projects/${projectId}/validate-methodology`, { proposed_methods: proposedMethods }),
   verifyCitations: (projectId: string, citations: string) =>
-    request<{ status: string; message: string }>('POST', `/projects/${projectId}/verify-citations`, { citations }),
+    request<{ status: string; message: string; job_id: string }>('POST', `/projects/${projectId}/verify-citations`, { citations }),
 
   // ── AI Grant Writer ──────────────────────────────────────────────────────
   draftGrantProposal: (projectId: string, grantType: string) =>
@@ -1331,4 +1339,19 @@ export const aiUsageApi = {
     const limit = params.limit ? `${qs ? '&' : '?'}limit=${params.limit}` : ''
     return request<{ records: AiUsageRecord[] }>('GET', `/ai/usage/records${qs}${limit}`)
   },
+}
+
+
+/** A background AI job; ``result_path`` is the in-app route of what it produced. */
+export interface AiJob {
+  id: string
+  kind: string
+  title: string
+  project_id: string | null
+  publication_id: string | null
+  status: 'running' | 'done' | 'failed'
+  result_path: string | null
+  error: string | null
+  created_at: string
+  finished_at: string | null
 }

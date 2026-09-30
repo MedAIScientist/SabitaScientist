@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-import httpx
+from functools import partial
+
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 
-from ..._evoscientist import get_runner_url
+from ...crud.ai_jobs import create_job, run_tracked
 from ...crud.experiment_entries import create_entry
 from ...crud.experiments import create_experiment
 from ...crud.projects import get_project
@@ -15,7 +16,6 @@ from ..deps import require_project_role
 from ..schemas import LiteratureReviewRequest
 
 router = APIRouter()
-RUNNER_URL = get_runner_url()
 
 _LIT_REVIEW_PROMPT = """You are a research literature review specialist. Your task is to conduct a thorough literature review on the topic below and produce a structured Markdown report.
 
@@ -77,40 +77,26 @@ async def run_literature_review(
     run_id = f"litreview-{project_id}-{__import__('time').time():.0f}"
     workspace_dir = str(RUNS_DIR / "research" / run_id)
 
-    background_tasks.add_task(_run_lit_review, project_id, current_user.id, run_id, prompt, workspace_dir, body.topic)
-    return {"status": "started", "message": f"Literature review started for '{body.topic}'"}
+    job = create_job(get_db_path(), kind="literature-review", title=f"Literature review: {body.topic[:80]}",
+                     user_id=current_user.id, project_id=project_id)
+    background_tasks.add_task(run_tracked, job.id, partial(
+        _run_lit_review, project_id, current_user.id, run_id, prompt, workspace_dir, body.topic))
+    return {"status": "started", "message": f"Literature review started for '{body.topic}'", "job_id": job.id}
 
 
 async def _run_lit_review(
     project_id: str, user_id: str, run_id: str, prompt: str, workspace_dir: str, topic: str,
-) -> None:
+) -> str | None:
+    from ...crud.ai_usage import UsageContext
+    from .drafting import _run_agent_and_get_output
+
+    text = await _run_agent_and_get_output(
+        run_id, prompt, workspace_dir, agent_type="research",
+        context=UsageContext(task="literature-review", user_id=user_id, project_id=project_id),
+    )
+    if not text:
+        return None
     db = get_db_path()
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(f"{RUNNER_URL}/runs", json={
-                "run_id": run_id, "agent_type": "research",
-                "prompt": prompt, "workspace_dir": workspace_dir,
-            })
-            if resp.status_code != 200:
-                return
-
-        accumulated: list[str] = []
-        async with httpx.AsyncClient(timeout=httpx.Timeout(300.0)) as client:
-            async with client.stream("GET", f"{RUNNER_URL}/runs/{run_id}/stream") as stream:
-                async for line in stream.aiter_lines():
-                    if line.startswith("data: "):
-                        try:
-                            ev = __import__("json").loads(line[6:])
-                            if ev.get("type") == "token":
-                                accumulated.append(ev["data"])
-                            elif ev.get("type") == "error":
-                                return
-                        except Exception:
-                            pass
-
-        text = "".join(accumulated)
-        if text:
-            exp = create_experiment(db, project_id=project_id, name=f"Literature Review: {topic[:80]}", created_by=user_id)
-            create_entry(db, experiment_id=exp.id, entry_type="result", title=f"Literature Review — {topic}", body=text, author_id=user_id)
-    except Exception:
-        pass
+    exp = create_experiment(db, project_id=project_id, name=f"Literature Review: {topic[:80]}", created_by=user_id)
+    create_entry(db, experiment_id=exp.id, entry_type="result", title=f"Literature Review — {topic}", body=text, author_id=user_id)
+    return f"/projects/{project_id}/experiments?exp={exp.id}"

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AiUsagePanel } from '../components/AiUsagePanel'
 import { api, supervisionApi } from '../api'
+import { AiJobList } from '../components/AiJobList'
 
 const STAGES: Record<string, { label: string; color: string; tools: string[] }> = {
   draft: { label: 'Writing', color: '#8b5cf6', tools: ['section', 'experiment', 'revise', 'hypothesis'] },
@@ -54,8 +55,8 @@ export function PaperWorkspacePage() {
   const draftSection = useMutation({
     mutationFn: () => api.draftSection(id!, section, style),
     onSuccess: () => {
-      setNotice(`Section draft started: ${section}`)
-      qc.invalidateQueries({ queryKey: ['pub-versions', id] })
+      setNotice(`Section draft started: ${section}. Its progress is shown below.`)
+      qc.invalidateQueries({ queryKey: ['ai-jobs'] })
     },
     onError: (e: Error) => setNotice(e.message),
   })
@@ -191,6 +192,11 @@ export function PaperWorkspacePage() {
               </div>
             </div>
           </section>
+
+          <div style={{ marginTop: 16 }}>
+            <AiJobList publicationId={id} title="AI jobs for this paper"
+              onFinished={() => qc.invalidateQueries({ queryKey: ['pub-versions', id] })} />
+          </div>
 
           {/* Evidence (compact) */}
           <section style={{ ...card, marginTop: 16 }}>

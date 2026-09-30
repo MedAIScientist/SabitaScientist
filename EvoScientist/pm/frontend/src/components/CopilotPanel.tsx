@@ -1,240 +1,188 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 
-interface ToolCall {
-  name: string
-  output: string
+/** One entry in the conversation. Tool and confirm cards sit between the text turns. */
+type Item =
+  | { kind: 'user'; text: string }
+  | { kind: 'assistant'; text: string }
+  | { kind: 'tool'; label: string; ok: boolean | null; summary?: string; link?: string | null }
+  | { kind: 'confirm'; name: string; label: string; args: Record<string, unknown>; state: 'pending' | 'approved' | 'cancelled' }
+  | { kind: 'error'; text: string }
+
+type Approve = { name: string; args: Record<string, unknown> }
+
+const STORE_KEY = 'copilot_items'
+const HISTORY_TURNS = 20
+
+function loadItems(): Item[] {
+  try { return JSON.parse(sessionStorage.getItem(STORE_KEY) || '[]') } catch { return [] }
 }
 
-interface Message {
-  role: 'user' | 'assistant'
-  content: string
-  toolCalls?: ToolCall[]
+/** Suggestions that fit the page the user is on. */
+function starters(projectId: string | null): string[] {
+  return projectId
+    ? ['Summarize where this project stands', 'Which tasks are still open?', 'Suggest the next experiments to run', 'Add a task to review the related literature']
+    : ['What are my projects?', 'Create a project for a new study', 'Find papers about retinal imaging', 'Which conferences have upcoming deadlines?']
 }
 
-function uuidv4(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-    const r = Math.random() * 16 | 0
-    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16)
-  })
-}
-
-function getSessionId(): string {
-  let sid = sessionStorage.getItem('copilot_session')
-  if (!sid) {
-    sid = uuidv4()
-    sessionStorage.setItem('copilot_session', sid)
-  }
-  return sid
+/** Arguments shown on a confirm card, as readable "field: value" lines. */
+function describeArgs(args: Record<string, unknown>): [string, string][] {
+  return Object.entries(args)
+    .filter(([, v]) => v !== '' && v !== null && v !== undefined)
+    .map(([k, v]) => [k.replace(/_id$/, '').replace(/_/g, ' '), String(v)])
 }
 
 export function CopilotPanel({ onClose }: { onClose: () => void }) {
-  const [messages, setMessages] = useState<Message[]>([])
+  const [items, setItems] = useState<Item[]>(loadItems)
   const [input, setInput] = useState('')
-  const [streaming, setStreaming] = useState(false)
-  const accRef = useRef('')
-  const toolRef = useRef('')
+  const [busy, setBusy] = useState(false)
   const abortRef = useRef<AbortController | null>(null)
   const endRef = useRef<HTMLDivElement>(null)
   const location = useLocation()
-  const [, forceUpdate] = useState(0)
+  const navigate = useNavigate()
+  const projectId = location.pathname.match(/^\/projects\/([^/]+)/)?.[1] ?? null
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages, streaming])
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [items])
+  useEffect(() => { try { sessionStorage.setItem(STORE_KEY, JSON.stringify(items)) } catch { /* private mode */ } }, [items])
 
-  function buildContext() {
-    const ctx: Record<string, string> = { page: location.pathname }
-    const m = location.pathname.match(/^\/projects\/([^/]+)/)
-    if (m) ctx.project_id = m[1]
-    return ctx
-  }
+  const push = (item: Item) => setItems(prev => [...prev, item])
 
-  const send = useCallback(async () => {
-    const msg = input.trim()
-    if (!msg || streaming) return
-    setInput('')
-    setMessages(prev => [...prev, { role: 'user', content: msg }])
-    setStreaming(true)
-    accRef.current = ''
-    toolRef.current = ''
-    forceUpdate(n => n + 1)
+  /** Append streamed text to the assistant turn in progress, or start one. */
+  const appendText = (text: string) => setItems(prev => {
+    const last = prev[prev.length - 1]
+    if (last?.kind === 'assistant') return [...prev.slice(0, -1), { ...last, text: last.text + text }]
+    return [...prev, { kind: 'assistant', text }]
+  })
 
+  async function stream(message: string, history: Item[], approve?: Approve) {
+    setBusy(true)
     const controller = new AbortController()
     abortRef.current = controller
-
+    const turns = history
+      .filter((i): i is Extract<Item, { kind: 'user' | 'assistant' }> => i.kind === 'user' || i.kind === 'assistant')
+      .slice(-HISTORY_TURNS)
+      .map(i => ({ role: i.kind, content: i.text }))
     try {
       const token = sessionStorage.getItem('pm_token')
       const resp = await fetch('/api/v1/copilot/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ message: msg, session_id: getSessionId(), context: buildContext() }),
+        body: JSON.stringify({ message, history: turns, approve, context: { page: location.pathname, project_id: projectId } }),
         signal: controller.signal,
       })
-      const reader = resp.body?.getReader()
-      if (!reader) return
-
+      if (!resp.ok || !resp.body) throw new Error(resp.status === 401 ? 'Your session expired. Please sign in again.' : `Request failed (${resp.status})`)
+      const reader = resp.body.getReader()
       const decoder = new TextDecoder()
       let buf = ''
-      const toolCalls: ToolCall[] = []
-
-      while (true) {
+      for (;;) {
         const { done, value } = await reader.read()
         if (done) break
         buf += decoder.decode(value, { stream: true })
         const lines = buf.split('\n')
         buf = lines.pop() || ''
-
         for (const line of lines) {
           if (!line.startsWith('data: ')) continue
-          try {
-            const ev = JSON.parse(line.slice(6))
-            if (ev.type === 'token') {
-              accRef.current += ev.data
-              forceUpdate(n => n + 1)
-            } else if (ev.type === 'tool_start') {
-              toolRef.current = `🔧 ${ev.data}...`
-              forceUpdate(n => n + 1)
-            } else if (ev.type === 'tool_end') {
-              toolCalls.push({ name: toolCalls.length > 0 ? toolCalls[toolCalls.length - 1].name : 'tool', output: String(ev.data).slice(0, 200) })
-              toolRef.current = ''
-              forceUpdate(n => n + 1)
-            } else if (ev.type === 'error') {
-              accRef.current += `\n\nError: ${ev.data}`
-              forceUpdate(n => n + 1)
-            }
-          } catch { /* skip */ }
+          let ev: any
+          try { ev = JSON.parse(line.slice(6)) } catch { continue }
+          if (ev.type === 'token') appendText(ev.data)
+          else if (ev.type === 'tool_start') push({ kind: 'tool', label: ev.label, ok: null })
+          else if (ev.type === 'tool_end') setItems(prev => {
+            // Complete the running card for this tool, or add a finished one (approved writes).
+            const idx = prev.map(i => i.kind === 'tool' && i.ok === null && i.label === ev.label).lastIndexOf(true)
+            const card: Item = { kind: 'tool', label: ev.label, ok: ev.ok, summary: ev.summary, link: ev.link }
+            return idx === -1 ? [...prev, card] : [...prev.slice(0, idx), card, ...prev.slice(idx + 1)]
+          })
+          else if (ev.type === 'confirm') push({ kind: 'confirm', name: ev.name, label: ev.label, args: ev.args, state: 'pending' })
+          else if (ev.type === 'error') push({ kind: 'error', text: ev.message })
         }
       }
-
-      if (accRef.current.trim()) {
-        setMessages(prev => [...prev, { role: 'assistant', content: accRef.current, toolCalls }])
-      }
     } catch (err: any) {
-      if (err.name !== 'AbortError') {
-        setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${err.message}` }])
-      }
+      if (err.name !== 'AbortError') push({ kind: 'error', text: err.message || 'Could not reach the assistant.' })
     } finally {
-      setStreaming(false)
-      accRef.current = ''
-      toolRef.current = ''
+      setBusy(false)
       abortRef.current = null
-      forceUpdate(n => n + 1)
     }
-  }, [input, streaming, location.pathname])
-
-  function cancelStream() {
-    abortRef.current?.abort()
-    if (accRef.current.trim()) {
-      setMessages(prev => [...prev, { role: 'assistant', content: accRef.current }])
-    }
-    setStreaming(false)
-    accRef.current = ''
-    toolRef.current = ''
   }
 
-  return (
-    <div style={{
-      position: 'fixed', right: 0, top: 0, bottom: 0, width: 'min(420px, 100vw)',
-      background: 'var(--surface-panel)', borderLeft: '1px solid var(--border)',
-      display: 'flex', flexDirection: 'column', zIndex: 50,
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-    }}>
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '10px 16px', borderBottom: '1px solid var(--border)',
-      }}>
-        <span style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>
-          AI Copilot
-        </span>
-        <button onClick={onClose} style={{
-          background: 'none', border: 'none', cursor: 'pointer', fontSize: 16,
-          color: 'var(--text-dim)', padding: '2px 6px', borderRadius: 4,
-        }}>✕</button>
-      </div>
+  function send(text = input) {
+    const msg = text.trim()
+    if (!msg || busy) return
+    setInput('')
+    const next: Item[] = [...items, { kind: 'user', text: msg }]
+    setItems(next)
+    stream(msg, items)
+  }
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
-        {messages.length === 0 && !streaming && (
-          <div style={{ color: 'var(--text-dim)', fontSize: 14, padding: 16, textAlign: 'center', lineHeight: 1.6 }}>
-            I'm your AI research assistant.<br />
-            Ask me to create projects, draft papers,<br />
-            manage experiments, search publications,<br />
-            or anything else in the platform.
+  function decide(index: number, approve: boolean) {
+    const card = items[index]
+    if (card.kind !== 'confirm' || card.state !== 'pending' || busy) return
+    const next = items.map((it, i) => (i === index ? { ...card, state: approve ? 'approved' : 'cancelled' } as Item : it))
+    setItems(next)
+    if (approve) stream('', next, { name: card.name, args: card.args })
+    else push({ kind: 'assistant', text: 'Cancelled — nothing was changed.' })
+  }
+
+  const hasPending = items.some(i => i.kind === 'confirm' && i.state === 'pending')
+
+  return (
+    <aside className="copilot" aria-label="AI copilot">
+      <header className="copilot-head">
+        <strong>AI copilot</strong>
+        <span style={{ flex: 1 }} />
+        {items.length > 0 && <button className="btn" style={{ height: 28 }} onClick={() => setItems([])} disabled={busy}>New chat</button>}
+        <button className="icon-btn" onClick={onClose} aria-label="Close copilot">✕</button>
+      </header>
+
+      <div className="copilot-body">
+        {items.length === 0 && (
+          <div className="copilot-empty">
+            <p>Ask about your projects, tasks, experiments and papers. I look things up for you, and ask before changing anything.</p>
+            <div className="copilot-starters">
+              {starters(projectId).map(s => <button key={s} className="btn" onClick={() => send(s)}>{s}</button>)}
+            </div>
           </div>
         )}
-        {messages.map((m, i) => (
-          <div key={i} style={{ marginBottom: 12 }}>
-            <div style={{
-              fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)',
-              color: m.role === 'user' ? 'var(--accent)' : 'var(--text-dim)',
-              marginBottom: 3, letterSpacing: '0.04em',
-            }}>{m.role === 'user' ? 'You' : 'Copilot'}</div>
-            <div style={{ fontSize: 15, lineHeight: 1.6, color: 'var(--text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-              {m.content}
+        {items.map((it, i) => {
+          if (it.kind === 'user') return <div key={i} className="msg msg-user">{it.text}</div>
+          if (it.kind === 'assistant') return <div key={i} className="msg msg-ai">{it.text}</div>
+          if (it.kind === 'error') return <div key={i} className="msg msg-error" role="alert">{it.text}</div>
+          if (it.kind === 'tool') return (
+            <div key={i} className="tool-card" data-state={it.ok === null ? 'running' : it.ok ? 'ok' : 'failed'}>
+              <span className="tool-dot" aria-hidden />
+              <span>{it.label}{it.ok === null ? '…' : ''}</span>
+              {it.ok === false && it.summary && <span className="tool-note">{it.summary}</span>}
+              {it.link && <a href={it.link} onClick={e => { e.preventDefault(); navigate(it.link!) }}>Open →</a>}
             </div>
-            {m.toolCalls && m.toolCalls.length > 0 && (
-              <details style={{ marginTop: 4 }}>
-                <summary style={{ fontSize: 12, color: 'var(--text-dim)', cursor: 'pointer', fontFamily: 'var(--font-mono)' }}>
-                  {m.toolCalls.length} tool call{m.toolCalls.length > 1 ? 's' : ''}
-                </summary>
-                {m.toolCalls.map((tc, j) => (
-                  <pre key={j} style={{
-                    fontSize: 12, background: 'var(--surface-input)', padding: 6, borderRadius: 4,
-                    marginTop: 4, overflow: 'hidden', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)',
-                  }}>{tc.output}</pre>
-                ))}
-              </details>
-            )}
-          </div>
-        ))}
-        {streaming && (
-          <div>
-            <div style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', marginBottom: 3 }}>
-              Copilot
+          )
+          return (
+            <div key={i} className="confirm-card" data-state={it.state}>
+              <div className="confirm-title">{it.label}?</div>
+              <dl>{describeArgs(it.args).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
+              {it.state === 'pending' ? (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn btn-primary" onClick={() => decide(i, true)} disabled={busy}>Confirm</button>
+                  <button className="btn" onClick={() => decide(i, false)} disabled={busy}>Cancel</button>
+                </div>
+              ) : <div className="tool-note">{it.state === 'approved' ? 'Approved' : 'Cancelled'}</div>}
             </div>
-            <div style={{ fontSize: 15, lineHeight: 1.6, color: 'var(--text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-              {accRef.current || ''}<span style={{ animation: 'blink 1s infinite', color: 'var(--accent)' }}>▍</span>
-            </div>
-            {toolRef.current && (
-              <div style={{ fontSize: 13, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: 4, fontStyle: 'italic' }}>
-                {toolRef.current}
-              </div>
-            )}
-          </div>
-        )}
+          )
+        })}
+        {busy && items[items.length - 1]?.kind !== 'assistant' && <div className="msg msg-ai typing" aria-label="Thinking">…</div>}
         <div ref={endRef} />
       </div>
 
-      <div style={{ padding: '8px 12px 12px', borderTop: '1px solid var(--border)' }}>
-        <div style={{ display: 'flex', gap: 6 }}>
-          <input
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
-            placeholder="Ask the Copilot..."
-            disabled={streaming}
-            style={{
-              flex: 1, padding: '8px 12px', fontSize: 15, outline: 'none',
-              background: 'var(--surface-input)', border: '1px solid var(--border)',
-              borderRadius: 6, color: 'var(--text)', fontFamily: 'var(--font-mono)',
-            }}
-          />
-          {streaming ? (
-            <button onClick={cancelStream} style={{
-              padding: '8px 14px', cursor: 'pointer', fontSize: 14, fontWeight: 700,
-              fontFamily: 'var(--font-mono)', background: 'transparent',
-              border: '1px solid #f43f5e', borderRadius: 6, color: '#f43f5e',
-            }}>Stop</button>
-          ) : (
-            <button onClick={send} disabled={!input.trim()} style={{
-              padding: '8px 14px', cursor: input.trim() ? 'pointer' : 'default', fontSize: 14, fontWeight: 700,
-              fontFamily: 'var(--font-mono)', background: input.trim() ? 'var(--accent)' : 'var(--surface-input)',
-              border: 'none', borderRadius: 6, color: input.trim() ? '#fff' : 'var(--text-muted)',
-              opacity: input.trim() ? 1 : 0.5,
-            }}>Send</button>
-          )}
-        </div>
-      </div>
-
-      <style>{`@keyframes blink { 50% { opacity: 0; } }`}</style>
-    </div>
+      <form className="copilot-input" onSubmit={e => { e.preventDefault(); send() }}>
+        <textarea
+          value={input} rows={2}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() } }}
+          placeholder={hasPending ? 'Confirm or cancel the action above first' : 'Ask anything… (Shift+Enter for a new line)'}
+          disabled={busy || hasPending}
+        />
+        {busy
+          ? <button type="button" className="btn" onClick={() => abortRef.current?.abort()}>Stop</button>
+          : <button type="submit" className="btn btn-primary" disabled={!input.trim() || hasPending}>Send</button>}
+      </form>
+    </aside>
   )
 }

@@ -751,3 +751,20 @@ class AiUsage:
     prompt_chars: int | None = None
     output_chars: int | None = None
     duration_ms: int | None = None
+
+
+@dataclass(frozen=True)
+class AiJob:
+    """A background AI job and where its result landed (``result_path`` is a UI route)."""
+
+    id: str
+    kind: str
+    title: str
+    user_id: str | None
+    project_id: str | None
+    publication_id: str | None
+    status: str
+    result_path: str | None
+    error: str | None
+    created_at: str
+    finished_at: str | None
