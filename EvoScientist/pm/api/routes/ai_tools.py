@@ -9,6 +9,7 @@ from __future__ import annotations
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 
 from ..._ai import run_llm_direct_async
+from ...crud.ai_usage import UsageContext
 from ...crud.experiment_entries import create_entry, list_entries
 from ...crud.experiments import get_experiment, list_linked_tasks
 from ...crud.projects import get_project
@@ -130,11 +131,19 @@ async def draft_grant_proposal(
 
 async def _run_grant_writer(pub_id: str, prompt: str, user_id: str) -> None:
     """Run grant writing through EvoScientist's get_chat_model directly, with skill guidance."""
+    from ...crud.publications import get_publication
     from ...crud.publications import update_publication as _up
+    pub = get_publication(get_db_path(), pub_id)
     text = await run_llm_direct_async(
         system_prompt=_GRANT_WRITER_SYSTEM,
         user_prompt=prompt,
         skill_guidance=["ml-paper-writing"],
+        context=UsageContext(
+            task="grant-proposal",
+            user_id=user_id,
+            project_id=pub.project_id if pub else None,
+            publication_id=pub_id,
+        ),
     )
     if text:
         _up(get_db_path(), pub_id, abstract=text[:800].strip(), status="draft")
@@ -188,10 +197,17 @@ async def generate_figures(
 
 
 async def _run_figure_generator(exp_id: str, user_id: str, prompt: str) -> None:
+    from ...crud.experiments import get_experiment
+    exp = get_experiment(get_db_path(), exp_id)
     text = await run_llm_direct_async(
         system_prompt=_FIGURE_GEN_SYSTEM,
         user_prompt=prompt,
         temperature=0.2,
+        context=UsageContext(
+            task="generate-figures",
+            user_id=user_id,
+            project_id=exp.project_id if exp else None,
+        ),
     )
     if text:
         create_entry(

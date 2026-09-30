@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS users (
     email         TEXT UNIQUE,
     password_hash TEXT NOT NULL,
     is_admin      INTEGER NOT NULL DEFAULT 0,
+    role          TEXT NOT NULL DEFAULT 'student',
     created_at    TEXT NOT NULL
 );
 
@@ -295,6 +296,13 @@ CREATE TABLE IF NOT EXISTS publications (
     submitted_at  TEXT,
     accepted_at   TEXT,
     published_at  TEXT,
+    -- Submission compliance: what every journal asks for and reviewers check.
+    -- Read by the paper readiness gate, not decoration.
+    reporting_guideline  TEXT,
+    data_availability    TEXT,
+    code_availability    TEXT,
+    conflict_of_interest TEXT,
+    funding_statement    TEXT,
     created_by    TEXT NOT NULL REFERENCES users(id),
     created_at    TEXT NOT NULL,
     updated_at    TEXT NOT NULL
@@ -681,6 +689,158 @@ CREATE TABLE IF NOT EXISTS rate_limits (
 );
 CREATE INDEX IF NOT EXISTS idx_rate_limits_ip ON rate_limits(ip);
 CREATE INDEX IF NOT EXISTS idx_rate_limits_time ON rate_limits(requested_at);
+
+-- Academic supervision: student ↔ professor assignment
+CREATE TABLE IF NOT EXISTS supervisor_assignments (
+    id           TEXT PRIMARY KEY,
+    student_id   TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    professor_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    active_from  TEXT NOT NULL,
+    active_until TEXT,
+    created_at   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_supervisor_assignments_student ON supervisor_assignments(student_id);
+CREATE INDEX IF NOT EXISTS idx_supervisor_assignments_professor ON supervisor_assignments(professor_id);
+
+-- Versioned weekly meeting schedule per professor
+CREATE TABLE IF NOT EXISTS weekly_meeting_settings (
+    id             TEXT PRIMARY KEY,
+    professor_id   TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    weekday        INTEGER NOT NULL,
+    time_local     TEXT,
+    timezone       TEXT,
+    effective_from TEXT NOT NULL,
+    created_at     TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_weekly_meeting_settings_prof ON weekly_meeting_settings(professor_id);
+
+-- One structured weekly submission per student per week
+CREATE TABLE IF NOT EXISTS weekly_reports (
+    id               TEXT PRIMARY KEY,
+    student_id       TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    week_start       TEXT NOT NULL,
+    status           TEXT NOT NULL DEFAULT 'draft',
+    review_status    TEXT NOT NULL DEFAULT 'pending',
+    risk_level       TEXT NOT NULL DEFAULT 'medium',
+    risk_override    TEXT,
+    accomplished     TEXT,
+    next_focus       TEXT,
+    support_requested TEXT,
+    submitted_at     TEXT,
+    reviewed_at      TEXT,
+    reviewed_by      TEXT REFERENCES users(id),
+    feedback         TEXT,
+    created_at       TEXT NOT NULL,
+    updated_at       TEXT NOT NULL,
+    UNIQUE(student_id, week_start)
+);
+CREATE INDEX IF NOT EXISTS idx_weekly_reports_week ON weekly_reports(week_start);
+CREATE INDEX IF NOT EXISTS idx_weekly_reports_student ON weekly_reports(student_id);
+
+CREATE TABLE IF NOT EXISTS weekly_report_items (
+    id             TEXT PRIMARY KEY,
+    report_id      TEXT NOT NULL REFERENCES weekly_reports(id) ON DELETE CASCADE,
+    task_id        TEXT REFERENCES tasks(id) ON DELETE SET NULL,
+    publication_id TEXT REFERENCES publications(id) ON DELETE SET NULL,
+    experiment_id  TEXT REFERENCES experiments(id) ON DELETE SET NULL,
+    item_title     TEXT NOT NULL,
+    item_kind      TEXT,
+    progress_pct   INTEGER NOT NULL DEFAULT 0,
+    status         TEXT,
+    blocker        TEXT,
+    needs_help     INTEGER NOT NULL DEFAULT 0,
+    what_changed   TEXT,
+    next_step      TEXT,
+    risk_level     TEXT NOT NULL DEFAULT 'low',
+    next_deadline  TEXT,
+    sort_order     INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_weekly_report_items_report ON weekly_report_items(report_id);
+
+CREATE TABLE IF NOT EXISTS meeting_attendance (
+    id           TEXT PRIMARY KEY,
+    professor_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    student_id   TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    week_start   TEXT NOT NULL,
+    status       TEXT NOT NULL DEFAULT 'not_set',
+    joined_mode  TEXT,
+    note         TEXT,
+    recorded_at  TEXT NOT NULL,
+    UNIQUE(student_id, week_start)
+);
+
+CREATE TABLE IF NOT EXISTS report_extensions (
+    id           TEXT PRIMARY KEY,
+    report_id    TEXT REFERENCES weekly_reports(id) ON DELETE CASCADE,
+    student_id   TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    professor_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    week_start   TEXT NOT NULL,
+    new_deadline TEXT NOT NULL,
+    reason       TEXT,
+    created_at   TEXT NOT NULL
+);
+
+-- Longitudinal academic journey (BSc/MSc/PhD/Postdoc/IR)
+CREATE TABLE IF NOT EXISTS academic_journeys (
+    id            TEXT PRIMARY KEY,
+    student_id    TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    level         TEXT NOT NULL,
+    status        TEXT NOT NULL DEFAULT 'planned',
+    programme     TEXT,
+    university    TEXT,
+    department    TEXT,
+    start_year    INTEGER,
+    start_date    TEXT,
+    expected_end  TEXT,
+    thesis_title  TEXT,
+    created_at    TEXT NOT NULL,
+    updated_at    TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_academic_journeys_student ON academic_journeys(student_id);
+
+CREATE TABLE IF NOT EXISTS graduation_requirements (
+    id                TEXT PRIMARY KEY,
+    level             TEXT NOT NULL,
+    title             TEXT NOT NULL,
+    description       TEXT,
+    req_type          TEXT NOT NULL,
+    research_item_type TEXT,
+    min_stage         TEXT,
+    target_value      REAL NOT NULL DEFAULT 1,
+    unit              TEXT,
+    required          INTEGER NOT NULL DEFAULT 1,
+    active            INTEGER NOT NULL DEFAULT 1,
+    created_at        TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_graduation_requirements_level ON graduation_requirements(level);
+
+-- What the AI actually consumed. Without this, "use the AI efficiently" is a
+-- wish: nobody can see which task, paper or student burns the tokens. One row
+-- per LLM call, written by both the direct path (pm/_ai.py) and the agent
+-- runner. ``token_source`` keeps estimates honest — an estimate is never
+-- reported as a measurement.
+CREATE TABLE IF NOT EXISTS ai_usage (
+    id                TEXT PRIMARY KEY,
+    user_id           TEXT REFERENCES users(id) ON DELETE SET NULL,
+    project_id        TEXT REFERENCES projects(id) ON DELETE SET NULL,
+    publication_id    TEXT REFERENCES publications(id) ON DELETE SET NULL,
+    run_id            TEXT,
+    task              TEXT NOT NULL,
+    source            TEXT NOT NULL DEFAULT 'agent',
+    model             TEXT,
+    prompt_tokens     INTEGER,
+    completion_tokens INTEGER,
+    total_tokens      INTEGER,
+    token_source      TEXT NOT NULL DEFAULT 'provider',
+    prompt_chars      INTEGER,
+    output_chars      INTEGER,
+    duration_ms       INTEGER,
+    created_at        TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_created ON ai_usage(created_at);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_user ON ai_usage(user_id);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_publication ON ai_usage(publication_id);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_task ON ai_usage(task);
 """
 
 _MIGRATIONS = [
@@ -713,22 +873,63 @@ _MIGRATIONS = [
     "ALTER TABLE datasets ADD COLUMN renders INTEGER NOT NULL DEFAULT 1",
     "ALTER TABLE dataset_grants ADD COLUMN cvat_project_id INTEGER",
     "ALTER TABLE dataset_grants ADD COLUMN task_size INTEGER",
+    # Academic supervision — platform role for professor/student UX
+    "ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'student'",
+    # Course/transcript tracking was dropped: this platform is for academic
+    # publication work, and credits/GPA belong in the registrar's system, not here.
+    # The tables were created by an earlier release, so drop them for real rather
+    # than leaving empty orphans behind.
+    "DROP TABLE IF EXISTS student_courses",
+    "DROP TABLE IF EXISTS course_semesters",
+    # A requirement nobody can satisfy is worse than no requirement: these two
+    # types were computed from the dropped course tables, so remove the rows
+    # instead of leaving them permanently unmet in every readiness score.
+    "DELETE FROM graduation_requirements WHERE req_type IN ('course_credits', 'gpa')",
+    # Submission compliance statements. Present in the CREATE TABLE too, so a fresh
+    # database is self-documenting; the runner skips these as duplicate columns.
+    "ALTER TABLE publications ADD COLUMN reporting_guideline TEXT",
+    "ALTER TABLE publications ADD COLUMN data_availability TEXT",
+    "ALTER TABLE publications ADD COLUMN code_availability TEXT",
+    "ALTER TABLE publications ADD COLUMN conflict_of_interest TEXT",
+    "ALTER TABLE publications ADD COLUMN funding_statement TEXT",
+    # Task priority is three levels (high/medium/low); fold the retired "critical" level in.
+    "UPDATE tasks SET priority = 'high' WHERE priority = 'critical'",
 ]
+
+
+_db_path: Path | None = None
+
+
+def configure_db_path(path: Path | None) -> None:
+    """Bind this process to one PM database.
+
+    A PM process serves exactly one database, so its location is process
+    configuration rather than a per-call argument — CRUD functions still take an
+    explicit ``db_path``, but routes, the audit middleware, the runner and the
+    CLI read it through :func:`get_db_path`. :func:`create_app` calls this with
+    the path it was handed, which is what makes an app and its database the same
+    thing. Callers, including tests, therefore never reach into individual
+    modules to redirect the database.
+
+    Pass ``None`` to clear the binding and fall back to the environment.
+    """
+    global _db_path
+    _db_path = Path(path) if path is not None else None
 
 
 def get_db_path() -> Path:
     """Return path to the PM SQLite database, creating parent dirs.
 
-    Override with ``EVOSCIENTIST_PM_DB`` env var (e.g. ``/data/pm.db`` in Docker).
-    Falls back to ``DATA_DIR / "projects.db"``.
+    Precedence: the :func:`configure_db_path` binding, then the
+    ``EVOSCIENTIST_PM_DB`` env var (``/data/pm.db`` in Docker), then
+    ``DATA_DIR / "projects.db"``.
     """
-    env_path = os.environ.get("EVOSCIENTIST_PM_DB")
-    if env_path:
-        path = Path(env_path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        return path
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
-    return DATA_DIR / "projects.db"
+    path = _db_path
+    if path is None:
+        env_path = os.environ.get("EVOSCIENTIST_PM_DB")
+        path = Path(env_path) if env_path else DATA_DIR / "projects.db"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return path
 
 
 def create_schema(db_path: Path | None = None) -> None:

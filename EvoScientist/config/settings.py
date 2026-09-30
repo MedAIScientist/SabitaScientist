@@ -394,7 +394,7 @@ class EvoScientistConfig:
     pm_base_url: str = "http://localhost:7860"    # PM web UI base URL
     pm_cors_origins: str = "*"          # Comma-separated CORS origins (empty=*, set for specific)
     pm_docs_enabled: bool = True        # Enable /api/docs Swagger UI
-    pm_runner_model: str = "mixtral-8x7b-32768"  # Groq model for agent runner
+    pm_runner_model: str = "openai/gpt-oss-120b"  # Groq model for agent runner (override: PM_RUNNER_MODEL)
     pm_smtp_from: str = "noreply@evoscientist.local"  # PM notification sender
     pm_max_upload_mb: int = 50          # Max attachment upload size (MB)
 

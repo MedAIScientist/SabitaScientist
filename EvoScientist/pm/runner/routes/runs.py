@@ -16,7 +16,14 @@ router = APIRouter()
 async def start_run(body: RunRequest):
     """Accept a run request and launch the agent as a background asyncio task."""
     await agent_runner.start_run(
-        body.run_id, body.agent_type, body.prompt, body.workspace_dir
+        body.run_id,
+        body.agent_type,
+        body.prompt,
+        body.workspace_dir,
+        task=body.task,
+        user_id=body.user_id,
+        project_id=body.project_id,
+        publication_id=body.publication_id,
     )
     return {"run_id": body.run_id}
 

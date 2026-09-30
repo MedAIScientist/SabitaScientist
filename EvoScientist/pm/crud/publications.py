@@ -22,6 +22,11 @@ def create_publication(
     abstract: str | None = None,
     doi: str | None = None,
     url: str | None = None,
+    reporting_guideline: str | None = None,
+    data_availability: str | None = None,
+    code_availability: str | None = None,
+    conflict_of_interest: str | None = None,
+    funding_statement: str | None = None,
 ) -> Publication:
     pub_id = uuid.uuid4().hex
     now = datetime.now(UTC).isoformat()
@@ -30,10 +35,14 @@ def create_publication(
         conn.execute(
             """INSERT INTO publications
                (id, project_id, title, venue, venue_type, authors, status,
-                doi, url, abstract, created_by, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?)""",
+                doi, url, abstract, reporting_guideline, data_availability,
+                code_availability, conflict_of_interest, funding_statement,
+                created_by, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (pub_id, project_id, title, venue, venue_type, authors_json,
-             doi, url, abstract, created_by, now, now),
+             doi, url, abstract, reporting_guideline, data_availability,
+             code_availability, conflict_of_interest, funding_statement,
+             created_by, now, now),
         )
     return Publication(
         id=pub_id,
@@ -46,6 +55,11 @@ def create_publication(
         doi=doi,
         url=url,
         abstract=abstract,
+        reporting_guideline=reporting_guideline,
+        data_availability=data_availability,
+        code_availability=code_availability,
+        conflict_of_interest=conflict_of_interest,
+        funding_statement=funding_statement,
         created_by=created_by,
         created_at=now,
         updated_at=now,
@@ -89,7 +103,9 @@ def update_publication(
     if pub is None:
         raise ValueError(f"Publication {pub_id!r} not found")
     allowed = {"title", "venue", "venue_type", "authors", "abstract", "doi", "url", "status",
-               "submitted_at", "accepted_at", "published_at"}
+               "submitted_at", "accepted_at", "published_at",
+               "reporting_guideline", "data_availability", "code_availability",
+               "conflict_of_interest", "funding_statement"}
     updates = {k: v for k, v in kwargs.items() if k in allowed and v is not None}
     if not updates:
         return pub
@@ -292,6 +308,11 @@ def _row_to_publication(row) -> Publication:
         doi=row["doi"],
         url=row["url"],
         abstract=row["abstract"],
+        reporting_guideline=row["reporting_guideline"],
+        data_availability=row["data_availability"],
+        code_availability=row["code_availability"],
+        conflict_of_interest=row["conflict_of_interest"],
+        funding_statement=row["funding_statement"],
         submitted_at=row["submitted_at"],
         accepted_at=row["accepted_at"],
         published_at=row["published_at"],

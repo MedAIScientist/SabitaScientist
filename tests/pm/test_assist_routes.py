@@ -12,46 +12,18 @@ import pytest
 from fastapi.testclient import TestClient
 
 from EvoScientist.pm.api.app import create_app
-from EvoScientist.pm.db import create_schema
 
 
 @pytest.fixture
-def auth_client(tmp_path: Path):
-    db_path = tmp_path / "test.db"
-    create_schema(db_path)
-
-    # Patch get_db_path in all relevant modules before creating the app
-    import EvoScientist.pm.api.deps as deps_mod
-    import EvoScientist.pm.api.routes.assists as assists_mod
-    import EvoScientist.pm.api.routes.auth as auth_r
-    import EvoScientist.pm.api.routes.experiments as exp_r
-    import EvoScientist.pm.api.routes.projects as proj_r
-    import EvoScientist.pm.api.routes.runs as runs_r
-    import EvoScientist.pm.api.routes.tasks as tasks_r
-    import EvoScientist.pm.api.routes.users as users_r
-    import EvoScientist.pm.crud.assists as assists_crud
-    import EvoScientist.pm.crud.experiment_entries as entries_crud
-    import EvoScientist.pm.crud.experiments as exp_crud
-    import EvoScientist.pm.crud.projects as proj_crud
-    import EvoScientist.pm.crud.tasks as tasks_crud
-    import EvoScientist.pm.crud.users as users_crud
-    import EvoScientist.pm.api.audit_middleware as audit_mod
-
-    for mod in [
-        deps_mod, assists_mod, auth_r, exp_r, proj_r, runs_r, tasks_r, users_r,
-        assists_crud, entries_crud, exp_crud, proj_crud, tasks_crud, users_crud,
-        audit_mod,
-    ]:
-        if hasattr(mod, "get_db_path"):
-            mod.get_db_path = lambda: db_path
-
-    app = create_app(db_path)
+def auth_client(tmp_db: Path):
+    """An app on the temp DB, seeded directly so the token is fixed."""
+    app = create_app(tmp_db)
 
     now = datetime.now(timezone.utc).isoformat()
     expires = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
     pw = bcrypt.hashpw(b"pass123", bcrypt.gensalt()).decode()
 
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(tmp_db)
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute(
         "INSERT INTO users (id, username, password_hash, is_admin, created_at) VALUES (?,?,?,?,?)",
@@ -79,7 +51,7 @@ def auth_client(tmp_path: Path):
 
     tc = TestClient(app, raise_server_exceptions=True)
     tc.headers.update({"Authorization": "Bearer tok1"})
-    return tc, db_path
+    return tc, tmp_db
 
 
 ASSIST_URL = "/api/v1/projects/p1/experiments/e1/assist"
@@ -136,8 +108,8 @@ def test_create_assist_experiment_not_found(auth_client):
 
 
 def test_create_assist_not_member(auth_client):
-    tc, db_path = auth_client
-    conn = sqlite3.connect(db_path)
+    tc, tmp_db = auth_client
+    conn = sqlite3.connect(tmp_db)
     now = datetime.now(timezone.utc).isoformat()
     conn.execute(
         "INSERT INTO projects (id, name, created_by, created_at) VALUES (?,?,?,?)",

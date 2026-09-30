@@ -49,3 +49,27 @@ def test_create_and_delete_comment(client, admin_token) -> None:
 
     comments = client.get(f"/api/v1/projects/{pid}/tasks/{task_id}/comments", headers={"Authorization": f"Bearer {admin_token}"}).json()
     assert comments == []
+
+
+def test_legacy_critical_priority_is_folded_into_high(client, admin_token) -> None:
+    """Task priority has three levels; "critical" from older clients is stored as "high"."""
+    h = {"Authorization": f"Bearer {admin_token}"}
+    pid = _make_project(client, admin_token)
+    created = client.post(f"/api/v1/projects/{pid}/tasks", json={"title": "T", "priority": "critical"}, headers=h)
+    assert created.status_code == 201
+    assert created.json()["priority"] == "high"
+
+    updated = client.put(f"/api/v1/projects/{pid}/tasks/{created.json()['id']}", json={"priority": "critical"}, headers=h)
+    assert updated.json()["priority"] == "high"
+
+
+def test_schema_migration_folds_existing_critical_tasks(tmp_db, admin_token, client) -> None:
+    from EvoScientist.pm.db import create_schema, get_db
+
+    pid = _make_project(client, admin_token)
+    tid = client.post(f"/api/v1/projects/{pid}/tasks", json={"title": "T"}, headers={"Authorization": f"Bearer {admin_token}"}).json()["id"]
+    with get_db(tmp_db) as conn:
+        conn.execute("UPDATE tasks SET priority = 'critical' WHERE id = ?", (tid,))
+    create_schema(tmp_db)
+    with get_db(tmp_db) as conn:
+        assert conn.execute("SELECT priority FROM tasks WHERE id = ?", (tid,)).fetchone()[0] == "high"

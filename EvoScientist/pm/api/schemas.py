@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from ..models import EXPERIMENT_ASSET_ROLES, EXPERIMENT_ASSET_TYPES, EXPERIMENT_STATUSES
 
@@ -29,6 +29,7 @@ class TokenResponse(BaseModel):
     user_id: str
     username: str
     is_admin: bool
+    role: str = "student"
 
 
 # ── Users ─────────────────────────────────────────────────────────────────────
@@ -38,12 +39,15 @@ class UserCreate(BaseModel):
     username: str = Field(min_length=1, max_length=64)
     password: str = Field(min_length=6)
     email: str | None = None
+    role: str = "student"
+    is_admin: bool = False
 
 
 class UserUpdate(BaseModel):
     username: str | None = None
     email: str | None = None
     is_admin: bool | None = None
+    role: str | None = None
 
 
 class UserResponse(BaseModel):
@@ -52,6 +56,7 @@ class UserResponse(BaseModel):
     email: str | None
     is_admin: bool
     created_at: str
+    role: str = "student"
 
 
 class UpdatePasswordRequest(BaseModel):
@@ -108,13 +113,24 @@ class UpdateMemberRoleRequest(BaseModel):
 # ── Tasks ─────────────────────────────────────────────────────────────────────
 
 
+def _fold_critical(priority: str | None) -> str | None:
+    """Task priority has three levels; the legacy "critical" level maps to "high"."""
+    return "high" if priority == "critical" else priority
+
+
 class TaskCreate(BaseModel):
     title: str = Field(min_length=1, max_length=256)
     description: str | None = None
     assignee_id: str | None = None
+    # Three levels (high/medium/low). "critical" is accepted from older clients and folded into "high".
     priority: str = Field(default="medium", pattern="^(critical|high|medium|low)$")
     deadline: str | None = None  # ISO date YYYY-MM-DD
     session_id: str | None = None
+
+    @field_validator("priority")
+    @classmethod
+    def fold_priority(cls, v: str | None) -> str | None:
+        return _fold_critical(v)
 
 
 class TaskUpdate(BaseModel):
@@ -125,6 +141,11 @@ class TaskUpdate(BaseModel):
     priority: str | None = Field(default=None, pattern="^(critical|high|medium|low)$")
     deadline: str | None = None
     session_id: str | None = None
+
+    @field_validator("priority")
+    @classmethod
+    def fold_priority(cls, v: str | None) -> str | None:
+        return _fold_critical(v)
 
 
 class TaskResponse(BaseModel):
@@ -434,6 +455,11 @@ class PublicationCreate(BaseModel):
     abstract: str | None = None
     doi: str | None = None
     url: str | None = None
+    reporting_guideline: str | None = None
+    data_availability: str | None = None
+    code_availability: str | None = None
+    conflict_of_interest: str | None = None
+    funding_statement: str | None = None
 
 
 class PublicationUpdate(BaseModel):
@@ -450,6 +476,11 @@ class PublicationUpdate(BaseModel):
         default=None,
         pattern="^(draft|submitted|reviewing|accepted|published|rejected)$",
     )
+    reporting_guideline: str | None = None
+    data_availability: str | None = None
+    code_availability: str | None = None
+    conflict_of_interest: str | None = None
+    funding_statement: str | None = None
 
 
 class PublicationResponse(BaseModel):
@@ -467,6 +498,11 @@ class PublicationResponse(BaseModel):
     submitted_at: str | None
     accepted_at: str | None
     published_at: str | None
+    reporting_guideline: str | None
+    data_availability: str | None
+    code_availability: str | None
+    conflict_of_interest: str | None
+    funding_statement: str | None
     created_by: str
     created_at: str
     updated_at: str
@@ -1339,3 +1375,244 @@ class IntegrationStatus(BaseModel):
     up: bool
     http_status: int | None
     latency_ms: int
+
+
+# ── Academic supervision ─────────────────────────────────────────────────────
+
+
+class SupervisorAssignRequest(BaseModel):
+    student_id: str
+    professor_id: str
+    active_from: str | None = None
+
+
+class SupervisorAssignmentResponse(BaseModel):
+    id: str
+    student_id: str
+    professor_id: str
+    active_from: str
+    active_until: str | None
+    created_at: str
+
+
+class MeetingSettingRequest(BaseModel):
+    weekday: int = Field(ge=0, le=6)
+    time_local: str | None = None
+    timezone: str | None = None
+    effective_from: str | None = None
+
+
+class MeetingSettingResponse(BaseModel):
+    id: str
+    professor_id: str
+    weekday: int
+    time_local: str | None
+    timezone: str | None
+    effective_from: str
+    created_at: str
+
+
+class ReportSummaryRequest(BaseModel):
+    accomplished: str | None = None
+    next_focus: str | None = None
+    support_requested: str | None = None
+
+
+class ReportItemRequest(BaseModel):
+    item_id: str | None = None
+    item_title: str = Field(min_length=1, max_length=256)
+    task_id: str | None = None
+    publication_id: str | None = None
+    experiment_id: str | None = None
+    item_kind: str | None = None
+    progress_pct: int = Field(default=0, ge=0, le=100)
+    status: str | None = None
+    blocker: str | None = None
+    needs_help: bool = False
+    what_changed: str | None = None
+    next_step: str | None = None
+    risk_level: str = "low"
+    next_deadline: str | None = None
+    sort_order: int = 0
+
+
+class ReportItemResponse(BaseModel):
+    id: str
+    report_id: str
+    task_id: str | None
+    publication_id: str | None
+    experiment_id: str | None
+    item_title: str
+    item_kind: str | None
+    progress_pct: int
+    status: str | None
+    blocker: str | None
+    needs_help: bool
+    what_changed: str | None
+    next_step: str | None
+    risk_level: str
+    next_deadline: str | None
+    sort_order: int
+
+
+class WeeklyReportResponse(BaseModel):
+    id: str
+    student_id: str
+    week_start: str
+    status: str
+    review_status: str
+    risk_level: str
+    risk_override: str | None
+    accomplished: str | None
+    next_focus: str | None
+    support_requested: str | None
+    submitted_at: str | None
+    reviewed_at: str | None
+    reviewed_by: str | None
+    feedback: str | None
+    created_at: str
+    updated_at: str
+    items: list[ReportItemResponse] = []
+
+
+class ReviewRequest(BaseModel):
+    review_status: str = "reviewed"
+    feedback: str | None = None
+    risk_override: str | None = None
+
+
+class AttendanceRequest(BaseModel):
+    status: str = "not_set"
+    joined_mode: str | None = None
+    note: str | None = None
+
+
+class AttendanceResponse(BaseModel):
+    id: str
+    professor_id: str
+    student_id: str
+    week_start: str
+    status: str
+    joined_mode: str | None
+    note: str | None
+    recorded_at: str
+
+
+class ExtensionRequest(BaseModel):
+    new_deadline: str
+    reason: str | None = None
+
+
+class ExtensionResponse(BaseModel):
+    id: str
+    student_id: str
+    professor_id: str
+    week_start: str
+    new_deadline: str
+    reason: str | None
+    created_at: str
+    report_id: str | None
+
+
+class JourneyRequest(BaseModel):
+    level: str = "MSc"
+    status: str = "planned"
+    programme: str | None = None
+    university: str | None = None
+    department: str | None = None
+    start_year: int | None = None
+    start_date: str | None = None
+    expected_end: str | None = None
+    thesis_title: str | None = None
+
+
+class JourneyResponse(BaseModel):
+    id: str
+    student_id: str
+    level: str
+    status: str
+    programme: str | None
+    university: str | None
+    department: str | None
+    start_year: int | None
+    start_date: str | None
+    expected_end: str | None
+    thesis_title: str | None
+    created_at: str
+    updated_at: str
+
+
+class RequirementRequest(BaseModel):
+    level: str = "BSc"
+    title: str = Field(min_length=1, max_length=128)
+    req_type: str = "research_item"
+    description: str | None = None
+    research_item_type: str | None = None
+    min_stage: str | None = None
+    target_value: float = 1
+    unit: str | None = None
+    required: bool = True
+
+
+class RequirementResponse(BaseModel):
+    id: str
+    level: str
+    title: str
+    description: str | None
+    req_type: str
+    research_item_type: str | None
+    min_stage: str | None
+    target_value: float
+    unit: str | None
+    required: bool
+    active: bool
+    created_at: str
+
+
+# ── AI usage accounting ──────────────────────────────────────────────────────
+
+
+class AiUsageTokens(BaseModel):
+    """Token totals. ``provider_reported`` and ``estimated`` never get summed."""
+
+    provider_reported: int
+    estimated: int
+    prompt: int
+    completion: int
+
+
+class AiUsageBreakdown(BaseModel):
+    label: str
+    calls: int
+    provider_tokens: int
+    estimated_tokens: int
+
+
+class AiUsageSummary(BaseModel):
+    window_days: int | None
+    calls: int
+    tokens: AiUsageTokens
+    avg_duration_ms: int | None
+    by_task: list[AiUsageBreakdown]
+    by_model: list[AiUsageBreakdown]
+
+
+class AiUsageRecord(BaseModel):
+    id: str
+    task: str
+    source: str
+    token_source: str
+    model: str | None
+    user_id: str | None
+    project_id: str | None
+    publication_id: str | None
+    run_id: str | None
+    prompt_tokens: int | None
+    completion_tokens: int | None
+    total_tokens: int | None
+    duration_ms: int | None
+    created_at: str
+
+
+class AiUsageRecords(BaseModel):
+    records: list[AiUsageRecord]

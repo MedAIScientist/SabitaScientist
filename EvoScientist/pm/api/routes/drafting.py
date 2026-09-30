@@ -11,6 +11,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, s
 
 from ....paths import RUNS_DIR
 from ..._evoscientist import get_runner_url
+from ...crud.ai_usage import UsageContext
 from ...crud.experiment_entries import create_entry, list_entries
 from ...crud.experiments import (
     create_experiment,
@@ -23,10 +24,11 @@ from ...crud.publications import (
     create_publication,
     create_version,
     get_publication,
+    list_linked_experiments,
     list_publications,
     update_publication,
 )
-from ...db import get_db_path
+from ...db import get_db, get_db_path
 from ...models import User
 from ..deps import get_current_user, require_project_role
 from ..schemas import (
@@ -82,7 +84,14 @@ def _build_experiment_context(experiment_id: str) -> str:
     return "\n".join(parts)
 
 
-def _build_publication_context(pub_id: str) -> str:
+def _build_publication_context(pub_id: str, section: str | None = None) -> str:
+    """Build grounding context for a paper draft.
+
+    When ``section`` is set and the publication has experiment links
+    (``publication_experiments``), only experiments linked to that section
+    (or with no section tag) are included — the scoped-evidence path.
+    Always appends the weekly evidence pack when any related updates exist.
+    """
     db = get_db_path()
     pub = get_publication(db, pub_id)
     if not pub:
@@ -95,29 +104,131 @@ def _build_publication_context(pub_id: str) -> str:
     if pub.abstract:
         parts.append(f"\n## Current Abstract\n{pub.abstract}")
 
-    if pub.project_id:
+    # Prefer explicitly linked experiments (optionally section-scoped).
+    linked_rows = list_linked_experiments(db, pub_id)
+    linked_by_id = {row["experiment_id"]: row.get("section") for row in linked_rows}
+
+    def _exp_in_scope(exp_id: str, exp_project_id: str | None) -> bool:
+        if section and linked_by_id:
+            if exp_id in linked_by_id:
+                linked_section = linked_by_id[exp_id]
+                return linked_section in (None, "", section)
+            return False
+        if linked_by_id:
+            return exp_id in linked_by_id
+        # Fallback: whole project (legacy behaviour)
+        return pub.project_id is not None and exp_project_id == pub.project_id
+
+    experiments: list = []
+    if linked_by_id:
+        for exp_id in linked_by_id:
+            exp = get_experiment(db, exp_id)
+            if exp and _exp_in_scope(exp_id, exp.project_id):
+                experiments.append(exp)
+    elif pub.project_id:
         project = get_project(db, pub.project_id)
         if project:
             parts.append(f"\n## Project: {project.name}")
             parts.append(f"Description: {project.description or '(none)'}")
-            experiments = list_experiments(db, pub.project_id)
-            if experiments:
-                parts.append(f"\n## Experiments ({len(experiments)})")
-                for exp in experiments:
-                    entries = list_entries(db, exp.id)
-                    linked = list_linked_tasks(db, exp.id)
-                    parts.append(f"\n### {exp.name} (status: {exp.status})")
-                    if exp.hypothesis:
-                        parts.append(f"Hypothesis: {exp.hypothesis}")
-                    if exp.protocol:
-                        parts.append(f"Protocol: {exp.protocol}")
-                    if linked:
-                        parts.append(f"Linked tasks: {', '.join(t.title for t in linked)}")
-                    parts.append(render_metrics_block(exp.id))
-                    if entries:
-                        for e in entries:
-                            parts.append(f"\n#### {e.title} ({e.type})")
-                            parts.append(_entry_body(e))
+            experiments = [
+                e for e in list_experiments(db, pub.project_id) if _exp_in_scope(e.id, e.project_id)
+            ]
+
+    if section:
+        parts.append(f"\n## Target section: {section}")
+        parts.append(
+            "Write ONLY this section. Use the linked experiment evidence below; "
+            "do not invent results that are not present."
+        )
+
+    if experiments:
+        scope_label = f" (scoped to {section})" if section else ""
+        parts.append(f"\n## Linked Experiments ({len(experiments)}){scope_label}")
+        for exp in experiments:
+            entries = list_entries(db, exp.id)
+            linked = list_linked_tasks(db, exp.id)
+            parts.append(f"\n### {exp.name} (status: {exp.status})")
+            if exp.hypothesis:
+                parts.append(f"Hypothesis: {exp.hypothesis}")
+            if exp.protocol:
+                parts.append(f"Protocol: {exp.protocol}")
+            if linked:
+                parts.append(f"Linked tasks: {', '.join(t.title for t in linked)}")
+            parts.append(render_metrics_block(exp.id))
+            if entries:
+                for e in entries:
+                    parts.append(f"\n#### {e.title} ({e.type})")
+                    parts.append(_entry_body(e))
+
+    evidence = _build_evidence_pack(db, pub_id, list(linked_by_id.keys()))
+    if evidence:
+        parts.append(evidence)
+
+    return "\n".join(parts)
+
+
+def _build_evidence_pack(db, pub_id: str, experiment_ids: list[str]) -> str:
+    """Collect weekly-report updates that mention this paper or its experiments.
+
+    Sources: ``weekly_report_items`` linked by publication_id/experiment_id, plus
+    free-text item titles containing the publication title. Used as Intro/Related
+    bullets and open questions for the writer.
+    """
+    pub = get_publication(db, pub_id)
+    if not pub:
+        return ""
+    title_like = (pub.title or "").strip().lower()
+
+    with get_db(db) as conn:
+        clauses = ["i.publication_id = ?"]
+        params: list = [pub_id]
+        if experiment_ids:
+            clauses.append(f"i.experiment_id IN ({','.join('?' * len(experiment_ids))})")
+            params.extend(experiment_ids)
+        rows = conn.execute(
+            f"""SELECT i.item_title, i.item_kind, i.progress_pct, i.status,
+                       i.what_changed, i.next_step, i.needs_help, i.blocker,
+                       i.risk_level, i.next_deadline, r.week_start
+                FROM weekly_report_items i
+                JOIN weekly_reports r ON r.id = i.report_id
+                WHERE ({' OR '.join(clauses)}) AND r.status = 'submitted'
+                ORDER BY r.week_start DESC LIMIT 25""",
+            params,
+        ).fetchall()
+
+        if not rows and title_like:
+            # Fuzzy: item titles that share the publication title tokens
+            rows = conn.execute(
+                """SELECT i.item_title, i.item_kind, i.progress_pct, i.status,
+                          i.what_changed, i.next_step, i.needs_help, i.blocker,
+                          i.risk_level, i.next_deadline, r.week_start
+                   FROM weekly_report_items i
+                   JOIN weekly_reports r ON r.id = i.report_id
+                   WHERE r.status = 'submitted' AND lower(i.item_title) LIKE ?
+                   ORDER BY r.week_start DESC LIMIT 15""",
+                (f"%{title_like[:40]}%",),
+            ).fetchall()
+
+    if not rows:
+        return ""
+
+    parts = [
+        "\n## Weekly evidence pack (from supervision updates)",
+        "Use these as grounding for contributions, results narrative, and open questions. "
+        "Do not fabricate metrics beyond what is listed.",
+    ]
+    for r in rows:
+        parts.append(f"\n### [{r['week_start']}] {r['item_title']} ({r['item_kind'] or 'work'})")
+        parts.append(f"Progress: {r['progress_pct']}% · status: {r['status'] or 'n/a'} · risk: {r['risk_level']}")
+        if r["what_changed"]:
+            parts.append(f"What changed: {r['what_changed']}")
+        if r["next_step"]:
+            parts.append(f"Next step: {r['next_step']}")
+        if r["needs_help"]:
+            blocker = f" — {r['blocker']}" if r["blocker"] else ""
+            parts.append(f"OPEN QUESTION: help needed{blocker}")
+        if r["next_deadline"]:
+            parts.append(f"Deadline: {r['next_deadline']}")
     return "\n".join(parts)
 
 
@@ -181,21 +292,49 @@ Guidelines:
 Write a complete response letter addressed to the editor and reviewers."""
 
 
+def _publication_context(pub_id: str, user_id: str, task: str) -> UsageContext:
+    """Usage attribution for AI work done on one publication.
+
+    The project is resolved from the publication so those tokens also appear in
+    project-level reporting, not only against the paper.
+    """
+    pub = get_publication(get_db_path(), pub_id)
+    return UsageContext(
+        task=task,
+        user_id=user_id,
+        project_id=pub.project_id if pub else None,
+        publication_id=pub_id,
+    )
+
+
 async def _run_agent_and_get_output(
-    run_id: str, prompt: str, workspace_dir: str, agent_type: str = "writing",
+    run_id: str,
+    prompt: str,
+    workspace_dir: str,
+    agent_type: str = "writing",
+    context: UsageContext | None = None,
 ) -> str | None:
-    """Run an agent (research/code/data_analysis/writing) and return the accumulated text output."""
+    """Run an agent (research/code/data_analysis/writing) and return the accumulated text output.
+
+    ``context`` travels with the request so the runner can attribute the tokens it
+    burns to the person and the paper that asked for them.
+    """
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(
-                f"{RUNNER_URL}/runs",
-                json={
-                    "run_id": run_id,
-                    "agent_type": agent_type,
-                    "prompt": prompt,
-                    "workspace_dir": workspace_dir,
-                },
+        payload = {
+            "run_id": run_id,
+            "agent_type": agent_type,
+            "prompt": prompt,
+            "workspace_dir": workspace_dir,
+        }
+        if context is not None:
+            payload.update(
+                task=context.task,
+                user_id=context.user_id,
+                project_id=context.project_id,
+                publication_id=context.publication_id,
             )
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(f"{RUNNER_URL}/runs", json=payload)
             if resp.status_code != 200:
                 return None
 
@@ -234,7 +373,7 @@ async def draft_section(
     if not pub:
         raise HTTPException(status_code=404, detail="Publication not found")
 
-    context = _build_publication_context(pub_id)
+    context = _build_publication_context(pub_id, section=body.section)
     prompt = _build_section_prompt(context, body.section, body.style)
 
     workspace_dir = str(RUNS_DIR / "sections" / f"{pub_id}-{body.section}")
@@ -257,7 +396,10 @@ async def draft_section(
 
 
 async def _run_section_and_save(pub_id: str, section: str, run_id: str, prompt: str, workspace_dir: str, user_id: str) -> None:
-    text = await _run_agent_and_get_output(run_id, prompt, workspace_dir)
+    text = await _run_agent_and_get_output(
+        run_id, prompt, workspace_dir,
+        context=_publication_context(pub_id, user_id, "draft-section"),
+    )
     if text:
         db = get_db_path()
         file_path = _save_section_file(workspace_dir, section, text)
@@ -351,7 +493,7 @@ async def revise_publication(
         notes=f"AI revision: {body.instructions[:80]}{'…' if len(body.instructions) > 80 else ''}",
     )
 
-    background_tasks.add_task(_run_revision_and_save, pub_id, run_id, prompt, workspace_dir)
+    background_tasks.add_task(_run_revision_and_save, pub_id, run_id, prompt, workspace_dir, current_user.id)
 
     return {
         "publication_id": pub_id,
@@ -359,8 +501,11 @@ async def revise_publication(
     }
 
 
-async def _run_revision_and_save(pub_id: str, run_id: str, prompt: str, workspace_dir: str) -> None:
-    text = await _run_agent_and_get_output(run_id, prompt, workspace_dir)
+async def _run_revision_and_save(pub_id: str, run_id: str, prompt: str, workspace_dir: str, user_id: str) -> None:
+    text = await _run_agent_and_get_output(
+        run_id, prompt, workspace_dir,
+        context=_publication_context(pub_id, user_id, "revise"),
+    )
     if text:
         db = get_db_path()
         file_path = _save_section_file(workspace_dir, "revision", text)
@@ -410,7 +555,10 @@ async def respond_to_reviewers(
 
 
 async def _run_response_and_save(pub_id: str, comments: str, run_id: str, prompt: str, workspace_dir: str, user_id: str) -> None:
-    text = await _run_agent_and_get_output(run_id, prompt, workspace_dir)
+    text = await _run_agent_and_get_output(
+        run_id, prompt, workspace_dir,
+        context=_publication_context(pub_id, user_id, "respond-to-reviewers"),
+    )
     if text:
         db = get_db_path()
         file_path = _save_section_file(workspace_dir, "reviewer-response", text)
@@ -457,7 +605,7 @@ async def draft_paper_from_project(
     )
 
     workspace_dir = str(RUNS_DIR / "drafts" / pub.id)
-    background_tasks.add_task(_run_draft_agent, pub.id, prompt, workspace_dir)
+    background_tasks.add_task(_run_draft_agent, pub.id, prompt, workspace_dir, current_user.id)
 
     return {
         "publication_id": pub.id,
@@ -465,8 +613,11 @@ async def draft_paper_from_project(
     }
 
 
-async def _run_draft_agent(pub_id: str, prompt: str, workspace_dir: str) -> None:
-    text = await _run_agent_and_get_output(f"draft-{pub_id}", prompt, workspace_dir)
+async def _run_draft_agent(pub_id: str, prompt: str, workspace_dir: str, user_id: str) -> None:
+    text = await _run_agent_and_get_output(
+        f"draft-{pub_id}", prompt, workspace_dir,
+        context=_publication_context(pub_id, user_id, "draft-paper"),
+    )
     if text:
         file_path = _save_section_file(workspace_dir, "full-draft", text)
         # The full text lives in the version row; `abstract` keeps only a preview
@@ -531,7 +682,10 @@ async def generate_hypothesis(
 async def _save_hypothesis_output(
     project_id: str, user_id: str, run_id: str, prompt: str, workspace_dir: str, topic: str,
 ) -> None:
-    text = await _run_agent_and_get_output(run_id, prompt, workspace_dir, agent_type="research")
+    text = await _run_agent_and_get_output(
+        run_id, prompt, workspace_dir, agent_type="research",
+        context=UsageContext(task="generate-hypothesis", user_id=user_id, project_id=project_id),
+    )
     if text:
         db = get_db_path()
         exp = create_experiment(db, project_id=project_id, name=f"Hypothesis: {topic[:80]}", created_by=user_id)
@@ -586,7 +740,10 @@ async def research_ideation(
 async def _save_ideation_output(
     project_id: str, user_id: str, run_id: str, prompt: str, workspace_dir: str, topic: str,
 ) -> None:
-    text = await _run_agent_and_get_output(run_id, prompt, workspace_dir, agent_type="research")
+    text = await _run_agent_and_get_output(
+        run_id, prompt, workspace_dir, agent_type="research",
+        context=UsageContext(task="research-ideation", user_id=user_id, project_id=project_id),
+    )
     if text:
         db = get_db_path()
         exp = create_experiment(db, project_id=project_id, name=f"Ideation: {topic[:80]}", created_by=user_id, status="planned")
@@ -634,7 +791,10 @@ async def validate_methodology(
 
 
 async def _save_validation_output(project_id: str, user_id: str, run_id: str, prompt: str, workspace_dir: str) -> None:
-    text = await _run_agent_and_get_output(run_id, prompt, workspace_dir, agent_type="research")
+    text = await _run_agent_and_get_output(
+        run_id, prompt, workspace_dir, agent_type="research",
+        context=UsageContext(task="validate-methodology", user_id=user_id, project_id=project_id),
+    )
     if text:
         db = get_db_path()
         exp = create_experiment(db, project_id=project_id, name="Methodology Review", created_by=user_id)
@@ -738,7 +898,10 @@ def _format_s2_results(s2_results: dict) -> str:
 
 
 async def _save_citation_output(project_id: str, user_id: str, run_id: str, prompt: str, workspace_dir: str, raw_results: str = "") -> None:
-    text = await _run_agent_and_get_output(run_id, prompt, workspace_dir, agent_type="research")
+    text = await _run_agent_and_get_output(
+        run_id, prompt, workspace_dir, agent_type="research",
+        context=UsageContext(task="verify-citations", user_id=user_id, project_id=project_id),
+    )
     if text:
         db = get_db_path()
         exp = create_experiment(db, project_id=project_id, name="Citation Review", created_by=user_id)

@@ -6,6 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from ..._ai import run_llm_direct_async
+from ...crud.ai_usage import UsageContext
 from ...crud.projects import get_project
 from ...db import get_db_path
 from ...models import User
@@ -57,6 +58,9 @@ Generate a complete patent disclosure draft for the above invention."""
         system_prompt=_PATENT_SYSTEM,
         user_prompt=prompt,
         temperature=0.2,
+        context=UsageContext(
+            task="patent-disclosure", user_id=current_user.id, project_id=project_id
+        ),
     )
 
     from ...crud.experiment_entries import create_entry
