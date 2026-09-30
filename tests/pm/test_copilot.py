@@ -129,3 +129,19 @@ def test_link_for_created_entities() -> None:
     assert copilot.result_link("pm_create_experiment", {"project_id": "p1"}, "Created experiment 'e' with id=e9") \
         == "/projects/p1/experiments?exp=e9"
     assert copilot.result_link("pm_create_task", {"project_id": "p1"}, "Error: nope") is None
+
+
+def test_model_choice_honours_the_configured_provider(monkeypatch) -> None:
+    """deepseek-v4-flash exists under two providers; the configured one must be used."""
+    from types import SimpleNamespace
+
+    from EvoScientist.llm.models import DEFAULT_MODEL
+    from EvoScientist.pm import _ai
+
+    monkeypatch.setattr(_ai, "get_effective_config",
+                        lambda: SimpleNamespace(auxiliary_model="deepseek-v4-flash", auxiliary_provider="deepseek"))
+    assert _ai.pm_model_choice() == ("deepseek-v4-flash", "deepseek")
+    assert _ai.pm_model_choice("gpt-x") == ("gpt-x", None)
+    monkeypatch.setattr(_ai, "get_effective_config",
+                        lambda: SimpleNamespace(auxiliary_model="", auxiliary_provider=""))
+    assert _ai.pm_model_choice() == (DEFAULT_MODEL, None)

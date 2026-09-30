@@ -41,8 +41,7 @@ from pydantic import BaseModel, Field
 from EvoScientist.pm.models import User
 from EvoScientist.tools.pm_tools import PM_TOOLS, WRITE_TOOL_NAMES, current_user_id
 
-from ....config.settings import get_effective_config
-from ....llm.models import DEFAULT_MODEL, get_chat_model
+from ....llm.models import get_chat_model
 from ..deps import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -78,8 +77,10 @@ TOOL_LABELS: dict[str, str] = {
 
 
 def _get_model():
-    config = get_effective_config()
-    return get_chat_model(config.auxiliary_model or DEFAULT_MODEL, temperature=0.3, streaming=True)
+    from ..._ai import pm_model_choice
+
+    model_name, provider = pm_model_choice()
+    return get_chat_model(model_name, provider=provider, temperature=0.3, streaming=True)
 
 
 def _system_prompt(context: dict | None) -> str:
