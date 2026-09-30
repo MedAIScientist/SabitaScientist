@@ -55,14 +55,13 @@ export function BulkActionBar({ count, label, phases, statusOptions, onStatusCha
       backdropFilter: 'blur(12px)',
     }}>
       <span style={{
-        fontSize: 16,
-        fontWeight: 700,
+        fontSize: 14,
+        fontWeight: 600,
         color: 'var(--accent)',
-        fontFamily: 'var(--font-mono)',
-        letterSpacing: '0.05em',
         whiteSpace: 'nowrap',
       }}>
-        {count} {label ?? 'selected'}
+        {/* label is a plural noun ("tasks"): "1 task selected", "3 tasks selected" */}
+        {count} {label ? `${count === 1 ? label.replace(/s$/, '') : label} ` : ''}selected
       </span>
 
       <div style={{ width: 1, height: 20, background: 'var(--border)', flexShrink: 0 }} />

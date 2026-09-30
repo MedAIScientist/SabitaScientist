@@ -71,7 +71,7 @@ describe('CardEditPopover', () => {
 
   test('renders priority select with task priority pre-selected', () => {
     renderPopover(false)
-    const select = screen.getByRole('combobox') as HTMLSelectElement
+    const select = screen.getByRole('combobox', { name: 'Priority' }) as HTMLSelectElement
     expect(select.value).toBe('medium')
   })
 

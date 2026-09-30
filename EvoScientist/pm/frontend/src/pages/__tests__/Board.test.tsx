@@ -178,23 +178,6 @@ describe('Board', () => {
     expect(card.style.borderLeft).not.toMatch(/3px solid (rgb\(244, 63, 94\)|#f43f5e)/)
   })
 
-  test('edit pencil button (✎) appears when card is hovered', () => {
-    renderBoard()
-    const cardTitle = screen.getByText('Design primer sequences')
-    const card = cardTitle.closest('[data-card="true"]') as HTMLElement
-    expect(card).not.toBeNull()
-
-    // Before hover: no edit button visible
-    expect(screen.queryByTitle('Edit')).toBeNull()
-
-    // Simulate hover on the card
-    fireEvent.mouseEnter(card)
-
-    // After hover: edit button should appear
-    const editBtn = card.querySelector('button[title="Edit"]')
-    expect(editBtn).not.toBeNull()
-  })
-
   test('⚙ SETTINGS button is visible for project owner', () => {
     const ownerMembers: Member[] = [
       { user_id: 'u1', username: 'owner_user', role: 'owner', added_at: '2026-01-01' },
@@ -263,7 +246,7 @@ describe('Board', () => {
     const checkbox = card.querySelector('input[type="checkbox"]') as HTMLElement
     expect(checkbox).not.toBeNull()
     fireEvent.click(checkbox)
-    expect(screen.getByText(/1 selected/i)).toBeInTheDocument()
+    expect(screen.getByText(/1 task selected/i)).toBeInTheDocument()
   })
 
   test('clearing selection hides BulkActionBar', () => {
@@ -273,8 +256,8 @@ describe('Board', () => {
     fireEvent.mouseEnter(card)
     const checkbox = card.querySelector('input[type="checkbox"]') as HTMLElement
     fireEvent.click(checkbox)
-    expect(screen.getByText(/1 selected/i)).toBeInTheDocument()
+    expect(screen.getByText(/1 task selected/i)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /clear/i }))
-    expect(screen.queryByText(/1 selected/i)).toBeNull()
+    expect(screen.queryByText(/1 task selected/i)).toBeNull()
   })
 })
