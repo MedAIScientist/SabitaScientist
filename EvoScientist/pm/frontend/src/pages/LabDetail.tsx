@@ -134,17 +134,11 @@ export function LabDetail() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
-      <div style={{
-        padding: '0 28px', height: 54,
-        borderBottom: '1px solid var(--border)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        background: 'var(--surface-header)', backdropFilter: 'blur(12px)',
-        position: 'sticky', top: 0, zIndex: 10,
-      }}>
+      <div className="page-header" style={{ maxWidth: 1100, margin: '0 auto', padding: '28px 32px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div>
             <div className="crumbs"><a href="/labs" onClick={e => { e.preventDefault(); navigate('/labs') }}>Labs</a><span aria-hidden>/</span></div>
-            <h1 className="page-title" style={{ fontSize: 18 }}>{lab.name}</h1>
+            <h1 className="page-title">{lab.name}</h1>
           </div>
         </div>
         <button onClick={() => navigate(`/labs/${id}/impact`)} style={{
@@ -168,11 +162,11 @@ export function LabDetail() {
             border: '1px solid rgba(var(--accent-rgb),0.3)',
             borderRadius: 7, color: 'var(--accent)',
             fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em',
-          }}>{editing ? 'CANCEL' : 'EDIT'}</button>
+          }}>{editing ? 'Cancel' : 'Edit'}</button>
         )}
       </div>
 
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 28px' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 32px 40px' }}>
         {/* Info card */}
         <div style={{
           background: 'var(--surface-card)', border: '1px solid var(--border)',
@@ -302,7 +296,7 @@ export function LabDetail() {
                 borderRadius: 7, color: '#10b981',
                 fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)',
                 whiteSpace: 'nowrap', height: 44,
-              }}>{adding ? '…' : 'ADD'}</button>
+              }}>{adding ? '…' : 'Add'}</button>
             </div>
           </form>
         )}

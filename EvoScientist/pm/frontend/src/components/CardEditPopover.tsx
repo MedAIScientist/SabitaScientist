@@ -176,7 +176,7 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose, phases }
           opacity: updateMutation.isPending ? 0.5 : 1,
         }}
       >
-        {updateMutation.isPending ? 'saving…' : 'SAVE'}
+        {updateMutation.isPending ? 'saving…' : 'Save'}
       </button>
       {saveError && (
         <div style={{ marginTop: 6, fontSize: 15, color: '#f43f5e', fontFamily: 'var(--font-mono)' }}>

@@ -166,7 +166,7 @@ export function CopilotPanel({ onClose }: { onClose: () => void }) {
               fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)',
               color: m.role === 'user' ? 'var(--accent)' : 'var(--text-dim)',
               marginBottom: 3, letterSpacing: '0.04em',
-            }}>{m.role === 'user' ? 'YOU' : 'COPILOT'}</div>
+            }}>{m.role === 'user' ? 'You' : 'Copilot'}</div>
             <div style={{ fontSize: 15, lineHeight: 1.6, color: 'var(--text)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
               {m.content}
             </div>

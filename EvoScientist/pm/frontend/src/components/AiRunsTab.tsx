@@ -122,7 +122,7 @@ export function AiRunsTab({ task, projectId }: Props) {
           marginBottom: 10, opacity: (isRunning || !prompt.trim()) ? 0.4 : 1,
         }}
       >
-        {hasHistory ? '▶ RUN AGAIN' : '▶ RUN Gazzali AI'}
+        {hasHistory ? '▶ Run again' : '▶ RUN Gazzali AI'}
       </button>
 
       {/* Active run (streaming) */}
@@ -157,7 +157,7 @@ export function AiRunsTab({ task, projectId }: Props) {
       ) : (
         <>
           <div style={{ ...sectionLabel, marginTop: 4 }}>
-            RUN HISTORY · {runs.length} {runs.length === 1 ? 'RUN' : 'RUNS'}
+            RUN HISTORY · {runs.length} {runs.length === 1 ? 'Run' : 'Runs'}
           </div>
           {runs.map(run => (
             <RunCard

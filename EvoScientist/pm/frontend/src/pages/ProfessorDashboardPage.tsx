@@ -259,7 +259,7 @@ const th: React.CSSProperties = {
 const td: React.CSSProperties = { padding: '8px 10px', fontSize: 13 }
 const btnPrimary: React.CSSProperties = {
   padding: '8px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 700,
-  background: 'var(--accent)', border: 'none', borderRadius: 6, color: '#1a1a1a',
+  background: 'var(--accent)', border: 'none', borderRadius: 6, color: '#fff',
 }
 const btnGhost: React.CSSProperties = {
   padding: '6px 12px', cursor: 'pointer', fontSize: 12,

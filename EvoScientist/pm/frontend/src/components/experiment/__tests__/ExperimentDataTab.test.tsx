@@ -123,7 +123,7 @@ describe('ExperimentMetricsTab', () => {
     render(<ExperimentMetricsTab projectId="p1" experimentId="e1" />)
 
     expect(screen.getByText('0.8734 ± 0.012')).toBeInTheDocument()
-    expect(screen.getByText(/dice · test · n=42 · FROM CSV/)).toBeInTheDocument()
+    expect(screen.getByText(/dice · test · n=42 · From CSV/)).toBeInTheDocument()
     expect(screen.getByText(/1 METRIC · 1 FROM UPLOADED RESULTS/i)).toBeInTheDocument()
   })
 

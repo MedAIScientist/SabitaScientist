@@ -186,7 +186,7 @@ export function ExperimentDetail({ experiment, projectId, onClose, phases }: Pro
               }}
               title={isEditing ? 'Save changes' : 'Edit experiment'}
             >
-              {isEditing ? '💾 SAVE' : '✎ EDIT'}
+              {isEditing ? '💾 Save' : '✎ Edit'}
             </button>
             <button
               onClick={() => setShowAiPanel(p => !p)}
@@ -472,7 +472,7 @@ function EntriesTab({
   expId: string
 }) {
   const [expanded, setExpanded] = useState<string | null>(null)
-  const label = type === 'note' ? 'NOTE' : 'RESULT'
+  const label = type === 'note' ? 'Note' : 'Result'
   const accent = type === 'note' ? '#ff8015' : '#10b981'
 
   return (

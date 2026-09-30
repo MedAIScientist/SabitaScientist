@@ -50,20 +50,14 @@ export function AdminDashboard() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
-      <div style={{
-        padding: '0 28px', height: 54,
-        borderBottom: '1px solid var(--border)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        background: 'var(--surface-header)', backdropFilter: 'blur(12px)',
-        position: 'sticky', top: 0, zIndex: 10,
-      }}>
+      <div className="page-header" style={{ maxWidth: 1100, margin: '0 auto', padding: '28px 32px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <h1 className="page-title" style={{ fontSize: 18 }}>System administration</h1>
+          <h1 className="page-title">System administration</h1>
         </div>
         <span style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', background: 'rgba(var(--accent-rgb),0.1)', padding: '2px 8px', borderRadius: 4, border: '1px solid rgba(var(--accent-rgb),0.2)' }}>Admin</span>
       </div>
 
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 28px' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 32px 40px' }}>
         {loading ? (
           <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontSize: 16 }}>Loading…</div>
         ) : error ? (

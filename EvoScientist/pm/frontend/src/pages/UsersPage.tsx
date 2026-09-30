@@ -147,40 +147,18 @@ export function UsersPage() {
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
 
       {/* Header */}
-      <div style={{
-        padding: '0 28px', height: 54,
-        borderBottom: '1px solid var(--border)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        background: 'var(--surface-header)', backdropFilter: 'blur(12px)',
-        position: 'sticky', top: 0, zIndex: 10,
-      }}>
+      <div className="page-header" style={{ maxWidth: 1100, margin: '0 auto', padding: '28px 32px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <h1 className="page-title" style={{ fontSize: 18 }}>People</h1>
+          <h1 className="page-title">People</h1>
         </div>
 
         <div style={{ display: 'flex', gap: 8 }}>
         <button
           onClick={() => { setShowBulk(b => !b); setBulkMsg(null) }}
-          style={{
-            cursor: 'pointer', padding: '7px 14px',
-            background: 'transparent', border: '1px solid var(--border)',
-            borderRadius: 7, color: 'var(--text-muted)',
-            fontSize: 16, fontFamily: 'var(--font-mono)',
-          }}
+          className="btn"
         >Bulk import</button>
         <button
-          onClick={() => { setShowForm(f => !f); setCreateError(null) }}
-          style={{
-            cursor: 'pointer', padding: '7px 16px',
-            background: showForm ? 'rgba(var(--accent-rgb),0.18)' : 'rgba(var(--accent-rgb),0.1)',
-            border: '1px solid rgba(var(--accent-rgb),0.3)',
-            borderRadius: 7, color: 'var(--accent)',
-            fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
-            letterSpacing: '0.04em', transition: 'background 0.14s',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(var(--accent-rgb),0.22)' }}
-          onMouseLeave={e => { e.currentTarget.style.background = showForm ? 'rgba(var(--accent-rgb),0.18)' : 'rgba(var(--accent-rgb),0.1)' }}
-        >+ Add user</button>
+          onClick={() => { setShowForm(f => !f); setCreateError(null) }} className="btn btn-primary">+ Add user</button>
         </div>
       </div>
 
@@ -210,7 +188,7 @@ export function UsersPage() {
         </div>
       )}
 
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 28px' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 32px 40px' }}>
 
         {/* Create form */}
         {showForm && (
@@ -289,7 +267,7 @@ export function UsersPage() {
                 }}
                 onMouseEnter={e => { if (!creating) e.currentTarget.style.background = 'rgba(var(--accent-rgb),0.22)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = creating ? 'rgba(var(--accent-rgb),0.07)' : 'rgba(var(--accent-rgb),0.12)' }}
-              >{creating ? 'CREATING…' : 'CREATE'}</button>
+              >{creating ? 'Creating…' : 'Create'}</button>
               <button
                 type="button" onClick={() => { setShowForm(false); setCreateError(null) }}
                 style={{
@@ -437,7 +415,7 @@ export function UsersPage() {
                 }}
                 onMouseEnter={e => { if (!deleting) e.currentTarget.style.background = 'rgba(244,63,94,0.2)' }}
                 onMouseLeave={e => { e.currentTarget.style.background = deleting ? 'rgba(244,63,94,0.06)' : 'rgba(244,63,94,0.1)' }}
-              >{deleting ? 'DELETING…' : 'DELETE'}</button>
+              >{deleting ? 'Deleting…' : 'Delete'}</button>
               <button
                 onClick={() => setDeleteTarget(null)} disabled={deleting}
                 style={{
@@ -508,7 +486,7 @@ export function UsersPage() {
                   background: editing ? 'rgba(var(--accent-rgb),0.07)' : 'rgba(var(--accent-rgb),0.12)',
                   border: '1px solid rgba(var(--accent-rgb),0.28)', borderRadius: 7, color: 'var(--accent)',
                   fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)', transition: 'background 0.14s',
-                }}>{editing ? 'SAVING…' : 'SAVE'}</button>
+                }}>{editing ? 'Saving…' : 'Save'}</button>
                 <button type="button" onClick={() => setEditTarget(null)} disabled={editing} style={{
                   flex: 1, padding: '10px 0', cursor: 'pointer',
                   background: 'transparent', border: '1px solid var(--border)',

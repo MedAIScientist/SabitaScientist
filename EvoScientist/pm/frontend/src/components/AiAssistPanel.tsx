@@ -210,7 +210,7 @@ export function AiAssistPanel({
               background: `${accent}08`, padding: '4px 8px',
               fontSize: 15, color: accent, fontFamily: 'var(--font-mono)', fontWeight: 700,
             }}>
-              {isRunning ? 'GENERATING…' : hasFailed ? 'FAILED' : 'OUTPUT'}
+              {isRunning ? 'Generating…' : hasFailed ? 'Failed' : 'Output'}
             </div>
             <div style={{
               padding: '6px 8px', background: 'var(--surface-input)',

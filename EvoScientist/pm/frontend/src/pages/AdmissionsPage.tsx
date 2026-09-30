@@ -76,15 +76,9 @@ export function AdmissionsPage() {
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
 
       {/* Header */}
-      <div style={{
-        padding: '0 28px', height: 54,
-        borderBottom: '1px solid var(--border)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        background: 'var(--surface-header)', backdropFilter: 'blur(12px)',
-        position: 'sticky', top: 0, zIndex: 10,
-      }}>
+      <div className="page-header" style={{ maxWidth: 1100, margin: '0 auto', padding: '28px 32px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <h1 className="page-title" style={{ fontSize: 18 }}>Admissions</h1>
+          <h1 className="page-title">Admissions</h1>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -110,24 +104,14 @@ export function AdmissionsPage() {
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={importing}
-                style={{
-                  cursor: importing ? 'default' : 'pointer',
-                  padding: '7px 16px',
-                  background: importing ? 'rgba(129,140,248,0.06)' : 'rgba(129,140,248,0.1)',
-                  border: '1px solid rgba(129,140,248,0.3)',
-                  borderRadius: 7, color: '#818cf8',
-                  fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
-                  letterSpacing: '0.04em', transition: 'background 0.14s',
-                }}
-                onMouseEnter={e => { if (!importing) e.currentTarget.style.background = 'rgba(129,140,248,0.22)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = importing ? 'rgba(129,140,248,0.06)' : 'rgba(129,140,248,0.1)' }}
-              >{importing ? 'IMPORTING…' : '+ IMPORT EXCEL'}</button>
+                className="btn btn-primary"
+              >{importing ? 'Importing…' : '+ Import Excel'}</button>
             </>
           )}
         </div>
       </div>
 
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 28px' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 32px 40px' }}>
 
         {/* Status filter pills */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>

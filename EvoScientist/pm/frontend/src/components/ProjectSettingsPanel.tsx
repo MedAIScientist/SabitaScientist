@@ -244,7 +244,7 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
               opacity: updateProject.isPending ? 0.5 : 1,
             }}
           >
-            {updateProject.isPending ? 'saving…' : 'SAVE'}
+            {updateProject.isPending ? 'saving…' : 'Save'}
           </button>
           {saveError && (
             <div style={{ marginTop: 5, fontSize: 15, color: '#f43f5e', fontFamily: 'var(--font-mono)' }}>{saveError}</div>
@@ -261,7 +261,7 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
               fontFamily: 'var(--font-mono)', cursor: 'pointer',
             }}
           >
-            {deleteConfirm ? 'CONFIRM DELETE ?' : 'DELETE PROJECT'}
+            {deleteConfirm ? 'Confirm delete ?' : 'Delete project'}
           </button>
           {deleteError && (
             <div style={{ color: '#f43f5e', fontSize: 16, marginTop: 4 }}>{deleteError}</div>
@@ -397,7 +397,7 @@ export function ProjectSettingsPanel({ project, projectId, onClose }: ProjectSet
               opacity: !selectedUser || addMemberMutation.isPending ? 0.5 : 1,
             }}
           >
-            {addMemberMutation.isPending ? '…' : 'ADD'}
+            {addMemberMutation.isPending ? '…' : 'Add'}
           </button>
         </div>
         {addError && (

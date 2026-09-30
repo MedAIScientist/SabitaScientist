@@ -121,7 +121,7 @@ export function Login() {
         }}
           onMouseEnter={e => { if (!loading) e.currentTarget.style.background = 'rgba(var(--accent-rgb),0.22)' }}
           onMouseLeave={e => { e.currentTarget.style.background = loading ? 'rgba(var(--accent-rgb),0.07)' : 'rgba(var(--accent-rgb),0.12)' }}
-        >{loading ? 'AUTHENTICATING…' : 'SIGN IN'}</button>
+        >{loading ? 'Authenticating…' : 'Sign in'}</button>
 
         {oidcAvailable && (
           <>

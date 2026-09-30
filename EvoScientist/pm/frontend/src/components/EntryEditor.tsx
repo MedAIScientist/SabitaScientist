@@ -12,7 +12,7 @@ export function EntryEditor({ type, onSave, onCancel, initialTitle = '', initial
   const [title, setTitle] = useState(initialTitle)
   const [body, setBody] = useState(initialBody)
 
-  const label = type === 'note' ? 'NOTE' : 'RESULT'
+  const label = type === 'note' ? 'Note' : 'Result'
   const accent = type === 'note' ? '#ff8015' : '#10b981'
 
   return (
@@ -23,7 +23,7 @@ export function EntryEditor({ type, onSave, onCancel, initialTitle = '', initial
       padding: '12px 14px',
     }}>
       <div style={{ fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ color: 'var(--text-dim)' }}>{initialTitle ? 'EDIT' : 'NEW'}</span>
+        <span style={{ color: 'var(--text-dim)' }}>{initialTitle ? 'Edit' : 'New'}</span>
         <span style={{ color: accent, background: `${accent}18`, border: `1px solid ${accent}33`, borderRadius: 2, padding: '1px 5px' }}>{label}</span>
       </div>
 

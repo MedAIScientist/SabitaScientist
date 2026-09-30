@@ -45,20 +45,14 @@ export function ProfilePage() {
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
 
       {/* Header */}
-      <div style={{
-        padding: '0 28px', height: 54,
-        borderBottom: '1px solid var(--border)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        background: 'var(--surface-header)', backdropFilter: 'blur(12px)',
-        position: 'sticky', top: 0, zIndex: 10,
-      }}>
+      <div className="page-header" style={{ maxWidth: 480, margin: '0 auto', padding: '28px 32px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <h1 className="page-title" style={{ fontSize: 18 }}>Profile</h1>
+          <h1 className="page-title">Profile</h1>
         </div>
       </div>
 
       {/* Content */}
-      <div style={{ maxWidth: 480, margin: '48px auto', padding: '0 28px' }}>
+      <div style={{ maxWidth: 480, margin: '0 auto', padding: '0 32px 40px' }}>
 
         {/* Avatar + name */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginBottom: 36 }}>
@@ -101,7 +95,7 @@ export function ProfilePage() {
                 Appearance
               </div>
               <div style={{ fontSize: 16, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
-                {isDark ? 'DARK MODE' : 'LIGHT MODE'}
+                {isDark ? 'Dark mode' : 'Light mode'}
               </div>
             </div>
             <button
@@ -231,7 +225,7 @@ export function ProfilePage() {
                 fontSize: 16, fontWeight: 700, letterSpacing: '0.04em',
                 fontFamily: 'var(--font-mono)',
               }}
-            >{passwordSaving ? 'SAVING…' : 'SET PASSWORD'}</button>
+            >{passwordSaving ? 'Saving…' : 'Set password'}</button>
           </div>
         </div>
 

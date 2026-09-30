@@ -161,10 +161,10 @@ export function ExperimentDataTab({ projectId, experimentId }: {
           style={{
             width: '100%', marginTop: 8, padding: '7px 0', borderRadius: 5,
             cursor: !assetId ? 'default' : 'pointer', border: 'none',
-            background: !assetId || link.isPending ? 'rgba(var(--accent-rgb),0.35)' : '#ff8015',
-            color: '#06091a', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
+            background: !assetId || link.isPending ? 'rgba(var(--accent-rgb),0.35)' : 'var(--accent)',
+            color: '#fff', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
           }}
-        >{link.isPending ? 'LINKING…' : `LINK AS ${role.toUpperCase()}`}</button>
+        >{link.isPending ? 'Linking…' : `LINK AS ${role.toUpperCase()}`}</button>
         <div style={{ fontSize: 13, color: 'var(--text-3)', marginTop: 5 }}>
           {ROLE_HINT[role]}
         </div>

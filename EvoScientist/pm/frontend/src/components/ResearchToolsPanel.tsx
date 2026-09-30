@@ -147,7 +147,7 @@ export function ResearchToolsPanel({ projectId, onClose }: Props) {
             color: accent, fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)',
             marginBottom: 10,
           }}
-        >{loading ? 'GENERATING…' : 'RUN'}</button>
+        >{loading ? 'Generating…' : 'Run'}</button>
 
         {error && (
           <div style={{ padding: '8px 10px', background: 'rgba(244,63,94,0.08)', border: '1px solid rgba(244,63,94,0.2)', borderRadius: 6, color: '#f43f5e', fontSize: 15, marginBottom: 10 }}>{error}</div>

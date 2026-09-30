@@ -162,7 +162,7 @@ function PhaseRow({
               opacity: updateMutation.isPending || !editName.trim() ? 0.5 : 1,
             }}
           >
-            {updateMutation.isPending ? '…' : 'SAVE'}
+            {updateMutation.isPending ? '…' : 'Save'}
           </button>
           <button
             onClick={() => setEditing(false)}
@@ -349,7 +349,7 @@ export function PhaseManager({ projectId, token }: PhaseManagerProps) {
             opacity: !newName.trim() || createMutation.isPending ? 0.5 : 1,
           }}
         >
-          {createMutation.isPending ? 'saving…' : 'SAVE'}
+          {createMutation.isPending ? 'saving…' : 'Save'}
         </button>
         {createError && (
           <div style={{ fontSize: 14, color: '#f43f5e', fontFamily: 'var(--font-mono)' }}>

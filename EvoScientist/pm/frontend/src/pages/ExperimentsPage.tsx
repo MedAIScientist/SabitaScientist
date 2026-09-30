@@ -177,7 +177,7 @@ export function ExperimentsPage() {
 
         {filteredExperiments.length === 0 ? (
           <div style={{ textAlign: 'center', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontSize: 16, marginTop: 60 }}>
-            {experiments.length === 0 ? 'NO EXPERIMENTS YET' : 'NO EXPERIMENTS IN THIS PHASE'}
+            {experiments.length === 0 ? 'No experiments yet' : 'No experiments in this phase'}
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>

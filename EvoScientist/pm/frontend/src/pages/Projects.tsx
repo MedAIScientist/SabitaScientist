@@ -420,7 +420,7 @@ export function Projects() {
                       borderRadius: 7, color: '#a78bfa',
                       fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
                     }}
-                  >{creatingFromTemplate ? 'CREATING…' : 'CREATE PROJECT'}</button>
+                  >{creatingFromTemplate ? 'Creating…' : 'Create project'}</button>
                   <button
                     onClick={() => setSelectedTemplate(null)}
                     disabled={creatingFromTemplate}

@@ -58,7 +58,7 @@ function SystemPromptTab() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <span style={{ fontSize: 16, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>Length: <b>{sp?.length?.toLocaleString() ?? '—'}</b> chars</span>
-        <button onClick={() => setExpanded(f => !f)} style={{ cursor: 'pointer', padding: '4px 10px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text-dim)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>{expanded ? 'COLLAPSE' : 'EXPAND'}</button>
+        <button onClick={() => setExpanded(f => !f)} style={{ cursor: 'pointer', padding: '4px 10px', background: 'transparent', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text-dim)', fontSize: 13, fontFamily: 'var(--font-mono)' }}>{expanded ? 'Collapse' : 'Expand'}</button>
       </div>
       {isLoading ? <p style={{ color: 'var(--text-dim)' }}>Loading...</p> : (
         <pre style={{
@@ -114,7 +114,7 @@ function CronTab() {
                 <div style={{ fontSize: 13, color: 'var(--text-dim)', marginTop: 4, whiteSpace: 'pre-wrap' }}>{s.prompt.slice(0, 200)}</div>
               </div>
               <div style={{ display: 'flex', gap: 6, marginLeft: 12, alignItems: 'center' }}>
-                <button onClick={() => toggle.mutate({ id: s.cron_id, enabled: !s.enabled })} style={{ cursor: 'pointer', padding: '4px 10px', background: s.enabled ? 'rgba(16,185,129,0.1)' : 'rgba(244,63,94,0.1)', border: '1px solid var(--border)', borderRadius: 5, color: s.enabled ? '#10b981' : '#f43f5e', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{s.enabled ? 'ON' : 'OFF'}</button>
+                <button onClick={() => toggle.mutate({ id: s.cron_id, enabled: !s.enabled })} style={{ cursor: 'pointer', padding: '4px 10px', background: s.enabled ? 'rgba(16,185,129,0.1)' : 'rgba(244,63,94,0.1)', border: '1px solid var(--border)', borderRadius: 5, color: s.enabled ? '#10b981' : '#f43f5e', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{s.enabled ? 'ON' : 'Off'}</button>
                 <button onClick={() => del.mutate(s.cron_id)} style={{ cursor: 'pointer', padding: '4px 10px', background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.3)', borderRadius: 5, color: '#f43f5e', fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>Del</button>
               </div>
             </div>
@@ -242,7 +242,7 @@ function HealthTab() {
       <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px', marginBottom: 8 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div><span style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-heading)' }}>LangGraph Dev</span><div style={{ fontSize: 13, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: 1 }}>{h?.langgraph_dev?.url ?? '—'}</div></div>
-          <span style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', color: h?.langgraph_dev?.running ? '#10b981' : '#f43f5e', padding: '2px 7px', borderRadius: 3, background: h?.langgraph_dev?.running ? 'rgba(16,185,129,0.1)' : 'rgba(244,63,94,0.1)' }}>{h?.langgraph_dev?.running ? 'RUNNING' : 'OFFLINE'}</span>
+          <span style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', color: h?.langgraph_dev?.running ? '#10b981' : '#f43f5e', padding: '2px 7px', borderRadius: 3, background: h?.langgraph_dev?.running ? 'rgba(16,185,129,0.1)' : 'rgba(244,63,94,0.1)' }}>{h?.langgraph_dev?.running ? 'Running' : 'Offline'}</span>
         </div>
       </div>
       <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px', marginBottom: 8 }}>
@@ -270,7 +270,7 @@ function AnalyticsTab() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px' }}>
             <div style={{ fontSize: 13, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', marginBottom: 2 }}>LangGraph dev</div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: stats.langgraph_dev.running ? '#10b981' : '#f43f5e' }}>{stats.langgraph_dev.running ? 'ONLINE' : 'OFFLINE'}</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: stats.langgraph_dev.running ? '#10b981' : '#f43f5e' }}>{stats.langgraph_dev.running ? 'Online' : 'Offline'}</div>
           </div>
           <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px' }}>
             <div style={{ fontSize: 13, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', marginBottom: 2 }}>Skills</div>

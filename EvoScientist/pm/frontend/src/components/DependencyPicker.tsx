@@ -354,7 +354,7 @@ export function DependencyPicker({ projectId, taskId, token, allTasks }: Depende
                     }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'rgba(var(--accent-rgb),0.1)' }}
                   >
-                    {addMutation.isPending ? '…' : '+ ADD'}
+                    {addMutation.isPending ? '…' : '+ Add'}
                   </button>
                 </div>
 

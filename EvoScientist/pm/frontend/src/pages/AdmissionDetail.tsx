@@ -312,7 +312,7 @@ export function AdmissionDetail() {
                   }}
                   onMouseEnter={e => { if (!submitting) e.currentTarget.style.background = 'rgba(16,185,129,0.2)' }}
                   onMouseLeave={e => { e.currentTarget.style.background = submitting ? 'rgba(16,185,129,0.06)' : 'rgba(16,185,129,0.1)' }}
-                >{submitting ? 'PROCESSING…' : '✓ ACCEPT & CREATE PROJECT'}</button>
+                >{submitting ? 'Processing…' : '✓ Accept & create project'}</button>
                 <button
                   onClick={() => {
                     if (!rejectNotes.trim()) {

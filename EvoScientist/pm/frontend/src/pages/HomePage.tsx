@@ -34,7 +34,7 @@ export function HomePage() {
   return (
     <div style={{ padding: '28px 32px', maxWidth: 1100 }}>
       <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', color: 'var(--text-dim)', marginBottom: 6 }}>
-        {(isAdmin ? 'ADMIN' : isProfessor ? 'PROFESSOR' : 'STUDENT').toString()} WORKSPACE
+        {isAdmin ? 'Admin' : isProfessor ? 'Professor' : 'Student'} workspace
       </div>
       <h1 style={{ margin: '0 0 6px', fontSize: 24, color: 'var(--text-heading)' }}>
         Welcome, {username}

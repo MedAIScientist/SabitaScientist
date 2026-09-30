@@ -12,13 +12,13 @@ export function WikiPages() {
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', padding: '32px 28px', maxWidth: 1100, margin: '0 auto' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <h1 style={{ margin: 0, fontSize: 24, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>Lab Wiki</h1>
-        <button onClick={() => setShowForm(f => !f)} style={{ cursor: 'pointer', padding: '7px 16px', background: 'rgba(var(--accent-rgb),0.1)', border: '1px solid rgba(var(--accent-rgb),0.3)', borderRadius: 7, color: 'var(--accent)', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>+ New page</button>
+        <button onClick={() => setShowForm(f => !f)} className="btn btn-primary">+ New page</button>
       </div>
       {showForm && (
         <form onSubmit={e => { e.preventDefault(); create.mutate() }} style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16, background: 'var(--surface-card)', border: '1px solid rgba(var(--accent-rgb),0.2)', borderRadius: 10, padding: 20 }}>
           <input value={title} onChange={e => setTitle(e.target.value)} required placeholder="Page title" style={{ padding: '9px 12px', background: 'var(--surface-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text)', fontSize: 17, outline: 'none' }} />
           <textarea value={content} onChange={e => setContent(e.target.value)} placeholder="Markdown content..." rows={6} style={{ padding: '9px 12px', background: 'var(--surface-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text)', fontSize: 15, outline: 'none', resize: 'vertical', fontFamily: 'var(--font-mono)' }} />
-          <button type="submit" style={{ cursor: 'pointer', padding: '9px 0', background: 'var(--accent)', color: '#06091a', border: 'none', borderRadius: 7, fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>Create</button>
+          <button type="submit" style={{ cursor: 'pointer', padding: '9px 0', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 7, fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>Create</button>
         </form>
       )}
       {pages.map(p => (

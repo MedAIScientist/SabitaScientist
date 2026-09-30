@@ -78,15 +78,9 @@ export function GlobalReportPage() {
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
 
       {/* Header */}
-      <div style={{
-        padding: '0 28px', height: 54,
-        borderBottom: '1px solid var(--border)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        background: 'var(--surface-header)', backdropFilter: 'blur(12px)',
-        position: 'sticky', top: 0, zIndex: 10,
-      }}>
+      <div className="page-header" style={{ maxWidth: 1100, margin: '0 auto', padding: '28px 32px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <h1 className="page-title" style={{ fontSize: 18 }}>Reports</h1>
+          <h1 className="page-title">Reports</h1>
         </div>
         <span style={{ fontSize: 15, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
           Generated {generatedAt}
@@ -94,7 +88,7 @@ export function GlobalReportPage() {
       </div>
 
       {/* Content */}
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 28px 64px' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 32px 64px' }}>
 
         {/* Section 1 — Global Summary */}
         <div style={{ marginBottom: 40 }}>

@@ -119,7 +119,7 @@ export function TaskEditForm({
           }}
           onMouseEnter={e => { if (!isSaving) e.currentTarget.style.background = 'rgba(var(--accent-rgb),0.2)' }}
           onMouseLeave={e => { e.currentTarget.style.background = 'rgba(var(--accent-rgb),0.1)' }}
-        >{isSaving ? 'saving…' : 'SAVE'}</button>
+        >{isSaving ? 'saving…' : 'Save'}</button>
       </div>
 
       <button
@@ -133,7 +133,7 @@ export function TaskEditForm({
           letterSpacing: '0.04em', fontFamily: 'var(--font-mono)',
           transition: 'all 0.18s',
         }}
-      >{deleteConfirm ? 'CONFIRM DELETE' : 'DELETE'}</button>
+      >{deleteConfirm ? 'Confirm delete' : 'Delete'}</button>
     </div>
   )
 }

@@ -99,7 +99,7 @@ export function GrantMilestonesTab({ grantId, canEdit }: { grantId: string; canE
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button style={smallBtn} onClick={() => setShowCompleted(v => !v)}>
-            {showCompleted ? 'HIDE COMPLETED' : 'SHOW COMPLETED'}
+            {showCompleted ? 'Hide completed' : 'Show completed'}
           </button>
           {canEdit && (
             <button
@@ -188,10 +188,10 @@ export function GrantMilestonesTab({ grantId, canEdit }: { grantId: string; canE
               style={{
                 cursor: !title.trim() ? 'default' : 'pointer', padding: '9px 20px',
                 borderRadius: 7, border: 'none',
-                background: !title.trim() || create.isPending ? 'rgba(var(--accent-rgb),0.4)' : '#ff8015',
-                color: '#06091a', fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                background: !title.trim() || create.isPending ? 'rgba(var(--accent-rgb),0.4)' : 'var(--accent)',
+                color: '#fff', fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)',
               }}
-            >{create.isPending ? 'SAVING…' : 'ADD'}</button>
+            >{create.isPending ? 'Saving…' : 'Add'}</button>
             <button style={{ ...smallBtn, padding: '9px 14px' }} onClick={() => setShowForm(false)}>
               Cancel
             </button>
@@ -241,7 +241,7 @@ export function GrantMilestonesTab({ grantId, canEdit }: { grantId: string; canE
                     }}>{m.kind.toUpperCase()}</span>
                     <span style={{ color: late ? '#f43f5e' : 'var(--text-dim)' }}>
                       {m.due_date ? `DUE ${m.due_date.slice(0, 10)}` : 'NO DUE DATE'}
-                      {late ? ' · OVERDUE' : ''}
+                      {late ? ' · Overdue' : ''}
                     </span>
                     {owner && <span style={{ color: 'var(--text-dim)' }}>{owner.username}</span>}
                     {done && (

@@ -84,7 +84,7 @@ export function GrantTeamTab({ grantId, canEdit }: { grantId: string; canEdit: b
             fontSize: 15, fontFamily: 'var(--font-mono)',
             color: totalShare > 100 ? '#f43f5e' : 'var(--text-dim)',
           }}>
-            {totalShare}% ALLOCATED{totalShare > 100 ? ' · OVER 100%' : ''}
+            {totalShare}% ALLOCATED{totalShare > 100 ? ' · Over 100%' : ''}
           </div>
         )}
       </div>
@@ -130,10 +130,10 @@ export function GrantTeamTab({ grantId, canEdit }: { grantId: string; canEdit: b
               style={{
                 cursor: !userId ? 'default' : 'pointer', padding: '9px 20px',
                 borderRadius: 7, border: 'none',
-                background: !userId || add.isPending ? 'rgba(var(--accent-rgb),0.4)' : '#ff8015',
-                color: '#06091a', fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                background: !userId || add.isPending ? 'rgba(var(--accent-rgb),0.4)' : 'var(--accent)',
+                color: '#fff', fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)',
               }}
-            >{add.isPending ? 'ADDING…' : 'ADD TO TEAM'}</button>
+            >{add.isPending ? 'Adding…' : 'Add to team'}</button>
           </div>
         </div>
       )}

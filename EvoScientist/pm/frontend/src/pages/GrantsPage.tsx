@@ -107,14 +107,7 @@ export function GrantsPage() {
             }}>{grants.length} shown</p>
           </div>
           <button
-            onClick={() => setShowForm(f => !f)}
-            style={{
-              cursor: 'pointer', padding: '7px 16px',
-              background: 'rgba(var(--accent-rgb),0.1)', border: '1px solid rgba(var(--accent-rgb),0.3)',
-              borderRadius: 7, color: 'var(--accent)', fontSize: 15, fontWeight: 700,
-              fontFamily: 'var(--font-mono)',
-            }}
-          >+ New</button>
+            onClick={() => setShowForm(f => !f)} className="btn btn-primary">+ New grant</button>
         </div>
 
         {/* Stats */}
@@ -292,10 +285,10 @@ export function GrantsPage() {
                 disabled={create.isPending}
                 style={{
                   padding: '9px 24px', cursor: 'pointer', border: 'none', borderRadius: 7,
-                  background: create.isPending ? 'rgba(var(--accent-rgb),0.4)' : '#ff8015',
-                  color: '#06091a', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                  background: create.isPending ? 'rgba(var(--accent-rgb),0.4)' : 'var(--accent)',
+                  color: '#fff', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
                 }}
-              >{create.isPending ? 'CREATING…' : 'CREATE'}</button>
+              >{create.isPending ? 'Creating…' : 'Create'}</button>
               <button
                 type="button"
                 onClick={() => { setShowForm(false); setError(null) }}

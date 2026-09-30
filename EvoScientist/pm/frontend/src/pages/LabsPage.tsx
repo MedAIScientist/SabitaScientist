@@ -57,31 +57,16 @@ export function LabsPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
-      <div style={{
-        padding: '0 28px', height: 54,
-        borderBottom: '1px solid var(--border)',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        background: 'var(--surface-header)', backdropFilter: 'blur(12px)',
-        position: 'sticky', top: 0, zIndex: 10,
-      }}>
+      <div className="page-header" style={{ maxWidth: 1100, margin: '0 auto', padding: '28px 32px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <h1 className="page-title" style={{ fontSize: 18 }}>Labs</h1>
+          <h1 className="page-title">Labs</h1>
         </div>
 
         <button
-          onClick={() => { setShowForm(f => !f); setCreateError(null) }}
-          style={{
-            cursor: 'pointer', padding: '7px 16px',
-            background: showForm ? 'rgba(var(--accent-rgb),0.18)' : 'rgba(var(--accent-rgb),0.1)',
-            border: '1px solid rgba(var(--accent-rgb),0.3)',
-            borderRadius: 7, color: 'var(--accent)',
-            fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
-            letterSpacing: '0.04em',
-          }}
-        >+ New lab</button>
+          onClick={() => { setShowForm(f => !f); setCreateError(null) }} className="btn btn-primary">+ New lab</button>
       </div>
 
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 28px' }}>
+      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 32px 40px' }}>
         {showForm && (
           <form onSubmit={handleCreate} style={{
             background: 'var(--surface-card)',
@@ -119,7 +104,7 @@ export function LabsPage() {
               border: '1px solid rgba(var(--accent-rgb),0.28)',
               borderRadius: 7, color: 'var(--accent)',
               fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
-            }}>{creating ? 'CREATING…' : 'CREATE'}</button>
+            }}>{creating ? 'Creating…' : 'Create'}</button>
           </form>
         )}
 

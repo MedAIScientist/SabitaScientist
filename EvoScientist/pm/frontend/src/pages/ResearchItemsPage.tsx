@@ -202,5 +202,5 @@ const btnGhost: React.CSSProperties = {
 }
 const btnPrimary: React.CSSProperties = {
   padding: '6px 12px', cursor: 'pointer', fontSize: 12, fontWeight: 700,
-  background: 'var(--accent)', border: 'none', borderRadius: 6, color: '#1a1a1a',
+  background: 'var(--accent)', border: 'none', borderRadius: 6, color: '#fff',
 }

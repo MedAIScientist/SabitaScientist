@@ -57,14 +57,7 @@ export function PublicationsPage() {
               {pubs.length} publication{pubs.length !== 1 ? 's' : ''}
             </p>
           </div>
-          <button onClick={() => setShowForm(f => !f)} style={{
-            cursor: 'pointer', padding: '7px 16px',
-            background: 'rgba(var(--accent-rgb),0.1)',
-            border: '1px solid rgba(var(--accent-rgb),0.3)',
-            borderRadius: 7, color: 'var(--accent)',
-            fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
-            letterSpacing: '0.04em',
-          }}>+ New</button>
+          <button onClick={() => setShowForm(f => !f)} className="btn btn-primary">+ New paper</button>
         </div>
 
         {showForm && (
@@ -93,9 +86,9 @@ export function PublicationsPage() {
             </div>
             <button type="submit" disabled={createMutation.isPending} style={{
               padding: '9px 24px', cursor: 'pointer',
-              background: 'var(--accent)', color: '#06091a',
+              background: 'var(--accent)', color: '#fff',
               border: 'none', borderRadius: 7, fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
-            }}>{createMutation.isPending ? 'CREATING…' : 'CREATE'}</button>
+            }}>{createMutation.isPending ? 'Creating…' : 'Create'}</button>
           </form>
         )}
 

@@ -247,7 +247,7 @@ export function PublicationDetail() {
                   cursor: 'pointer', padding: '6px 12px',
                   background: 'rgba(var(--accent-rgb),0.1)', border: '1px solid rgba(var(--accent-rgb),0.3)',
                   borderRadius: 6, color: 'var(--accent)', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
-                }}>{editing ? 'CANCEL' : 'EDIT'}</button>
+                }}>{editing ? 'Cancel' : 'Edit'}</button>
               </div>
             </div>
           </div>
@@ -273,7 +273,7 @@ export function PublicationDetail() {
                 ))}
               </div>
               <button onClick={() => updateMutation.mutate({ title: editTitle, venue: editVenue || null, abstract: editAbstract || null, doi: editDoi || null })}
-                style={{ padding: '8px 20px', cursor: 'pointer', background: 'var(--accent)', color: '#06091a', border: 'none', borderRadius: 6, fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
+                style={{ padding: '8px 20px', cursor: 'pointer', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 6, fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
                 Save
               </button>
             </div>
@@ -422,7 +422,7 @@ export function PublicationDetail() {
                         borderRadius: 6, color: '#6366f1', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
                         whiteSpace: 'nowrap',
                       }}
-                    >{draftSectionMutation.isPending ? '…' : 'GENERATE'}</button>
+                    >{draftSectionMutation.isPending ? '…' : 'Generate'}</button>
                   </div>
                 </div>
 
@@ -482,7 +482,7 @@ export function PublicationDetail() {
                       background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.28)',
                       borderRadius: 6, color: '#f59e0b', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
                     }}
-                  >{reviseMutation.isPending ? '…' : 'REVISE'}</button>
+                  >{reviseMutation.isPending ? '…' : 'Revise'}</button>
                 </div>
                 <div style={{ fontSize: 13, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: 6 }}>
                   {pub.abstract ? `Will revise current abstract (${pub.abstract.length} chars)` : 'No abstract to revise — add one first.'}
@@ -503,7 +503,7 @@ export function PublicationDetail() {
                     background: 'rgba(236,72,153,0.12)', border: '1px solid rgba(236,72,153,0.28)',
                     borderRadius: 6, color: '#ec4899', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
                   }}
-                >{respondMutation.isPending ? '…' : 'GENERATE RESPONSE'}</button>
+                >{respondMutation.isPending ? '…' : 'Generate response'}</button>
               </div>
             )}
           </div>
@@ -560,7 +560,7 @@ export function PublicationDetail() {
                           fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-mono)',
                         }}
                       >
-                        {openVersionId === v.id ? 'HIDE' : `VIEW (${v.content_length.toLocaleString()} ch)`}
+                        {openVersionId === v.id ? 'Hide' : `VIEW (${v.content_length.toLocaleString()} ch)`}
                       </button>
                     )}
                     <span style={{ fontSize: 13, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>

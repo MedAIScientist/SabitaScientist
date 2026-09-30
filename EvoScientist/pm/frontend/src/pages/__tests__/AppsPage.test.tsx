@@ -36,7 +36,7 @@ describe('AppsPage', () => {
 
   test('shows per-service UP/DOWN state', () => {
     render(<AppsPage />)
-    expect(screen.getByText('UP')).toBeInTheDocument()
+    expect(screen.getByText('Up')).toBeInTheDocument()
     expect(screen.getByText(/^DOWN$/i)).toBeInTheDocument()
   })
 

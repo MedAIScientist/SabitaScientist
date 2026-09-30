@@ -185,7 +185,7 @@ export function GrantDetail() {
                   borderRadius: 7, color: editing ? '#10b981' : 'var(--accent)',
                   fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)',
                 }}
-              >{editing ? 'DONE' : 'EDIT'}</button>
+              >{editing ? 'Done' : 'Edit'}</button>
               <button
                 onClick={() => {
                   if (window.confirm(`Delete "${grant.title}"? This also removes its budget, milestones and team.`)) {
@@ -362,11 +362,11 @@ export function GrantDetail() {
                   disabled={save.isPending}
                   style={{
                     padding: '9px 24px', cursor: 'pointer', border: 'none', borderRadius: 7,
-                    background: save.isPending ? 'rgba(var(--accent-rgb),0.4)' : '#ff8015',
-                    color: '#06091a', fontSize: 15, fontWeight: 700,
+                    background: save.isPending ? 'rgba(var(--accent-rgb),0.4)' : 'var(--accent)',
+                    color: '#fff', fontSize: 15, fontWeight: 700,
                     fontFamily: 'var(--font-mono)',
                   }}
-                >{save.isPending ? 'SAVING…' : 'SAVE'}</button>
+                >{save.isPending ? 'Saving…' : 'Save'}</button>
                 <button
                   type="button"
                   onClick={() => { setEditing(false); setDraft(toDraft(grant)); setError(null) }}

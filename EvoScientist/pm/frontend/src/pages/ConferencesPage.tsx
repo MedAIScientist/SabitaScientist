@@ -11,7 +11,7 @@ export function ConferencesPage() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', padding: '32px 28px', maxWidth: 1100, margin: '0 auto' }}>
       <h1 style={{ margin: '0 0 24px', fontSize: 24, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>Conferences</h1>
-      <button onClick={() => setShowForm(f => !f)} style={{ cursor: 'pointer', padding: '7px 16px', background: 'rgba(var(--accent-rgb),0.1)', border: '1px solid rgba(var(--accent-rgb),0.3)', borderRadius: 7, color: 'var(--accent)', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)', marginBottom: 16 }}>+ New</button>
+      <button onClick={() => setShowForm(f => !f)} className="btn btn-primary">+ New conference</button>
       {showForm && (
         <form onSubmit={e => { e.preventDefault(); create.mutate() }} style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
           <input value={name} onChange={e => setName(e.target.value)} required placeholder="Conference name" style={{ flex: 1, padding: '9px 12px', background: 'var(--surface-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text)', fontSize: 15, outline: 'none' }} />

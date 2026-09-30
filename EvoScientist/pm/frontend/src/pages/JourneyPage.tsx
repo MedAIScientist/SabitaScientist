@@ -145,24 +145,37 @@ export function JourneyPage() {
       </section>
 
       <section>
-        <h2 style={{ fontSize: 15, color: 'var(--text-heading)', margin: '0 0 10px' }}>Add journey</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, maxWidth: 720 }}>
-          <select value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value }))} style={inputStyle}>
-            {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
-          </select>
-          <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} style={inputStyle}>
-            <option value="planned">planned</option>
-            <option value="active">active</option>
-          </select>
-          <input placeholder="Programme" value={form.programme} onChange={e => setForm(f => ({ ...f, programme: e.target.value }))} style={inputStyle} />
-          <input placeholder="University" value={form.university} onChange={e => setForm(f => ({ ...f, university: e.target.value }))} style={inputStyle} />
-          <input placeholder="Department" value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value }))} style={inputStyle} />
-          <input placeholder="Start year" type="number" value={form.start_year} onChange={e => setForm(f => ({ ...f, start_year: e.target.value }))} style={inputStyle} />
-          <input placeholder="Start date" type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} style={inputStyle} />
-          <input placeholder="Expected end" type="date" value={form.expected_end} onChange={e => setForm(f => ({ ...f, expected_end: e.target.value }))} style={inputStyle} />
-          <input placeholder="Thesis / research title" value={form.thesis_title} onChange={e => setForm(f => ({ ...f, thesis_title: e.target.value }))} style={{ ...inputStyle, gridColumn: '1 / -1' }} />
-        </div>
-        <button onClick={createJourney} style={{ ...btnPrimary, marginTop: 12 }}>Create journey</button>
+        <details className="disclosure">
+          <summary>+ Add journey</summary>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12, maxWidth: 720, marginTop: 12 }}>
+            <label className="field"><span>Level</span>
+              <select value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value }))} style={inputStyle}>
+                {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
+              </select>
+            </label>
+            <label className="field"><span>Status</span>
+              <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} style={inputStyle}>
+                <option value="planned">Planned</option>
+                <option value="active">Active</option>
+              </select>
+            </label>
+            <label className="field"><span>Programme</span>
+              <input value={form.programme} onChange={e => setForm(f => ({ ...f, programme: e.target.value }))} style={inputStyle} /></label>
+            <label className="field"><span>University</span>
+              <input value={form.university} onChange={e => setForm(f => ({ ...f, university: e.target.value }))} style={inputStyle} /></label>
+            <label className="field"><span>Department</span>
+              <input value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value }))} style={inputStyle} /></label>
+            <label className="field"><span>Start year</span>
+              <input type="number" value={form.start_year} onChange={e => setForm(f => ({ ...f, start_year: e.target.value }))} style={inputStyle} /></label>
+            <label className="field"><span>Start date</span>
+              <input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} style={inputStyle} /></label>
+            <label className="field"><span>Expected end</span>
+              <input type="date" value={form.expected_end} onChange={e => setForm(f => ({ ...f, expected_end: e.target.value }))} style={inputStyle} /></label>
+            <label className="field" style={{ gridColumn: '1 / -1' }}><span>Thesis / research title</span>
+              <input value={form.thesis_title} onChange={e => setForm(f => ({ ...f, thesis_title: e.target.value }))} style={inputStyle} /></label>
+          </div>
+          <button onClick={createJourney} style={{ ...btnPrimary, marginTop: 12 }}>Create journey</button>
+        </details>
       </section>
 
       <section style={{ marginTop: 28 }}>
@@ -190,5 +203,5 @@ const inputStyle: React.CSSProperties = {
 
 const btnPrimary: React.CSSProperties = {
   padding: '8px 16px', cursor: 'pointer', fontSize: 14, fontWeight: 700,
-  background: 'var(--accent)', border: 'none', borderRadius: 6, color: '#1a1a1a',
+  background: 'var(--accent)', border: 'none', borderRadius: 6, color: '#fff',
 }

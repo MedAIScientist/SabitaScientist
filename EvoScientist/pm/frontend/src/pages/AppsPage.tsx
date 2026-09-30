@@ -55,7 +55,7 @@ export function AppsPage() {
               borderRadius: 7, color: 'var(--accent)', fontSize: 15, fontWeight: 700,
               fontFamily: 'var(--font-mono)',
             }}
-          >{isFetching ? 'CHECKING…' : 'CHECK AGAIN'}</button>
+          >{isFetching ? 'Checking…' : 'Check again'}</button>
         </div>
 
         <div style={{
@@ -168,6 +168,6 @@ function StatusBadge({ app }: { app: IntegrationStatus }) {
         color, background: `${color}14`, border: `1px solid ${color}30`,
         borderRadius: 4, padding: '2px 8px', whiteSpace: 'nowrap', flexShrink: 0,
       }}
-    >{app.up ? 'UP' : 'DOWN'}</span>
+    >{app.up ? 'Up' : 'Down'}</span>
   )
 }

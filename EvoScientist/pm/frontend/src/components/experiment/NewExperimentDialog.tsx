@@ -158,7 +158,7 @@ export function NewExperimentDialog({
               cursor: canSubmit ? 'pointer' : 'default',
               opacity: canSubmit ? 1 : 0.4,
             }}
-          >{create.isPending ? 'CREATING…' : 'CREATE'}</button>
+          >{create.isPending ? 'Creating…' : 'Create'}</button>
         </div>
       </div>
     </div>

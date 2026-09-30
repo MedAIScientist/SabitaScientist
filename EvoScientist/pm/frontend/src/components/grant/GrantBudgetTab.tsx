@@ -108,7 +108,7 @@ export function GrantBudgetTab({ grantId, currency, canEdit }: {
             fontSize: 14, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)',
             marginTop: 5, letterSpacing: '0.04em',
           }}>
-            {pct}% OF BUDGET SPENT{overspent ? ' · OVER BUDGET' : ''}
+            {pct}% OF BUDGET SPENT{overspent ? ' · Over budget' : ''}
           </div>
         </div>
       </div>
@@ -259,10 +259,10 @@ function DraftFields({ draft, setDraft, onSubmit, onCancel, submitLabel, busy }:
           disabled={busy}
           style={{
             cursor: 'pointer', padding: '9px 20px', borderRadius: 7, border: 'none',
-            background: busy ? 'rgba(var(--accent-rgb),0.4)' : '#ff8015', color: '#06091a',
+            background: busy ? 'rgba(var(--accent-rgb),0.4)' : 'var(--accent)', color: '#fff',
             fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)',
           }}
-        >{busy ? 'SAVING…' : submitLabel}</button>
+        >{busy ? 'Saving…' : submitLabel}</button>
         <button style={{ ...smallBtn, padding: '9px 14px' }} onClick={onCancel}>Cancel</button>
       </div>
     </div>

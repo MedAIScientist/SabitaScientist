@@ -419,7 +419,7 @@ const select: React.CSSProperties = {
 }
 const primaryBtn: React.CSSProperties = {
   padding: '8px 14px', cursor: 'pointer', fontSize: 13, fontWeight: 700,
-  background: 'var(--accent)', border: 'none', borderRadius: 8, color: '#1a1a1a',
+  background: 'var(--accent)', border: 'none', borderRadius: 8, color: '#fff',
   display: 'inline-flex', alignItems: 'center', gap: 6,
 }
 const ghostBtn: React.CSSProperties = {

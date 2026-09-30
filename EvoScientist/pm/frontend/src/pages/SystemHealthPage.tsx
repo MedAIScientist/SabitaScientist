@@ -23,7 +23,7 @@ export function SystemHealthPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div><span style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-heading)' }}>LangGraph Dev</span>
             <div style={{ fontSize: 14, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>{health?.langgraph_dev?.url ?? '—'}</div></div>
-          <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-mono)', color: health?.langgraph_dev?.running ? '#10b981' : '#f43f5e', padding: '3px 8px', borderRadius: 3, background: health?.langgraph_dev?.running ? 'rgba(16,185,129,0.1)' : 'rgba(244,63,94,0.1)' }}>{health?.langgraph_dev?.running ? 'RUNNING' : 'OFFLINE'}</span>
+          <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-mono)', color: health?.langgraph_dev?.running ? '#10b981' : '#f43f5e', padding: '3px 8px', borderRadius: 3, background: health?.langgraph_dev?.running ? 'rgba(16,185,129,0.1)' : 'rgba(244,63,94,0.1)' }}>{health?.langgraph_dev?.running ? 'Running' : 'Offline'}</span>
         </div>
       </div>
 

@@ -105,10 +105,10 @@ export function ExperimentMetricsTab({ projectId, experimentId }: {
           style={{
             width: '100%', marginTop: 8, padding: '7px 0', borderRadius: 5,
             cursor: canSubmit ? 'pointer' : 'default', border: 'none',
-            background: !canSubmit || create.isPending ? 'rgba(var(--accent-rgb),0.35)' : '#ff8015',
-            color: '#06091a', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
+            background: !canSubmit || create.isPending ? 'rgba(var(--accent-rgb),0.35)' : 'var(--accent)',
+            color: '#fff', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
           }}
-        >{create.isPending ? 'RECORDING…' : '+ RECORD METRIC'}</button>
+        >{create.isPending ? 'Recording…' : '+ Record metric'}</button>
       </div>
 
       {isLoading ? (
@@ -139,7 +139,7 @@ export function ExperimentMetricsTab({ projectId, experimentId }: {
                   {m.name}
                   {m.split ? ` · ${m.split}` : ''}
                   {m.n != null ? ` · n=${m.n}` : ''}
-                  {m.source_attachment_id ? ' · FROM CSV' : ''}
+                  {m.source_attachment_id ? ' · From CSV' : ''}
                 </div>
               </div>
               <button

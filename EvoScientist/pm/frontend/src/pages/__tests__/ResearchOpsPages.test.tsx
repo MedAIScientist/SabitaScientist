@@ -33,9 +33,9 @@ describe('GrantsPage', () => {
     expect(screen.getByText('Grants')).toBeInTheDocument()
   })
 
-  test('create form reveals the full grant fields on + NEW', () => {
+  test('create form reveals the full grant fields on + New grant', () => {
     render(<GrantsPage />)
-    fireEvent.click(screen.getByText(/^\+ NEW$/i))
+    fireEvent.click(screen.getByRole('button', { name: '+ New grant' }))
     expect(screen.getByPlaceholderText('Project title')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('TÜBİTAK, TÜSEB, NIH…')).toBeInTheDocument()
     // the amounts and dates the old two-field form could not capture
@@ -62,9 +62,9 @@ describe('ConferencesPage', () => {
     expect(screen.getByText('Conferences')).toBeInTheDocument()
   })
 
-  test('create form reveals conference name field on + NEW', () => {
+  test('create form reveals conference name field on + New conference', () => {
     render(<ConferencesPage />)
-    fireEvent.click(screen.getByText(/^\+ NEW$/i))
+    fireEvent.click(screen.getByRole('button', { name: '+ New conference' }))
     expect(screen.getByPlaceholderText('Conference name')).toBeInTheDocument()
   })
 })
@@ -75,9 +75,9 @@ describe('IRBPage', () => {
     expect(screen.getByText('IRB / Ethics Approvals')).toBeInTheDocument()
   })
 
-  test('create form reveals protocol fields on + NEW', () => {
+  test('create form reveals protocol fields on + New approval', () => {
     render(<IRBPage />)
-    fireEvent.click(screen.getByText(/^\+ NEW$/i))
+    fireEvent.click(screen.getByRole('button', { name: '+ New approval' }))
     expect(screen.getByPlaceholderText('Protocol title')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Protocol #')).toBeInTheDocument()
   })
