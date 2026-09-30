@@ -42,18 +42,16 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose, phases }
     onError: () => setSaveError('Save failed — please retry.'),
   })
 
-  // Click-outside handler — delayed to avoid catching the opening click
+  // Click-outside handler. No delay needed: the click that opened the popover
+  // fired its mousedown before this component mounted.
   useEffect(() => {
-    const timer = setTimeout(() => {
-      function handleMouseDown(e: MouseEvent) {
-        if (panelRef.current && e.target instanceof Node && !panelRef.current.contains(e.target)) {
-          onCloseRef.current()
-        }
+    function handleMouseDown(e: MouseEvent) {
+      if (panelRef.current && e.target instanceof Node && !panelRef.current.contains(e.target)) {
+        onCloseRef.current()
       }
-      document.addEventListener('mousedown', handleMouseDown)
-      return () => document.removeEventListener('mousedown', handleMouseDown)
-    }, 100)
-    return () => clearTimeout(timer)
+    }
+    document.addEventListener('mousedown', handleMouseDown)
+    return () => document.removeEventListener('mousedown', handleMouseDown)
   }, [])
 
   // Close on scroll or resize (popover position becomes stale)
@@ -123,8 +121,9 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose, phases }
         zIndex: 1000,
       }}
     >
-      <label style={labelStyle}>Experiment title</label>
+      <label htmlFor="cep-title" style={labelStyle}>Experiment title</label>
       <input
+        id="cep-title"
         autoFocus
         value={title}
         onChange={e => setTitle(e.target.value)}
@@ -132,8 +131,9 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose, phases }
         style={fieldStyle}
       />
 
-      <label style={labelStyle}>Priority</label>
+      <label htmlFor="cep-priority" style={labelStyle}>Priority</label>
       <select
+        id="cep-priority"
         value={priority}
         onChange={e => setPriority(e.target.value as Task['priority'])}
         style={fieldStyle}
@@ -143,8 +143,8 @@ export function CardEditPopover({ task, projectId, anchorRect, onClose, phases }
         <option value="low">Routine</option>
       </select>
 
-      <label style={labelStyle}>Phase</label>
-      <select value={phaseId} onChange={e => setPhaseId(e.target.value)} style={fieldStyle}>
+      <label htmlFor="cep-phase" style={labelStyle}>Phase</label>
+      <select id="cep-phase" value={phaseId} onChange={e => setPhaseId(e.target.value)} style={fieldStyle}>
         <option value="">No phase</option>
         {(phases ?? []).map(p => (
           <option key={p.id} value={p.id}>{p.name}</option>
