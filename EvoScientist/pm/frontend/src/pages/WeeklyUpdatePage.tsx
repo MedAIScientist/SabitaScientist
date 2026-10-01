@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supervisionApi, WeeklyReport, WeeklyReportItem, api } from '../api'
 import { useAuth } from '../auth'
+import { StudentFollowups } from '../components/supervision/Followups'
 
 function currentWeekStart(): string {
   const d = new Date()
@@ -112,6 +113,8 @@ export function WeeklyUpdatePage() {
       </p>
 
       {msg && <div style={{ padding: '8px 12px', marginBottom: 14, borderRadius: 6, background: 'rgba(var(--accent-rgb),0.12)', border: '1px solid rgba(var(--accent-rgb),0.3)', fontSize: 14 }}>{msg}</div>}
+
+      <StudentFollowups />
 
       <section style={{ marginBottom: 22 }}>
         <h2 style={{ fontSize: 15, margin: '0 0 10px', color: 'var(--text-heading)' }}>Action-point updates</h2>

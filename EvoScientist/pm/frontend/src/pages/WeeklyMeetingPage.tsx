@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supervisionApi, api } from '../api'
 import { useAuth } from '../auth'
+import { GroupAgenda, StudentMeetingBrief } from '../components/supervision/MeetingBrief'
+import { SkillsCheck } from '../components/supervision/SkillsCheck'
 
 function currentWeekStart(): string {
   const d = new Date()
@@ -14,7 +16,10 @@ export function WeeklyMeetingPage() {
   const { role, isAdmin } = useAuth()
   const qc = useQueryClient()
   const [week, setWeek] = useState(currentWeekStart())
-  const [selected, setSelected] = useState<string | null>(null)
+  const [selected, setSelected] = useState<string | null>(
+    // Arriving from a brief's link (/meeting?student=<id>) opens that student.
+    () => new URLSearchParams(window.location.search).get('student'),
+  )
   const [msg, setMsg] = useState<string | null>(null)
   const canRun = role === 'professor' || isAdmin
 
@@ -139,12 +144,17 @@ export function WeeklyMeetingPage() {
         {msg && <div style={{ padding: '8px 12px', marginBottom: 14, borderRadius: 6, background: 'rgba(var(--accent-rgb),0.12)', border: '1px solid rgba(var(--accent-rgb),0.3)', fontSize: 14 }}>{msg}</div>}
 
         {!selected ? (
-          <div style={{ padding: 24, color: 'var(--text-2)', border: '1px dashed var(--border)', borderRadius: 8 }}>
-            Select a student to review their weekly report, record attendance, and capture follow-ups.
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {studentIds.length > 0 && <GroupAgenda />}
+            <div style={{ padding: 24, color: 'var(--text-2)', border: '1px dashed var(--border)', borderRadius: 8 }}>
+              Select a student to review their weekly report, record attendance, and capture follow-ups.
+            </div>
           </div>
         ) : (
           <>
             <h2 style={{ fontSize: 15, margin: '0 0 8px', color: 'var(--text-heading)' }}>{nameOf(selected)}</h2>
+            <div style={{ marginBottom: 16 }}><StudentMeetingBrief studentId={selected} /></div>
+            <div style={{ marginBottom: 16 }}><SkillsCheck studentId={selected} perspective="supervisor" /></div>
 
             {!report || report.status === 'draft' ? (
               <div style={{ padding: 14, marginBottom: 16, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-panel)', fontSize: 14, color: 'var(--text-2)' }}>

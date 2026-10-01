@@ -39,6 +39,15 @@ def _h(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
 
+def _assign(client: TestClient) -> None:
+    r = client.post(
+        "/api/v1/supervision/assignments",
+        json={"student_id": client.stud_id, "professor_id": client.prof_id},
+        headers=_h(client.prof_token),
+    )
+    assert r.status_code == 201, r.text
+
+
 def test_login_returns_role(client: TestClient) -> None:
     r = client.post("/api/v1/auth/login", json={"username": "prof", "password": "secret123"})
     assert r.status_code == 200
@@ -88,7 +97,8 @@ def test_weekly_report_submit_and_review(client: TestClient) -> None:
     assert r.json()["review_status"] == "needs_review"
     assert len(r.json()["items"]) == 1
 
-    # Professor reviews
+    # Professor reviews (as the student's assigned supervisor)
+    _assign(client)
     r = client.post(
         f"/api/v1/supervision/reports/{report_id}/review",
         json={"review_status": "reviewed", "feedback": "Good progress", "risk_override": "low"},
@@ -478,3 +488,187 @@ def test_paper_readiness_required_checks(client: TestClient) -> None:
     assert by_id["abstract"]["met"] is True
     assert by_id["experiments"]["met"] is False
     assert data["ready_to_submit"] is False
+
+
+# ── Follow-ups from reviews ──────────────────────────────────────────────────
+
+
+def _submitted_report(client: TestClient) -> str:
+    report_id = client.post("/api/v1/supervision/weekly/current", headers=_h(client.stud_token)).json()["id"]
+    client.post(f"/api/v1/supervision/reports/{report_id}/submit", headers=_h(client.stud_token))
+    return report_id
+
+
+def _followups(client: TestClient, token: str, **params) -> list[dict]:
+    r = client.get("/api/v1/supervision/followups", params=params, headers=_h(token))
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def test_review_followups_carry_forward_until_closed(client: TestClient) -> None:
+    _assign(client)
+    report_id = _submitted_report(client)
+    r = client.post(
+        f"/api/v1/supervision/reports/{report_id}/review",
+        json={"review_status": "reviewed", "feedback": "ok",
+              "followups": [{"text": "Rerun the ablation with seed 2", "due_date": "2000-01-01"},
+                            {"text": "Send the draft intro"}, {"text": "   "}]},
+        headers=_h(client.prof_token),
+    )
+    assert r.status_code == 200, r.text
+
+    # The student sees both open requests (blank ones are ignored); the past due date is flagged.
+    open_items = _followups(client, client.stud_token, status="open")
+    assert [f["text"] for f in open_items] == ["Rerun the ablation with seed 2", "Send the draft intro"]
+    assert open_items[0]["overdue"] is True and open_items[0]["weeks_open"] == 0
+    assert open_items[0]["report_id"] == report_id
+
+    # The student closes one with a note; the other stays open for next week.
+    fid = open_items[0]["id"]
+    r = client.patch(f"/api/v1/supervision/followups/{fid}", json={"status": "done", "note": "Done, see exp 12"},
+                     headers=_h(client.stud_token))
+    assert r.status_code == 200 and r.json()["student_note"] == "Done, see exp 12"
+    assert [f["text"] for f in _followups(client, client.prof_token, status="open")] == ["Send the draft intro"]
+
+
+def test_only_the_assigned_supervisor_reviews(client: TestClient) -> None:
+    report_id = _submitted_report(client)  # nobody is assigned yet
+    r = client.post(f"/api/v1/supervision/reports/{report_id}/review", json={"review_status": "reviewed"},
+                    headers=_h(client.prof_token))
+    assert r.status_code == 403
+    r = client.post(f"/api/v1/supervision/reports/{report_id}/review", json={"review_status": "reviewed"},
+                    headers=_h(client.admin_token))
+    assert r.status_code == 200
+
+
+def test_students_cannot_drop_followups_and_others_cannot_see_them(client: TestClient, tmp_db) -> None:
+    from EvoScientist.pm.auth import hash_password
+    from EvoScientist.pm.crud.users import create_user
+
+    _assign(client)
+    report_id = _submitted_report(client)
+    client.post(f"/api/v1/supervision/reports/{report_id}/review",
+                json={"review_status": "reviewed", "followups": [{"text": "Fix figure 2"}]},
+                headers=_h(client.prof_token))
+    (f,) = _followups(client, client.stud_token)
+    r = client.patch(f"/api/v1/supervision/followups/{f['id']}", json={"status": "dropped"},
+                     headers=_h(client.stud_token))
+    assert r.status_code == 403
+
+    create_user(tmp_db, "prof2", hash_password("secret123"), role="professor")
+    other = client.post("/api/v1/auth/login", json={"username": "prof2", "password": "secret123"}).json()["token"]
+    assert _followups(client, other) == []
+    assert _followups(client, other, student_id=client.stud_id) == []
+    r = client.patch(f"/api/v1/supervision/followups/{f['id']}", json={"status": "done"}, headers=_h(other))
+    assert r.status_code == 404
+
+    r = client.patch(f"/api/v1/supervision/followups/{f['id']}", json={"status": "dropped"},
+                     headers=_h(client.prof_token))
+    assert r.status_code == 200 and r.json()["status"] == "dropped"
+
+
+# ── AI meeting briefs ────────────────────────────────────────────────────────
+
+
+def test_meeting_brief_uses_only_the_record_and_is_stored(client: TestClient, monkeypatch) -> None:
+    from EvoScientist.pm import _ai
+
+    seen: dict = {}
+
+    async def fake_llm(system_prompt, user_prompt, **kwargs):
+        seen["system"], seen["user"] = system_prompt, user_prompt
+        return "## What changed\\n- Trained baseline\\n## What is stuck\\n- nothing\\n## Three questions to ask\\n1. a\\n2. b\\n3. c"
+
+    monkeypatch.setattr(_ai, "run_llm_direct_async", fake_llm)
+    _assign(client)
+    report_id = client.post("/api/v1/supervision/weekly/current", headers=_h(client.stud_token)).json()["id"]
+    client.put(f"/api/v1/supervision/reports/{report_id}/summary",
+               json={"accomplished": "Trained baseline U-Net", "support_requested": "GPU quota"},
+               headers=_h(client.stud_token))
+    client.post(f"/api/v1/supervision/reports/{report_id}/submit", headers=_h(client.stud_token))
+    client.post(f"/api/v1/supervision/reports/{report_id}/review",
+                json={"review_status": "reviewed", "followups": [{"text": "Report per-layer Dice"}]},
+                headers=_h(client.prof_token))
+
+    r = client.post(f"/api/v1/supervision/students/{client.stud_id}/meeting-brief", headers=_h(client.prof_token))
+    assert r.status_code == 202, r.text
+    job = client.get(f"/api/v1/ai-jobs/{r.json()['job_id']}", headers=_h(client.prof_token)).json()
+    assert job["status"] == "done" and job["result_path"] == f"/meeting?student={client.stud_id}"
+
+    assert "ONLY the facts" in seen["system"]
+    assert "Trained baseline U-Net" in seen["user"] and "GPU quota" in seen["user"]
+    assert "Open follow-up" in seen["user"] and "Report per-layer Dice" in seen["user"]
+
+    brief = client.get(f"/api/v1/supervision/students/{client.stud_id}/meeting-brief", headers=_h(client.prof_token)).json()
+    assert brief["content"].startswith("## What changed")
+
+
+def test_meeting_brief_with_nothing_recorded_fails_honestly(client: TestClient, monkeypatch) -> None:
+    from EvoScientist.pm import _ai
+
+    async def must_not_be_called(*a, **k):
+        raise AssertionError("the model must not be asked to summarise an empty record")
+
+    monkeypatch.setattr(_ai, "run_llm_direct_async", must_not_be_called)
+    _assign(client)
+    job_id = client.post(f"/api/v1/supervision/students/{client.stud_id}/meeting-brief",
+                         headers=_h(client.prof_token)).json()["job_id"]
+    job = client.get(f"/api/v1/ai-jobs/{job_id}", headers=_h(client.prof_token)).json()
+    assert job["status"] == "failed" and "Nothing has been recorded" in job["error"]
+
+
+def test_meeting_brief_is_for_the_students_own_supervisor(client: TestClient) -> None:
+    r = client.post(f"/api/v1/supervision/students/{client.stud_id}/meeting-brief", headers=_h(client.prof_token))
+    assert r.status_code == 404  # not assigned
+    r = client.get(f"/api/v1/supervision/students/{client.stud_id}/meeting-brief", headers=_h(client.stud_token))
+    assert r.status_code == 404
+
+
+# ── Semester skills check ────────────────────────────────────────────────────
+
+
+def test_skills_check_self_and_supervisor_side_by_side(client: TestClient) -> None:
+    _assign(client)
+    sid = client.stud_id
+    r = client.put("/api/v1/supervision/skills", json={"student_id": sid, "scores": {"writing": 2, "methods": 3}},
+                   headers=_h(client.stud_token))
+    assert r.status_code == 200 and r.json()["perspective"] == "self"
+    r = client.put("/api/v1/supervision/skills",
+                   json={"student_id": sid, "scores": {"writing": 3, "methods": 2}, "comment": "Clearer drafts"},
+                   headers=_h(client.prof_token))
+    assert r.json()["perspective"] == "supervisor"
+    # Saving again in the same term updates, it does not duplicate.
+    client.put("/api/v1/supervision/skills", json={"student_id": sid, "scores": {"writing": 3, "methods": 3}},
+               headers=_h(client.stud_token))
+
+    view = client.get("/api/v1/supervision/skills", params={"student_id": sid}, headers=_h(client.stud_token)).json()
+    assert set(view["skills"]) == {"writing", "methods", "presenting", "independence"}
+    by = {a["perspective"]: a for a in view["assessments"]}
+    assert len(view["assessments"]) == 2
+    assert by["self"]["scores"] == {"writing": 3, "methods": 3}
+    assert by["supervisor"]["comment"] == "Clearer drafts"
+    assert by["self"]["term"] == view["current_term"]
+
+
+def test_skills_check_validates_and_stays_private(client: TestClient) -> None:
+    sid = client.stud_id
+    bad = client.put("/api/v1/supervision/skills", json={"student_id": sid, "scores": {"writing": 7}},
+                     headers=_h(client.stud_token))
+    assert bad.status_code == 422
+    bad = client.put("/api/v1/supervision/skills", json={"student_id": sid, "scores": {"gpa": 3}},
+                     headers=_h(client.stud_token))
+    assert bad.status_code == 422
+    # A professor who does not supervise this student sees nothing.
+    assert client.get("/api/v1/supervision/skills", params={"student_id": sid},
+                      headers=_h(client.prof_token)).status_code == 404
+
+
+def test_term_boundaries() -> None:
+    from datetime import date
+
+    from EvoScientist.pm.api.routes.skills import term_of
+
+    assert term_of(date(2026, 9, 1)) == "2026 Fall"
+    assert term_of(date(2027, 1, 20)) == "2026 Fall"
+    assert term_of(date(2027, 2, 1)) == "2027 Spring"
+    assert term_of(date(2027, 8, 31)) == "2027 Spring"

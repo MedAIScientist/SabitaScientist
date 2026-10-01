@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supervisionApi, api, WeeklyReport } from '../api'
 import { useAuth } from '../auth'
+import { DraftFollowup, FollowupEditor, OpenFollowups } from '../components/supervision/Followups'
 
 export function SupervisionReportsPage() {
   const { role, isAdmin } = useAuth()
@@ -9,6 +10,7 @@ export function SupervisionReportsPage() {
   const [filters, setFilters] = useState({ status: '', review_status: '', risk_level: '' })
   const [active, setActive] = useState<WeeklyReport | null>(null)
   const [feedback, setFeedback] = useState('')
+  const [newFollowups, setNewFollowups] = useState<DraftFollowup[]>([])
   const [msg, setMsg] = useState<string | null>(null)
 
   const canReview = role === 'professor' || isAdmin
@@ -28,8 +30,10 @@ export function SupervisionReportsPage() {
     enabled: !canReview,
   })
 
-  const { data: users } = useQuery({ queryKey: ['users'], queryFn: () => api.listUsers() })
-  const nameOf = (id: string) => users?.find(u => u.id === id)?.username || id
+  // Professors may not list users; report rows carry the student's name instead.
+  const { data: users } = useQuery({ queryKey: ['users'], queryFn: () => api.listUsers(), enabled: isAdmin })
+  const nameOf = (id: string) =>
+    reports?.find(r => r.student_id === id)?.student_name || users?.find(u => u.id === id)?.username || id
 
   async function saveReview() {
     if (!active) return
@@ -38,9 +42,13 @@ export function SupervisionReportsPage() {
         review_status: active.review_status,
         feedback: feedback || undefined,
         risk_override: active.risk_override || undefined,
+        followups: newFollowups.filter(f => f.text.trim()).map(f => ({ text: f.text.trim(), due_date: f.due_date || undefined })),
       })
-      setMsg('Review saved.')
+      const n = newFollowups.filter(f => f.text.trim()).length
+      setMsg(n ? `Review saved with ${n} follow-up${n === 1 ? '' : 's'}.` : 'Review saved.')
+      setNewFollowups([])
       await qc.invalidateQueries({ queryKey: ['supervision-reports'] })
+      await qc.invalidateQueries({ queryKey: ['followups'] })
     } catch (e: any) {
       setMsg(e.message)
     }
@@ -84,7 +92,7 @@ export function SupervisionReportsPage() {
       {msg && <div style={{ padding: '8px 12px', marginBottom: 12, borderRadius: 6, background: 'rgba(var(--accent-rgb),0.12)', border: '1px solid rgba(var(--accent-rgb),0.3)' }}>{msg}</div>}
 
       {isLoading ? <div>Loading…</div> : (
-        <div style={{ display: 'grid', gridTemplateColumns: active ? '1fr 360px' : '1fr', gap: 18 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: active ? '1fr 360px' : '1fr', gap: 18, alignItems: 'start' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
             <thead>
               <tr>
@@ -102,7 +110,7 @@ export function SupervisionReportsPage() {
                   <td style={{ padding: '8px 10px' }}>{r.review_status}</td>
                   <td style={{ padding: '8px 10px' }}>{r.risk_override || r.risk_level}</td>
                   <td style={{ padding: '8px 10px' }}>
-                    <button onClick={() => { setActive(r); setFeedback(r.feedback || '') }} style={btnGhost}>Review</button>
+                    <button onClick={() => { setActive(r); setFeedback(r.feedback || ''); setNewFollowups([]) }} style={btnGhost}>Review</button>
                   </td>
                 </tr>
               ))}
@@ -139,6 +147,14 @@ export function SupervisionReportsPage() {
                   {['low', 'medium', 'high', 'critical'].map(s => <option key={s} value={s}>{s}</option>)}
                 </select>
                 <textarea placeholder="Feedback" value={feedback} onChange={e => setFeedback(e.target.value)} style={{ ...inputStyle, minHeight: 80 }} />
+                <div>
+                  <div className="section-title" style={{ margin: '6px 0 6px' }}>Still open from earlier reviews</div>
+                  <OpenFollowups studentId={active.student_id} />
+                </div>
+                <div>
+                  <div className="section-title" style={{ margin: '6px 0 6px' }}>New follow-ups</div>
+                  <FollowupEditor value={newFollowups} onChange={setNewFollowups} />
+                </div>
                 <button onClick={saveReview} style={btnPrimary}>Save review</button>
                 <button onClick={() => setActive(null)} style={btnGhost}>Close</button>
               </div>

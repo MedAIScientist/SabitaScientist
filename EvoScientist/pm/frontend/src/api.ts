@@ -1145,7 +1145,7 @@ export interface WeeklyReportItem {
 }
 
 export interface WeeklyReport {
-  id: string; student_id: string; week_start: string
+  id: string; student_id: string; student_name?: string | null; week_start: string
   status: string; review_status: string; risk_level: string
   risk_override: string | null
   accomplished: string | null; next_focus: string | null; support_requested: string | null
@@ -1213,7 +1213,28 @@ export const supervisionApi = {
   deleteItem: (reportId: string, itemId: string) =>
     request<void>('DELETE', `/supervision/reports/${reportId}/items/${itemId}`),
   submitReport: (id: string) => request<WeeklyReport>('POST', `/supervision/reports/${id}/submit`),
-  reviewReport: (id: string, data: { review_status: string; feedback?: string; risk_override?: string }) =>
+  startMeetingBrief: (studentId: string) =>
+    request<{ job_id: string }>('POST', `/supervision/students/${studentId}/meeting-brief`),
+  latestMeetingBrief: (studentId: string) =>
+    request<MeetingBrief | null>('GET', `/supervision/students/${studentId}/meeting-brief`),
+  startGroupAgenda: () => request<{ job_id: string }>('POST', '/supervision/meeting-agenda'),
+  latestGroupAgenda: () => request<MeetingBrief | null>('GET', '/supervision/meeting-agenda'),
+  getSkills: (studentId: string) => request<SkillsView>('GET', `/supervision/skills?student_id=${studentId}`),
+  saveSkills: (studentId: string, scores: Record<string, number>, comment?: string) =>
+    request<SkillAssessment>('PUT', '/supervision/skills', { student_id: studentId, scores, comment }),
+  getAiJob: (id: string) => request<AiJob>('GET', `/ai-jobs/${id}`),
+  listFollowups: (params: { studentId?: string; status?: 'open' | 'done' | 'dropped' } = {}) => {
+    const q = new URLSearchParams()
+    if (params.studentId) q.set('student_id', params.studentId)
+    if (params.status) q.set('status', params.status)
+    return request<Followup[]>('GET', `/supervision/followups${q.toString() ? `?${q}` : ''}`)
+  },
+  updateFollowup: (id: string, data: { status: 'open' | 'done' | 'dropped'; note?: string }) =>
+    request<Followup>('PATCH', `/supervision/followups/${id}`, data),
+  reviewReport: (id: string, data: {
+    review_status: string; feedback?: string; risk_override?: string
+    followups?: { text: string; due_date?: string }[]
+  }) =>
     request<WeeklyReport>('POST', `/supervision/reports/${id}/review`, data),
   recordAttendance: (studentId: string, week: string, data: { status: string; joined_mode?: string; note?: string }) =>
     request<Attendance>('POST', `/supervision/attendance?student_id=${studentId}&week=${week}`, data),
@@ -1392,4 +1413,27 @@ export interface ImagingInboxItem {
   lab_name: string | null; project_id: string | null; project_name: string | null
   requested_by: string | null; accession_count: number; retention_until: string | null
   grant_id: string | null; irbs: IrbBrief[]; blockers: string[]
+}
+
+
+/** A supervisor's request from a review; stays open across weeks until closed. */
+export interface Followup {
+  id: string; student_id: string; professor_id: string; report_id: string | null
+  text: string; due_date: string | null; status: 'open' | 'done' | 'dropped'
+  student_note: string | null; created_at: string; closed_at: string | null
+  weeks_open: number; overdue: boolean
+}
+
+
+/** A stored AI meeting brief (one student) or group agenda. Markdown text. */
+export interface MeetingBrief { id: string; student_id: string | null; content: string; created_at: string }
+
+
+export interface SkillAssessment {
+  student_id: string; perspective: 'self' | 'supervisor'; term: string
+  scores: Record<string, number>; comment: string | null; updated_at: string
+}
+export interface SkillsView {
+  skills: Record<string, string>; levels: Record<string, string>
+  current_term: string; assessments: SkillAssessment[]
 }

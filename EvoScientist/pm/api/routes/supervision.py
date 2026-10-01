@@ -378,6 +378,19 @@ def review(
     report = supervision_crud.get_report(db, report_id)
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
+    # Only the student's own supervisor reviews (any professor could before).
+    if not current_user.is_admin:
+        from .followups import is_supervisor
+
+        if not is_supervisor(db, current_user.id, report.student_id):
+            raise HTTPException(status_code=403, detail="Only this student's supervisor can review the report")
+    if body.followups:
+        from ...crud.followups import create_followups
+
+        create_followups(
+            db, student_id=report.student_id, professor_id=current_user.id, report_id=report_id,
+            items=[(f.text, f.due_date) for f in body.followups],
+        )
     updated = supervision_crud.review_report(
         db,
         report_id,
@@ -1023,9 +1036,13 @@ def _empty_analytics() -> dict:
 
 def _report_to_response(db, report) -> WeeklyReportResponse:
     items = supervision_crud.list_report_items(db, report.id)
+    from ...crud.users import get_user_by_id
+
+    student = get_user_by_id(db, report.student_id)
     return WeeklyReportResponse(
         id=report.id,
         student_id=report.student_id,
+        student_name=student.username if student else None,
         week_start=report.week_start,
         status=report.status,
         review_status=report.review_status,
