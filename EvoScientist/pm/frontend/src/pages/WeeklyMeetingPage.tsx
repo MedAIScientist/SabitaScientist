@@ -4,6 +4,7 @@ import { supervisionApi, api } from '../api'
 import { useAuth } from '../auth'
 import { GroupAgenda, StudentMeetingBrief } from '../components/supervision/MeetingBrief'
 import { SkillsCheck } from '../components/supervision/SkillsCheck'
+import { SemesterReport } from '../components/supervision/SemesterReport'
 
 function currentWeekStart(): string {
   const d = new Date()
@@ -155,6 +156,7 @@ export function WeeklyMeetingPage() {
             <h2 style={{ fontSize: 15, margin: '0 0 8px', color: 'var(--text-heading)' }}>{nameOf(selected)}</h2>
             <div style={{ marginBottom: 16 }}><StudentMeetingBrief studentId={selected} /></div>
             <div style={{ marginBottom: 16 }}><SkillsCheck studentId={selected} perspective="supervisor" /></div>
+            <div style={{ marginBottom: 16 }}><SemesterReport studentId={selected} /></div>
 
             {!report || report.status === 'draft' ? (
               <div style={{ padding: 14, marginBottom: 16, borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface-panel)', fontSize: 14, color: 'var(--text-2)' }}>

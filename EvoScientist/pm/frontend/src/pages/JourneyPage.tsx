@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supervisionApi, api } from '../api'
 import { useAuth } from '../auth'
 import { SkillsCheck } from '../components/supervision/SkillsCheck'
+import { SemesterReport } from '../components/supervision/SemesterReport'
 import { PublicationGap } from '../components/supervision/PublicationGap'
 
 const LEVELS = ['BSc', 'MSc', 'PhD', 'Postdoc', 'IR', 'Other']
@@ -88,6 +89,7 @@ export function JourneyPage() {
       {skillsStudentId && (
         <div style={{ marginBottom: 24 }}>
           <SkillsCheck studentId={skillsStudentId} perspective={isStudent ? 'self' : 'supervisor'} />
+    <div style={{ marginTop: 12 }}><SemesterReport studentId={skillsStudentId} /></div>
         </div>
       )}
       <section style={{ marginBottom: 24 }}>

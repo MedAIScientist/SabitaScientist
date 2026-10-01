@@ -722,3 +722,51 @@ def test_readiness_is_for_the_students_own_supervisor(client: TestClient) -> Non
     r = client.get("/api/v1/supervision/readiness", params={"student_id": client.stud_id},
                    headers=_h(client.prof_token))
     assert r.status_code == 200
+
+
+# ── Semester report ──────────────────────────────────────────────────────────
+
+
+def test_semester_report_contents_escaping_and_word_download(client: TestClient) -> None:
+    from datetime import date
+
+    from EvoScientist.pm.api.routes.skills import term_of
+
+    _assign(client)
+    report_id = client.post("/api/v1/supervision/weekly/current", headers=_h(client.stud_token)).json()["id"]
+    client.put(f"/api/v1/supervision/reports/{report_id}/summary",
+               json={"accomplished": "Trained <script>alert(1)</script> U-Net"}, headers=_h(client.stud_token))
+    client.post(f"/api/v1/supervision/reports/{report_id}/submit", headers=_h(client.stud_token))
+    client.post(f"/api/v1/supervision/reports/{report_id}/review",
+                json={"review_status": "reviewed", "feedback": "Good week",
+                      "followups": [{"text": "Write the related-work section"}]},
+                headers=_h(client.prof_token))
+    client.put("/api/v1/supervision/skills", json={"student_id": client.stud_id, "scores": {"writing": 3}},
+               headers=_h(client.prof_token))
+
+    term = term_of(date.today())
+    r = client.get(f"/api/v1/supervision/students/{client.stud_id}/semester-report", params={"term": term},
+                   headers=_h(client.prof_token))
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/html")
+    html = r.text
+    assert "Semester progress report" in html and term in html
+    assert "1 of " in html and "Good week" in html and "Write the related-work section" in html
+    assert "<script>alert(1)</script>" not in html and "&lt;script&gt;" in html  # student text is escaped
+    assert "Supervisor's overall assessment" in html
+
+    doc = client.get(f"/api/v1/supervision/students/{client.stud_id}/semester-report.doc", params={"term": term},
+                     headers=_h(client.prof_token))
+    assert doc.headers["content-type"] == "application/msword"
+    assert "attachment" in doc.headers["content-disposition"] and ".doc" in doc.headers["content-disposition"]
+
+    # A different term does not include this week's update.
+    other = client.get(f"/api/v1/supervision/students/{client.stud_id}/semester-report", params={"term": "2001 Fall"},
+                       headers=_h(client.prof_token)).text
+    assert "Good week" not in other and "No weekly updates recorded this term." in other
+
+
+def test_semester_report_access_and_term_validation(client: TestClient) -> None:
+    url = f"/api/v1/supervision/students/{client.stud_id}/semester-report"
+    assert client.get(url, headers=_h(client.prof_token)).status_code == 404  # not their student
+    assert client.get(url, headers=_h(client.stud_token)).status_code == 200  # the student's own
+    assert client.get(url, params={"term": "2026 Winter"}, headers=_h(client.stud_token)).status_code == 400
