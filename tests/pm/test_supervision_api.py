@@ -672,3 +672,53 @@ def test_term_boundaries() -> None:
     assert term_of(date(2027, 1, 20)) == "2026 Fall"
     assert term_of(date(2027, 2, 1)) == "2027 Spring"
     assert term_of(date(2027, 8, 31)) == "2027 Spring"
+
+
+# ── Publication gap ──────────────────────────────────────────────────────────
+
+
+def test_publication_gap_projects_only_with_a_real_pace(client: TestClient, tmp_db) -> None:
+    from datetime import date, timedelta
+
+    from EvoScientist.pm.crud.publications import create_publication, update_publication
+
+    _assign(client)
+    start = (date.today() - timedelta(days=360)).isoformat()  # ~12 months ago
+    r = client.post("/api/v1/supervision/journeys", params={"student_id": client.stud_id},
+                    json={"level": "PhD", "status": "active", "start_date": start},
+                    headers=_h(client.prof_token))
+    assert r.status_code in (200, 201), r.text
+    client.post("/api/v1/supervision/requirements",
+                json={"level": "PhD", "title": "Two journal papers", "req_type": "research_item",
+                      "research_item_type": "Journal Paper", "target_value": 2, "required": True},
+                headers=_h(client.admin_token))
+
+    def gap():
+        body = client.get("/api/v1/supervision/readiness", params={"student_id": client.stud_id},
+                          headers=_h(client.prof_token)).json()
+        return body["publication_gap"]
+
+    # Nothing submitted yet: a gap, but no invented estimate.
+    g = gap()
+    assert g["items"][0]["gap"] == 2 and g["items"][0]["eta_months"] is None and g["pace_per_month"] is None
+
+    one = create_publication(tmp_db, title="Paper A", created_by=client.stud_id, venue_type="journal")
+    update_publication(tmp_db, one.id, status="submitted", submitted_at=date.today().isoformat())
+    create_publication(tmp_db, title="Draft B", created_by=client.stud_id, venue_type="journal")
+    create_publication(tmp_db, title="Conf draft", created_by=client.stud_id, venue_type="conference")
+
+    g = gap()
+    item = g["items"][0]
+    assert item["gap"] == 1
+    assert [d["title"] for d in item["in_progress"]] == ["Draft B"]  # journal drafts only
+    assert g["pace_per_month"] is not None and item["eta_months"] == round(1 / g["pace_per_month"])
+
+
+def test_readiness_is_for_the_students_own_supervisor(client: TestClient) -> None:
+    r = client.get("/api/v1/supervision/readiness", params={"student_id": client.stud_id},
+                   headers=_h(client.prof_token))
+    assert r.status_code == 403  # not assigned
+    _assign(client)
+    r = client.get("/api/v1/supervision/readiness", params={"student_id": client.stud_id},
+                   headers=_h(client.prof_token))
+    assert r.status_code == 200

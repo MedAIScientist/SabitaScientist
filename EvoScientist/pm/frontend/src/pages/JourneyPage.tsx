@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supervisionApi, api } from '../api'
 import { useAuth } from '../auth'
 import { SkillsCheck } from '../components/supervision/SkillsCheck'
+import { PublicationGap } from '../components/supervision/PublicationGap'
 
 const LEVELS = ['BSc', 'MSc', 'PhD', 'Postdoc', 'IR', 'Other']
 
@@ -129,6 +130,7 @@ export function JourneyPage() {
               <span>Journal: {readiness.summary.journal_papers}</span>
               <span>Conference: {readiness.summary.conference_papers}</span>
             </div>
+            <PublicationGap gap={readiness.publication_gap} />
           </div>
         ) : (
           <p style={{ color: 'var(--text-2)', fontSize: 14 }}>Create a journey to see readiness against graduation requirements.</p>

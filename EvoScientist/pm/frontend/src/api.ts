@@ -1275,6 +1275,7 @@ export const supervisionApi = {
       thesis_title: string | null; readiness_pct: number
       requirements: { id: string; level: string; title: string; req_type: string; target_value: number; unit: string | null; current_value: number; required: boolean; met: boolean }[]
       summary: { publications: number; journal_papers: number; conference_papers: number }
+      publication_gap?: PublicationGap
     }>('GET', `/supervision/readiness${qs}`)
   },
   bulkImportUsers: (rows: { username: string; password: string; email?: string; role?: string }[]) =>
@@ -1436,4 +1437,13 @@ export interface SkillAssessment {
 export interface SkillsView {
   skills: Record<string, string>; levels: Record<string, string>
   current_term: string; assessments: SkillAssessment[]
+}
+
+
+/** Distance to each publication requirement, the drafts that could close it, and an ETA
+ *  only when there is a real pace (papers submitted since the journey began). */
+export interface PublicationGap {
+  pace_per_month: number | null; months_observed: number | null
+  items: { requirement: string; target: number; current: number; gap: number; eta_months: number | null
+           in_progress: { id: string; title: string; status: string }[] }[]
 }

@@ -492,8 +492,12 @@ def create_journey(
     current_user: User = Depends(get_current_user),
 ):
     sid = student_id or current_user.id
-    if sid != current_user.id and not (current_user.is_admin or current_user.role == "professor"):
-        raise HTTPException(status_code=403, detail="Not permitted")
+    if sid != current_user.id and not current_user.is_admin:
+        # Only this student's own supervisor (any professor could before).
+        from .followups import is_supervisor
+
+        if not (current_user.role == "professor" and is_supervisor(get_db_path(), current_user.id, sid)):
+            raise HTTPException(status_code=403, detail="Not permitted")
     j = supervision_crud.create_journey(
         get_db_path(),
         sid,
@@ -729,8 +733,12 @@ def graduation_readiness(
     """Compute graduation readiness against active requirements for the student's level."""
     db = get_db_path()
     sid = student_id or current_user.id
-    if sid != current_user.id and not (current_user.is_admin or current_user.role == "professor"):
-        raise HTTPException(status_code=403, detail="Not permitted")
+    if sid != current_user.id and not current_user.is_admin:
+        # Only this student's own supervisor (any professor could look before).
+        from .followups import is_supervisor
+
+        if not (current_user.role == "professor" and is_supervisor(db, current_user.id, sid)):
+            raise HTTPException(status_code=403, detail="Not permitted")
 
     journey = supervision_crud.get_active_journey(db, sid)
     if not journey:
@@ -788,6 +796,7 @@ def graduation_readiness(
                 "level": req.level,
                 "title": req.title,
                 "req_type": req.req_type,
+                "research_item_type": req.research_item_type,
                 "target_value": req.target_value,
                 "unit": req.unit,
                 "current_value": current,
@@ -812,7 +821,57 @@ def graduation_readiness(
             "journal_papers": journal_count,
             "conference_papers": conf_count,
         },
+        "publication_gap": _publication_gap(db, sid, journey, results),
     }
+
+
+_COUNTED = ("submitted", "reviewing", "accepted", "published")
+_VENUES = {"Journal Paper": ("journal",), "Conference Paper": ("conference", "workshop")}
+
+
+def _journey_start(journey) -> date | None:
+    if journey is None:
+        return None
+    if journey.start_date:
+        return _parse_date(journey.start_date)
+    if journey.start_year:
+        return date(int(journey.start_year), 9, 1)  # academic year start
+    return None
+
+
+def _publication_gap(db, sid: str, journey, results: list[dict]) -> dict:
+    """How far the student is from each publication requirement, the drafts that
+    could close the gap, and — only when there is a real basis — when at the
+    current pace. The pace is papers submitted since the journey began divided by
+    the months elapsed; with no start date or nothing submitted yet there is no
+    estimate rather than a guess."""
+    start = _journey_start(journey)
+    with get_db(db) as conn:
+        pubs = conn.execute(
+            "SELECT id, title, venue_type, status, submitted_at, created_at FROM publications WHERE created_by = ?",
+            (sid,),
+        ).fetchall()
+    months = None
+    pace = None
+    if start is not None:
+        months = max(1, (date.today() - start).days // 30)
+        submitted = [p for p in pubs if p["status"] in _COUNTED
+                     and (p["submitted_at"] or p["created_at"])[:10] >= start.isoformat()]
+        pace = round(len(submitted) / months, 3) if submitted else None
+    items = []
+    for r in results:
+        if r["req_type"] != "research_item" or r["met"]:
+            continue
+        gap = max(0, int(r["target_value"] - r["current_value"]))
+        venues = _VENUES.get(r.get("research_item_type") or "")
+        drafts = [{"id": p["id"], "title": p["title"], "status": p["status"]} for p in pubs
+                  if p["status"] == "draft" and (venues is None or p["venue_type"] in venues)]
+        items.append({
+            "requirement": r["title"], "target": r["target_value"], "current": r["current_value"], "gap": gap,
+            "in_progress": drafts,
+            "eta_months": round(gap / pace) if pace else None,
+        })
+    return {"pace_per_month": pace, "months_observed": months, "items": items}
 
 
 # ── Professor analytics ──────────────────────────────────────────────────────
