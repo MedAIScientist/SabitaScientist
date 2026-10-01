@@ -146,3 +146,16 @@ def test_jobs_left_running_by_a_restart_are_failed(tmp_db) -> None:
     job = create_job(tmp_db, kind="draft-section", title="Draft", user_id=user.id)
     assert fail_stale_jobs(tmp_db) == 1
     assert "restarted" in get_job(tmp_db, job.id).error
+
+
+def test_system_health_reports_the_models_in_use(client, admin_token) -> None:
+    """It used to report a hard-coded 'mixtral-8x7b-32768' and the UI read a field
+    (langgraph_dev) that no longer existed, which crashed Settings → Analytics."""
+    from EvoScientist.pm._ai import pm_model_choice
+    from EvoScientist.pm.runner.agent_runner import _get_model
+
+    body = client.get("/api/v1/system/health", headers={"Authorization": f"Bearer {admin_token}"}).json()
+    assert body["ai"]["runner_model"] == _get_model()
+    assert body["ai"]["assistant_model"] == pm_model_choice()[0]
+    assert isinstance(body["ai"]["runner_configured"], bool)
+    assert "mixtral-8x7b-32768" not in str(body)

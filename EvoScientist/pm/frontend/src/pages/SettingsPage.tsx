@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { AnalyticsPage } from './AnalyticsPage'
+import { AiSetupCard } from '../components/AiSetupCard'
 import { api } from '../api'
 
 function ModelTab() {
@@ -239,12 +241,8 @@ function HealthTab() {
   const { data: h } = useQuery({ queryKey: ['set-health'], queryFn: () => api.systemHealth(), refetchInterval: 30_000 })
   return (
     <div>
-      <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px', marginBottom: 8 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div><span style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-heading)' }}>LangGraph Dev</span><div style={{ fontSize: 13, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: 1 }}>{h?.langgraph_dev?.url ?? '—'}</div></div>
-          <span style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', color: h?.langgraph_dev?.running ? '#10b981' : '#f43f5e', padding: '2px 7px', borderRadius: 3, background: h?.langgraph_dev?.running ? 'rgba(16,185,129,0.1)' : 'rgba(244,63,94,0.1)' }}>{h?.langgraph_dev?.running ? 'Running' : 'Offline'}</span>
-        </div>
-      </div>
+      <AiSetupCard health={h} />
+
       <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px', marginBottom: 8 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div><span style={{ fontSize: 15, fontWeight: 500, color: 'var(--text-heading)' }}>Skills</span><div style={{ fontSize: 13, color: 'var(--text-dim)', marginTop: 1 }}>Installed Gazzali skills</div></div>
@@ -262,25 +260,9 @@ function HealthTab() {
 }
 
 function AnalyticsTab() {
-  const { data: stats } = useQuery({ queryKey: ['set-analytics'], queryFn: () => api.systemHealth() })
-  return (
-    <div>
-      <p style={{ color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', fontSize: 14, marginBottom: 16 }}>Cross-lab statistics and research analytics.</p>
-      {stats && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px' }}>
-            <div style={{ fontSize: 13, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', marginBottom: 2 }}>LangGraph dev</div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: stats.langgraph_dev.running ? '#10b981' : '#f43f5e' }}>{stats.langgraph_dev.running ? 'Online' : 'Offline'}</div>
-          </div>
-          <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 8, padding: '14px 16px' }}>
-            <div style={{ fontSize: 13, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', marginBottom: 2 }}>Skills</div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#818cf8' }}>{stats.skills_available}</div>
-          </div>
-        </div>
-      )}
-      <p style={{ color: 'var(--text-dim)', fontSize: 13, marginTop: 20 }}>Full analytics available at the <a href="/analytics" style={{ color: '#818cf8' }}>old Analytics page</a>.</p>
-    </div>
-  )
+  // The same data as /analytics. This tab used to read a health field that no longer
+  // exists (langgraph_dev) and crashed on render.
+  return <AnalyticsPage embedded />
 }
 
 export function SettingsPage() {

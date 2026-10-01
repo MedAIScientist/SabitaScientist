@@ -1094,7 +1094,7 @@ export interface ObservationSearchResults { results: ObservationHit[] }
 // ── System Health ────────────────────────────────────────────────────────────
 
 export interface SystemHealth {
-  langgraph_dev: { running: boolean; url: string }
+  ai: { runner_model: string; runner_configured: boolean; assistant_model: string; assistant_provider: string | null }
   skills_available: number
 }
 
