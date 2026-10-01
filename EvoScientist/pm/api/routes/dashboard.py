@@ -30,8 +30,20 @@ def system_health(current_user: User = Depends(get_current_user)):
                 skills += sum(1 for e in base.iterdir() if e.is_dir() and (e / "SKILL.md").exists())
     except Exception:
         skills = -1
+    # The models actually in use. "mixtral-8x7b-32768" used to be reported here as a
+    # constant, long after the runner moved to another model.
+    from ..._ai import pm_model_choice
+    from ...runner.agent_runner import _get_model as runner_model
+
+    assistant_model, assistant_provider = pm_model_choice()
     return {
-        "groq": {"configured": bool(groq_key), "model": "mixtral-8x7b-32768"},
+        "groq": {"configured": bool(groq_key), "model": runner_model()},
+        "ai": {
+            "runner_model": runner_model(),
+            "runner_configured": bool(groq_key),
+            "assistant_model": assistant_model,
+            "assistant_provider": assistant_provider,
+        },
         "skills_available": skills,
     }
 

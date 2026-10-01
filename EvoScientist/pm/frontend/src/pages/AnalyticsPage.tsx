@@ -80,7 +80,8 @@ function DonutChart({ data }: { data: { label: string; value: number; color: str
   )
 }
 
-export function AnalyticsPage() {
+/** Lab analytics. ``embedded`` drops the page frame so the Settings tab can reuse it. */
+export function AnalyticsPage({ embedded = false }: { embedded?: boolean }) {
   const { token } = useAuth()
   const [stats, setStats] = useState<PiStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -88,7 +89,11 @@ export function AnalyticsPage() {
 
   useEffect(() => {
     fetch('/api/v1/pi/stats', { headers: { Authorization: `Bearer ${token}` } })
-      .then(r => r.json())
+      .then(async r => {
+        // An error body is not stats: reading it as stats crashed the page.
+        if (!r.ok) throw new Error(r.status === 401 ? 'Your session expired. Please sign in again.' : `Could not load analytics (HTTP ${r.status}).`)
+        return r.json()
+      })
       .then(setStats)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false))
@@ -97,6 +102,9 @@ export function AnalyticsPage() {
   if (loading) return <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-dim)', fontSize: 16, fontFamily: 'var(--font-mono)' }}>Loading…</div>
   if (error) return <div style={{ padding: 40, color: '#f43f5e' }}>{error}</div>
   if (!stats) return null
+  if (stats.labs.length === 0) {
+    return <div className="empty" style={{ margin: embedded ? 0 : 40 }}>Analytics cover the labs you lead. You do not lead a lab yet.</div>
+  }
 
   const taskData = [
     { label: 'To Do', value: stats.task_statuses['todo'] || 0, color: '#f59e0b' },
@@ -117,11 +125,9 @@ export function AnalyticsPage() {
   ]
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 28px' }}>
-        <h1 style={{ margin: '0 0 24px', fontSize: 24, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>
-          Lab Analytics
-        </h1>
+    <div style={embedded ? undefined : { minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
+      <div style={embedded ? undefined : { maxWidth: 1100, margin: '0 auto', padding: '32px 28px' }}>
+        {!embedded && <h1 className="page-title" style={{ marginBottom: 24 }}>Lab Analytics</h1>}
 
         {/* Summary cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 28 }}>

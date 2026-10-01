@@ -1,3 +1,4 @@
+import { AiSetupCard } from '../components/AiSetupCard'
 import React from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
@@ -19,13 +20,7 @@ export function SystemHealthPage() {
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', padding: '32px 28px', maxWidth: 900, margin: '0 auto' }}>
       <h1 style={{ margin: '0 0 24px', fontSize: 24, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>System Health</h1>
 
-      <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 20px', marginBottom: 12 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div><span style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-heading)' }}>LangGraph Dev</span>
-            <div style={{ fontSize: 14, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)', marginTop: 2 }}>{health?.langgraph_dev?.url ?? '—'}</div></div>
-          <span style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-mono)', color: health?.langgraph_dev?.running ? '#10b981' : '#f43f5e', padding: '3px 8px', borderRadius: 3, background: health?.langgraph_dev?.running ? 'rgba(16,185,129,0.1)' : 'rgba(244,63,94,0.1)' }}>{health?.langgraph_dev?.running ? 'Running' : 'Offline'}</span>
-        </div>
-      </div>
+      <AiSetupCard health={health} />
 
       <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 20px', marginBottom: 12 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
