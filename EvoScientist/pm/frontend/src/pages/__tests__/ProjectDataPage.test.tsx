@@ -14,6 +14,8 @@ vi.mock('../../api', () => ({
     listProjectWebknossos: vi.fn(),
     listProjectSandboxes: vi.fn(),
     listProjectAssetLinks: vi.fn(),
+    listIntegrations: vi.fn(),
+    listDatasetRequests: vi.fn(),
   },
 }))
 
@@ -56,6 +58,10 @@ beforeEach(() => {
   mocked.listProjectWebknossos.mockResolvedValue([] as any)
   mocked.listProjectSandboxes.mockResolvedValue([] as any)
   mocked.listProjectAssetLinks.mockResolvedValue([] as any)
+  mocked.listIntegrations.mockResolvedValue([
+    { key: 'jupyter', name: 'JupyterHub', path: '/jupyter/', kind: 'compute', description: '', up: true, http_status: 200, latency_ms: 5 },
+  ] as any)
+  mocked.listDatasetRequests.mockResolvedValue([] as any)
 })
 
 describe('ProjectDataPage', () => {
@@ -108,7 +114,7 @@ describe('ProjectDataPage', () => {
     renderPage()
 
     expect(await screen.findByText('Using this data in JupyterHub')).toBeInTheDocument()
-    expect(screen.getByText('ds-d1')).toBeInTheDocument()
+    expect(await screen.findByText('ds-d1')).toBeInTheDocument()
     expect(screen.queryByText('ds-d3')).toBeNull()  // revoked grant: no access, no bucket shown
     expect(screen.getAllByText(/approved, waiting for delivery/).length).toBeGreaterThan(0)
   })
@@ -147,8 +153,20 @@ describe('ProjectDataPage', () => {
 
     renderPage()
 
-    const link = await screen.findByRole('link', { name: /OPEN/i })
+    const link = await screen.findByRole('link', { name: /^Open ↗$/ })
     expect(link).toHaveAttribute('href', '/cvat/')
     expect(link).toHaveAttribute('target', '_blank')
+  })
+
+  it('always shows the project team bucket, even before any data is granted', async () => {
+    renderPage()
+    // Named twice: the project's JupyterHub server and its team bucket.
+    expect((await screen.findAllByText('proj-p1')).length).toBe(2)
+  })
+
+  it('opens the project’s own JupyterHub server', async () => {
+    renderPage()
+    const link = await screen.findByRole('link', { name: /Open project in JupyterHub/ })
+    expect(link).toHaveAttribute('href', '/jupyter/hub/user-redirect/proj-p1/lab')
   })
 })

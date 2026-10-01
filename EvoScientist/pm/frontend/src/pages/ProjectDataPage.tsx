@@ -95,7 +95,8 @@ export function ProjectDataPage() {
     <div>
       <ProjectHeader projectId={projectId!} name={project?.name} actions={<>
         <AppLink app={apps.find(a => a.key === 'curator')} label="Open Curator (PACS)" />
-        <AppLink app={apps.find(a => a.key === 'jupyter')} label="Open JupyterHub" subpath="hub/user-redirect/lab" />
+        <AppLink app={apps.find(a => a.key === 'jupyter')} label="Open project in JupyterHub"
+          subpath={`hub/user-redirect/${projectServerName(projectId)}/lab`} />
         {activeSandbox?.access_url && (
           <a className="btn" href={activeSandbox.access_url} target="_blank" rel="noopener noreferrer"
             title={activeSandbox.expires_at ? `Workspace access ends ${activeSandbox.expires_at.slice(0, 10)}` : undefined}>
@@ -113,7 +114,7 @@ export function ProjectDataPage() {
 
         <DatasetRequests projectId={projectId} />
 
-        {grantedDatasets.length > 0 && <JupyterAccess datasets={grantedDatasets} hubPath={apps.find(a => a.key === 'jupyter')?.path} />}
+        <JupyterAccess projectId={projectId} datasets={grantedDatasets} hubPath={apps.find(a => a.key === 'jupyter')?.path} />
 
         <Section title="IMAGING DATASETS" hint="cohorts granted to this project">
           {grantedDatasets.map(d => (
@@ -306,6 +307,12 @@ function AppLink({ app, label, subpath = '' }: {
 }
 
 
+/** The project's team bucket, provisioned by platform-control when the project is created. */
+export const projectBucketName = (projectId: string) => `proj-${projectId}`
+
+/** One JupyterHub named server per project, reached through the hub's user-redirect. */
+export const projectServerName = (projectId: string) => `proj-${projectId}`
+
 /** In-cluster S3 endpoint for the dataset buckets (curator config: garage_s3_url). */
 const GARAGE_S3 = 'http://garage.garage.svc.cluster.local:3900'
 
@@ -321,7 +328,7 @@ const DELIVERY: Record<string, string> = {
  * membership: platform-control grants each researcher's NEXT JupyterHub session
  * key read access to the buckets of every dataset granted to their projects.
  */
-function JupyterAccess({ datasets, hubPath }: { datasets: DatasetSummary[]; hubPath?: string }) {
+function JupyterAccess({ projectId, datasets, hubPath }: { projectId: string; datasets: DatasetSummary[]; hubPath?: string }) {
   const [copied, setCopied] = useState<string | null>(null)
   const copy = (text: string) => {
     navigator.clipboard?.writeText(text).then(() => { setCopied(text); setTimeout(() => setCopied(null), 1500) })
@@ -331,13 +338,20 @@ function JupyterAccess({ datasets, hubPath }: { datasets: DatasetSummary[]; hubP
       <summary style={{ cursor: 'pointer', fontWeight: 600, color: 'var(--text-heading)' }}>Using this data in JupyterHub</summary>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10, fontSize: 13.5, color: 'var(--text-2)' }}>
         <p>
-          As a member of this project, your JupyterHub session can read the buckets below. Access is added to your
+          This project has its own JupyterHub server (<code>{projectServerName(projectId)}</code>) — use
+          “Open project in JupyterHub” above. As a member of this project, your session can use the buckets below. Access is added to your
           <b> next</b> session: if a dataset was granted after you started your server, restart it
           {hubPath ? <> (<a href={`${hubPath}hub/home`} target="_blank" rel="noopener noreferrer">Hub control panel</a> → Stop My Server → Start)</> : ''}.
         </p>
         <table className="bucket-table">
           <thead><tr><th>Dataset</th><th>Bucket</th><th>Status</th><th /></tr></thead>
           <tbody>
+            <tr>
+              <td>Project team bucket <small className="hint">(shared workspace: results, models, renders)</small></td>
+              <td><code>{projectBucketName(projectId)}</code></td>
+              <td>—</td>
+              <td><button className="btn" style={{ height: 26 }} onClick={() => copy(projectBucketName(projectId))}>{copied === projectBucketName(projectId) ? 'Copied' : 'Copy'}</button></td>
+            </tr>
             {datasets.map(d => (
               <tr key={d.id}>
                 <td>{d.name}</td>
