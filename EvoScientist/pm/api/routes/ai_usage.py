@@ -19,10 +19,6 @@ from ..schemas import AiUsageRecord, AiUsageRecords, AiUsageSummary
 router = APIRouter()
 
 
-def _is_supervisor(user: User) -> bool:
-    return user.is_admin or user.role in ("professor", "admin")
-
-
 @router.get("/usage/summary", response_model=AiUsageSummary)
 def ai_usage_summary(
     scope: str = Query(default="me", pattern="^(me|user|all)$"),
@@ -113,14 +109,20 @@ def ai_usage_records(
 def _resolve_target_user(scope: str, user_id: str | None, current_user: User) -> str | None:
     """Turn a scope into a user filter, refusing to widen access silently."""
     if scope == "all":
-        if not _is_supervisor(current_user):
+        # Everyone's usage is platform-wide data: admins only.
+        if not current_user.is_admin:
             raise HTTPException(status_code=403, detail="Not permitted")
         return None
     if scope == "user":
         if not user_id:
             raise HTTPException(status_code=422, detail="user_id is required for scope=user")
-        if user_id != current_user.id and not _is_supervisor(current_user):
-            raise HTTPException(status_code=403, detail="Not permitted")
+        if user_id != current_user.id and not current_user.is_admin:
+            # A professor sees only the students of the labs they lead.
+            from ...db import get_db_path
+            from ...supervision_scope import supervises
+
+            if not supervises(get_db_path(), current_user.id, user_id):
+                raise HTTPException(status_code=403, detail="Not permitted")
         return user_id
     # scope == "me"
     return current_user.id

@@ -21,6 +21,7 @@ def _make_user(client, tmp_db, username, password="pw", is_admin=False):
         username=username,
         password_hash=hash_password(password),
         is_admin=is_admin,
+        role="professor",  # these users create and lead labs; only professors may
     )
     token = client.post(
         "/api/v1/auth/login", json={"username": username, "password": password}

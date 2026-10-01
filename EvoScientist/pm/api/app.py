@@ -87,6 +87,9 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     # Background jobs run in this process; any still "running" died with the last one.
     from ..crud.ai_jobs import fail_stale_jobs
     fail_stale_jobs(db_path)
+    # Student vs professor follows the institutional address (see pm/roles.py).
+    from ..roles import sync_all_roles
+    sync_all_roles(db_path)
     cfg = get_effective_config()
 
     app = FastAPI(

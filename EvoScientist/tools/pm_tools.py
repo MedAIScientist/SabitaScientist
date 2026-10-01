@@ -475,8 +475,12 @@ def pm_create_lab(name: str, department: str = "", university: str = "") -> str:
     if not name or not name.strip():
         return "Error: lab name is required."
     from EvoScientist.pm.crud.labs import add_member, create_lab
+    from EvoScientist.pm.crud.users import get_user_by_id
     uid = _uid()
     db = get_db_path()
+    me = get_user_by_id(db, uid)
+    if me is None or not (me.is_admin or me.role in ("professor", "admin")):
+        return "Error: only professors can create a lab."
     lab = create_lab(
         db, name=name.strip(), pi_id=uid, department=department, university=university,
     )

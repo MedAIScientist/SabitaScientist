@@ -15,7 +15,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from ...crud import followups as followups_crud
-from ...crud import supervision as supervision_crud
 from ...db import get_db_path
 from ...models import SupervisionFollowup, User
 from ..deps import get_current_user
@@ -49,8 +48,10 @@ class FollowupUpdate(BaseModel):
 
 
 def is_supervisor(db, professor_id: str, student_id: str) -> bool:
-    assignment = supervision_crud.get_active_supervisor(db, student_id)
-    return assignment is not None and assignment.professor_id == professor_id
+    """The student is in a lab the professor leads (see pm/supervision_scope.py)."""
+    from ...supervision_scope import supervises
+
+    return supervises(db, professor_id, student_id)
 
 
 def to_response(f: SupervisionFollowup) -> FollowupResponse:
@@ -70,7 +71,9 @@ def list_followups(
     if current_user.is_admin:
         ids = [student_id] if student_id else None
     elif current_user.role == "professor":
-        mine = [a.student_id for a in supervision_crud.list_students_of_professor(db, current_user.id)]
+        from ...supervision_scope import lab_student_ids
+
+        mine = lab_student_ids(db, current_user.id)
         ids = [student_id] if student_id in mine else ([] if student_id else mine)
     else:
         ids = [current_user.id]

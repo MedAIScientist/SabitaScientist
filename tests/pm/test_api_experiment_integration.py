@@ -38,7 +38,7 @@ def _make_user(client, tmp_db, username, password="pw"):
     from EvoScientist.pm.auth import hash_password
     from EvoScientist.pm.crud.users import create_user
 
-    user = create_user(tmp_db, username=username, password_hash=hash_password(password))
+    user = create_user(tmp_db, username=username, password_hash=hash_password(password), role="professor")
     token = client.post(
         "/api/v1/auth/login", json={"username": username, "password": password}
     ).json()["token"]

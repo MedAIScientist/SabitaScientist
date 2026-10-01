@@ -208,26 +208,24 @@ def test_student_cannot_read_another_students_usage(client, users) -> None:
     assert resp.status_code == 403
 
 
-def test_professor_can_read_one_student_and_the_platform(client, tmp_db, users) -> None:
-    _prof, stud, _other = users
-    record_usage(
-        tmp_db,
-        context=UsageContext(task="revise", user_id=stud.id),
-        model="m",
-        total_tokens=250,
-    )
+def test_professor_reads_only_own_lab_students_and_admins_read_the_platform(client, tmp_db, users) -> None:
+    """A professor sees the AI usage of the students in the labs they lead, nobody
+    else's; platform-wide usage is for admins."""
+    from EvoScientist.pm.crud.labs import add_member, create_lab
+
+    prof, stud, other = users
+    for who in (stud, other):
+        record_usage(tmp_db, context=UsageContext(task="revise", user_id=who.id), model="m", total_tokens=250)
+    lab = create_lab(tmp_db, name="Imaging Lab", pi_id=prof.id)
+    add_member(tmp_db, lab.id, prof.id, "pi")
+    add_member(tmp_db, lab.id, stud.id, "phd")  # `other` is not in the lab
 
     token = _token(client, "prof")
-    one = client.get(
-        f"/api/v1/ai/usage/summary?scope=user&user_id={stud.id}", headers=_h(token)
-    ).json()
-    assert one["tokens"]["provider_reported"] == 250
-
-    every = client.get("/api/v1/ai/usage/summary?scope=all", headers=_h(token)).json()
-    assert every["calls"] >= 1
-
-    records = client.get("/api/v1/ai/usage/records?scope=all", headers=_h(token)).json()
-    assert records["records"][0]["task"] == "revise"
+    one = client.get(f"/api/v1/ai/usage/summary?scope=user&user_id={stud.id}", headers=_h(token))
+    assert one.status_code == 200 and one.json()["tokens"]["provider_reported"] == 250
+    assert client.get(f"/api/v1/ai/usage/summary?scope=user&user_id={other.id}", headers=_h(token)).status_code == 403
+    assert client.get("/api/v1/ai/usage/summary?scope=all", headers=_h(token)).status_code == 403
+    assert client.get("/api/v1/ai/usage/records?scope=all", headers=_h(token)).status_code == 403
 
 
 def test_publication_scoped_usage_is_readable_from_the_paper(
