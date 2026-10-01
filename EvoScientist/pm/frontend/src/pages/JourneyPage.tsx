@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supervisionApi, api } from '../api'
 import { useAuth } from '../auth'
+import { SkillsCheck } from '../components/supervision/SkillsCheck'
+import { SemesterReport } from '../components/supervision/SemesterReport'
+import { PublicationGap } from '../components/supervision/PublicationGap'
 
 const LEVELS = ['BSc', 'MSc', 'PhD', 'Postdoc', 'IR', 'Other']
 
@@ -9,6 +12,7 @@ export function JourneyPage() {
   const { role, isAdmin, token } = useAuth()
   const qc = useQueryClient()
   const isStudent = role === 'student' && !isAdmin
+  const { data: me } = useQuery({ queryKey: ['me'], queryFn: api.me, enabled: isStudent })
   const [studentId, setStudentId] = useState('')
   const [form, setForm] = useState({
     level: 'MSc', status: 'active', programme: '', university: '', department: '',
@@ -20,6 +24,8 @@ export function JourneyPage() {
   const students = (users || []).filter(u => u.role === 'student' || (!u.is_admin && u.role !== 'professor'))
 
   const targetId = isStudent ? '' : studentId
+  // Students rate themselves; a supervisor rates the student picked above.
+  const skillsStudentId = isStudent ? me?.id : studentId || undefined
   const { data: journeys } = useQuery({
     queryKey: ['journeys', targetId],
     queryFn: () => supervisionApi.listJourneys(targetId || undefined),
@@ -80,6 +86,12 @@ export function JourneyPage() {
         </div>
       )}
 
+      {skillsStudentId && (
+        <div style={{ marginBottom: 24 }}>
+          <SkillsCheck studentId={skillsStudentId} perspective={isStudent ? 'self' : 'supervisor'} />
+    <div style={{ marginTop: 12 }}><SemesterReport studentId={skillsStudentId} /></div>
+        </div>
+      )}
       <section style={{ marginBottom: 24 }}>
         <h2 style={{ fontSize: 15, color: 'var(--text-heading)', margin: '0 0 10px' }}>Graduation readiness</h2>
         {readiness ? (
@@ -120,6 +132,7 @@ export function JourneyPage() {
               <span>Journal: {readiness.summary.journal_papers}</span>
               <span>Conference: {readiness.summary.conference_papers}</span>
             </div>
+            <PublicationGap gap={readiness.publication_gap} />
           </div>
         ) : (
           <p style={{ color: 'var(--text-2)', fontSize: 14 }}>Create a journey to see readiness against graduation requirements.</p>

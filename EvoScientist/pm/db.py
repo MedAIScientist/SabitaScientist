@@ -860,6 +860,46 @@ CREATE TABLE IF NOT EXISTS ai_jobs (
     finished_at    TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_ai_jobs_user ON ai_jobs(user_id, created_at);
+
+-- Follow-ups a supervisor asks for when reviewing a weekly report. They stay open
+-- across weeks until done or dropped, so an unaddressed request stays visible.
+CREATE TABLE IF NOT EXISTS supervision_followups (
+    id             TEXT PRIMARY KEY,
+    student_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    professor_id   TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    report_id      TEXT REFERENCES weekly_reports(id) ON DELETE SET NULL,
+    text           TEXT NOT NULL,
+    due_date       TEXT,
+    status         TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open', 'done', 'dropped')),
+    student_note   TEXT,
+    created_at     TEXT NOT NULL,
+    closed_at      TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_followups_student ON supervision_followups(student_id, status);
+
+-- AI meeting briefs a supervisor prepared: one student (student_id set) or the whole
+-- group agenda (student_id NULL). Kept so the latest brief is there when the meeting starts.
+CREATE TABLE IF NOT EXISTS meeting_briefs (
+    id           TEXT PRIMARY KEY,
+    professor_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    student_id   TEXT REFERENCES users(id) ON DELETE CASCADE,
+    content      TEXT NOT NULL,
+    created_at   TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_meeting_briefs ON meeting_briefs(professor_id, student_id, created_at);
+
+-- Semester skills check: a self-assessment and the supervisor's, 1–4 per skill.
+CREATE TABLE IF NOT EXISTS skill_assessments (
+    id           TEXT PRIMARY KEY,
+    student_id   TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    assessor_id  TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    perspective  TEXT NOT NULL CHECK(perspective IN ('self', 'supervisor')),
+    term         TEXT NOT NULL,
+    scores_json  TEXT NOT NULL,
+    comment      TEXT,
+    updated_at   TEXT NOT NULL,
+    UNIQUE(student_id, perspective, term)
+);
 """
 
 _MIGRATIONS = [

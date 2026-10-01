@@ -18,6 +18,11 @@ from .routes import (
     ai_tools,
     ai_jobs,
     ai_usage,
+    followups,
+    meeting_briefs,
+    skills,
+    progress_report,
+    cohort,
     imaging,
     assists,
     attachments,
@@ -179,6 +184,15 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     app.include_router(
         supervision.router, prefix="/api/v1/supervision", tags=["supervision"]
     )
+    app.include_router(
+        followups.router, prefix="/api/v1/supervision", tags=["supervision"]
+    )
+    app.include_router(
+        meeting_briefs.router, prefix="/api/v1/supervision", tags=["supervision"]
+    )
+    app.include_router(skills.router, prefix="/api/v1/supervision", tags=["supervision"])
+    app.include_router(progress_report.router, prefix="/api/v1/supervision", tags=["supervision"])
+    app.include_router(cohort.router, prefix="/api/v1/supervision", tags=["supervision"])
 
     # Serve React SPA — only if the dist folder exists (i.e., frontend has been built)
     if _FRONTEND_DIST.exists():

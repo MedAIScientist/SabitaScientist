@@ -1393,6 +1393,9 @@ class SupervisorAssignmentResponse(BaseModel):
     id: str
     student_id: str
     professor_id: str
+    # Names, because professors may not list users and the pages showed raw ids.
+    student_name: str | None = None
+    professor_name: str | None = None
     active_from: str
     active_until: str | None
     created_at: str
@@ -1461,6 +1464,8 @@ class ReportItemResponse(BaseModel):
 class WeeklyReportResponse(BaseModel):
     id: str
     student_id: str
+    # The supervisor needs a name, and professors may not read the full user list.
+    student_name: str | None = None
     week_start: str
     status: str
     review_status: str
@@ -1478,10 +1483,17 @@ class WeeklyReportResponse(BaseModel):
     items: list[ReportItemResponse] = []
 
 
+class FollowupItem(BaseModel):
+    text: str = Field(min_length=1, max_length=1000)
+    due_date: str | None = None  # YYYY-MM-DD
+
+
 class ReviewRequest(BaseModel):
     review_status: str = "reviewed"
     feedback: str | None = None
     risk_override: str | None = None
+    # Requests that carry forward into the student's next weekly updates until closed.
+    followups: list[FollowupItem] = []
 
 
 class AttendanceRequest(BaseModel):

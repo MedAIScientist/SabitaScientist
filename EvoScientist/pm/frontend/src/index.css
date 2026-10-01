@@ -225,6 +225,8 @@ fieldset.field { border: 0; }
 .bucket-table th { text-align: left; font-weight: 600; color: var(--text-3); padding: 4px 8px 4px 0; border-bottom: 1px solid var(--border); }
 .bucket-table td { padding: 6px 8px 6px 0; border-bottom: 1px solid var(--border-subtle); color: var(--text); }
 
+.brief { white-space: pre-wrap; font-size: 14px; line-height: 1.6; color: var(--text); background: var(--surface); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 12px 14px; }
+
 /* ── App shell: sidebar + one-viewport scrollable main ─────────────────── */
 .shell { display: flex; height: 100vh; overflow: hidden; }
 .shell-main { flex: 1; min-width: 0; height: 100vh; overflow: auto; position: relative; }

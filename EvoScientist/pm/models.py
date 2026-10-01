@@ -769,3 +769,19 @@ class AiJob:
     error: str | None
     created_at: str
     finished_at: str | None
+
+
+@dataclass(frozen=True)
+class SupervisionFollowup:
+    """Something a supervisor asked for in a review; open until done or dropped."""
+
+    id: str
+    student_id: str
+    professor_id: str
+    report_id: str | None
+    text: str
+    due_date: str | None
+    status: str
+    student_note: str | None
+    created_at: str
+    closed_at: str | None
