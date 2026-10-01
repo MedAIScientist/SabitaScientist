@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supervisionApi } from '../api'
 import { ApprovalsInbox } from '../components/imaging/ApprovalsInbox'
+import { CohortView } from '../components/supervision/CohortView'
 import { useAuth } from '../auth'
 
 /** Professor group overview: KPIs, trends, workload, and what needs attention. */
@@ -43,6 +44,7 @@ export function ProfessorDashboardPage() {
       </div>
 
       <ApprovalsInbox />
+      <CohortView />
 
       {/* KPI cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 12, marginBottom: 22 }}>

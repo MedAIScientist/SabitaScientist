@@ -35,10 +35,12 @@ export function WeeklyMeetingPage() {
   const { data: users } = useQuery({
     queryKey: ['users'],
     queryFn: () => api.listUsers(),
-    enabled: canRun,
+    // Professors may not list users; the student list carries names instead.
+    enabled: isAdmin,
   })
 
-  const nameOf = (id: string) => users?.find(u => u.id === id)?.username || id
+  const nameOf = (id: string) =>
+    students?.find(a => a.student_id === id)?.student_name || users?.find(u => u.id === id)?.username || id
 
   const { data: report } = useQuery({
     queryKey: ['meeting-report', week, selected],

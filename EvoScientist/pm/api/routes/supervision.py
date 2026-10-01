@@ -106,12 +106,18 @@ def list_assignments(
 
 @router.get("/my-students", response_model=list[SupervisorAssignmentResponse])
 def my_students(current_user: User = Depends(get_current_user)):
-    rows = supervision_crud.list_students_of_professor(get_db_path(), current_user.id)
+    from ...crud.users import get_user_by_id
+
+    db = get_db_path()
+    rows = supervision_crud.list_students_of_professor(db, current_user.id)
+    names = {a.student_id: (u.username if (u := get_user_by_id(db, a.student_id)) else None) for a in rows}
     return [
         SupervisorAssignmentResponse(
             id=a.id,
             student_id=a.student_id,
             professor_id=a.professor_id,
+            student_name=names[a.student_id],
+            professor_name=current_user.username,
             active_from=a.active_from,
             active_until=a.active_until,
             created_at=a.created_at,

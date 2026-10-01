@@ -727,7 +727,7 @@ def test_readiness_is_for_the_students_own_supervisor(client: TestClient) -> Non
 # ── Semester report ──────────────────────────────────────────────────────────
 
 
-def test_semester_report_contents_escaping_and_word_download(client: TestClient) -> None:
+def test_progress_report_contents_escaping_and_word_download(client: TestClient) -> None:
     from datetime import date
 
     from EvoScientist.pm.api.routes.skills import term_of
@@ -745,7 +745,7 @@ def test_semester_report_contents_escaping_and_word_download(client: TestClient)
                headers=_h(client.prof_token))
 
     term = term_of(date.today())
-    r = client.get(f"/api/v1/supervision/students/{client.stud_id}/semester-report", params={"term": term},
+    r = client.get(f"/api/v1/supervision/students/{client.stud_id}/progress-report", params={"term": term},
                    headers=_h(client.prof_token))
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/html")
     html = r.text
@@ -754,19 +754,59 @@ def test_semester_report_contents_escaping_and_word_download(client: TestClient)
     assert "<script>alert(1)</script>" not in html and "&lt;script&gt;" in html  # student text is escaped
     assert "Supervisor's overall assessment" in html
 
-    doc = client.get(f"/api/v1/supervision/students/{client.stud_id}/semester-report.doc", params={"term": term},
+    doc = client.get(f"/api/v1/supervision/students/{client.stud_id}/progress-report.doc", params={"term": term},
                      headers=_h(client.prof_token))
     assert doc.headers["content-type"] == "application/msword"
     assert "attachment" in doc.headers["content-disposition"] and ".doc" in doc.headers["content-disposition"]
 
     # A different term does not include this week's update.
-    other = client.get(f"/api/v1/supervision/students/{client.stud_id}/semester-report", params={"term": "2001 Fall"},
+    other = client.get(f"/api/v1/supervision/students/{client.stud_id}/progress-report", params={"term": "2001 Fall"},
                        headers=_h(client.prof_token)).text
     assert "Good week" not in other and "No weekly updates recorded this term." in other
 
 
-def test_semester_report_access_and_term_validation(client: TestClient) -> None:
-    url = f"/api/v1/supervision/students/{client.stud_id}/semester-report"
+def test_progress_report_access_and_term_validation(client: TestClient) -> None:
+    url = f"/api/v1/supervision/students/{client.stud_id}/progress-report"
     assert client.get(url, headers=_h(client.prof_token)).status_code == 404  # not their student
     assert client.get(url, headers=_h(client.stud_token)).status_code == 200  # the student's own
     assert client.get(url, params={"term": "2026 Winter"}, headers=_h(client.stud_token)).status_code == 400
+
+
+# ── Cohort view ──────────────────────────────────────────────────────────────
+
+
+def test_cohort_view_compares_students_on_recorded_data(client: TestClient, tmp_db) -> None:
+    from EvoScientist.pm.crud.users import create_user
+
+    _assign(client)
+    report_id = client.post("/api/v1/supervision/weekly/current", headers=_h(client.stud_token)).json()["id"]
+    client.post(f"/api/v1/supervision/reports/{report_id}/submit", headers=_h(client.stud_token))
+    client.post(f"/api/v1/supervision/reports/{report_id}/review",
+                json={"review_status": "reviewed", "risk_override": "high",
+                      "followups": [{"text": "A"}, {"text": "B", "due_date": "2000-01-01"}]},
+                headers=_h(client.prof_token))
+    fid = client.get("/api/v1/supervision/followups", headers=_h(client.stud_token)).json()[0]["id"]
+    client.patch(f"/api/v1/supervision/followups/{fid}", json={"status": "done"}, headers=_h(client.stud_token))
+    client.put("/api/v1/supervision/skills", json={"student_id": client.stud_id, "scores": {"writing": 2, "methods": 4}},
+               headers=_h(client.stud_token))
+    # A second student with nothing recorded.
+    quiet = create_user(tmp_db, "quiet", hash_password("secret123"), role="student")
+    client.post("/api/v1/supervision/assignments", json={"student_id": quiet.id, "professor_id": client.prof_id},
+                headers=_h(client.prof_token))
+
+    view = client.get("/api/v1/supervision/cohort", headers=_h(client.prof_token)).json()
+    rows = {r["name"]: r for r in view["rows"]}
+    assert set(rows) == {"stud", "quiet"}
+    s = rows["stud"]
+    assert s["weeks_submitted"] == 1 and s["high_risk_weeks"] == 1
+    assert (s["followups_asked"], s["followups_done"], s["followups_open"], s["followups_overdue"]) == (2, 1, 1, 1)
+    assert s["median_days_to_close"] == 0 and s["skills_self"] == 3.0
+    q = rows["quiet"]
+    assert q["weeks_submitted"] == 0 and q["followups_asked"] == 0 and q["skills_self"] is None
+    assert "submission_rate" in view["medians"]
+
+
+def test_cohort_view_is_for_supervisors(client: TestClient) -> None:
+    assert client.get("/api/v1/supervision/cohort", headers=_h(client.stud_token)).status_code == 403
+    assert client.get("/api/v1/supervision/cohort", params={"term": "nonsense"},
+                      headers=_h(client.prof_token)).status_code == 400

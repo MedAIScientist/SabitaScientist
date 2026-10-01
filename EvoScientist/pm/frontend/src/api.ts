@@ -1131,7 +1131,7 @@ export interface ScheduleList { schedules: ScheduleItem[] }
 // ── Academic supervision ────────────────────────────────────────────────────
 
 export interface SupervisorAssignment {
-  id: string; student_id: string; professor_id: string
+  id: string; student_id: string; student_name?: string | null; professor_name?: string | null; professor_id: string
   active_from: string; active_until: string | null; created_at: string
 }
 
@@ -1222,6 +1222,8 @@ export const supervisionApi = {
   getSkills: (studentId: string) => request<SkillsView>('GET', `/supervision/skills?student_id=${studentId}`),
   saveSkills: (studentId: string, scores: Record<string, number>, comment?: string) =>
     request<SkillAssessment>('PUT', '/supervision/skills', { student_id: studentId, scores, comment }),
+  cohort: (term?: string) =>
+    request<CohortView>('GET', `/supervision/cohort${term ? `?term=${encodeURIComponent(term)}` : ''}`),
   getAiJob: (id: string) => request<AiJob>('GET', `/ai-jobs/${id}`),
   listFollowups: (params: { studentId?: string; status?: 'open' | 'done' | 'dropped' } = {}) => {
     const q = new URLSearchParams()
@@ -1447,3 +1449,13 @@ export interface PublicationGap {
   items: { requirement: string; target: number; current: number; gap: number; eta_months: number | null
            in_progress: { id: string; title: string; status: string }[] }[]
 }
+
+
+export interface CohortRow {
+  student_id: string; name: string; weeks_elapsed: number; weeks_submitted: number
+  submission_rate: number | null; high_risk_weeks: number
+  followups_asked: number; followups_done: number; followups_open: number; followups_overdue: number
+  median_days_to_close: number | null; papers_submitted: number
+  skills_self: number | null; skills_supervisor: number | null
+}
+export interface CohortView { term: string; rows: CohortRow[]; medians: Record<string, number | null> }

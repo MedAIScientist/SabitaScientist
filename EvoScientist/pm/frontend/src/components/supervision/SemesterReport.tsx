@@ -27,7 +27,7 @@ export function SemesterReport({ studentId }: { studentId: string }) {
   async function fetchBlob(suffix: string): Promise<Blob | null> {
     setError(null)
     const token = sessionStorage.getItem('pm_token')
-    const r = await fetch(`/api/v1/supervision/students/${studentId}/semester-report${suffix}?term=${encodeURIComponent(term)}`,
+    const r = await fetch(`/api/v1/supervision/students/${studentId}/progress-report${suffix}?term=${encodeURIComponent(term)}`,
       { headers: token ? { Authorization: `Bearer ${token}` } : {} })
     if (!r.ok) { setError(`Could not prepare the report (HTTP ${r.status}).`); return null }
     return r.blob()
@@ -45,7 +45,7 @@ export function SemesterReport({ studentId }: { studentId: string }) {
     if (!blob) return
     const a = document.createElement('a')
     a.href = URL.createObjectURL(blob)
-    a.download = `semester-report-${term.replace(' ', '-')}.doc`
+    a.download = `progress-report-${term.replace(' ', '-')}.doc`
     a.click()
     URL.revokeObjectURL(a.href)
   }

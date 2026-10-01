@@ -146,15 +146,15 @@ def _load(db, user: User, student_id: str) -> None:
         raise HTTPException(status_code=404, detail="Student not found")
 
 
-@router.get("/students/{student_id}/semester-report", response_class=HTMLResponse)
-def semester_report(student_id: str, term: str | None = Query(None), current_user: User = Depends(get_current_user)):
+@router.get("/students/{student_id}/progress-report", response_class=HTMLResponse)
+def progress_report(student_id: str, term: str | None = Query(None), current_user: User = Depends(get_current_user)):
     db = get_db_path()
     _load(db, current_user, student_id)
     return HTMLResponse(build_report_html(db, student_id, term or term_of(date.today())))
 
 
-@router.get("/students/{student_id}/semester-report.doc")
-def semester_report_doc(student_id: str, term: str | None = Query(None), current_user: User = Depends(get_current_user)):
+@router.get("/students/{student_id}/progress-report.doc")
+def progress_report_doc(student_id: str, term: str | None = Query(None), current_user: User = Depends(get_current_user)):
     db = get_db_path()
     _load(db, current_user, student_id)
     t = term or term_of(date.today())
@@ -162,5 +162,5 @@ def semester_report_doc(student_id: str, term: str | None = Query(None), current
     name = (student.username if student else student_id).replace(" ", "_")
     return Response(
         content=build_report_html(db, student_id, t), media_type="application/msword",
-        headers={"Content-Disposition": f'attachment; filename="semester-report-{name}-{t.replace(" ", "-")}.doc"'},
+        headers={"Content-Disposition": f'attachment; filename="progress-report-{name}-{t.replace(" ", "-")}.doc"'},
     )

@@ -21,7 +21,8 @@ from .routes import (
     followups,
     meeting_briefs,
     skills,
-    semester_report,
+    progress_report,
+    cohort,
     imaging,
     assists,
     attachments,
@@ -190,7 +191,8 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         meeting_briefs.router, prefix="/api/v1/supervision", tags=["supervision"]
     )
     app.include_router(skills.router, prefix="/api/v1/supervision", tags=["supervision"])
-    app.include_router(semester_report.router, prefix="/api/v1/supervision", tags=["supervision"])
+    app.include_router(progress_report.router, prefix="/api/v1/supervision", tags=["supervision"])
+    app.include_router(cohort.router, prefix="/api/v1/supervision", tags=["supervision"])
 
     # Serve React SPA — only if the dist folder exists (i.e., frontend has been built)
     if _FRONTEND_DIST.exists():
