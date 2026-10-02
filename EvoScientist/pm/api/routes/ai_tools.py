@@ -1,7 +1,7 @@
 """AI-powered research tools — grant writer, figure generator, impact dashboard.
 
-Integrates EvoScientist's ``get_chat_model()`` for direct LLM access and
-EvoScientist's skill guidance for specialized AI tasks.
+Integrates the PM's OpenAI-compatible model (``_ai.get_pm_chat_model``) for direct LLM access and
+skill guidance (SKILL.md files) for specialized AI tasks.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ from .drafting_helpers import GROUNDING_RULE, render_metrics_block
 router = APIRouter()
 
 # =============================================================================
-# AI Grant Writer (uses EvoScientist's get_chat_model + ml-paper-writing skill)
+# AI Grant Writer (direct LLM + ml-paper-writing skill)
 # =============================================================================
 
 _GRANT_TEMPLATES = {
@@ -112,7 +112,7 @@ async def draft_grant_proposal(
     background_tasks: BackgroundTasks,
     current_user: User = Depends(require_project_role("owner", "editor")),
 ):
-    """Draft a grant proposal using EvoScientist's LLM with ml-paper-writing skill guidance."""
+    """Draft a grant proposal with ml-paper-writing skill guidance."""
     project = get_project(get_db_path(), project_id)
     if not project:
         raise HTTPException(404, "Project not found")
@@ -135,7 +135,7 @@ async def draft_grant_proposal(
 
 
 async def _run_grant_writer(pub_id: str, prompt: str, user_id: str) -> str | None:
-    """Run grant writing through EvoScientist's get_chat_model directly, with skill guidance."""
+    """Run grant writing as one direct LLM call, with skill guidance."""
     from ...crud.publications import get_publication
     from ...crud.publications import update_publication as _up
     pub = get_publication(get_db_path(), pub_id)
@@ -164,7 +164,7 @@ async def _run_grant_writer(pub_id: str, prompt: str, user_id: str) -> str | Non
 
 
 # =============================================================================
-# Auto Figure Generator (uses EvoScientist's get_chat_model + data analysis)
+# Auto Figure Generator (direct LLM + data analysis)
 # =============================================================================
 
 _FIGURE_GEN_SYSTEM = """You are a data analysis and visualization agent. Analyze experiment data and produce publication-quality analysis.
@@ -185,7 +185,7 @@ async def generate_figures(
     background_tasks: BackgroundTasks,
     current_user: User = Depends(require_project_role("owner", "editor")),
 ):
-    """Generate publication-quality figures using EvoScientist's LLM directly."""
+    """Generate publication-quality figures with one direct LLM call."""
     db = get_db_path()
     exp = get_experiment(db, exp_id)
     if not exp or exp.project_id != project_id:

@@ -15,7 +15,7 @@ import httpx
 from jwt import PyJWKClient
 from jwt import decode as jwt_decode
 
-from ._evoscientist import get_oidc_config
+from .settings import get_oidc_config
 
 logger = logging.getLogger(__name__)
 

@@ -9,7 +9,7 @@ from io import BytesIO
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from fastapi.responses import RedirectResponse
 
-from ..._evoscientist import get_max_upload_bytes
+from ...settings import get_max_upload_bytes
 from ...crud.attachments import (
     create_attachment,
     delete_attachment,

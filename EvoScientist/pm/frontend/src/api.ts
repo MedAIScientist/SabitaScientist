@@ -457,48 +457,11 @@ export const api = {
   updateWikiPage: (labId: string, pageId: string, data: { content?: string; title?: string; tags?: string[] }) =>
     request('PUT', `/labs/${labId}/wiki/${pageId}`, data),
 
-  // ── MCP Servers ──────────────────────────────────────────────────────────
-  mcpMarketplace: (tag?: string) => {
-    const qs = tag ? `?tag=${encodeURIComponent(tag)}` : ''
-    return request<MCPMarketplace>('GET', `/mcp/marketplace${qs}`)
-  },
-  mcpInstalled: () => request<MCPInstalled>('GET', '/mcp/installed'),
-  mcpInstall: (name: string) => request<{ status: string; name: string }>('POST', '/mcp/install', { name }),
-  mcpRemove: (name: string) => request<void>('DELETE', `/mcp/installed/${encodeURIComponent(name)}`),
-
-  // ── Memory / Observations ────────────────────────────────────────────────
-  listObservations: (projectId: string, limit = 50) =>
-    request<ObservationsList>('GET', `/memory/observations?project_id=${encodeURIComponent(projectId)}&limit=${limit}`),
-  searchObservations: (projectId: string, q: string, limit = 10) =>
-    request<ObservationSearchResults>('GET', `/memory/search?project_id=${encodeURIComponent(projectId)}&q=${encodeURIComponent(q)}&limit=${limit}`),
-  recordObservation: (projectId: string, title: string, body?: string, tags?: string[]) =>
-    request<{ status: string }>('POST', '/memory/observations', { project_id: projectId, title, body, tags }),
-  linkObservations: (projectId: string, sourceObservationId: string, targetObservationId: string, reason?: string, relation = 'complements') =>
-    request('POST', '/memory/observations/link', { project_id: projectId, source_observation_id: sourceObservationId, target_observation_id: targetObservationId, reason, relation }),
-
   // ── System Health ────────────────────────────────────────────────────────
   systemHealth: () => request<SystemHealth>('GET', '/system/health'),
 
   // ── Companion applications (CVAT, Curator, JupyterHub, …) ───────────────
   listIntegrations: () => request<IntegrationStatus[]>('GET', '/integrations'),
-
-  // ── Models ──────────────────────────────────────────────────────────────
-  listModels: () => request<ModelsResponse>('GET', '/models'),
-  currentModel: () => request<CurrentModel>('GET', '/models/current'),
-  selectModel: (model: string, provider?: string) =>
-    request<{ status: string; model: string; provider: string | null }>('POST', '/models/select', { model, provider }),
-
-  // ── System Prompt ───────────────────────────────────────────────────────
-  systemPrompt: () => request<{ system_prompt: string; length: number }>('GET', '/system-prompt'),
-
-  // ── Cron Schedules ──────────────────────────────────────────────────────
-  listSchedules: () => request<ScheduleList>('GET', '/schedules'),
-  createSchedule: (name: string, schedule: string, prompt: string, timezone?: string) =>
-    request<{ status: string; cron_id: string }>('POST', '/schedules', { name, schedule, prompt, timezone }),
-  toggleSchedule: (cronId: string, enabled: boolean) =>
-    request<{ status: string; cron_id: string; enabled: boolean }>('POST', `/schedules/${encodeURIComponent(cronId)}/toggle`, { enabled }),
-  deleteSchedule: (cronId: string) => request<void>('DELETE', `/schedules/${encodeURIComponent(cronId)}`),
-  runScheduleNow: (prompt: string) => request<{ status: string; thread_id: string }>('POST', '/schedules/run-now', { prompt }),
 
   // ── Global Search ────────────────────────────────────────────────────────
   globalSearch: (q: string) => request<SearchResults>('GET', `/search?q=${encodeURIComponent(q)}`),
@@ -1080,28 +1043,6 @@ export interface Template {
   tasks: { title: string; description: string; phase: string; priority: string }[]
 }
 
-// ── MCP ──────────────────────────────────────────────────────────────────────
-
-export interface MCPServerItem {
-  name: string; label: string; description: string; tags: string[]
-  transport: string; pip_package: string | null; env_key: string | null
-  env_hint: string; env_optional: boolean; installed: boolean
-}
-export interface MCPMarketplace { servers: MCPServerItem[]; tags: string[] }
-export interface MCPInstalledServer { name: string; transport: string; command: string | null; args: string[]; url: string | null }
-export interface MCPInstalled { servers: MCPInstalledServer[] }
-
-// ── Memory / Observations ────────────────────────────────────────────────────
-
-export interface ObservationItem {
-  id: string; title: string; body: string; memory_type: string; scope: string
-}
-export interface ObservationsList { observations: ObservationItem[]; total: number }
-export interface ObservationHit {
-  id: string; title: string; body: string; score: number; tags: string[]
-}
-export interface ObservationSearchResults { results: ObservationHit[] }
-
 // ── System Health ────────────────────────────────────────────────────────────
 
 export interface SystemHealth {
@@ -1122,22 +1063,6 @@ export interface IntegrationStatus {
   http_status: number | null
   latency_ms: number
 }
-
-// ── Models ────────────────────────────────────────────────────────────────────
-
-export interface ModelEntry { short_name: string; model_id: string }
-export interface ModelProvider { name: string; models: ModelEntry[] }
-export interface ModelsResponse { providers: ModelProvider[]; default_model: string }
-export interface CurrentModel { current_model: string | null; current_provider: string | null; default_model: string }
-
-// ── Cron Schedules ────────────────────────────────────────────────────────────
-
-export interface ScheduleItem {
-  cron_id: string; name: string; schedule: string; prompt: string
-  enabled: boolean; created_at: string; updated_at: string
-}
-export interface ScheduleList { schedules: ScheduleItem[] }
-
 
 // ── Academic supervision ────────────────────────────────────────────────────
 

@@ -7,8 +7,8 @@ import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
-from ....paths import RUNS_DIR
-from ..._evoscientist import get_runner_url
+from ...settings import RUNS_DIR
+from ...settings import get_runner_url
 from ...crud.runs import (
     create_run,
     get_run,

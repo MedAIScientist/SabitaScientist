@@ -6,7 +6,7 @@ import logging
 import smtplib
 from email.mime.text import MIMEText
 
-from ._evoscientist import get_smtp_config
+from .settings import get_smtp_config
 
 logger = logging.getLogger(__name__)
 

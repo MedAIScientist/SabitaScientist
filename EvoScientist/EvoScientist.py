@@ -479,8 +479,8 @@ def _build_base_kwargs(
     base_backend, base_middleware, *, cfg=None, chat_model=None, workspace_dir=None
 ):
     """Build agent kwargs *without* MCP (fast, no subprocess spawning)."""
+    from .pm.agent_tools import PM_TOOLS
     from .tools import skill_manager, tavily_search, think_tool
-    from .tools.pm_tools import PM_TOOLS
     from .utils import load_subagents
 
     cfg = cfg if cfg is not None else _ensure_config()
@@ -532,8 +532,8 @@ def load_mcp_and_build_kwargs(
         chat_model: Explicit chat model to bind instead of
             ``_ensure_chat_model()`` (which would write module globals).
     """
+    from .pm.agent_tools import PM_TOOLS
     from .tools import skill_manager, tavily_search, think_tool
-    from .tools.pm_tools import PM_TOOLS
     from .utils import load_subagents
 
     cfg = cfg if cfg is not None else _ensure_config()

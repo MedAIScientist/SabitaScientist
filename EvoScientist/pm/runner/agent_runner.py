@@ -1,8 +1,7 @@
 """Asyncio task registry for Groq-backed agent runs with queue-based SSE streaming.
 
 Replaces the previous LangGraph-based agent runner with direct Groq API calls
-via httpx streaming. Records observations via ``EvoScientist.memory`` when
-runs complete.
+via httpx streaming.
 """
 
 from __future__ import annotations
@@ -175,11 +174,9 @@ _SYSTEM_PROMPTS: dict[str, str] = {
 }
 
 def _get_model() -> str:
-    try:
-        from ...config.settings import get_effective_config
-        return get_effective_config().pm_runner_model or DEFAULT_RUNNER_MODEL
-    except Exception:
-        return DEFAULT_RUNNER_MODEL
+    from ..settings import get_runner_model
+
+    return get_runner_model() or DEFAULT_RUNNER_MODEL
 
 
 def _get_groq_api_key() -> str:
@@ -231,10 +228,7 @@ async def _run_agent(
     project_id: str | None = None,
     publication_id: str | None = None,
 ) -> None:
-    """Execute via Groq API streaming, record observations, push events."""
-    from ...memory.observations.store import record_observation_file
-    from ...memory.project import resolve_project_id
-    from ...memory.types import MemoryScope, MemorySourceType, MemoryType
+    """Execute via Groq API streaming and push events."""
 
     prefix = AGENT_PROMPTS.get(agent_type, prompt)
     system_prompt = _SYSTEM_PROMPTS.get(agent_type, "")
@@ -305,27 +299,6 @@ async def _run_agent(
             reported_usage=reported_usage,
             duration_ms=int((time.monotonic() - started) * 1000),
         )
-
-        # Record observation via EvoScientist.memory
-        output_text = "".join(accumulated_text)
-        if output_text.strip():
-            try:
-                mem_dir = Path(workspace_dir) / ".memory"
-                project_id = resolve_project_id(workspace=workspace_dir)
-                record_observation_file(
-                    memory_dir=str(mem_dir),
-                    project_id=project_id,
-                    memory_type=MemoryType.SEMANTIC,
-                    summary=f"PM agent run: {run_id}",
-                    observation=output_text[:2000],
-                    why_it_matters=f"{agent_type} agent output for project {project_id}",
-                    scope=MemoryScope.PROJECT,
-                    source_type=MemorySourceType.TURN,
-                    source_session_id=run_id,
-                    source_agent=agent_type,
-                )
-            except Exception as obs_err:
-                logger.debug("Observation recording skipped: %s", obs_err)
 
     except asyncio.CancelledError:
         await queue.put({"type": "status", "data": "cancelled"})

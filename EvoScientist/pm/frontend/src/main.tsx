@@ -30,8 +30,6 @@ import { WikiPages }          from './pages/WikiPages'
 import { WikiPageView }       from './pages/WikiPageView'
 import { PublicationsPage }   from './pages/PublicationsPage'
 import { PublicationDetail }  from './pages/PublicationDetail'
-import { MCPPage }            from './pages/MCPPage'
-import { MemoryPage }         from './pages/MemoryPage'
 import { SystemHealthPage }   from './pages/SystemHealthPage'
 import { SettingsPage }       from './pages/SettingsPage'
 import { HelpPage }           from './pages/HelpPage'
@@ -103,8 +101,6 @@ function App() {
         <Route path="/labs/:id/wiki/:slug" element={<PrivateRoute><WikiPageView /></PrivateRoute>} />
         <Route path="/publications"    element={<PrivateRoute><PublicationsPage /></PrivateRoute>} />
         <Route path="/publications/:id" element={<PrivateRoute><PublicationDetail /></PrivateRoute>} />
-        <Route path="/mcp"       element={<PrivateRoute><MCPPage /></PrivateRoute>} />
-        <Route path="/memory"    element={<PrivateRoute><MemoryPage /></PrivateRoute>} />
         <Route path="/apps"      element={<PrivateRoute><AppsPage /></PrivateRoute>} />
         <Route path="/health"    element={<PrivateRoute><SystemHealthPage /></PrivateRoute>} />
         <Route path="/settings"  element={<PrivateRoute><SettingsPage /></PrivateRoute>} />

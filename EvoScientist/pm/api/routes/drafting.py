@@ -10,8 +10,8 @@ from pathlib import Path
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 
-from ....paths import RUNS_DIR
-from ..._evoscientist import get_runner_url
+from ...settings import RUNS_DIR
+from ...settings import get_runner_url
 from ...crud.ai_jobs import AiJobError, create_job, run_tracked
 from ...crud.ai_usage import UsageContext
 from ...crud.experiment_entries import create_entry, list_entries

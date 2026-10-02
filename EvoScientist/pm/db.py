@@ -7,7 +7,7 @@ import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
 
-from ..paths import DATA_DIR
+from .settings import DATA_DIR
 
 _SCHEMA = """
 PRAGMA foreign_keys = ON;

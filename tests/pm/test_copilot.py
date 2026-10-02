@@ -131,17 +131,18 @@ def test_link_for_created_entities() -> None:
     assert copilot.result_link("pm_create_task", {"project_id": "p1"}, "Error: nope") is None
 
 
-def test_model_choice_honours_the_configured_provider(monkeypatch) -> None:
-    """deepseek-v4-flash exists under two providers; the configured one must be used."""
-    from types import SimpleNamespace
+def test_model_choice_follows_the_environment(monkeypatch) -> None:
+    """Groq + the default model unless PM_LLM_* point somewhere else."""
+    from EvoScientist.pm import _ai, settings
 
-    from EvoScientist.llm.models import DEFAULT_MODEL
-    from EvoScientist.pm import _ai
+    for key in ("PM_LLM_MODEL", "PM_LLM_BASE_URL", "PM_LLM_API_KEY", "EVOSCIENTIST_AUXILIARY_MODEL"):
+        monkeypatch.delenv(key, raising=False)
+    assert _ai.pm_model_choice() == (settings.DEFAULT_LLM_MODEL, "api.groq.com")
 
-    monkeypatch.setattr(_ai, "get_effective_config",
-                        lambda: SimpleNamespace(auxiliary_model="deepseek-v4-flash", auxiliary_provider="deepseek"))
-    assert _ai.pm_model_choice() == ("deepseek-v4-flash", "deepseek")
-    assert _ai.pm_model_choice("gpt-x") == ("gpt-x", None)
-    monkeypatch.setattr(_ai, "get_effective_config",
-                        lambda: SimpleNamespace(auxiliary_model="", auxiliary_provider=""))
-    assert _ai.pm_model_choice() == (DEFAULT_MODEL, None)
+    monkeypatch.setenv("PM_LLM_MODEL", "deepseek-v4-flash")
+    monkeypatch.setenv("PM_LLM_BASE_URL", "https://api.deepseek.com/v1")
+    monkeypatch.setenv("PM_LLM_API_KEY", "k")
+    assert _ai.pm_model_choice() == ("deepseek-v4-flash", "api.deepseek.com")
+    chat = _ai.get_pm_chat_model()
+    assert chat.model_name == "deepseek-v4-flash"
+    assert str(chat.openai_api_base).startswith("https://api.deepseek.com")

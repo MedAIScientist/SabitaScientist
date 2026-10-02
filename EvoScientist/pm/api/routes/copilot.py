@@ -39,9 +39,9 @@ from langchain_core.messages import (
 from pydantic import BaseModel, Field
 
 from EvoScientist.pm.models import User
-from EvoScientist.tools.pm_tools import PM_TOOLS, WRITE_TOOL_NAMES, current_user_id
+from EvoScientist.pm.agent_tools import PM_TOOLS, WRITE_TOOL_NAMES, current_user_id
 
-from ....llm.models import get_chat_model
+from ..._ai import get_pm_chat_model
 from ..deps import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -72,15 +72,11 @@ TOOL_LABELS: dict[str, str] = {
     "pm_list_conferences": "Look up conferences",
     "pm_list_irbs": "Look up ethics approvals",
     "pm_global_search": "Search",
-    "pm_search_memory": "Search project memory",
 }
 
 
 def _get_model():
-    from ..._ai import pm_model_choice
-
-    model_name, provider = pm_model_choice()
-    return get_chat_model(model_name, provider=provider, temperature=0.3, streaming=True)
+    return get_pm_chat_model(temperature=0.3, streaming=True)
 
 
 def _system_prompt(context: dict | None) -> str:

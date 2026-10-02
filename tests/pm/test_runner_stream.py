@@ -51,22 +51,14 @@ def test_default_model_is_not_a_decommissioned_one() -> None:
 
 
 def test_configured_model_overrides_the_default(monkeypatch) -> None:
-    import EvoScientist.config.settings as settings
     from EvoScientist.pm.runner import agent_runner
 
-    class _Config:
-        pm_runner_model = "some/other-model"
-
-    monkeypatch.setattr(settings, "get_effective_config", lambda: _Config())
+    monkeypatch.setenv("PM_RUNNER_MODEL", "some/other-model")
     assert agent_runner._get_model() == "some/other-model"
 
 
-def test_model_falls_back_to_the_default_when_config_fails(monkeypatch) -> None:
-    import EvoScientist.config.settings as settings
+def test_model_falls_back_to_the_default_when_unset(monkeypatch) -> None:
     from EvoScientist.pm.runner import agent_runner
 
-    def _boom() -> None:
-        raise RuntimeError("config unavailable")
-
-    monkeypatch.setattr(settings, "get_effective_config", _boom)
+    monkeypatch.delenv("PM_RUNNER_MODEL", raising=False)
     assert agent_runner._get_model() == DEFAULT_RUNNER_MODEL
