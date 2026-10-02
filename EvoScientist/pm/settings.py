@@ -36,8 +36,10 @@ USER_SKILLS_DIR = _env_path("EVOSCIENTIST_SKILLS_DIR", WORKSPACE_ROOT / "skills"
 GLOBAL_SKILLS_DIR = DATA_DIR / "skills"
 
 # The model that answers the PM's direct AI calls and the copilot. It must emit
-# native tool calls for the copilot (see DEFAULT_MODEL history in git).
-DEFAULT_LLM_MODEL = "qwen/qwen3.6-27b"
+# native tool calls for the copilot. qwen/qwen3.6-27b was retired by Groq (404 on
+# 2026-10-03) and qwen3.8-27b exceeds our tier's request size with the tool schemas;
+# gpt-oss-120b answered and called the right tool 2/2 in production that day.
+DEFAULT_LLM_MODEL = "openai/gpt-oss-120b"
 DEFAULT_LLM_BASE_URL = "https://api.groq.com/openai/v1"
 
 

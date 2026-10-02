@@ -122,7 +122,7 @@ The PM imports nothing from the rest of the `EvoScientist` package
 | PM module | Replaces | What it provides |
 |---|---|---|
 | `pm/settings.py` | `paths.py`, `config/settings.py` | Paths + all PM settings from env vars (same names as before) |
-| `pm/_ai.py` | `llm.get_chat_model()`, `prompts` | `ChatOpenAI` on one OpenAI-compatible endpoint: `PM_LLM_BASE_URL` (default Groq), `PM_LLM_MODEL` (default `qwen/qwen3.6-27b`), `PM_LLM_API_KEY` (default `GROQ_API_KEY`) |
+| `pm/_ai.py` | `llm.get_chat_model()`, `prompts` | `ChatOpenAI` on one OpenAI-compatible endpoint: `PM_LLM_BASE_URL` (default Groq), `PM_LLM_MODEL` (default `openai/gpt-oss-120b`), `PM_LLM_API_KEY` (default `GROQ_API_KEY`) |
 | `pm/agent_tools.py` | `tools/pm_tools.py` | Copilot tools (permission-checked) |
 | `pm/__main__.py` | `evosci dashboard` | Entrypoint; `evosci dashboard` delegates to it |
 
