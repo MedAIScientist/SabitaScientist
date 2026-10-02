@@ -5,12 +5,10 @@ import { useAuth } from '../auth'
 import { GroupAgenda, StudentMeetingBrief } from '../components/supervision/MeetingBrief'
 import { SkillsCheck } from '../components/supervision/SkillsCheck'
 import { SemesterReport } from '../components/supervision/SemesterReport'
+import { WeekPicker, mondayOf, ymd } from '../components/supervision/WeekPicker'
 
 function currentWeekStart(): string {
-  const d = new Date()
-  const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-  return new Date(d.setDate(diff)).toISOString().slice(0, 10)
+  return ymd(mondayOf(new Date()))
 }
 
 export function WeeklyMeetingPage() {
@@ -109,18 +107,13 @@ export function WeeklyMeetingPage() {
       <aside>
         <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', color: 'var(--text-dim)' }}>Weekly meeting</div>
         <h1 style={{ fontSize: 17, margin: '4px 0 12px', color: 'var(--text-heading)' }}>Week of {week}</h1>
-        <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
-          <button onClick={() => {
-            const d = new Date(week); d.setDate(d.getDate() - 7); setWeek(d.toISOString().slice(0, 10))
-          }} style={btnGhost}>← Prev</button>
-          <button onClick={() => {
-            const d = new Date(week); d.setDate(d.getDate() + 7); setWeek(d.toISOString().slice(0, 10))
-          }} style={btnGhost}>Next →</button>
+        <div style={{ marginBottom: 14 }}>
+          <WeekPicker key={week} value={week} onChange={setWeek} />
         </div>
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-dim)', marginBottom: 8 }}>Students</div>
         {(studentIds.length === 0) && (
           <div style={{ fontSize: 13, color: 'var(--text-2)', padding: 10, border: '1px dashed var(--border)', borderRadius: 6 }}>
-            No students assigned yet. Ask an admin to assign supervisors.
+            No students yet. Students join your lab from the Labs page; approve their requests on Home.
           </div>
         )}
         {studentIds.map(id => (
