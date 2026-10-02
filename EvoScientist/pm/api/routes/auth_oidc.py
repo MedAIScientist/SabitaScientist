@@ -88,6 +88,11 @@ async def oidc_callback(
             if not user:
                 raise
 
+    # The address decides student vs professor (new accounts used to default to student).
+    from ...roles import sync_role
+
+    user = sync_role(db, user)
+
     # Issue session token
     token = create_token()
     expires_at = (datetime.now(UTC) + timedelta(hours=_TOKEN_TTL_HOURS)).isoformat()

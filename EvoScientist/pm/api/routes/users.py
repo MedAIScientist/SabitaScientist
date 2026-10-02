@@ -57,6 +57,9 @@ def create_new_user(body: UserCreate, _admin: User = Depends(require_admin)):
             is_admin=body.is_admin,
             role=body.role,
         )
+        from ...roles import sync_role
+
+        user = sync_role(get_db_path(), user)  # the address overrides student/professor
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Username already exists"
@@ -188,13 +191,15 @@ def bulk_import_users(body: BulkImportRequest, _admin: User = Depends(require_ad
     errors: list[str] = []
     for row in body.rows:
         try:
-            create_user(
+            from ...roles import sync_role
+
+            sync_role(get_db_path(), create_user(
                 get_db_path(),
                 username=row.username,
                 password_hash=hash_password(row.password),
                 email=row.email,
                 role=row.role if row.role in ("student", "professor", "admin") else "student",
-            )
+            ))
             created += 1
         except Exception as exc:
             errors.append(f"{row.username}: {exc}")

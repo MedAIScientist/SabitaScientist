@@ -1396,6 +1396,8 @@ class SupervisorAssignmentResponse(BaseModel):
     # Names, because professors may not list users and the pages showed raw ids.
     student_name: str | None = None
     professor_name: str | None = None
+    lab_id: str | None = None
+    lab_name: str | None = None
     active_from: str
     active_until: str | None
     created_at: str

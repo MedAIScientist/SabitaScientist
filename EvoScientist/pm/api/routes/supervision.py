@@ -53,12 +53,14 @@ def assign_supervisor(
     current_user: User = Depends(get_current_user),
 ):
     """Assign a supervisor to a student. Admin, the professor themselves, or an existing supervisor."""
-    if not (
-        current_user.is_admin
-        or current_user.id == body.professor_id
-        or current_user.role == "professor"
-    ):
+    from ...supervision_scope import shares_led_lab
+
+    # An admin, or the professor assigning themselves; either way only within a lab
+    # that professor leads — a professor works only with their own lab's students.
+    if not (current_user.is_admin or current_user.id == body.professor_id):
         raise HTTPException(status_code=403, detail="Not permitted to assign supervisors")
+    if not shares_led_lab(get_db_path(), body.professor_id, body.student_id):
+        raise HTTPException(status_code=409, detail="The student must be in a lab this professor leads")
     try:
         assignment = supervision_crud.assign_supervisor(
             get_db_path(), body.student_id, body.professor_id, body.active_from
@@ -87,6 +89,15 @@ def list_assignments(
     _user: User = Depends(get_current_user),
 ):
     db = get_db_path()
+    # Assignments name who supervises whom: admins see all, others only their own.
+    if not _user.is_admin:
+        professor_id = _user.id if _user.role == "professor" else None
+        if professor_id is None:
+            a = supervision_crud.get_active_supervisor(db, _user.id)
+            rows = [a] if a else []
+            return [SupervisorAssignmentResponse(id=x.id, student_id=x.student_id, professor_id=x.professor_id,
+                                                 active_from=x.active_from, active_until=x.active_until,
+                                                 created_at=x.created_at) for x in rows]
     if professor_id:
         rows = supervision_crud.list_students_of_professor(db, professor_id)
     else:
@@ -106,23 +117,24 @@ def list_assignments(
 
 @router.get("/my-students", response_model=list[SupervisorAssignmentResponse])
 def my_students(current_user: User = Depends(get_current_user)):
-    from ...crud.users import get_user_by_id
 
-    db = get_db_path()
-    rows = supervision_crud.list_students_of_professor(db, current_user.id)
-    names = {a.student_id: (u.username if (u := get_user_by_id(db, a.student_id)) else None) for a in rows}
+    from ...supervision_scope import lab_students
+
+    # The students of the labs this professor leads — the lab is the boundary.
     return [
         SupervisorAssignmentResponse(
-            id=a.id,
-            student_id=a.student_id,
-            professor_id=a.professor_id,
-            student_name=names[a.student_id],
+            id=f"lab:{s['lab_id']}:{s['student_id']}",
+            student_id=s["student_id"],
+            professor_id=current_user.id,
+            student_name=s["username"],
             professor_name=current_user.username,
-            active_from=a.active_from,
-            active_until=a.active_until,
-            created_at=a.created_at,
+            lab_id=s["lab_id"],
+            lab_name=s["lab_name"],
+            active_from=s["joined_at"],
+            active_until=None,
+            created_at=s["joined_at"],
         )
-        for a in rows
+        for s in lab_students(get_db_path(), current_user.id)
     ]
 
 
@@ -206,13 +218,14 @@ def list_reports(
 ):
     db = get_db_path()
     # Students can only see their own reports
+    from ...supervision_scope import lab_student_ids, supervises
+
     if current_user.role == "student" and not current_user.is_admin:
         student_id = current_user.id
+    elif student_id is not None and not current_user.is_admin and not supervises(db, current_user.id, student_id):
+        raise HTTPException(status_code=403, detail="This student is not in a lab you lead")
     elif student_id is None and current_user.role == "professor":
-        student_ids = [
-            a.student_id
-            for a in supervision_crud.list_students_of_professor(db, current_user.id)
-        ]
+        student_ids = lab_student_ids(db, current_user.id)
         rows = []
         for sid in student_ids:
             rows.extend(
@@ -246,8 +259,10 @@ def get_report(report_id: str, current_user: User = Depends(get_current_user)):
     report = supervision_crud.get_report(db, report_id)
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
-    if current_user.role == "student" and not current_user.is_admin and report.student_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Not your report")
+    from ...supervision_scope import can_view_student
+
+    if not can_view_student(db, current_user, report.student_id):
+        raise HTTPException(status_code=403, detail="Not permitted")
     return _report_to_response(db, report)
 
 
@@ -418,8 +433,10 @@ def record_attendance(
     week: str | None = Query(default=None),
     current_user: User = Depends(get_current_user),
 ):
-    if not (current_user.is_admin or current_user.role == "professor"):
-        raise HTTPException(status_code=403, detail="Only professors record attendance")
+    from .followups import is_supervisor
+
+    if not (current_user.is_admin or is_supervisor(get_db_path(), current_user.id, student_id)):
+        raise HTTPException(status_code=403, detail="Only the student's lab supervisor records attendance")
     week_start = week or _week_start()
     att = supervision_crud.upsert_attendance(
         get_db_path(), current_user.id, student_id, week_start, body.status, body.joined_mode, body.note
@@ -465,8 +482,10 @@ def grant_extension(
     week: str | None = Query(default=None),
     current_user: User = Depends(get_current_user),
 ):
-    if not (current_user.is_admin or current_user.role == "professor"):
-        raise HTTPException(status_code=403, detail="Only professors grant extensions")
+    from .followups import is_supervisor
+
+    if not (current_user.is_admin or is_supervisor(get_db_path(), current_user.id, student_id)):
+        raise HTTPException(status_code=403, detail="Only the student's lab supervisor grants extensions")
     week_start = week or _week_start()
     ext = supervision_crud.grant_extension(
         get_db_path(),
@@ -539,8 +558,10 @@ def list_journeys(
     student_id: str | None = Query(default=None),
     current_user: User = Depends(get_current_user),
 ):
+    from ...supervision_scope import can_view_student
+
     sid = student_id or current_user.id
-    if sid != current_user.id and not (current_user.is_admin or current_user.role == "professor"):
+    if not can_view_student(get_db_path(), current_user, sid):
         raise HTTPException(status_code=403, detail="Not permitted")
     rows = supervision_crud.list_journeys(get_db_path(), sid)
     return [
@@ -889,8 +910,9 @@ def professor_analytics(current_user: User = Depends(get_current_user)):
     if not (current_user.is_admin or current_user.role == "professor"):
         raise HTTPException(status_code=403, detail="Professor analytics only")
     db = get_db_path()
-    assignments = supervision_crud.list_students_of_professor(db, current_user.id)
-    student_ids = [a.student_id for a in assignments]
+    from ...supervision_scope import lab_student_ids
+
+    student_ids = lab_student_ids(db, current_user.id)
     if not student_ids:
         return _empty_analytics()
 

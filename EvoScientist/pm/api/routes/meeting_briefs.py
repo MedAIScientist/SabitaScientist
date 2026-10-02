@@ -137,11 +137,12 @@ def start_group_agenda(background_tasks: BackgroundTasks, current_user: User = D
         raise HTTPException(status_code=403, detail="Only supervisors prepare a group agenda")
     db = get_db_path()
     parts = []
-    for a in supervision_crud.list_students_of_professor(db, current_user.id):
-        record = student_record(db, a.student_id, weeks=1)
-        student = get_user_by_id(db, a.student_id)
+    from ...supervision_scope import lab_students
+
+    for st in lab_students(db, current_user.id):
+        record = student_record(db, st["student_id"], weeks=1)
         if record.strip():
-            parts.append(f"### Student: {student.username if student else a.student_id}\n{record}")
+            parts.append(f"### Student: {st['username']} ({st['lab_name']})\n{record}")
     job = create_job(db, kind="meeting-agenda", title="Group meeting agenda", user_id=current_user.id)
     background_tasks.add_task(run_tracked, job.id, partial(_make_brief, current_user.id, None, AGENDA_SYSTEM, "\n\n".join(parts)))
     return {"job_id": job.id}

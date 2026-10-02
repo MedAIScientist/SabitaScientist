@@ -80,6 +80,9 @@ def create_new_lab(
     body: LabCreate,
     current_user: User = Depends(get_current_user),
 ):
+    # Professors create labs and lead them; students join a professor's lab.
+    if not (current_user.is_admin or current_user.role in ("professor", "admin")):
+        raise HTTPException(status_code=403, detail="Only professors can create a lab")
     db = get_db_path()
     # Set labs.pi_id at creation as well as writing the lab_members 'pi' row, so
     # the two records of "who leads this lab" can never disagree.

@@ -39,7 +39,22 @@ def _h(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
 
+def _lab_with(client: TestClient, *student_ids: str) -> str:
+    """The professor creates a lab (becoming its PI) and adds the students to it."""
+    lab = client.post("/api/v1/labs", json={"name": "Imaging Lab"}, headers=_h(client.prof_token))
+    assert lab.status_code in (200, 201), lab.text
+    lab_id = lab.json()["id"]
+    for sid in student_ids:
+        r = client.post(f"/api/v1/labs/{lab_id}/members", json={"user_id": sid, "role": "phd"},
+                        headers=_h(client.prof_token))
+        assert r.status_code in (200, 201), r.text
+    return lab_id
+
+
 def _assign(client: TestClient) -> None:
+    """Supervision follows the lab: put the student in the professor's lab, then name
+    the professor as supervisor (only possible within that lab)."""
+    _lab_with(client, client.stud_id)
     r = client.post(
         "/api/v1/supervision/assignments",
         json={"student_id": client.stud_id, "professor_id": client.prof_id},
@@ -55,6 +70,16 @@ def test_login_returns_role(client: TestClient) -> None:
 
 
 def test_assign_supervisor_and_list_students(client: TestClient) -> None:
+    # Not in the professor's lab: no assignment, and not one of their students.
+    r = client.post(
+        "/api/v1/supervision/assignments",
+        json={"student_id": client.stud_id, "professor_id": client.prof_id},
+        headers=_h(client.prof_token),
+    )
+    assert r.status_code == 409, r.text
+    assert client.get("/api/v1/supervision/my-students", headers=_h(client.prof_token)).json() == []
+
+    _lab_with(client, client.stud_id)
     r = client.post(
         "/api/v1/supervision/assignments",
         json={"student_id": client.stud_id, "professor_id": client.prof_id},
@@ -64,7 +89,8 @@ def test_assign_supervisor_and_list_students(client: TestClient) -> None:
 
     r = client.get("/api/v1/supervision/my-students", headers=_h(client.prof_token))
     assert r.status_code == 200
-    assert any(a["student_id"] == client.stud_id for a in r.json())
+    (row,) = r.json()
+    assert row["student_id"] == client.stud_id and row["lab_name"] == "Imaging Lab"
 
     r = client.get("/api/v1/supervision/my-supervisor", headers=_h(client.stud_token))
     assert r.status_code == 200
@@ -110,6 +136,7 @@ def test_weekly_report_submit_and_review(client: TestClient) -> None:
 
 
 def test_attendance_and_extension(client: TestClient) -> None:
+    _lab_with(client, client.stud_id)
     r = client.post(
         "/api/v1/supervision/attendance?student_id="
         + client.stud_id,
@@ -229,12 +256,8 @@ def test_student_cannot_review(client: TestClient) -> None:
 
 
 def test_professor_analytics(client: TestClient) -> None:
-    # Assign student + one submitted report so KPIs are non-zero
-    client.post(
-        "/api/v1/supervision/assignments",
-        json={"student_id": client.stud_id, "professor_id": client.prof_id},
-        headers=_h(client.prof_token),
-    )
+    # Student in the professor's lab + one submitted report so KPIs are non-zero
+    _lab_with(client, client.stud_id)
     r = client.post("/api/v1/supervision/weekly/current", headers=_h(client.stud_token))
     report_id = r.json()["id"]
     client.put(
@@ -791,7 +814,8 @@ def test_cohort_view_compares_students_on_recorded_data(client: TestClient, tmp_
                headers=_h(client.stud_token))
     # A second student with nothing recorded.
     quiet = create_user(tmp_db, "quiet", hash_password("secret123"), role="student")
-    client.post("/api/v1/supervision/assignments", json={"student_id": quiet.id, "professor_id": client.prof_id},
+    lab_id = client.get("/api/v1/labs", headers=_h(client.prof_token)).json()[0]["id"]
+    client.post(f"/api/v1/labs/{lab_id}/members", json={"user_id": quiet.id, "role": "ms"},
                 headers=_h(client.prof_token))
 
     view = client.get("/api/v1/supervision/cohort", headers=_h(client.prof_token)).json()
@@ -810,3 +834,59 @@ def test_cohort_view_is_for_supervisors(client: TestClient) -> None:
     assert client.get("/api/v1/supervision/cohort", headers=_h(client.stud_token)).status_code == 403
     assert client.get("/api/v1/supervision/cohort", params={"term": "nonsense"},
                       headers=_h(client.prof_token)).status_code == 400
+
+
+
+# ── The lab is the boundary ──────────────────────────────────────────────────
+
+
+def test_professor_sees_only_students_of_labs_they_lead(client: TestClient, tmp_db) -> None:
+    """A professor of another lab — or a non-leading member of the same lab — sees nothing."""
+    from EvoScientist.pm.crud.users import create_user
+
+    lab_id = _lab_with(client, client.stud_id)
+    report_id = client.post("/api/v1/supervision/weekly/current", headers=_h(client.stud_token)).json()["id"]
+    client.post(f"/api/v1/supervision/reports/{report_id}/submit", headers=_h(client.stud_token))
+
+    create_user(tmp_db, "other_prof", hash_password("secret123"), role="professor")
+    other = client.post("/api/v1/auth/login", json={"username": "other_prof", "password": "secret123"}).json()
+    o = _h(other["token"])
+    client.post("/api/v1/labs", json={"name": "Other Lab"}, headers=o)  # leads a different lab
+    sid = client.stud_id
+
+    assert client.get("/api/v1/supervision/my-students", headers=o).json() == []
+    assert client.get("/api/v1/supervision/reports", headers=o).json() == []
+    assert client.get("/api/v1/supervision/reports", params={"student_id": sid}, headers=o).status_code == 403
+    assert client.get(f"/api/v1/supervision/reports/{report_id}", headers=o).status_code == 403
+    assert client.get("/api/v1/supervision/journeys", params={"student_id": sid}, headers=o).status_code == 403
+    assert client.get("/api/v1/supervision/readiness", params={"student_id": sid}, headers=o).status_code == 403
+    assert client.post("/api/v1/supervision/attendance", params={"student_id": sid}, json={"status": "on_time"},
+                       headers=o).status_code == 403
+    assert client.post(f"/api/v1/supervision/reports/{report_id}/review", json={"review_status": "reviewed"},
+                       headers=o).status_code == 403
+    assert client.get("/api/v1/ai/usage/summary", params={"scope": "user", "user_id": sid},
+                      headers=o).status_code == 403
+    assert client.get("/api/v1/ai/usage/summary", params={"scope": "all"}, headers=o).status_code == 403
+    assert client.get("/api/v1/supervision/cohort", headers=o).json()["rows"] == []
+    assert client.get("/api/v1/supervision/assignments", headers=o).json() == []
+
+    # Joining the lab as a non-leading member (postdoc) does not make them a supervisor.
+    client.post(f"/api/v1/labs/{lab_id}/members", json={"user_id": other["user_id"], "role": "postdoc"},
+                headers=_h(client.prof_token))
+    assert client.get("/api/v1/supervision/my-students", headers=o).json() == []
+
+    # The lab's PI sees the student and their report.
+    p = _h(client.prof_token)
+    assert [r["student_id"] for r in client.get("/api/v1/supervision/reports", headers=p).json()] == [sid]
+    assert client.get(f"/api/v1/supervision/reports/{report_id}", headers=p).status_code == 200
+
+
+def test_leaving_the_lab_ends_supervision(client: TestClient) -> None:
+    lab_id = _lab_with(client, client.stud_id)
+    p = _h(client.prof_token)
+    assert len(client.get("/api/v1/supervision/my-students", headers=p).json()) == 1
+    r = client.delete(f"/api/v1/labs/{lab_id}/members/{client.stud_id}", headers=p)
+    assert r.status_code in (200, 204), r.text
+    assert client.get("/api/v1/supervision/my-students", headers=p).json() == []
+    assert client.get("/api/v1/supervision/readiness", params={"student_id": client.stud_id},
+                      headers=p).status_code == 403

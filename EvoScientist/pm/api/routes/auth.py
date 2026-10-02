@@ -27,6 +27,9 @@ def login(body: LoginRequest):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
         )
+    from ...roles import sync_role
+
+    user = sync_role(get_db_path(), user)  # @std.* -> student, staff domain -> professor
     token = create_token()
     expires_at = (datetime.now(UTC) + timedelta(hours=_TOKEN_TTL_HOURS)).isoformat()
     with get_db(get_db_path()) as conn:

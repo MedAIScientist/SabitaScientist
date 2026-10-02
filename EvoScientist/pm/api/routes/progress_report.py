@@ -54,7 +54,11 @@ def build_report_html(db, student_id: str, term: str) -> str:
     s, e = start.isoformat(), end.isoformat()
     student = get_user_by_id(db, student_id)
     assignment = supervision_crud.get_active_supervisor(db, student_id)
-    supervisor = get_user_by_id(db, assignment.professor_id) if assignment else None
+    from ...supervision_scope import lab_leaders_of
+
+    leaders = lab_leaders_of(db, student_id)
+    supervisor = get_user_by_id(db, assignment.professor_id) if assignment else (
+        get_user_by_id(db, leaders[0]["professor_id"]) if leaders else None)
     journey = supervision_crud.get_active_journey(db, student_id)
 
     reports = sorted(supervision_crud.list_reports(db, student_id=student_id, date_from=s, date_to=e),

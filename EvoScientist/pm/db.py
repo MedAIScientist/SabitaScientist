@@ -888,6 +888,20 @@ CREATE TABLE IF NOT EXISTS meeting_briefs (
 );
 CREATE INDEX IF NOT EXISTS idx_meeting_briefs ON meeting_briefs(professor_id, student_id, created_at);
 
+-- A student asks to join a lab; the lab's PI (or lab admin) approves or declines.
+CREATE TABLE IF NOT EXISTS lab_join_requests (
+    id          TEXT PRIMARY KEY,
+    lab_id      TEXT NOT NULL REFERENCES labs(id) ON DELETE CASCADE,
+    user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    lab_role    TEXT NOT NULL CHECK(lab_role IN ('phd', 'ms')),
+    message     TEXT,
+    status      TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'declined')),
+    created_at  TEXT NOT NULL,
+    decided_at  TEXT,
+    decided_by  TEXT REFERENCES users(id) ON DELETE SET NULL
+);
+CREATE INDEX IF NOT EXISTS idx_lab_join_requests ON lab_join_requests(lab_id, status);
+
 -- Semester skills check: a self-assessment and the supervisor's, 1–4 per skill.
 CREATE TABLE IF NOT EXISTS skill_assessments (
     id           TEXT PRIMARY KEY,

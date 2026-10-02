@@ -100,7 +100,9 @@ def cohort(term: str | None = Query(None), current_user: User = Depends(get_curr
     db = get_db_path()
     t = term or term_of(date.today())
     term_range(t)  # validates the term
-    ids = [a.student_id for a in supervision_crud.list_students_of_professor(db, current_user.id)]
+    from ...supervision_scope import lab_student_ids
+
+    ids = lab_student_ids(db, current_user.id)
     rows = sorted((_row(db, sid, t) for sid in ids), key=lambda r: r.name.lower())
     medians = {
         key: _med([v for r in rows if (v := getattr(r, key)) is not None])
