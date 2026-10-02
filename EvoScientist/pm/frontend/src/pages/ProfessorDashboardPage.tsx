@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { supervisionApi } from '../api'
 import { ApprovalsInbox } from '../components/imaging/ApprovalsInbox'
 import { CohortView } from '../components/supervision/CohortView'
+import { JoinRequestsInbox, NoLabPrompt } from '../components/supervision/LabJoin'
 import { useAuth } from '../auth'
 
 /** Professor group overview: KPIs, trends, workload, and what needs attention. */
@@ -43,6 +44,8 @@ export function ProfessorDashboardPage() {
         </div>
       </div>
 
+      <NoLabPrompt />
+      <JoinRequestsInbox />
       <ApprovalsInbox />
       <CohortView />
 

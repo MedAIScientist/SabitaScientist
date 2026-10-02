@@ -15,15 +15,9 @@ from .audit_middleware import AuditMiddleware
 from .rate_limiter import RateLimitMiddleware
 from .routes import (
     admissions,
-    ai_tools,
     ai_jobs,
+    ai_tools,
     ai_usage,
-    followups,
-    meeting_briefs,
-    skills,
-    progress_report,
-    cohort,
-    imaging,
     assists,
     attachments,
     audit,
@@ -31,6 +25,7 @@ from .routes import (
     auth_oidc,
     bibliography,
     bulk,
+    cohort,
     compute,
     conferences,
     copilot,
@@ -43,25 +38,31 @@ from .routes import (
     experiments,
     export_routes,
     exports,
+    followups,
     grants,
     help,
+    imaging,
     integrations,
     irb,
+    lab_join,
     labs,
     literature_review,
     mcp,
+    meeting_briefs,
     memory_routes,
     middleware_routes,
     patents,
     peer_review,
     phases,
     pipelines,
+    progress_report,
     projects,
     publications,
     runs,
     sandboxes,
     search,
     settings_routes,
+    skills,
     supervision,
     task_history,
     tasks,
@@ -138,6 +139,8 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     app.include_router(
         attachments.global_router, prefix="/api/v1", tags=["attachments"]
     )
+    # before labs: /labs/join-requests/* must not be read as /labs/{lab_id}
+    app.include_router(lab_join.router, prefix="/api/v1/labs", tags=["labs"])
     app.include_router(labs.router, prefix="/api/v1/labs", tags=["labs"])
     app.include_router(templates.router, prefix="/api/v1/templates", tags=["templates"])
     app.include_router(drafting.router, prefix="/api/v1", tags=["drafting"])

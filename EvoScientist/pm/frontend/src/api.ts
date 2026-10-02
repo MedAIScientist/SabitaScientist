@@ -277,6 +277,12 @@ export const api = {
     request<LabMember_>('POST', `/labs/${labId}/members`, { user_id: userId, role }),
   removeLabMember: (labId: string, userId: string) =>
     request<void>('DELETE', `/labs/${labId}/members/${userId}`),
+  requestToJoinLab: (labId: string, lab_role: 'phd' | 'ms', message?: string) =>
+    request<LabJoinRequest>('POST', `/labs/${labId}/join-requests`, { lab_role, message }),
+  myLabJoinRequests: () => request<LabJoinRequest[]>('GET', '/labs/join-requests/mine'),
+  pendingLabJoinRequests: () => request<LabJoinRequest[]>('GET', '/labs/join-requests/pending'),
+  decideLabJoinRequest: (labId: string, id: string, decision: 'approve' | 'decline') =>
+    request<LabJoinRequest>('POST', `/labs/${labId}/join-requests/${id}/${decision}`),
 
   // ── Publications ──────────────────────────────────────────────────────────
   listPublications: (projectId?: string, status?: string) => {
@@ -527,6 +533,11 @@ export interface Lab {
   members: LabMember_[]
   member_count: number
   can_manage: boolean
+}
+export interface LabJoinRequest {
+  id: string; lab_id: string; lab_name: string; user_id: string; username: string
+  lab_role: 'phd' | 'ms'; message: string | null
+  status: 'pending' | 'approved' | 'declined'; created_at: string; decided_at: string | null
 }
 export interface LabMember_ { user_id: string; username: string; role: string; joined_at: string }
 export interface Task {

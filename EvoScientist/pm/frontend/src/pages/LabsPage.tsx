@@ -1,15 +1,18 @@
 import React, { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, Lab } from '../api'
 import { useAuth } from '../auth'
 
 export function LabsPage() {
-  const { token } = useAuth()
+  const { token, role, isAdmin, username } = useAuth()
   const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const isStudent = role === 'student' && !isAdmin
   const [labs, setLabs] = useState<Lab[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [showForm, setShowForm] = useState(false)
+  const [showForm, setShowForm] = useState(params.get('new') === '1')
   const [newName, setNewName] = useState('')
   const [newDept, setNewDept] = useState('')
   const [newUni, setNewUni] = useState('')
@@ -62,12 +65,17 @@ export function LabsPage() {
           <h1 className="page-title">Labs</h1>
         </div>
 
-        <button
-          onClick={() => { setShowForm(f => !f); setCreateError(null) }} className="btn btn-primary">+ New lab</button>
+        {!isStudent && <button
+          onClick={() => { setShowForm(f => !f); setCreateError(null) }} className="btn btn-primary">+ New lab</button>}
       </div>
 
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 32px 40px' }}>
-        {showForm && (
+        {isStudent && (
+          <p style={{ color: 'var(--text-2)', margin: '0 0 18px' }}>
+            Ask to join your professor's lab; once the PI approves, they supervise your progress.
+          </p>
+        )}
+        {showForm && !isStudent && (
           <form onSubmit={handleCreate} style={{
             background: 'var(--surface-card)',
             border: '1px solid rgba(var(--accent-rgb),0.2)',
@@ -152,12 +160,33 @@ export function LabsPage() {
                     </div>
                   </div>
                 </div>
-                <span style={{ color: 'var(--text-3)', fontSize: 17 }}>→</span>
+                {isStudent && !lab.members.some(m => m.username === username)
+                  ? <JoinButton lab={lab} />
+                  : <span style={{ color: 'var(--text-3)', fontSize: 17 }}>→</span>}
               </div>
             ))}
           </div>
         )}
       </div>
     </div>
+  )
+}
+
+function JoinButton({ lab }: { lab: Lab }) {
+  const qc = useQueryClient()
+  const { data: mine = [] } = useQuery({ queryKey: ['lab-join-mine'], queryFn: api.myLabJoinRequests })
+  const join = useMutation({
+    mutationFn: (labRole: 'phd' | 'ms') => api.requestToJoinLab(lab.id, labRole),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['lab-join-mine'] }),
+  })
+  const last = mine.find(r => r.lab_id === lab.id)
+  if (last?.status === 'pending') return <span className="chip">Request sent</span>
+  return (
+    <span onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      {last?.status === 'declined' && <span className="chip">Declined</span>}
+      {join.isError && <span style={{ color: '#f43f5e', fontSize: 14 }}>{(join.error as Error).message}</span>}
+      <button className="btn" disabled={join.isPending} onClick={() => join.mutate('phd')}>Join as PhD</button>
+      <button className="btn" disabled={join.isPending} onClick={() => join.mutate('ms')}>Join as MS</button>
+    </span>
   )
 }
