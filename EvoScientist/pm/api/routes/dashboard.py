@@ -1,4 +1,4 @@
-"""Admin and PI dashboard endpoints for cross-lab analytics & EvoScientist system health."""
+"""Admin and PI dashboard endpoints for cross-lab analytics & AI system health."""
 
 from __future__ import annotations
 
@@ -14,27 +14,21 @@ router = APIRouter()
 
 @router.get("/system/health")
 def system_health(current_user: User = Depends(get_current_user)):
-    """EvoScientist system health — Groq, skills count.
-
-    Returns the status of EvoScientist's runtime infrastructure so the PM
-    dashboard can display real-time system health indicators.
-    """
+    """AI configuration status: models in use, whether keys are set, skills count."""
     import os
 
-    groq_key = os.environ.get("GROQ_API_KEY", "")
-    skills = 0
-    try:
-        from ....paths import GLOBAL_SKILLS_DIR, USER_SKILLS_DIR
-        for base in (USER_SKILLS_DIR, GLOBAL_SKILLS_DIR):
-            if base.exists() and base.is_dir():
-                skills += sum(1 for e in base.iterdir() if e.is_dir() and (e / "SKILL.md").exists())
-    except Exception:
-        skills = -1
-    # The models actually in use. "mixtral-8x7b-32768" used to be reported here as a
-    # constant, long after the runner moved to another model.
+    from ... import settings
     from ..._ai import pm_model_choice
     from ...runner.agent_runner import _get_model as runner_model
 
+    skills = sum(
+        1
+        for base in (settings.USER_SKILLS_DIR, settings.GLOBAL_SKILLS_DIR)
+        if base.is_dir()
+        for e in base.iterdir()
+        if e.is_dir() and (e / "SKILL.md").exists()
+    )
+    groq_key = os.environ.get("GROQ_API_KEY", "")
     assistant_model, assistant_provider = pm_model_choice()
     return {
         "groq": {"configured": bool(groq_key), "model": runner_model()},

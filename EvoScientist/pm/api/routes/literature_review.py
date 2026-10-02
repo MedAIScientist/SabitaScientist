@@ -73,7 +73,7 @@ async def run_literature_review(
         focus=body.focus_area or "general",
         depth=body.depth,
     )
-    from ....paths import RUNS_DIR
+    from ...settings import RUNS_DIR
     run_id = f"litreview-{project_id}-{__import__('time').time():.0f}"
     workspace_dir = str(RUNS_DIR / "research" / run_id)
 

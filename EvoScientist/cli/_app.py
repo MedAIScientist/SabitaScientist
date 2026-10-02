@@ -78,34 +78,10 @@ def dashboard(
     runner_port: int = typer.Option(8001, "--runner-port", help="Port for the runner service"),
     open: bool = typer.Option(True, "--open/--no-open", help="Open browser after starting"),
 ) -> None:
-    """Start the project management dashboard (+ EvoScientist runner service)."""
-    import os
+    """Start the project management dashboard (+ its AI runner)."""
     import threading
 
-    import uvicorn
-
-    from EvoScientist.pm.api.app import create_app
-    from EvoScientist.pm.runner.main import create_runner_app
-
-    # Start runner service in a background daemon thread
-    runner_server = uvicorn.Server(
-        uvicorn.Config(
-            create_runner_app(),
-            host="127.0.0.1",
-            port=runner_port,
-            log_level="error",
-        )
-    )
-
-    def _start_runner() -> None:
-        import asyncio
-        asyncio.run(runner_server.serve())
-
-    runner_thread = threading.Thread(target=_start_runner, daemon=True)
-    runner_thread.start()
-
-    # Tell PM backend where the runner lives
-    os.environ["RUNNER_URL"] = f"http://127.0.0.1:{runner_port}"
+    from EvoScientist.pm.__main__ import serve
 
     if open:
         import time
@@ -117,4 +93,4 @@ def dashboard(
 
         threading.Thread(target=_open_browser, daemon=True).start()
 
-    uvicorn.run(create_app(), host=host, port=port, log_level="info")
+    serve(host, port, runner_port)

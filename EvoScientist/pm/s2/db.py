@@ -12,7 +12,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
-from .._evoscientist import get_s2_db_path
+from ..settings import get_s2_db_path
 
 S2_DB_PATH = get_s2_db_path()
 

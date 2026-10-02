@@ -13,8 +13,9 @@ services:
       dockerfile: Dockerfile
     image: evoscientist:prod
     container_name: evoscientist
-    entrypoint: ["tini", "--", "evosci"]
-    command: ["dashboard", "--host", "0.0.0.0", "--no-open"]
+    # The PM runs on its own; the EvoScientist CLI agent is not started or imported.
+    entrypoint: ["tini", "--", "python", "-m", "EvoScientist.pm"]
+    command: ["--host", "0.0.0.0"]
     expose:
       - "7860"
       - "8001"

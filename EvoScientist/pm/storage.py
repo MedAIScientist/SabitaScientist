@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
 from typing import BinaryIO
 
-from ._evoscientist import get_garage_config
+from .settings import get_garage_config
 
 try:
     import boto3

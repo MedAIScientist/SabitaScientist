@@ -6,7 +6,7 @@ from functools import partial
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 
-from ....paths import RUNS_DIR
+from ...settings import RUNS_DIR
 from ...crud.ai_jobs import create_job, run_tracked
 from ...crud.publications import (
     create_review,

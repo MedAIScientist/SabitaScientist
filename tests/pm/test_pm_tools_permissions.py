@@ -15,7 +15,7 @@ from EvoScientist.pm.crud.experiments import create_experiment
 from EvoScientist.pm.crud.projects import add_member, create_project
 from EvoScientist.pm.crud.tasks import list_tasks
 from EvoScientist.pm.crud.users import create_user
-from EvoScientist.tools import pm_tools as t
+from EvoScientist.pm import agent_tools as t
 
 
 @pytest.fixture
@@ -45,7 +45,6 @@ def test_outsider_cannot_read_or_write_a_project(world) -> None:
         t.pm_create_experiment.invoke({"project_id": pid, "name": "sneaky"}),
         t.pm_list_experiment_entries.invoke({"experiment_id": world["exp"].id}),
         t.pm_add_experiment_entry.invoke({"experiment_id": world["exp"].id, "entry_type": "note", "title": "x"}),
-        t.pm_search_memory.invoke({"project_id": pid, "query": "retina"}),
     ):
         assert result.startswith("Error:"), result
         assert "Secret study" not in result

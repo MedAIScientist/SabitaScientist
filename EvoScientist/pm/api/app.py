@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from ...config.settings import get_effective_config
+from .. import settings as pm_settings
 from ..db import configure_db_path, create_schema
 from .audit_middleware import AuditMiddleware
 from .rate_limiter import RateLimitMiddleware
@@ -47,10 +47,7 @@ from .routes import (
     lab_join,
     labs,
     literature_review,
-    mcp,
     meeting_briefs,
-    memory_routes,
-    middleware_routes,
     patents,
     peer_review,
     phases,
@@ -61,7 +58,6 @@ from .routes import (
     runs,
     sandboxes,
     search,
-    settings_routes,
     skills,
     supervision,
     task_history,
@@ -91,19 +87,14 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     # Student vs professor follows the institutional address (see pm/roles.py).
     from ..roles import sync_all_roles
     sync_all_roles(db_path)
-    cfg = get_effective_config()
 
     app = FastAPI(
         title="EvoScientist PM API",
         version="1.0.0",
-        docs_url="/api/docs" if cfg.pm_docs_enabled else None,
+        docs_url="/api/docs" if pm_settings.docs_enabled() else None,
         redoc_url=None,
     )
-    cors_origins = (
-        ["*"]
-        if not cfg.pm_cors_origins or cfg.pm_cors_origins == "*"
-        else [o.strip() for o in cfg.pm_cors_origins.split(",") if o.strip()]
-    )
+    cors_origins = pm_settings.get_cors_origins() or ["*"]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cors_origins,
@@ -163,16 +154,6 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     app.include_router(cvat.router, prefix="/api/v1", tags=["cvat"])
     app.include_router(webknossos.router, prefix="/api/v1", tags=["webknossos"])
     app.include_router(patents.router, prefix="/api/v1", tags=["patents"])
-    app.include_router(mcp.router, prefix="/api/v1", tags=["mcp"])
-    app.include_router(
-        memory_routes.router, prefix="/api/v1", tags=["memory"]
-    )
-    app.include_router(
-        middleware_routes.router, prefix="/api/v1", tags=["middleware"]
-    )
-    app.include_router(
-        settings_routes.router, prefix="/api/v1", tags=["settings"]
-    )
     app.include_router(grants.router, prefix="/api/v1/grants", tags=["grants"])
     app.include_router(help.router, prefix="/api/v1", tags=["help"])
     app.include_router(copilot.router, prefix="/api/v1", tags=["copilot"])

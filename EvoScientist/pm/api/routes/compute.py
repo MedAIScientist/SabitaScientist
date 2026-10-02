@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from ....paths import DATA_DIR
+from ...settings import DATA_DIR
 from ...compute.base import ComputeResource, get_backend
 from ...crud.experiment_entries import create_entry
 from ...crud.experiments import get_experiment

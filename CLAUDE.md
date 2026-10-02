@@ -19,7 +19,7 @@ uv run ruff check .
 uv run ruff format .
 
 # Run the PM dashboard locally
-uv run EvoSci dashboard --host 0.0.0.0
+uv run python -m EvoScientist.pm --host 0.0.0.0   # or: uv run EvoSci dashboard
 
 # Run agent locally
 EvoSci                          # interactive TUI
@@ -28,17 +28,19 @@ EvoSci onboard                  # interactive config wizard
 
 ## PM Module Architecture
 
-The **Project Management (PM) module** lives at `EvoScientist/pm/` — a full-stack FastAPI + SQLite + React SPA for running a university research ecosystem. It is deeply integrated with EvoScientist's own infrastructure: paths, config, LLM, tools, memory, sessions, prompts, gateway, and langgraph dev.
+The **Project Management (PM) module** lives at `EvoScientist/pm/` — a full-stack FastAPI + SQLite + React SPA for running a university research ecosystem. It runs standalone: it imports nothing from the rest of the EvoScientist package (see "Standalone PM" below).
 
 ```
 pm/
-  _evoscientist.py  # Bridge: EvoScientist paths, config, env resolution
-  _ai.py            # Direct LLM via get_chat_model() + skills + memory + tools
+  settings.py       # Paths + config from env vars
+  _ai.py            # Direct LLM (OpenAI-compatible endpoint) + skill guidance
+  agent_tools.py    # Copilot tools
+  __main__.py       # python -m EvoScientist.pm
   api/              # ~65 FastAPI endpoints across 30 route files
     routes/         # Auth, projects, tasks, experiments, publications,
     |               # labs, grants, conferences, IRB, wiki, search, audit,
     |               # drafting, ai_tools, compute, peer_review, bibliography,
-    |               # mcp, memory_routes, middleware_routes, dashboard
+    |               # dashboard, copilot, supervision, ...
     audit_middleware.py   # Auto-logs all mutations
     rate_limiter.py       # 200 req/min per IP
     soft_delete.py        # Soft delete helpers
@@ -51,10 +53,10 @@ pm/
   templates/        # YAML project templates (life-science, medical, ml-research)
   db.py             # 26 tables, 7 migrations (path via EvoScientist.paths.DATA_DIR)
   models.py         # 25+ dataclasses
-  notifications.py  # Email via EvoScientistConfig (email_smtp_*)
-  oidc.py           # Microsoft O365 SSO via EvoScientistConfig (pm_oidc_*)
+  notifications.py  # Email (EMAIL_SMTP_* env vars)
+  oidc.py           # Microsoft O365 SSO (OIDC_* env vars)
   auth.py           # bcrypt + token auth
-  storage.py        # S3-compatible object storage via EvoScientistConfig
+  storage.py        # S3-compatible object storage (GARAGE_* env vars)
 ```
 
 ### Database — 26 tables
@@ -89,10 +91,7 @@ pm/
 | `/admin/stats` | System stats | Cross-lab analytics |
 | `/pi/stats` | Lab analytics | Mentorship + publications |
 | `/export/*` | CSV/JSON | Data export |
-| `/mcp/*` | Marketplace + installed | MCP server management |
-| `/memory/*` | Observations + search + workers + skills | EvoScientist memory subsystem |
-| `/middleware/available` | List | Agent middleware catalog |
-| `/system/health` | Health check | LangGraph dev + skills status |
+| `/system/health` | Health check | AI models, keys configured, skills count |
 
 ### AI-Powered Features
 
@@ -106,29 +105,28 @@ pm/
 | `POST /projects/{id}/validate-methodology` | runner | Methods review |
 | `POST /projects/{id}/verify-citations` | runner + S2 DB | Citation verification |
 | `POST /projects/{id}/literature-review` | runner | Structured lit review |
-| `POST /projects/{id}/experiments/{id}/generate-figures` | **direct LLM** via `get_chat_model()` | Publication-quality figures |
+| `POST /projects/{id}/experiments/{id}/generate-figures` | **direct LLM** | Publication-quality figures |
 | `POST /publications/{id}/respond-to-reviewers` | runner | Reviewer response letter |
 | `POST /publications/{id}/revise` | runner | Revise existing text |
 | `POST /publications/{id}/generate-ai-review` | runner | AI peer review |
 
-All AI endpoints can optionally load EvoScientist skill SKILL.md files for guidance.
-Direct LLM endpoints use `EvoScientist.llm.get_chat_model()` (200+ models, provider routing).
+AI endpoints can load SKILL.md files (from `skills/` dirs) for guidance.
+Direct LLM endpoints use `pm/_ai.py` (one OpenAI-compatible endpoint; Groq by default).
 
-### EvoScientist Integration Points
+### Standalone PM (no EvoScientist core)
 
-| EvoScientist module | PM integration | What it provides |
+The PM imports nothing from the rest of the `EvoScientist` package
+(`tests/pm/test_standalone.py` enforces it). Production starts it with
+`python -m EvoScientist.pm --host 0.0.0.0` (API + SPA on :7860, runner on :8001).
+
+| PM module | Replaces | What it provides |
 |---|---|---|
-| `paths.py` | `pm/_evoscientist.py` | DATA_DIR, WORKSPACE_ROOT, RUNS_DIR |
-| `config/settings.py` | `pm/_evoscientist.py` | 16 PM config fields, `get_effective_config()` |
-| `llm/models.py` | `pm/_ai.py` | `get_chat_model()` for direct LLM access |
-| `prompts.py` | `pm/_ai.py` | WRITING_GUIDELINES, REPORT_TEMPLATE |
-| `tools/search.py` | `pm/_ai.py` | `tavily_search()` for web research |
-| `tools/think.py` | `pm/_ai.py` | `think_tool()` for structured reasoning |
-| `memory/` | `pm/runner/agent_runner.py`, `pm/_ai.py` | `record_observation_file()`, `search_observation_files()`, `build_observation_index_context()` |
-| `gateway/local.py` | `pm/runner/agent_runner.py` | `LocalThreadStore` for thread ID generation |
-| `sessions.py` | `pm/runner/agent_runner.py` | `get_checkpointer()` for persistent agent checkpoints |
-| `langgraph_dev/` | `pm/api/routes/dashboard.py` | `is_langgraph_dev_running()` for health checks |
-| `mcp/` | `pm/api/routes/mcp.py` | `install_mcp_server()`, `fetch_marketplace_index()` |
+| `pm/settings.py` | `paths.py`, `config/settings.py` | Paths + all PM settings from env vars (same names as before) |
+| `pm/_ai.py` | `llm.get_chat_model()`, `prompts` | `ChatOpenAI` on one OpenAI-compatible endpoint: `PM_LLM_BASE_URL` (default Groq), `PM_LLM_MODEL` (default `openai/gpt-oss-120b`), `PM_LLM_API_KEY` (default `GROQ_API_KEY`) |
+| `pm/agent_tools.py` | `tools/pm_tools.py` | Copilot tools (permission-checked) |
+| `pm/__main__.py` | `evosci dashboard` | Entrypoint; `evosci dashboard` delegates to it |
+
+Removed as EvoScientist-agent-only: `/mcp`, `/memory`, `/middleware`, `/models`, `/system-prompt`, `/schedules` routes and the MCP/Memory pages.
 
 ### Frontend Pages (29+)
 
@@ -151,9 +149,7 @@ Direct LLM endpoints use `EvoScientist.llm.get_chat_model()` (200+ models, provi
 | `/irb` | IRBPage | Ethics approvals |
 | `/admissions` | AdmissionsPage | Applicant pipeline |
 | `/admissions/:id` | AdmissionDetail | Review, aid decisions |
-| `/mcp` | MCPPage | Browse marketplace, install/remove |
-| `/memory` | MemoryPage | Search/record/link observations |
-| `/health` | SystemHealthPage | LangGraph dev, skills, runner status |
+| `/health` | SystemHealthPage | AI models, skills, runner status |
 | `/analytics` | AnalyticsPage | Cross-lab stats |
 | `/admin` | AdminDashboard | System-wide admin |
 | `/users` | UsersPage | User CRUD |
@@ -162,23 +158,23 @@ Direct LLM endpoints use `EvoScientist.llm.get_chat_model()` (200+ models, provi
 
 ### PM Tools (Agent Access)
 
-9 tools registered in the EvoScientist agent (`tools/pm_tools.py`) allowing AI to create projects, tasks, experiments, and entries directly. Agent runs in PM also record observations to `EvoScientist.memory` for cross-session context.
+The copilot's tools live in `pm/agent_tools.py`: they read and (after user confirmation) create projects, tasks, experiments, entries, papers and labs, re-checking the signed-in user's permissions.
 
 ### Configuration
 
-All PM configuration is managed through `EvoScientistConfig` (added to `config/settings.py` with `_ENV_MAPPINGS`). Legacy env vars still work via mappings.
+All PM configuration is read from environment variables in `pm/settings.py` (no config.yaml).
 
 | Config Field | Env Var | Purpose |
 |---|---|---|
 | `pm_db_path` | `EVOSCIENTIST_PM_DB` | PM SQLite DB path |
-| `pm_runner_url` | — | Agent runner URL (default: :8001) |
+| `pm_runner_url` | `PM_RUNNER_URL` | Agent runner URL (default: :8001) |
 | `pm_base_url` | `PM_BASE_URL` | PM web UI base URL |
 | `pm_smtp_from` | `PM_SMTP_FROM` | Notification sender address |
 | `pm_max_upload_mb` | `PM_MAX_UPLOAD_MB` | Max attachment upload size |
 | `pm_garage_*` | `GARAGE_*` | S3/Garage object storage |
 | `pm_oidc_*` | `OIDC_*` | Microsoft 365 SSO |
 | `pm_s2_db_path` | `S2_DB_PATH` | Semantic Scholar citation DB |
-| `email_smtp_*` | — | Shared EvoScientist email settings |
+| `email_smtp_*` | `EMAIL_SMTP_HOST/PORT/USERNAME/PASSWORD/USE_TLS` | Notification e-mail |
 
 ### Deployment
 

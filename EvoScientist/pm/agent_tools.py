@@ -605,35 +605,6 @@ def pm_global_search(query: str) -> str:
     return "\n".join(lines) if lines else "No results found."
 
 
-# ── Memory ────────────────────────────────────────────────────────────────
-
-
-@tool
-def pm_search_memory(project_id: str, query: str) -> str:
-    """Search AI memory/observations for a project.
-
-    Args:
-        project_id: Project ID to search within
-        query: Search query
-
-    Returns:
-        Relevant observations
-    """
-    if denied := _project_denied(project_id):
-        return denied
-    from EvoScientist.pm._ai import search_project_knowledge
-    results = search_project_knowledge(project_id=project_id, query=query)
-    if not results:
-        return "No memory results found."
-    lines = ["Memory observations:"]
-    for r in results:
-        lines.append(f"  [{r.get('id','')}] {r.get('title','')} (score={r.get('score',0):.2f})")
-        body = r.get("body", "")[:200]
-        if body:
-            lines.append(f"    {body}")
-    return "\n".join(lines)
-
-
 # Tools that create or change data. The copilot asks the user to confirm these.
 WRITE_TOOL_NAMES = frozenset({
     "pm_create_project", "pm_create_task", "pm_create_experiment",
@@ -660,5 +631,4 @@ PM_TOOLS = [
     pm_list_conferences,
     pm_list_irbs,
     pm_global_search,
-    pm_search_memory,
 ]
