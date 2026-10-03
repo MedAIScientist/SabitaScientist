@@ -55,3 +55,21 @@ one real CoPilot run end to end on a small public dataset.
 ## Out of scope
 
 Automatic gate skipping (needs approval history first), GPU, Docker-mode ARC profiles.
+
+## Status (2026-10-03, end of day)
+
+All of phases A, B and C are implemented, tested (526 backend, 196 frontend tests) and live
+on medai.medipol.edu.tr. The `researchclaw` worker runs in production; an end-to-end smoke
+run (Gazzali → worker → NVIDIA, stages 1–3) completed.
+
+Deviations from the plan:
+- AI drafts: unverified numbers are marked `[UNVERIFIED]` in results-bearing sections instead
+  of rejecting the draft (the paper rejects); other sections only count them.
+- Reference check also queries PubMed Central (where GPT Researcher's wrong references came from).
+- NVIDIA retired `nemotron-3-super-120b-a12b` the same day; default is now
+  `nemotron-3-ultra-550b-a55b` with automatic fallback to `nemotron-3.5-lightning-30b-a3b`
+  on 404/410 (direct calls, background runs, copilot, ARC worker).
+- SMTP is still not configured in production, so gate e-mails are not sent yet; the in-app
+  badge and the gates inbox work.
+
+Not yet done: a full 23-stage run on real lab data (needs a first CoPilot run by a user).
