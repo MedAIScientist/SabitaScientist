@@ -3,6 +3,7 @@ import React from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { api } from '../api'
+import { UsageMeter } from '../components/experiment/UsageMeter'
 
 export function SystemHealthPage() {
   const { data: health } = useQuery({
@@ -21,6 +22,11 @@ export function SystemHealthPage() {
       <h1 style={{ margin: '0 0 24px', fontSize: 24, fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-heading)' }}>System Health</h1>
 
       <AiSetupCard health={health} />
+
+      <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 20px', marginBottom: 12 }}>
+        <div style={{ fontSize: 16, fontWeight: 500, color: 'var(--text-heading)', marginBottom: 8 }}>AI quota (NVIDIA, shared)</div>
+        <UsageMeter />
+      </div>
 
       <div style={{ background: 'var(--surface-card)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 20px', marginBottom: 12 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

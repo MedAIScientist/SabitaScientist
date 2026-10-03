@@ -925,14 +925,21 @@ CREATE TABLE IF NOT EXISTS research_runs (
     started_by    TEXT NOT NULL REFERENCES users(id),
     topic         TEXT NOT NULL,
     mode          TEXT NOT NULL DEFAULT 'co-pilot',
+    domain        TEXT,
     dataset       TEXT,
     irb_id        TEXT REFERENCES irb_approvals(id) ON DELETE SET NULL,
     status        TEXT NOT NULL DEFAULT 'running'
-                  CHECK(status IN ('running', 'waiting', 'done', 'failed', 'cancelled')),
+                  CHECK(status IN ('queued', 'running', 'waiting', 'done', 'failed', 'cancelled')),
     stage         INTEGER,
     stage_name    TEXT,
     waiting_json  TEXT,
+    notified_stage INTEGER,
     error         TEXT,
+    primary_metric REAL,
+    primary_metric_std REAL,
+    metric_direction TEXT,
+    conditions_json TEXT,
+    pi_quality    INTEGER CHECK(pi_quality BETWEEN 1 AND 10),
     imported_at   TEXT,
     created_at    TEXT NOT NULL,
     updated_at    TEXT NOT NULL
@@ -949,6 +956,7 @@ CREATE TABLE IF NOT EXISTS research_lessons (
     category    TEXT NOT NULL,
     severity    REAL NOT NULL,
     lesson_json TEXT NOT NULL,
+    pinned      INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT NOT NULL,
     UNIQUE(run_id, lesson_json)
 );
@@ -956,6 +964,7 @@ CREATE INDEX IF NOT EXISTS idx_research_lessons_lab ON research_lessons(lab_id, 
 """
 
 _MIGRATIONS = [
+    "ALTER TABLE research_lessons ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE tasks ADD COLUMN phase_id TEXT REFERENCES project_phases(id) ON DELETE SET NULL",
     "ALTER TABLE experiments ADD COLUMN phase_id TEXT REFERENCES project_phases(id) ON DELETE SET NULL",
     "ALTER TABLE admissions ADD COLUMN aid_percentage REAL",
@@ -1059,9 +1068,36 @@ def create_schema(db_path: Path | None = None) -> None:
             except sqlite3.OperationalError as exc:
                 if "duplicate column" not in str(exc).lower():
                     raise
+        _rebuild_research_runs_if_stale(conn)
         conn.commit()
     finally:
         conn.close()
+
+
+def _rebuild_research_runs_if_stale(conn: sqlite3.Connection) -> None:
+    """Bring research_runs to the current definition (new status, new columns).
+
+    SQLite cannot change a CHECK constraint, so a table created by an older
+    version is rebuilt: create the new table, copy the shared columns, swap.
+    """
+    row = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='research_runs'").fetchone()
+    if row is None or "'queued'" in row[0]:
+        return
+    old_cols = [r[1] for r in conn.execute("PRAGMA table_info(research_runs)")]
+    create = _SCHEMA[_SCHEMA.index("CREATE TABLE IF NOT EXISTS research_runs ("):]
+    create = create[: create.index(");") + 2].replace("research_runs (", "research_runs_new (", 1)
+    conn.commit()
+    conn.execute("PRAGMA foreign_keys = OFF")
+    conn.execute(create)
+    new_cols = {r[1] for r in conn.execute("PRAGMA table_info(research_runs_new)")}
+    shared = ", ".join(c for c in old_cols if c in new_cols)
+    conn.execute(f"INSERT INTO research_runs_new ({shared}) SELECT {shared} FROM research_runs")
+    conn.execute("DROP TABLE research_runs")
+    conn.execute("ALTER TABLE research_runs_new RENAME TO research_runs")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_research_runs_exp ON research_runs(experiment_id, created_at)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_research_runs_status ON research_runs(status)")
+    conn.commit()
+    conn.execute("PRAGMA foreign_keys = ON")
 
 
 @contextmanager

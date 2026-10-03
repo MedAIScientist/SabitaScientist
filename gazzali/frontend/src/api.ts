@@ -466,12 +466,22 @@ export const api = {
   // ── AutoResearchClaw runs ───────────────────────────────────────────────
   listResearchRuns: (projectId: string, expId: string) =>
     request<ResearchRun[]>('GET', `/projects/${projectId}/experiments/${expId}/research-runs`),
-  startResearchRun: (projectId: string, expId: string, body: { topic?: string; mode?: ResearchMode; dataset?: string; irb_id?: string }) =>
+  startResearchRun: (projectId: string, expId: string, body: { topic?: string; mode?: ResearchMode; domain?: string; dataset_id?: string; irb_id?: string }) =>
     request<ResearchRun>('POST', `/projects/${projectId}/experiments/${expId}/research-runs`, body),
   researchGates: () => request<ResearchRun[]>('GET', '/research-runs/gates'),
-  respondResearchGate: (runId: string, body: { action: GateAction; message?: string; guidance?: string }) =>
+  respondResearchGate: (runId: string, body: { action: GateAction; message?: string; guidance?: string; quality?: number }) =>
     request<ResearchRun>('POST', `/research-runs/${runId}/respond`, body),
   cancelResearchRun: (runId: string) => request<ResearchRun>('POST', `/research-runs/${runId}/cancel`),
+  researchRunStages: (runId: string) => request<RunStages>('GET', `/research-runs/${runId}/stages`),
+  researchUsage: () => request<ResearchUsage>('GET', '/research-runs/usage'),
+  researchDomains: () => request<ResearchDomain[]>('GET', '/research-runs/domains'),
+  researchTopicCheck: (topic: string, domain?: string) =>
+    request<TopicScore>('POST', '/research-runs/topic-check', { topic, domain }),
+  researchDatasets: (projectId: string) => request<ResearchDataset[]>('GET', `/projects/${projectId}/research-datasets`),
+  listResearchLessons: (labId: string) => request<ResearchLesson[]>('GET', `/labs/${labId}/research-lessons`),
+  pinResearchLesson: (labId: string, lessonId: string, pinned: boolean) =>
+    request<{ id: string; pinned: boolean }>('PATCH', `/labs/${labId}/research-lessons/${lessonId}`, { pinned }),
+  deleteResearchLesson: (labId: string, lessonId: string) => request<void>('DELETE', `/labs/${labId}/research-lessons/${lessonId}`),
   researchRunFile: (runId: string, path: string) =>
     request<{ path: string; content: string }>('GET', `/research-runs/${runId}/file?path=${encodeURIComponent(path)}`),
 
@@ -1062,10 +1072,29 @@ export type GateAction = 'approve' | 'reject' | 'edit' | 'skip' | 'rollback' | '
 export interface ResearchRun {
   id: string; experiment_id: string; project_id: string; lab_id: string | null
   topic: string; mode: ResearchMode; dataset: string | null; irb_id: string | null
-  status: 'running' | 'waiting' | 'done' | 'failed' | 'cancelled'
+  status: 'queued' | 'running' | 'waiting' | 'done' | 'failed' | 'cancelled'
   stage: number | null; stage_name: string | null
   waiting: { stage: number; stage_name: string; reason: string; since: string; context_summary: string; output_files: string[] } | null
   error: string | null; created_at: string; updated_at: string
+  domain?: string | null; queue_position?: number | null
+  primary_metric?: number | null; primary_metric_std?: number | null; metric_direction?: string | null
+  conditions?: string[]; pi_quality?: number | null
+}
+export interface RunStage {
+  stage: number; status: string; duration_sec: number | null; decision: string | null
+  error: string | null; artifacts: string[]; attempts: number; finished_at?: string | null
+}
+export interface TopicScore { novelty: number; specificity: number; feasibility: number; overall: number; suggestion: string }
+export interface RunStages { stages: RunStage[]; topic_evaluation: TopicScore | null }
+export interface ResearchUsage {
+  requests_last_minute: number; limit_per_minute: number
+  runs_running: number; runs_waiting: number; runs_queued: number; max_concurrent: number
+}
+export interface ResearchDomain { id: string; label: string; guidance: string }
+export interface ResearchDataset { id: string; name: string; modality: string | null; irb_ids: string[] }
+export interface ResearchLesson {
+  id: string; run_id: string | null; category: string; severity: number; pinned: boolean
+  weight: number; created_at: string; lesson: { description?: string; stage_name?: string; severity?: string }
 }
 
 // ── System Health ────────────────────────────────────────────────────────────
