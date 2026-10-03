@@ -532,6 +532,7 @@ class VersionResponse(BaseModel):
     generated_by: str | None = None
     model: str | None = None
     prompt_hash: str | None = None
+    verification: dict | None = None
     content_length: int = 0
     # Populated only by the single-version endpoint; listing many full drafts
     # would make the versions payload unbounded.

@@ -265,9 +265,10 @@ class PublicationVersion:
     file_path: str | None = None
     content: str | None = None
     section: str | None = None
-    generated_by: str | None = None  # 'ai-agent' | 'ai-direct' | 'human'
+    generated_by: str | None = None  # 'ai-agent' | 'ai-direct' | 'ai-autoresearchclaw' | 'human'
     model: str | None = None  # None when the producing model is unknown
     prompt_hash: str | None = None
+    verification: dict | None = None  # number check on AI drafts (verify_numbers.py)
 
 
 @dataclass

@@ -22,6 +22,8 @@ import { LabDetail }          from './pages/LabDetail'
 import { AdminDashboard }     from './pages/AdminDashboard'
 import { AnalyticsPage }      from './pages/AnalyticsPage'
 import { ImpactPage }         from './pages/ImpactPage'
+import { ResearchMemoryPage } from './pages/ResearchMemoryPage'
+import { ResearchEvaluationPage } from './pages/ResearchEvaluationPage'
 import { GrantsPage }         from './pages/GrantsPage'
 import { GrantDetail }        from './pages/GrantDetail'
 import { ConferencesPage }    from './pages/ConferencesPage'
@@ -91,6 +93,8 @@ function App() {
         <Route path="/labs"            element={<PrivateRoute><LabsPage /></PrivateRoute>} />
         <Route path="/labs/:id"        element={<PrivateRoute><LabDetail /></PrivateRoute>} />
         <Route path="/labs/:id/impact" element={<PrivateRoute><ImpactPage /></PrivateRoute>} />
+        <Route path="/labs/:id/research-memory" element={<PrivateRoute><ResearchMemoryPage /></PrivateRoute>} />
+        <Route path="/research/evaluation" element={<PrivateRoute><ResearchEvaluationPage /></PrivateRoute>} />
         <Route path="/admin"           element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
         <Route path="/analytics"       element={<PrivateRoute><AnalyticsPage /></PrivateRoute>} />
         <Route path="/grants"          element={<PrivateRoute><GrantsPage /></PrivateRoute>} />

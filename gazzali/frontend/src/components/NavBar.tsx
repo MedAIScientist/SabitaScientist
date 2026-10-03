@@ -60,6 +60,7 @@ const NAV_GROUPS: NavGroup[] = [
     { path: '/research-items', label: 'Research items', icon: 'flask' },
     { path: '/publications', label: 'Papers', icon: 'paper' },
     { path: '/labs', label: 'Labs', icon: 'lab' },
+    { path: '/research/evaluation', label: 'Run evaluation', icon: 'chart', roles: ['professor', 'admin'] },
   ] },
   { title: 'Supervision', items: [
     { path: '/weekly-update', label: 'Weekly update', icon: 'pen', roles: ['student', 'professor'] },

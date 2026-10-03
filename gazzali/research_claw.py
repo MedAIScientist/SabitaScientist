@@ -122,6 +122,21 @@ def start(run_id: str, topic: str, mode: str, dataset: str | None, lessons: list
     })
 
 
+def stage_stats(stage_list: list[dict]) -> dict:
+    """Self-healing at a glance (paper §3.3): how often the run refined, pivoted or retried."""
+    return {
+        "stages_done": sum(1 for s in stage_list if s.get("status") in ("done", "approved")),
+        "refines": sum(1 for s in stage_list if s.get("decision") == "refine"),
+        "pivots": sum(1 for s in stage_list if s.get("decision") == "pivot"),
+        "retries": sum(max(0, int(s.get("attempts") or 1) - 1) for s in stage_list),
+        "failed_stages": sum(1 for s in stage_list if s.get("status") == "failed"),
+    }
+
+
+def deliverables(run_id: str) -> dict:
+    return _call("GET", f"/jobs/{run_id}/deliverables", timeout=60)
+
+
 def stages(run_id: str) -> dict:
     return _call("GET", f"/jobs/{run_id}/stages")
 
@@ -160,9 +175,13 @@ def import_results(db: Path, run: dict) -> None:
     ]
     if metrics:
         create_metrics(db, run["experiment_id"], metrics, recorded_by=None)
-    from .crud.research_runs import set_result_summary
+    from .crud.research_runs import set_result_summary, set_stage_stats
 
     set_result_summary(db, run["id"], registry)
+    try:
+        set_stage_stats(db, run["id"], stage_stats(stages(run["id"])["stages"]))
+    except WorkerError as exc:
+        logger.warning("stage stats skipped for %s: %s", run["id"], exc)
     with get_db(db) as conn:
         for lesson in lessons:
             conn.execute(

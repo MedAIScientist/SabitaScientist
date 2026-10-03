@@ -78,3 +78,19 @@ def test_stages_report_progress_decisions_and_retries(tmp_path: Path) -> None:
     by = {s["stage"]: s for s in r["stages"]}
     assert by[2]["artifacts"] == ["stage-02/problem_tree.md", "stage-02/topic_evaluation.json"]
     assert (by[13]["attempts"], by[13]["status"], by[13]["decision"]) == (2, "done", "refine")
+
+
+def test_deliverables_prefer_the_packaged_paper(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from fastapi import HTTPException
+
+    monkeypatch.setattr(worker, "RUNS", tmp_path)
+    out = _job(tmp_path) / "out"
+    with pytest.raises(HTTPException):
+        worker.deliverables("j1")  # no paper yet
+    _write(out / "stage-22" / "paper_final.md", "old draft")
+    assert worker.deliverables("j1")["paper"] == "old draft"
+    _write(out / "deliverables" / "paper_final.md", "# Title\nfinal")
+    _write(out / "deliverables" / "references.bib", "@article{a, title={T}}")
+    r = worker.deliverables("j1")
+    assert r["paper"].startswith("# Title")
+    assert r["references_bib"].startswith("@article")

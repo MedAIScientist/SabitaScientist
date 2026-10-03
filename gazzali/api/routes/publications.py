@@ -253,7 +253,7 @@ def _version_to_response(v, include_content: bool = False) -> VersionResponse:
         notes=v.notes, created_by=v.created_by,
         created_at=v.created_at,
         section=v.section, generated_by=v.generated_by,
-        model=v.model, prompt_hash=v.prompt_hash,
+        model=v.model, prompt_hash=v.prompt_hash, verification=v.verification,
         content_length=len(v.content or ""),
         content=v.content if include_content else None,
     )

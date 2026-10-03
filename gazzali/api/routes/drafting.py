@@ -10,8 +10,6 @@ from pathlib import Path
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, status
 
-from ...settings import RUNS_DIR
-from ...settings import get_runner_url
 from ...crud.ai_jobs import AiJobError, create_job, run_tracked
 from ...crud.ai_usage import UsageContext
 from ...crud.experiment_entries import create_entry, list_entries
@@ -32,6 +30,7 @@ from ...crud.publications import (
 )
 from ...db import get_db, get_db_path
 from ...models import User
+from ...settings import RUNS_DIR, get_runner_url
 from ..deps import get_current_user, require_project_role
 from ..schemas import (
     CitationVerificationRequest,
@@ -714,8 +713,12 @@ async def generate_hypothesis(
 async def _save_hypothesis_output(
     project_id: str, user_id: str, run_id: str, prompt: str, workspace_dir: str, topic: str,
 ) -> str | None:
-    text = await _run_agent_and_get_output(
-        run_id, prompt, workspace_dir, agent_type="research",
+    from ..._ai import HYPOTHESIS_ROLES, debate
+
+    text = await debate(
+        prompt, HYPOTHESIS_ROLES,
+        "Distill 2-4 falsifiable hypotheses. For each give testability criteria and the baselines it needs, "
+        "and say which objections from the Contrarian it survives.",
         context=UsageContext(task="generate-hypothesis", user_id=user_id, project_id=project_id),
     )
     if not text:

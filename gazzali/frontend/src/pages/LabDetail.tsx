@@ -148,6 +148,7 @@ export function LabDetail() {
           borderRadius: 7, color: '#6366f1',
           fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', marginRight: 8,
         }}>📊 Impact</button>
+        <button onClick={() => navigate(`/labs/${id}/research-memory`)} className="btn" style={{ marginRight: 8 }}>Research memory</button>
         <button onClick={() => navigate(`/labs/${id}/wiki`)} style={{
           cursor: 'pointer', padding: '7px 14px',
           background: 'rgba(16,185,129,0.1)',

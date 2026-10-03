@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, ResearchRun } from '../../api'
 import { ResearchGateCard } from './ResearchGateCard'
@@ -17,6 +18,11 @@ function RunRow({ run }: { run: ResearchRun }) {
     mutationFn: () => api.cancelResearchRun(run.id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['research-runs', run.experiment_id] }),
   })
+  const navigate = useNavigate()
+  const publish = useMutation({
+    mutationFn: () => api.publicationFromRun(run.id),
+    onSuccess: r => navigate(`/publications/${r.publication_id}`),
+  })
   const active = run.status === 'queued' || run.status === 'running' || run.status === 'waiting'
   return (
     <div style={{ borderTop: '1px solid var(--border)', padding: '10px 0' }}>
@@ -29,10 +35,16 @@ function RunRow({ run }: { run: ResearchRun }) {
           {open ? 'Hide progress' : 'Show progress'}
         </button>
         {active && <button className="btn" disabled={cancel.isPending} onClick={() => cancel.mutate()}>Cancel</button>}
+        {run.status === 'done' && (run.publication_id
+          ? <a className="btn" href={`/publications/${run.publication_id}`}>Open the paper</a>
+          : <button className="btn btn-primary" disabled={publish.isPending} onClick={() => publish.mutate()}>
+              {publish.isPending ? 'Creating…' : 'Create publication from this run'}
+            </button>)}
       </div>
       <div style={{ fontSize: 14, marginTop: 4 }}>{run.topic}</div>
       {run.error && <div className="msg msg-error" role="alert" style={{ marginTop: 6 }}>{run.error}</div>}
       {cancel.isError && <div className="msg msg-error" role="alert">{(cancel.error as Error).message}</div>}
+      {publish.isError && <div className="msg msg-error" role="alert">{(publish.error as Error).message}</div>}
       {open && <div style={{ marginTop: 8 }}><RunTimeline run={run} /></div>}
       {run.status === 'waiting' && <div style={{ marginTop: 8 }}><ResearchGateCard run={run} /></div>}
     </div>

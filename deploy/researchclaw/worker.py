@@ -268,6 +268,30 @@ def stages(job_id: str) -> dict:
     return run_stages(_existing(job_id) / "out")
 
 
+def _first_text(*paths: Path) -> str | None:
+    for path in paths:
+        if path.is_file():
+            return path.read_text(encoding="utf-8", errors="replace")
+    return None
+
+
+@app.get("/jobs/{job_id}/deliverables", dependencies=[Depends(_auth)])
+def deliverables(job_id: str) -> dict:
+    """The finished paper (Markdown), its verified BibTeX and ARC's verification report."""
+    out = _existing(job_id) / "out"
+    d = out / "deliverables"
+    paper = _first_text(d / "paper_final.md", out / "stage-23" / "paper_final_verified.md", out / "stage-22" / "paper_final.md")
+    if paper is None:
+        raise HTTPException(404, "the run has not produced a paper")
+    report = _read_json(d / "verification_report.json")
+    return {
+        "paper": paper,
+        "references_bib": _first_text(d / "references.bib"),
+        "verification_report": report,
+        "manifest": _read_json(d / "manifest.json"),
+    }
+
+
 @app.get("/jobs/{job_id}/lessons", dependencies=[Depends(_auth)])
 def lessons(job_id: str) -> list[dict]:
     path = _existing(job_id) / "out" / "evolution" / "lessons.jsonl"

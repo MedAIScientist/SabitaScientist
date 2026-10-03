@@ -49,6 +49,9 @@ class FakeWorker:
             return {"stages": [{"stage": 1, "status": "done", "decision": "proceed", "duration_sec": 5.0,
                                 "attempts": 1, "artifacts": ["stage-01/goal.md"]}],
                     "topic_evaluation": {"overall": 6}}
+        if path.endswith("/deliverables"):
+            return {"paper": "# Class weighting and recall\n\n## Results\nRecall 0.912 vs 0.95.\n",
+                    "references_bib": "@article{a, title={T}}", "verification_report": None, "manifest": None}
         if "/file?" in path:
             return {"path": "stage-09/exp_plan.yaml", "content": "conditions: 60"}
         if path.endswith(("/response", "/cancel")):
@@ -283,3 +286,39 @@ def test_pi_scores_the_final_quality_gate_and_pins_lessons(world, worker) -> Non
     assert c.patch(url, json={"pinned": True}, headers=h["student"]).status_code == 403
     assert c.patch(url, json={"pinned": True}, headers=h["pi"]).json()["pinned"] is True
     assert c.get(f"/api/v1/labs/{world['lab'].id}/research-lessons", headers=h["pi"]).json()[0]["pinned"] is True
+
+
+def test_finished_run_becomes_a_checked_publication_once(world, worker) -> None:
+    run = _start(world).json()
+    c, h = world["client"], world["h"]
+    url = f"/api/v1/research-runs/{run['id']}/publication"
+    assert c.post(url, headers=h["student"]).status_code == 409  # not finished yet
+    worker.state = {"state": "done", "stage": 23, "stage_name": "CITATION_VERIFY"}
+    assert c.post(url, headers=h["viewer"]).status_code == 403
+    r = c.post(url, headers=h["student"])
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert (body["verification"]["verified"], body["verification"]["unverified_in_results"]) == (1, 1)
+    pub = c.get(f"/api/v1/publications/{body['publication_id']}", headers=h["student"]).json()
+    assert pub["title"] == "Class weighting and recall"
+    assert c.post(url, headers=h["student"]).status_code == 409
+
+
+def test_evaluation_counts_interventions_self_healing_and_advises(world, worker) -> None:
+    c, h = world["client"], world["h"]
+    runs = []
+    for _ in range(5):
+        run = _start(world).json()
+        worker.state = {"state": "waiting", "stage": 9, "stage_name": "EXPERIMENT_DESIGN", "waiting": {"stage": 9}}
+        c.post(f"/api/v1/research-runs/{run['id']}/respond", json={"action": "approve"}, headers=h["student"])
+        worker.state = {"state": "done", "stage": 23, "stage_name": "CITATION_VERIFY"}
+        c.get(_runs_url(world), headers=h["student"])  # refresh: done -> import
+        runs.append(run["id"])
+    assert c.get("/api/v1/research-runs/evaluation", headers=h["student"]).status_code == 403
+    ev = c.get("/api/v1/research-runs/evaluation", headers=h["pi"]).json()
+    assert ev["summary"]["runs"] == 5
+    assert ev["summary"]["mean_interventions"] == 1.0
+    assert {r["interventions"] for r in ev["runs"]} == {1}
+    gate = ev["gates"][0]
+    assert (gate["stage"], gate["approved"], gate["approve_rate"]) == (9, 5, 1.0)
+    assert "Gate-only" in gate["advice"]

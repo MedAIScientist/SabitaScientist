@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { MemoryRouter } from 'react-router-dom'
 import { ResearchRunsTab } from '../ResearchRunsTab'
 import { api, type ResearchRun } from '../../../api'
 
@@ -29,7 +30,7 @@ vi.mock('../../../api', () => ({
 
 function wrap(ui: React.ReactNode) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return <QueryClientProvider client={qc}>{ui}</QueryClientProvider>
+  return <MemoryRouter><QueryClientProvider client={qc}>{ui}</QueryClientProvider></MemoryRouter>
 }
 
 describe('ResearchRunsTab', () => {

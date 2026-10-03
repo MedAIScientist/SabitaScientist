@@ -8,6 +8,7 @@ import json
 import httpx
 import pytest
 
+from gazzali import _ai
 from gazzali.api.routes import drafting
 from gazzali.crud.ai_jobs import AiJobError
 
@@ -76,6 +77,8 @@ def test_finished_job_links_to_its_result(client, admin_token, monkeypatch) -> N
         return "1. Retinal thickness predicts progression."
 
     monkeypatch.setattr(drafting, "_run_agent_and_get_output", fake_output)
+
+    monkeypatch.setattr(_ai, "debate", fake_output)
     started = client.post(f"/api/v1/projects/{pid}/generate-hypothesis", json={"topic": "OCT"}, headers=h)
     assert started.status_code == 202
     job_id = started.json()["job_id"]
@@ -94,6 +97,8 @@ def test_failed_job_says_why(client, admin_token, monkeypatch) -> None:
         raise AiJobError("The AI service is not reachable right now. Please try again in a minute.")
 
     monkeypatch.setattr(drafting, "_run_agent_and_get_output", failing)
+
+    monkeypatch.setattr(_ai, "debate", failing)
     job_id = client.post(f"/api/v1/projects/{pid}/research-ideation", json={"topic": "OCT"}, headers=h).json()["job_id"]
     job = client.get(f"/api/v1/ai-jobs/{job_id}", headers=h).json()
     assert job["status"] == "failed"
@@ -108,6 +113,8 @@ def test_empty_output_and_unexpected_errors_fail_with_a_message(client, admin_to
         return None
 
     monkeypatch.setattr(drafting, "_run_agent_and_get_output", empty)
+
+    monkeypatch.setattr(_ai, "debate", empty)
     job_id = client.post(f"/api/v1/projects/{pid}/generate-hypothesis", json={"topic": "x"}, headers=h).json()["job_id"]
     assert "no text" in client.get(f"/api/v1/ai-jobs/{job_id}", headers=h).json()["error"]
 
@@ -115,6 +122,8 @@ def test_empty_output_and_unexpected_errors_fail_with_a_message(client, admin_to
         raise RuntimeError("database is locked")
 
     monkeypatch.setattr(drafting, "_run_agent_and_get_output", boom)
+
+    monkeypatch.setattr(_ai, "debate", boom)
     job_id = client.post(f"/api/v1/projects/{pid}/generate-hypothesis", json={"topic": "x"}, headers=h).json()["job_id"]
     job = client.get(f"/api/v1/ai-jobs/{job_id}", headers=h).json()
     assert job["status"] == "failed" and "database is locked" not in job["error"]
@@ -128,6 +137,8 @@ def test_jobs_are_private_to_their_owner(client, admin_token, tmp_db, monkeypatc
         return "ok"
 
     monkeypatch.setattr(drafting, "_run_agent_and_get_output", fake_output)
+
+    monkeypatch.setattr(_ai, "debate", fake_output)
     pid = _project(client, admin_token)
     job_id = client.post(f"/api/v1/projects/{pid}/generate-hypothesis", json={"topic": "x"},
                          headers={"Authorization": f"Bearer {admin_token}"}).json()["job_id"]
