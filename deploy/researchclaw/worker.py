@@ -93,8 +93,8 @@ def render_config(req: JobRequest) -> dict:
             "base_url": os.environ.get("ARC_LLM_BASE_URL", "https://integrate.api.nvidia.com/v1"),
             "wire_api": "chat_completions",
             "api_key_env": os.environ.get("ARC_LLM_API_KEY_ENV", "NVIDIA_API_KEY"),
-            "primary_model": os.environ.get("ARC_LLM_MODEL", "nvidia/nemotron-3-super-120b-a12b"),
-            "fallback_models": [m for m in [os.environ.get("ARC_LLM_FALLBACK", "")] if m],
+            "primary_model": os.environ.get("ARC_LLM_MODEL", "nvidia/nemotron-3-ultra-550b-a55b"),
+            "fallback_models": [m for m in [os.environ.get("ARC_LLM_FALLBACK", "nvidia/nemotron-3.5-lightning-30b-a3b")] if m],
         },
         "literature_search": {
             "sources": ["openalex", "semantic_scholar", "arxiv"],

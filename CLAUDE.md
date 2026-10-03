@@ -118,7 +118,7 @@ EvoScientist core was removed). Production starts it with
 | Module | What it provides |
 |---|---|
 | `gazzali/settings.py` | Paths + all settings from env vars |
-| `gazzali/_ai.py` | `ChatOpenAI` on one OpenAI-compatible endpoint: `PM_LLM_BASE_URL` (default NVIDIA `integrate.api.nvidia.com`), `PM_LLM_MODEL` (default `nvidia/nemotron-3-super-120b-a12b`), `PM_LLM_API_KEY` (default `NVIDIA_API_KEY`); the free key allows ~40 requests/minute shared by everything |
+| `gazzali/_ai.py` | `ChatOpenAI` on one OpenAI-compatible endpoint: `PM_LLM_BASE_URL` (default NVIDIA `integrate.api.nvidia.com`), `PM_LLM_MODEL` (default `nvidia/nemotron-3-ultra-550b-a55b`, falls back to `PM_LLM_FALLBACK_MODELS`, default `nvidia/nemotron-3.5-lightning-30b-a3b`, on 404/410), `PM_LLM_API_KEY` (default `NVIDIA_API_KEY`); the free key allows ~40 requests/minute shared by everything |
 | `gazzali/agent_tools.py` | Copilot tools (permission-checked) |
 | `gazzali/__main__.py` | Entrypoint |
 

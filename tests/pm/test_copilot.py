@@ -146,3 +146,32 @@ def test_model_choice_follows_the_environment(monkeypatch) -> None:
     chat = _ai.get_pm_chat_model()
     assert chat.model_name == "deepseek-v4-flash"
     assert str(chat.openai_api_base).startswith("https://api.deepseek.com")
+
+
+def test_retired_model_falls_back_to_the_next(monkeypatch) -> None:
+    """Providers retire models without warning (NVIDIA, 2026-10-03): a 410 must not break AI."""
+    import asyncio
+
+    import httpx
+    import openai
+
+    from gazzali import _ai
+
+    monkeypatch.delenv("PM_LLM_MODEL", raising=False)
+    monkeypatch.setenv("PM_LLM_FALLBACK_MODELS", "backup/model")
+    used: list[str] = []
+
+    class FakeChat:
+        def __init__(self, model):
+            self.model_name = model
+
+        async def ainvoke(self, messages):
+            used.append(self.model_name)
+            if self.model_name != "backup/model":
+                resp = httpx.Response(410, request=httpx.Request("POST", "https://x"))
+                raise openai.APIStatusError("gone", response=resp, body=None)
+            return AIMessage(content="Ankara")
+
+    monkeypatch.setattr(_ai, "get_pm_chat_model", lambda **kw: FakeChat(kw["model"]))
+    assert asyncio.run(_ai.run_llm_direct_async("One word.", "Capital?")) == "Ankara"
+    assert used == [_ai.settings.DEFAULT_LLM_MODEL, "backup/model"]

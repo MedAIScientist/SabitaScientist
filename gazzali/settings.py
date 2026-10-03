@@ -30,10 +30,12 @@ USER_SKILLS_DIR = _env_path("GAZZALI_SKILLS_DIR", WORKSPACE_ROOT / "skills")
 GLOBAL_SKILLS_DIR = DATA_DIR / "skills"
 
 # The model behind the PM's direct AI calls, background runs and the copilot (which
-# needs native tool calls). NVIDIA's free API: Nemotron-3 Super answered, called the
-# right copilot tool and accepted a 37k-token prompt on 2026-10-03, where Groq's free
-# tier capped requests at 8k tokens. The free key is limited to ~40 requests/minute.
-DEFAULT_LLM_MODEL = "nvidia/nemotron-3-super-120b-a12b"
+# needs native tool calls), on NVIDIA's free API (~40 requests/minute). Providers retire
+# models without warning (nemotron-3-super-120b-a12b: end of life 2026-10-03 09:00 UTC),
+# so a 404/410 falls through to the next model. Both below answered, called the right
+# copilot tool and accepted a 39k-token prompt on 2026-10-03.
+DEFAULT_LLM_MODEL = "nvidia/nemotron-3-ultra-550b-a55b"
+DEFAULT_LLM_FALLBACKS = ("nvidia/nemotron-3.5-lightning-30b-a3b",)
 DEFAULT_LLM_BASE_URL = "https://integrate.api.nvidia.com/v1"
 
 
@@ -43,7 +45,15 @@ def get_llm_config() -> dict:
         "model": _env("PM_LLM_MODEL", DEFAULT_LLM_MODEL),
         "base_url": _env("PM_LLM_BASE_URL", DEFAULT_LLM_BASE_URL),
         "api_key": _env("PM_LLM_API_KEY") or _env("NVIDIA_API_KEY"),
+        "fallbacks": [m.strip() for m in _env("PM_LLM_FALLBACK_MODELS").split(",") if m.strip()]
+        or list(DEFAULT_LLM_FALLBACKS),
     }
+
+
+def llm_models() -> list[str]:
+    """The configured model first, then the fallbacks (no duplicates)."""
+    cfg = get_llm_config()
+    return list(dict.fromkeys([cfg["model"], *cfg["fallbacks"]]))
 
 
 def get_runner_model() -> str:
