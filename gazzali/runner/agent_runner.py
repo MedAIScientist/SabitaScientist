@@ -16,7 +16,7 @@ from pathlib import Path
 
 import httpx
 
-from ..settings import DEFAULT_LLM_MODEL, get_llm_config, get_runner_model
+from ..settings import DEFAULT_LLM_MODEL, get_llm_config, get_runner_model, llm_models
 
 logger = logging.getLogger(__name__)
 
@@ -259,25 +259,30 @@ async def _run_agent(
         async with httpx.AsyncClient(
             timeout=httpx.Timeout(120.0, connect=30.0)
         ) as client:
-            async with client.stream(
-                "POST",
-                f"{base_url}/chat/completions",
-                headers=headers,
-                json=payload,
-            ) as resp:
-                resp.raise_for_status()
-                async for line in resp.aiter_lines():
-                    if not line.startswith("data: "):
+            # A retired model answers 404/410: move on to the next configured one.
+            candidates = list(dict.fromkeys([model_name, *llm_models()]))
+            for i, candidate in enumerate(candidates):
+                payload["model"] = model_name = candidate
+                async with client.stream(
+                    "POST", f"{base_url}/chat/completions", headers=headers, json=payload,
+                ) as resp:
+                    if resp.status_code in (404, 410) and i < len(candidates) - 1:
+                        logger.warning("model %s is gone (%s); falling back", candidate, resp.status_code)
                         continue
-                    data_str = line[6:].strip()
-                    if data_str == "[DONE]":
-                        continue
-                    content, usage = parse_stream_chunk(data_str)
-                    if usage:
-                        reported_usage = usage
-                    if content:
-                        accumulated_text.append(content)
-                        await queue.put({"type": "token", "data": content})
+                    resp.raise_for_status()
+                    async for line in resp.aiter_lines():
+                        if not line.startswith("data: "):
+                            continue
+                        data_str = line[6:].strip()
+                        if data_str == "[DONE]":
+                            continue
+                        content, usage = parse_stream_chunk(data_str)
+                        if usage:
+                            reported_usage = usage
+                        if content:
+                            accumulated_text.append(content)
+                            await queue.put({"type": "token", "data": content})
+                break
 
         await queue.put({"type": "status", "data": "done"})
 

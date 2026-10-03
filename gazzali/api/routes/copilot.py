@@ -38,10 +38,11 @@ from langchain_core.messages import (
 )
 from pydantic import BaseModel, Field
 
-from gazzali.models import User
 from gazzali.agent_tools import PM_TOOLS, WRITE_TOOL_NAMES, current_user_id
+from gazzali.models import User
 
-from ..._ai import get_pm_chat_model
+from ... import settings
+from ..._ai import get_pm_chat_model, is_gone
 from ..deps import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -194,12 +195,23 @@ async def _copilot_steps(body: CopilotRequest, user_id: str) -> AsyncGenerator[s
             yield _event("error", message="The configured AI model cannot use tools. Choose another model in Settings.")
             return
 
+        fallbacks = settings.llm_models()[1:]
         for _ in range(_MAX_TOOL_ROUNDS):
             full: Any = None
-            async for chunk in model.astream(messages):
-                full = chunk if full is None else full + chunk
-                if text := _text_of(chunk.content):
-                    yield _event("token", data=text)
+            try:
+                async for chunk in model.astream(messages):
+                    full = chunk if full is None else full + chunk
+                    if text := _text_of(chunk.content):
+                        yield _event("token", data=text)
+            except Exception as exc:
+                # The provider retired the model: retry this round on the next one.
+                if not (is_gone(exc) and full is None and fallbacks):
+                    raise
+                model = get_pm_chat_model(temperature=0.3, streaming=True, model=fallbacks.pop(0)).bind_tools(PM_TOOLS)
+                async for chunk in model.astream(messages):
+                    full = chunk if full is None else full + chunk
+                    if text := _text_of(chunk.content):
+                        yield _event("token", data=text)
             if full is None:
                 return
             calls = list(getattr(full, "tool_calls", None) or [])

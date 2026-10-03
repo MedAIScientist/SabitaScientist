@@ -8,14 +8,18 @@ skills directories, when a caller asks for it.
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from urllib.parse import urlparse
 
+import openai
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
 from . import settings
 from .crud.ai_usage import UsageContext, extract_usage, record_usage_safely
+
+logger = logging.getLogger(__name__)
 
 
 def _load_skill_prompt(skill_name: str) -> str:
@@ -90,6 +94,14 @@ def _record_call(
     )
 
 
+# The model was retired or renamed by the provider: try the next configured one.
+GONE = (404, 410)
+
+
+def is_gone(exc: Exception) -> bool:
+    return isinstance(exc, openai.APIStatusError) and exc.status_code in GONE
+
+
 async def run_llm_direct_async(
     system_prompt: str,
     user_prompt: str,
@@ -102,11 +114,19 @@ async def run_llm_direct_async(
     """Run one system+user prompt and return the text answer."""
     if skill_guidance:
         system_prompt = _with_skill_guidance(system_prompt, skill_guidance)
-    chat = get_pm_chat_model(temperature=temperature, max_tokens=max_tokens, model=model)
-    started = time.monotonic()
-    result = await chat.ainvoke(
-        [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
-    )
+    models = [model] if model else settings.llm_models()
+    for i, name in enumerate(models):
+        chat = get_pm_chat_model(temperature=temperature, max_tokens=max_tokens, model=name)
+        started = time.monotonic()
+        try:
+            result = await chat.ainvoke(
+                [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
+            )
+            break
+        except openai.APIStatusError as exc:
+            if not is_gone(exc) or i == len(models) - 1:
+                raise
+            logger.warning("model %s is gone (%s); falling back to %s", name, exc.status_code, models[i + 1])
     _record_call(
         context,
         chat.model_name,
