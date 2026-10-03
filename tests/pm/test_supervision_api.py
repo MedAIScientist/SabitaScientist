@@ -890,3 +890,35 @@ def test_leaving_the_lab_ends_supervision(client: TestClient) -> None:
     assert client.get("/api/v1/supervision/my-students", headers=p).json() == []
     assert client.get("/api/v1/supervision/readiness", params={"student_id": client.stud_id},
                       headers=p).status_code == 403
+
+
+def test_professors_set_requirements_for_their_own_students(client: TestClient, tmp_db) -> None:
+    """A professor's rules apply to their lab's students only; per-student rules too."""
+    from gazzali.auth import hash_password
+    from gazzali.crud.users import create_user
+
+    _assign(client)  # stud joins prof's lab
+    create_user(tmp_db, "prof2", hash_password("pw"), email="prof2@medipol.edu.tr")
+    prof2 = client.post("/api/v1/auth/login", json={"username": "prof2", "password": "pw"}).json()["token"]
+    client.post("/api/v1/supervision/journeys", json={"level": "PhD", "status": "active"}, headers=_h(client.stud_token))
+    url = "/api/v1/supervision/requirements"
+
+    mine = client.post(url, json={"level": "PhD", "title": "Two journal papers", "req_type": "research_item",
+                                  "research_item_type": "Journal Paper", "target_value": 2}, headers=_h(client.prof_token))
+    assert mine.status_code == 201, mine.text
+    client.post(url, json={"level": "PhD", "title": "Prof2 rule", "req_type": "milestone"}, headers=_h(prof2))
+    just_her = client.post(url, json={"level": "PhD", "title": "Present at the lab retreat", "req_type": "milestone",
+                                      "student_id": client.stud_id}, headers=_h(client.prof_token))
+    assert just_her.json()["student_name"] == "stud"
+    assert client.post(url, json={"level": "PhD", "title": "x", "req_type": "milestone", "student_id": client.stud_id},
+                       headers=_h(prof2)).status_code == 403
+    assert client.post(url, json={"level": "PhD", "title": "x", "req_type": "milestone"},
+                       headers=_h(client.stud_token)).status_code == 403
+
+    titles = lambda r: sorted(q["title"] for q in r.json())  # noqa: E731
+    readiness = client.get("/api/v1/supervision/readiness", headers=_h(client.stud_token)).json()
+    assert sorted(q["title"] for q in readiness["requirements"]) == ["Present at the lab retreat", "Two journal papers"]
+    assert titles(client.get(url, headers=_h(prof2))) == ["Prof2 rule"]
+    assert titles(client.get(url, headers=_h(client.stud_token))) == ["Present at the lab retreat", "Two journal papers"]
+    assert client.delete(f"{url}/{mine.json()['id']}", headers=_h(prof2)).status_code == 404
+    assert client.delete(f"{url}/{mine.json()['id']}", headers=_h(client.prof_token)).status_code == 204

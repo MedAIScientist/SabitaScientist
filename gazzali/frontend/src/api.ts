@@ -1205,6 +1205,9 @@ export interface GraduationRequirement {
   req_type: string; research_item_type: string | null; min_stage: string | null
   target_value: number; unit: string | null; required: boolean; active: boolean
   created_at: string
+  professor_id?: string | null   // null: platform-wide (set by an admin)
+  student_id?: string | null     // null: all of the professor's students at this level
+  student_name?: string | null
 }
 
 export const supervisionApi = {
@@ -1227,6 +1230,9 @@ export const supervisionApi = {
     const qs = week ? `?week=${week}` : ''
     return request<WeeklyReport>('POST', `/supervision/weekly/current${qs}`)
   },
+  /** One week's report, or null. Read-only: browsing must not create drafts. */
+  weekReport: (week: string) =>
+    request<WeeklyReport | null>('GET', `/supervision/weekly/report?week=${week}`),
   listReports: (params?: { student_id?: string; status?: string; review_status?: string; risk_level?: string; date_from?: string; date_to?: string }) => {
     const q = new URLSearchParams()
     if (params) Object.entries(params).forEach(([k, v]) => { if (v) q.set(k, v) })

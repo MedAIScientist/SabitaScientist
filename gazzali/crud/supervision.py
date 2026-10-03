@@ -186,6 +186,18 @@ def get_or_create_report(
     return _row_report(row)
 
 
+def get_report_for_week(
+    db_path: Path, student_id: str, week_start: str
+) -> WeeklyReport | None:
+    """The student's report for one week, or None. Never creates anything."""
+    with get_db(db_path) as conn:
+        row = conn.execute(
+            "SELECT * FROM weekly_reports WHERE student_id = ? AND week_start = ?",
+            (student_id, week_start),
+        ).fetchone()
+    return _row_report(row) if row else None
+
+
 def update_report_summary(
     db_path: Path,
     report_id: str,
@@ -686,12 +698,13 @@ def create_requirement(
         conn.execute(
             """INSERT INTO graduation_requirements
                (id, level, title, description, req_type, research_item_type, min_stage,
-                target_value, unit, required, active, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)""",
+                target_value, unit, required, active, created_at, professor_id, student_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)""",
             (
                 rid, level, title, fields.get("description"), req_type,
                 fields.get("research_item_type"), fields.get("min_stage"),
                 target_value, fields.get("unit"), int(fields.get("required", True)), now,
+                fields.get("professor_id"), fields.get("student_id"),
             ),
         )
         row = conn.execute(
@@ -701,10 +714,13 @@ def create_requirement(
 
 
 def list_requirements(
-    db_path: Path, level: str | None = None, active_only: bool = True
+    db_path: Path, level: str | None = None, active_only: bool = True, professor_id: str | None = None,
 ) -> list[GraduationRequirement]:
     sql = "SELECT * FROM graduation_requirements WHERE 1=1"
     params: list = []
+    if professor_id:  # a professor's own rules plus the platform-wide ones
+        sql += " AND (professor_id = ? OR professor_id IS NULL)"
+        params.append(professor_id)
     if level and level != "All":
         sql += " AND lower(level) = lower(?)"  # journeys store "phd", requirements "PhD"
         params.append(level)
@@ -714,6 +730,32 @@ def list_requirements(
     with get_db(db_path) as conn:
         rows = conn.execute(sql, params).fetchall()
     return [_row_requirement(r) for r in rows]
+
+
+def requirements_for_student(
+    db_path: Path, student_id: str, level: str | None, professor_ids: list[str],
+) -> list[GraduationRequirement]:
+    """What this student must meet: their professors' rules for the student's level,
+    rules written for this student, and any old platform-wide rules for the level."""
+    profs = professor_ids or [""]
+    with get_db(db_path) as conn:
+        rows = conn.execute(
+            f"""SELECT * FROM graduation_requirements
+                 WHERE active = 1 AND (
+                       student_id = ?
+                    OR (student_id IS NULL AND lower(level) = lower(?) AND (
+                            professor_id IS NULL
+                         OR professor_id IN ({','.join('?' * len(profs))}))))
+                 ORDER BY level, title""",
+            (student_id, level or "", *profs),
+        ).fetchall()
+    return [_row_requirement(r) for r in rows]
+
+
+def get_requirement(db_path: Path, requirement_id: str) -> GraduationRequirement | None:
+    with get_db(db_path) as conn:
+        row = conn.execute("SELECT * FROM graduation_requirements WHERE id = ?", (requirement_id,)).fetchone()
+    return _row_requirement(row) if row else None
 
 
 def archive_requirement(db_path: Path, requirement_id: str) -> bool:
@@ -852,4 +894,6 @@ def _row_requirement(row) -> GraduationRequirement:
         required=bool(row["required"]),
         active=bool(row["active"]),
         created_at=row["created_at"],
+        professor_id=row["professor_id"],
+        student_id=row["student_id"],
     )

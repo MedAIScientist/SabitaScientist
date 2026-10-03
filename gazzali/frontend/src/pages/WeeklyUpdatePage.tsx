@@ -1,17 +1,12 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supervisionApi, WeeklyReport, WeeklyReportItem, api } from '../api'
 import { useAuth } from '../auth'
 import { StudentFollowups } from '../components/supervision/Followups'
+import { WeekPicker, mondayOf, ymd } from '../components/supervision/WeekPicker'
 
-function currentWeekStart(): string {
-  const d = new Date()
-  const day = d.getDay()
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-  const monday = new Date(d.setDate(diff))
-  return monday.toISOString().slice(0, 10)
-}
+const THIS_WEEK = ymd(mondayOf(new Date()))
 
 const ITEM_STATUSES = ['planned', 'in_progress', 'needs_review', 'done', 'blocked', 'waiting']
 
@@ -19,16 +14,42 @@ export function WeeklyUpdatePage() {
   const { role, isAdmin } = useAuth()
   const navigate = useNavigate()
   const qc = useQueryClient()
-  const week = currentWeekStart()
+  const [params, setParams] = useSearchParams()
+  const week = params.get('week') || THIS_WEEK
+  const isThisWeek = week === THIS_WEEK
+  // Opening the current week is the point of this page, so it opens itself. Browsing
+  // to another week only looks at it: a week is written when the student says so.
+  const [writing, setWriting] = useState(isThisWeek)
   const [draftItems, setDraftItems] = useState<Partial<WeeklyReportItem>[]>([])
   const [summary, setSummary] = useState({ accomplished: '', next_focus: '', support_requested: '' })
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const canSubmit = role === 'student' || isAdmin
 
+  function goToWeek(next: string) {
+    setWriting(next === THIS_WEEK)
+    setParams(next === THIS_WEEK ? {} : { week: next })
+    setDraftItems([])
+    setMsg(null)
+  }
+
   const { data: report, isLoading } = useQuery({
     queryKey: ['weekly-report', week],
     queryFn: () => supervisionApi.currentWeekReport(week),
+    enabled: canSubmit && writing,
+  })
+
+  // What this week already says. Read-only, so stepping through the calendar does
+  // not leave a trail of empty drafts for a supervisor to review.
+  const { data: existing, isLoading: peeking } = useQuery({
+    queryKey: ['weekly-report-peek', week],
+    queryFn: () => supervisionApi.weekReport(week),
+    enabled: canSubmit && !writing,
+  })
+
+  const { data: myReports = [] } = useQuery({
+    queryKey: ['my-reports'],
+    queryFn: () => supervisionApi.listReports(),
     enabled: canSubmit,
   })
 
@@ -112,23 +133,81 @@ export function WeeklyUpdatePage() {
   if (!canSubmit) {
     return <div style={{ padding: 32 }}>Weekly updates are submitted by students. Open <strong>Reports</strong> to review submissions.</div>
   }
-  if (isLoading) return <div style={{ padding: 32 }}>Loading this week’s report…</div>
-  if (!report) return <div style={{ padding: 32 }}>No report available.</div>
 
-  const locked = report.status === 'submitted'
+  const locked = report?.status === 'submitted'
+  const step = (weeks: number) => {
+    const d = new Date(`${week}T00:00:00`)
+    d.setDate(d.getDate() + weeks * 7)
+    goToWeek(ymd(d))
+  }
+  const history = [...myReports].sort((a, b) => b.week_start.localeCompare(a.week_start))
 
   return (
-    <div style={{ padding: '24px 32px', maxWidth: 960 }}>
-      <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', color: 'var(--text-dim)' }}>Weekly update</div>
-      <h1 style={{ margin: '4px 0 6px', fontSize: 22, color: 'var(--text-heading)' }}>Week of {week}</h1>
+    <div style={{ padding: '24px 32px', display: 'grid', gridTemplateColumns: '280px 1fr', gap: 22, maxWidth: 1200 }}>
+      <aside>
+        <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', color: 'var(--text-dim)' }}>Weekly update</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, margin: '4px 0 12px' }}>
+          <button type="button" aria-label="Previous week" onClick={() => step(-1)} className="btn" style={{ padding: '2px 8px' }}>‹</button>
+          <h1 style={{ flex: 1, textAlign: 'center', fontSize: 15, margin: 0, color: 'var(--text-heading)' }}>{week}</h1>
+          <button type="button" aria-label="Next week" onClick={() => step(1)} className="btn" style={{ padding: '2px 8px' }}
+            disabled={week >= THIS_WEEK}>›</button>
+        </div>
+        <WeekPicker key={week} value={week} onChange={goToWeek} />
+        {!isThisWeek && (
+          <button type="button" className="btn" style={{ width: '100%', marginTop: 8, fontSize: 12 }} onClick={() => goToWeek(THIS_WEEK)}>
+            Back to this week
+          </button>
+        )}
+
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-dim)', margin: '18px 0 8px' }}>My weeks</div>
+        <div style={{ display: 'grid', gap: 4, maxHeight: 260, overflowY: 'auto' }}>
+          {history.length === 0 && <span style={{ fontSize: 13, color: 'var(--text-3)' }}>Nothing written yet.</span>}
+          {history.map(r => (
+            <button
+              key={r.id}
+              type="button"
+              onClick={() => goToWeek(r.week_start)}
+              aria-pressed={r.week_start === week}
+              style={{
+                display: 'flex', justifyContent: 'space-between', gap: 8, width: '100%',
+                textAlign: 'left', padding: '6px 8px', fontSize: 12, cursor: 'pointer',
+                borderRadius: 6, font: 'inherit',
+                background: r.week_start === week ? 'rgba(var(--accent-rgb),0.14)' : 'transparent',
+                border: r.week_start === week ? '1px solid rgba(var(--accent-rgb),0.4)' : '1px solid var(--border)',
+                color: 'var(--text)',
+              }}
+            >
+              <span>{r.week_start}</span>
+              <span style={{ color: r.status === 'submitted' ? '#10b981' : '#f59e0b' }}>
+                {r.status === 'submitted' ? (r.review_status === 'reviewed' ? 'reviewed' : 'submitted') : 'draft'}
+              </span>
+            </button>
+          ))}
+        </div>
+      </aside>
+
+      <main>
+      {msg && <div style={{ padding: '8px 12px', marginBottom: 14, borderRadius: 6, background: 'rgba(var(--accent-rgb),0.12)', border: '1px solid rgba(var(--accent-rgb),0.3)', fontSize: 14 }}>{msg}</div>}
+
+      <StudentFollowups />
+
+      {!writing ? (
+        <WeekPeek
+          loading={peeking}
+          report={existing ?? null}
+          week={week}
+          onStart={() => setWriting(true)}
+        />
+      ) : isLoading ? (
+        <p style={{ color: 'var(--text-2)' }}>Loading this week’s report…</p>
+      ) : !report ? (
+        <p style={{ color: 'var(--text-2)' }}>No report available.</p>
+      ) : (
+        <>
       <p style={{ color: 'var(--text-2)', margin: '0 0 18px', fontSize: 14 }}>
         Update each action point with structured fields. Status: <strong>{report.status}</strong>
         {locked && ' (locked for edits)'}
       </p>
-
-      {msg && <div style={{ padding: '8px 12px', marginBottom: 14, borderRadius: 6, background: 'rgba(var(--accent-rgb),0.12)', border: '1px solid rgba(var(--accent-rgb),0.3)', fontSize: 14 }}>{msg}</div>}
-
-      <StudentFollowups />
 
       <section style={{ marginBottom: 22 }}>
         <h2 style={{ fontSize: 15, margin: '0 0 10px', color: 'var(--text-heading)' }}>Action-point updates</h2>
@@ -216,6 +295,91 @@ export function WeeklyUpdatePage() {
           <button onClick={() => saveAll(true)} disabled={saving} style={btnPrimary}>Submit for review</button>
         </div>
       )}
+        </>
+      )}
+      </main>
+    </div>
+  )
+}
+
+/**
+ * A week that is not being written, shown as what it is.
+ *
+ * Stepping through the calendar should not create empty drafts a supervisor then
+ * has to sift through, so a week is only written when the student chooses to.
+ */
+function WeekPeek({
+  loading, report, week, onStart,
+}: {
+  loading: boolean
+  report: WeeklyReport | null
+  week: string
+  onStart: () => void
+}) {
+  if (loading) return <p style={{ color: 'var(--text-2)' }}>Loading week {week}…</p>
+
+  if (!report) {
+    return (
+      <div style={{ border: '1px dashed var(--border)', borderRadius: 8, padding: 24, textAlign: 'center' }}>
+        <p style={{ color: 'var(--text-2)', margin: '0 0 12px' }}>
+          No update was written for the week of {week}.
+        </p>
+        <button className="btn btn-primary" onClick={onStart}>Write this week’s update</button>
+      </div>
+    )
+  }
+
+  const submitted = report.status === 'submitted'
+  return (
+    <div>
+      <p style={{ color: 'var(--text-2)', fontSize: 14, margin: '0 0 16px' }}>
+        {submitted ? 'Submitted' : 'Draft'} for the week of {report.week_start}
+        {report.reviewed_at && ' · reviewed by your supervisor'}
+      </p>
+
+      {report.feedback && (
+        <div style={{ border: '1px solid rgba(var(--accent-rgb),0.35)', background: 'rgba(var(--accent-rgb),0.08)', borderRadius: 8, padding: 14, marginBottom: 16 }}>
+          <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', marginBottom: 6 }}>SUPERVISOR FEEDBACK</div>
+          <div style={{ fontSize: 14 }}>{report.feedback}</div>
+        </div>
+      )}
+
+      {report.accomplished && <ReadOnly label="What I accomplished" text={report.accomplished} />}
+      {report.next_focus && <ReadOnly label="What I will focus on next" text={report.next_focus} />}
+      {report.support_requested && <ReadOnly label="Support or decision needed" text={report.support_requested} />}
+
+      <h2 style={{ fontSize: 15, margin: '18px 0 10px', color: 'var(--text-heading)' }}>Action points</h2>
+      {report.items.length === 0 ? (
+        <p style={{ color: 'var(--text-3)', fontSize: 13 }}>No items were recorded for this week.</p>
+      ) : (
+        <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 }}>
+          {report.items.map(i => (
+            <li key={i.id} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 12, background: 'var(--surface-panel)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                <strong>{i.item_title}</strong>
+                <span style={{ fontSize: 12, color: 'var(--text-3)' }}>{i.status}{i.progress_pct ? ` · ${i.progress_pct}%` : ''}</span>
+              </div>
+              {i.what_changed && <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 4 }}>{i.what_changed}</div>}
+              {i.blocker && <div style={{ fontSize: 13, color: '#f59e0b', marginTop: 4 }}>Blocker: {i.blocker}</div>}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {!submitted && (
+        <button className="btn btn-primary" style={{ marginTop: 16 }} onClick={onStart}>
+          Edit this week’s update
+        </button>
+      )}
+    </div>
+  )
+}
+
+function ReadOnly({ label, text }: { label: string; text: string }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--text-dim)', marginBottom: 4 }}>{label.toUpperCase()}</div>
+      <div style={{ fontSize: 14, whiteSpace: 'pre-wrap' }}>{text}</div>
     </div>
   )
 }

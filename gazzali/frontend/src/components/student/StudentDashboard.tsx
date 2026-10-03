@@ -160,10 +160,18 @@ export function StudentDashboard({ username }: { username: string | null }) {
         <Card title="Weekly updates" action={<a className="text-link" href="/weekly-update" onClick={e => { e.preventDefault(); navigate('/weekly-update') }}>History</a>}>
           <div style={{ display: 'flex', gap: 6, alignItems: 'flex-end' }} aria-label="Last 8 weeks">
             {history.map(h => (
-              <div key={h.week} title={`${h.week}: ${h.status}`} style={{ flex: 1, textAlign: 'center' }}>
+              // Each bar opens that week, so the history is navigable instead of decorative.
+              <button
+                key={h.week}
+                type="button"
+                title={`Week of ${h.week}: ${h.status}`}
+                aria-label={`Open the week of ${h.week} (${h.status})`}
+                onClick={() => navigate(`/weekly-update?week=${h.week}`)}
+                style={{ flex: 1, textAlign: 'center', background: 'none', border: 'none', padding: 0, cursor: 'pointer', font: 'inherit' }}
+              >
                 <div style={{ height: 34, borderRadius: 4, background: h.status === 'submitted' ? '#10b981' : h.status === 'draft' ? '#f59e0b' : 'var(--border)' }} />
                 <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 3 }}>{shortDate(h.week, false)}</div>
-              </div>
+              </button>
             ))}
           </div>
           <p style={{ fontSize: 13, color: 'var(--text-3)', margin: '8px 0 0' }}>

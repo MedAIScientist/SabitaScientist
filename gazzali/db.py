@@ -810,7 +810,11 @@ CREATE TABLE IF NOT EXISTS graduation_requirements (
     unit              TEXT,
     required          INTEGER NOT NULL DEFAULT 1,
     active            INTEGER NOT NULL DEFAULT 1,
-    created_at        TEXT NOT NULL
+    created_at        TEXT NOT NULL,
+    -- Professors set requirements for their own students: for all of them at a level
+    -- (student_id NULL) or for one student. NULL professor_id = an old platform-wide rule.
+    professor_id      TEXT REFERENCES users(id) ON DELETE CASCADE,
+    student_id        TEXT REFERENCES users(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_graduation_requirements_level ON graduation_requirements(level);
 
@@ -971,6 +975,8 @@ _MIGRATIONS = [
     "ALTER TABLE publication_versions ADD COLUMN verification_json TEXT",
     "ALTER TABLE research_runs ADD COLUMN publication_id TEXT REFERENCES publications(id) ON DELETE SET NULL",
     "ALTER TABLE research_runs ADD COLUMN stage_stats_json TEXT",
+    "ALTER TABLE graduation_requirements ADD COLUMN professor_id TEXT REFERENCES users(id) ON DELETE CASCADE",
+    "ALTER TABLE graduation_requirements ADD COLUMN student_id TEXT REFERENCES users(id) ON DELETE CASCADE",
     "ALTER TABLE tasks ADD COLUMN phase_id TEXT REFERENCES project_phases(id) ON DELETE SET NULL",
     "ALTER TABLE experiments ADD COLUMN phase_id TEXT REFERENCES project_phases(id) ON DELETE SET NULL",
     "ALTER TABLE admissions ADD COLUMN aid_percentage REAL",
