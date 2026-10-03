@@ -43,6 +43,7 @@ def client(tmp_db: Path) -> TestClient:
     c.other_token = _login("other")
     c.stud_id = stud.id
     c.other_id = other.id
+    c.app_db = tmp_db
     return c
 
 
@@ -111,7 +112,7 @@ def _item_for(report_items: list[dict], task_id: str) -> dict | None:
 
 
 def test_opening_the_week_pulls_assigned_tasks_into_the_update(client: TestClient) -> None:
-    project_id, task_id, report_id = _week_with_task(client, title="Segment lesions")
+    _project_id, task_id, report_id = _week_with_task(client, title="Segment lesions")
 
     item = _item_for(_items(client, report_id), task_id)
     assert item is not None, "the assigned task did not appear in the weekly update"
@@ -154,7 +155,7 @@ def test_a_task_from_a_project_the_student_left_stays_out(client: TestClient) ->
 def test_open_tasks_always_appear_and_finished_ones_only_if_recent(client: TestClient) -> None:
     """The week reports current work plus what was actually finished this week —
     never every task the student has ever closed."""
-    project_id, open_task, report_id = _week_with_task(client, title="Still open")
+    project_id, open_task, _report_id = _week_with_task(client, title="Still open")
     done_this_week = _task(
         client, client.stud_token, project_id, title="Finished now", assignee_id=client.stud_id
     )
@@ -189,6 +190,35 @@ def test_a_task_finished_before_this_week_is_not_re_reported(client: TestClient,
     assert _item_for(_items(client, report["id"]), old_task) is None
 
 
+def test_an_item_is_refreshed_even_after_the_task_leaves_the_week(client: TestClient) -> None:
+    """A mirrored item must not keep claiming 'in progress' once the work is done.
+
+    The week is still a draft, so leaving a stale status in it would make the draft
+    disagree with the board the student is looking at.
+    """
+    import sqlite3
+
+    _project_id, task_id, report_id = _week_with_task(client, title="Finish the analysis")
+    before = _item_for(_items(client, report_id), task_id)
+    assert before["status"] == "planned"
+
+    # Complete the task as a previous week would have: done, and out of this week's
+    # "updated this week" window.
+    old = (datetime.now(UTC) - timedelta(days=30)).isoformat()
+    conn = sqlite3.connect(client.app_db)
+    conn.execute("UPDATE tasks SET status='done', updated_at=? WHERE id=?", (old, task_id))
+    conn.commit()
+    conn.close()
+
+    client.post(f"/api/v1/supervision/weekly/current?week={_monday()}", headers=_h(client.stud_token))
+    after = _item_for(_items(client, report_id), task_id)
+    assert after is not None, "the linked item vanished from the week"
+    assert after["status"] == "done"
+    assert after["progress_pct"] == 100
+    # The narrative half is still the student's.
+    assert after["what_changed"] == before["what_changed"]
+
+
 def test_marking_a_task_done_from_the_weekly_page_moves_the_task_too(client: TestClient) -> None:
     project_id, task_id, report_id = _week_with_task(client, title="Draft methods")
 
@@ -215,7 +245,7 @@ def test_marking_a_task_done_from_the_weekly_page_moves_the_task_too(client: Tes
 
 def test_starting_a_task_keeps_a_progress_the_student_typed(client: TestClient) -> None:
     """50% is not implied by 'in progress', so a typed number must survive."""
-    project_id, task_id, report_id = _week_with_task(client, title="Tune model")
+    _project_id, task_id, report_id = _week_with_task(client, title="Tune model")
     item = _item_for(_items(client, report_id), task_id)
 
     client.put(
@@ -235,7 +265,7 @@ def test_starting_a_task_keeps_a_progress_the_student_typed(client: TestClient) 
 
 def test_the_narrative_survives_a_status_refresh(client: TestClient) -> None:
     """Reconciliation refreshes derived fields only; what the student wrote stays."""
-    project_id, task_id, report_id = _week_with_task(client, title="Write intro")
+    _project_id, task_id, report_id = _week_with_task(client, title="Write intro")
 
     client.put(
         f"/api/v1/supervision/weekly/tasks/{task_id}?week={_monday()}",
@@ -254,7 +284,7 @@ def test_the_narrative_survives_a_status_refresh(client: TestClient) -> None:
 
 
 def test_needs_help_can_be_raised_from_the_dashboard(client: TestClient) -> None:
-    project_id, task_id, report_id = _week_with_task(client, title="Access the dataset")
+    _project_id, task_id, report_id = _week_with_task(client, title="Access the dataset")
 
     resp = client.put(
         f"/api/v1/supervision/weekly/tasks/{task_id}?week={_monday()}",
@@ -267,7 +297,7 @@ def test_needs_help_can_be_raised_from_the_dashboard(client: TestClient) -> None
 
 def test_a_submitted_week_is_never_rewritten(client: TestClient) -> None:
     """A supervisor already read that week: only the task may move afterwards."""
-    project_id, task_id, report_id = _week_with_task(client, title="Submit the abstract")
+    _project_id, task_id, report_id = _week_with_task(client, title="Submit the abstract")
     submitted = client.post(
         f"/api/v1/supervision/reports/{report_id}/submit", headers=_h(client.stud_token)
     )
@@ -311,7 +341,7 @@ def test_the_task_list_is_read_only(client: TestClient, tmp_db: Path) -> None:
 
 
 def test_the_task_list_reports_what_the_update_already_says(client: TestClient) -> None:
-    project_id, task_id, report_id = _week_with_task(client, title="Review figures")
+    _project_id, task_id, report_id = _week_with_task(client, title="Review figures")
     client.put(
         f"/api/v1/supervision/weekly/tasks/{task_id}?week={_monday()}",
         json={"needs_help": True},
@@ -347,7 +377,7 @@ def test_weekly_tasks_require_authentication(client: TestClient) -> None:
 
 
 def test_reconciling_twice_does_not_duplicate_items(client: TestClient) -> None:
-    project_id, task_id, report_id = _week_with_task(client, title="Idempotent work")
+    _project_id, task_id, report_id = _week_with_task(client, title="Idempotent work")
     client.post(f"/api/v1/supervision/weekly/current?week={_monday()}", headers=_h(client.stud_token))
     client.post(f"/api/v1/supervision/weekly/current?week={_monday()}", headers=_h(client.stud_token))
 

@@ -6,6 +6,7 @@ import { GroupAgenda, StudentMeetingBrief } from '../components/supervision/Meet
 import { SkillsCheck } from '../components/supervision/SkillsCheck'
 import { SemesterReport } from '../components/supervision/SemesterReport'
 import { WeekPicker, mondayOf, ymd } from '../components/supervision/WeekPicker'
+import { MeetingTime } from '../components/supervision/MeetingTime'
 
 function currentWeekStart(): string {
   return ymd(mondayOf(new Date()))
@@ -110,6 +111,7 @@ export function WeeklyMeetingPage() {
         <div style={{ marginBottom: 14 }}>
           <WeekPicker key={week} value={week} onChange={setWeek} />
         </div>
+        {role === 'professor' && <MeetingTime week={week} />}
         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-dim)', marginBottom: 8 }}>Students</div>
         {(studentIds.length === 0) && (
           <div style={{ fontSize: 13, color: 'var(--text-2)', padding: 10, border: '1px dashed var(--border)', borderRadius: 6 }}>

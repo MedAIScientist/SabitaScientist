@@ -46,3 +46,16 @@ def test_my_supervisor_includes_the_name(tmp_db: Path) -> None:
     tok = c.post("/api/v1/auth/login", json={"username": "melisa", "password": "pw123456"}).json()["token"]
     r = c.get("/api/v1/supervision/my-supervisor", headers={"Authorization": f"Bearer {tok}"}).json()
     assert r["professor_name"] == "kaya"
+
+
+def test_readiness_matches_requirement_level_case_insensitively(tmp_db: Path) -> None:
+    from gazzali.crud.supervision import create_journey, create_requirement
+
+    stu = create_user(tmp_db, "melisa", hash_password("pw123456"), email="melisa@std.medipol.edu.tr")
+    create_journey(tmp_db, stu.id, "phd", status="active")
+    create_requirement(tmp_db, "PhD", "Journal publications", "research_item", 2, research_item_type="Journal Paper")
+    c = TestClient(create_app(tmp_db))
+    tok = c.post("/api/v1/auth/login", json={"username": "melisa", "password": "pw123456"}).json()["token"]
+    r = c.get("/api/v1/supervision/readiness", headers={"Authorization": f"Bearer {tok}"}).json()
+    assert [q["title"] for q in r["requirements"]] == ["Journal publications"]
+    assert r["requirements"][0]["met"] is False
