@@ -49,6 +49,8 @@ class JobRequest(BaseModel):
     to_stage: str | None = None
     dataset: str | None = None  # path under ARC_DATASETS_DIR, mounted read-only
     lessons: list[dict] = []  # lab lessons to seed, already ranked by the PM
+    # ARC domain profiles that keep experiment.mode=sandbox (others force Docker).
+    profile: Literal["ml_tabular", "medical_observational"] | None = None
 
 
 class HumanResponse(BaseModel):
@@ -152,6 +154,8 @@ def start_job(req: JobRequest) -> dict:
         cmd.append("--auto-approve")
     if req.to_stage:
         cmd += ["--to-stage", req.to_stage]
+    if req.profile:
+        cmd += ["--profile", req.profile]
     # The shell records the exit code so status survives a worker restart.
     shell = f"{shlex.join(cmd)} > run.log 2>&1; echo $? > exit_code"
     proc = subprocess.Popen(["sh", "-c", shell], cwd=d, start_new_session=True, stdin=subprocess.DEVNULL)
@@ -223,6 +227,45 @@ def cancel(job_id: str) -> dict:
         except ProcessLookupError:
             pass
     return {"state": "cancelled"}
+
+
+_STAGE_DIR = re.compile(r"^stage-(\d{2})(.*)$")
+
+
+def run_stages(out: Path) -> dict:
+    """Per-stage progress from ARC's own files, for the PM timeline.
+
+    Retried stages appear as extra ``stage-NN*`` folders; they are counted as
+    attempts and the latest one is reported.
+    """
+    stages: dict[int, dict] = {}
+    for d in sorted(p for p in out.glob("stage-*") if p.is_dir()):
+        m = _STAGE_DIR.match(d.name)
+        if not m:
+            continue
+        num = int(m.group(1))
+        health = _read_json(d / "stage_health.json") or {}
+        decision = _read_json(d / "decision.json") or {}
+        files = sorted(str(f.relative_to(out)) for f in d.rglob("*") if f.is_file() and f.name not in ("stage_health.json", "decision.json"))
+        entry = stages.setdefault(num, {"stage": num, "attempts": 0})
+        entry["attempts"] += 1
+        entry.update({
+            "status": health.get("status") or decision.get("status") or "running",
+            "duration_sec": health.get("duration_sec"),
+            "decision": decision.get("decision"),
+            "error": health.get("error") or decision.get("error"),
+            "artifacts": files[:50],
+            "finished_at": health.get("timestamp"),
+        })
+    return {
+        "stages": [stages[k] for k in sorted(stages)],
+        "topic_evaluation": _read_json(out / "stage-02" / "topic_evaluation.json"),
+    }
+
+
+@app.get("/jobs/{job_id}/stages", dependencies=[Depends(_auth)])
+def stages(job_id: str) -> dict:
+    return run_stages(_existing(job_id) / "out")
 
 
 @app.get("/jobs/{job_id}/lessons", dependencies=[Depends(_auth)])

@@ -273,6 +273,7 @@ fieldset.field { border: 0; }
   font-size: 14px; font-weight: 500; text-align: left; white-space: nowrap;
 }
 .nav-link:hover { background: var(--surface-2); color: var(--text); }
+.nav-badge { margin-left: auto; background: var(--accent); color: #fff; border-radius: 999px; padding: 0 7px; font-size: 11px; line-height: 18px; }
 .nav-link[aria-current="page"], .nav-link[data-active] {
   background: rgba(var(--accent-rgb), .12); color: var(--accent);
 }

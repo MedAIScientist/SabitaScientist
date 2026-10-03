@@ -19,7 +19,11 @@ vi.mock('../../../api', () => ({
     respondResearchGate: vi.fn(),
     cancelResearchRun: vi.fn(),
     researchRunFile: vi.fn(),
-    listIrbs: vi.fn().mockResolvedValue([]),
+    researchRunStages: vi.fn(),
+    researchUsage: vi.fn(),
+    researchDomains: vi.fn(),
+    researchTopicCheck: vi.fn(),
+    researchDatasets: vi.fn(),
   },
 }))
 
@@ -33,31 +37,56 @@ describe('ResearchRunsTab', () => {
     vi.clearAllMocks()
     vi.mocked(api.listResearchRuns).mockResolvedValue([WAITING])
     vi.mocked(api.respondResearchGate).mockResolvedValue({ ...WAITING, status: 'running', waiting: null })
-    vi.mocked(api.startResearchRun).mockResolvedValue({ ...WAITING, id: 'run2', status: 'running', waiting: null })
+    vi.mocked(api.startResearchRun).mockResolvedValue({ ...WAITING, id: 'run2', status: 'queued', waiting: null, queue_position: 1 })
+    vi.mocked(api.researchRunFile).mockResolvedValue({ path: 'stage-09/exp_plan.yaml', content: 'conditions: 240' })
+    vi.mocked(api.researchRunStages).mockResolvedValue({
+      stages: [
+        { stage: 8, status: 'done', duration_sec: 119, decision: 'proceed', error: null, artifacts: ['stage-08/hypotheses.md'], attempts: 1 },
+        { stage: 9, status: 'done', duration_sec: 69, decision: 'refine', error: null, artifacts: ['stage-09/exp_plan.yaml'], attempts: 2 },
+      ],
+      topic_evaluation: { novelty: 2, specificity: 7, feasibility: 9, overall: 6, suggestion: '' },
+    })
+    vi.mocked(api.researchUsage).mockResolvedValue({ requests_last_minute: 4, limit_per_minute: 40, runs_running: 1, runs_waiting: 0, runs_queued: 0, max_concurrent: 1 })
+    vi.mocked(api.researchDomains).mockResolvedValue([{ id: 'ml', label: 'Machine learning (tabular data)', guidance: 'Use 5 seeds.' }])
+    vi.mocked(api.researchTopicCheck).mockResolvedValue({ novelty: 2, specificity: 7, feasibility: 9, overall: 6, suggestion: 'Use three datasets' })
+    vi.mocked(api.researchDatasets).mockResolvedValue([{ id: 'd1', name: 'Fundus 2026', modality: 'CF', irb_ids: ['irb1'] }])
   })
 
-  it('starts a CoPilot run with the hypothesis as the question', async () => {
+  it('walks question → data → review and starts the run with the chosen dataset', async () => {
     render(wrap(<ResearchRunsTab projectId="p1" experimentId="e1" hypothesis="Class weighting raises minority recall" />))
-    fireEvent.click(screen.getByRole('button', { name: 'Run with AutoResearchClaw' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Check my question' }))
+    expect(await screen.findByText(/Suggestion: Use three datasets/)).toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Kind of study'), { target: { value: 'ml' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Next: data' }))
+    const select = await screen.findByLabelText('Dataset')
+    await screen.findByRole('option', { name: /Fundus 2026/ })
+    fireEvent.change(select, { target: { value: 'd1' } })  // single IRB is filled in automatically
+    fireEvent.click(screen.getByRole('button', { name: 'Next: review' }))
+    expect(await screen.findByText(/a new run will wait in the queue/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Start the run' }))
     await waitFor(() => expect(api.startResearchRun).toHaveBeenCalledWith('p1', 'e1', {
-      topic: 'Class weighting raises minority recall', mode: 'co-pilot',
+      topic: 'Class weighting raises minority recall', mode: 'co-pilot', domain: 'ml', dataset_id: 'd1', irb_id: 'irb1',
     }))
   })
 
-  it('a dataset needs an IRB before the run can start', async () => {
-    render(wrap(<ResearchRunsTab projectId="p1" experimentId="e1" hypothesis="Class weighting raises minority recall" />))
-    fireEvent.change(screen.getByPlaceholderText(/retina/), { target: { value: 'retina/fundus' } })
-    expect(screen.getByRole('button', { name: 'Run with AutoResearchClaw' })).toBeDisabled()
-  })
-
-  it('shows a waiting gate and sends the guidance with the decision', async () => {
+  it('shows the gate in plain language with a preview and quick replies', async () => {
     render(wrap(<ResearchRunsTab projectId="p1" experimentId="e1" />))
-    expect(await screen.findByText('240-cell factorial')).toBeInTheDocument()
-    expect(screen.getByText(/project team decides/)).toBeInTheDocument()
-    fireEvent.change(screen.getByPlaceholderText(/60 cells/), { target: { value: 'use 60 cells' } })
+    expect(await screen.findAllByText(/Designing the experiment/)).not.toHaveLength(0)
+    expect(screen.getByText(/the project team decides/)).toBeInTheDocument()
+    expect(await screen.findAllByText('conditions: 240')).not.toHaveLength(0)
+    fireEvent.click(screen.getByRole('button', { name: '+ Reduce the number of conditions' }))
     fireEvent.click(screen.getByRole('button', { name: 'Approve' }))
     await waitFor(() => expect(api.respondResearchGate).toHaveBeenCalledWith('run1', {
-      action: 'approve', guidance: 'use 60 cells', message: 'use 60 cells',
+      action: 'approve', guidance: 'Reduce the number of conditions', message: 'Reduce the number of conditions',
     }))
+  })
+
+  it('timeline marks a refined stage and opens its artifacts', async () => {
+    render(wrap(<ResearchRunsTab projectId="p1" experimentId="e1" />))
+    const stage9 = await screen.findByRole('listitem', { name: /Stage 9: Designing the experiment/ })
+    await waitFor(() => expect(stage9.textContent).toContain('↻'))
+    fireEvent.click(stage9)
+    expect(await screen.findByText(/2 attempts/)).toBeInTheDocument()
+    expect(screen.getByText('Topic score 6/10 · novelty 2 · specificity 7 · feasibility 9')).toBeInTheDocument()
   })
 })

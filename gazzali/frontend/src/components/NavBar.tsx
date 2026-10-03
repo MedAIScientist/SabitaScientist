@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '../auth'
 import { useTheme } from '../theme'
 import { api } from '../api'
@@ -148,6 +149,8 @@ function Sidebar({ collapsed, onToggleCollapse, onSearch, copilotOpen, onToggleC
   const location = useLocation()
   const groups = useVisibleGroups()
   const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform)
+  // Research gates waiting on me: shown on Home, where the inbox is.
+  const { data: gates = [] } = useQuery({ queryKey: ['research-gates'], queryFn: api.researchGates, refetchInterval: 60_000 })
 
   const link = (item: NavItem) => {
     const active = location.pathname === item.path || location.pathname.startsWith(item.path + '/')
@@ -156,6 +159,9 @@ function Sidebar({ collapsed, onToggleCollapse, onSearch, copilotOpen, onToggleC
         title={collapsed ? item.label : undefined}
         onClick={e => { if (e.metaKey || e.ctrlKey || e.button !== 0) return; e.preventDefault(); navigate(item.path) }}>
         <Icon name={item.icon} /><span className="nav-label">{item.label}</span>
+        {item.path === '/home' && gates.length > 0 && (
+          <span className="nav-badge" aria-label={`${gates.length} research decisions waiting`}>{gates.length}</span>
+        )}
       </a>
     )
   }

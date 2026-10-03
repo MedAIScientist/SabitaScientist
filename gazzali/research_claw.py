@@ -36,7 +36,15 @@ _INFRA_ERROR = re.compile(r"HTTP Error|rate.?limit|All models failed|timed? ?out
 
 
 class WorkerError(RuntimeError):
-    """The worker refused the request or could not be reached."""
+    """The worker refused the request or could not be reached.
+
+    ``retryable`` is True when the worker was unreachable: a queued run then
+    stays queued instead of failing.
+    """
+
+    def __init__(self, message: str, retryable: bool = False) -> None:
+        super().__init__(message)
+        self.retryable = retryable
 
 
 def _call(method: str, path: str, json_body: dict | None = None, timeout: float = 15) -> Any:
@@ -52,7 +60,7 @@ def _call(method: str, path: str, json_body: dict | None = None, timeout: float 
             timeout=timeout,
         )
     except httpx.HTTPError as exc:
-        raise WorkerError(f"AutoResearchClaw worker unreachable: {exc}") from exc
+        raise WorkerError(f"AutoResearchClaw worker unreachable: {exc}", retryable=True) from exc
     if resp.status_code >= 400:
         raise WorkerError(f"worker {resp.status_code}: {resp.text[:300]}")
     return resp.json()
@@ -73,25 +81,49 @@ def is_research_lesson(lesson: dict) -> bool:
 
 
 def lab_lessons_to_seed(db: Path, lab_id: str | None) -> list[dict]:
-    """The lab's lessons, highest weight first, in ARC's own format."""
+    """The lab's lessons in ARC's own format: pinned first, then by recency weight."""
     if not lab_id:
         return []
     with get_db(db) as conn:
         rows = conn.execute(
-            "SELECT severity, lesson_json, created_at FROM research_lessons WHERE lab_id = ?", (lab_id,)
+            "SELECT severity, lesson_json, pinned, created_at FROM research_lessons WHERE lab_id = ?", (lab_id,)
         ).fetchall()
     ranked = sorted(
         rows,
-        key=lambda r: lesson_weight(r["severity"], datetime.fromisoformat(r["created_at"])),
+        key=lambda r: (r["pinned"], lesson_weight(r["severity"], datetime.fromisoformat(r["created_at"]))),
         reverse=True,
     )
     return [json.loads(r["lesson_json"]) for r in ranked[:MAX_SEEDED_LESSONS]]
 
 
-def start(run_id: str, topic: str, mode: str, dataset: str | None, lessons: list[dict]) -> dict:
+# Templates for the start form. ``profile`` is an ARC domain profile that runs in the
+# CPU sandbox; the guidance is appended to the research question.
+DOMAINS: dict[str, dict] = {
+    "ml": {"label": "Machine learning (tabular data)", "profile": "ml_tabular",
+           "guidance": "Compare against simple baselines; report mean ± std over at least 5 seeds."},
+    "clinical": {"label": "Clinical / observational study", "profile": "medical_observational",
+                 "guidance": "State the estimand, adjust for confounders, report confidence intervals; aggregate results only."},
+    "imaging": {"label": "Medical imaging", "profile": None,
+                "guidance": "CPU only: use small models or pretrained features; report AUC, sensitivity and specificity with confidence intervals."},
+    "statistics": {"label": "Statistics / simulation", "profile": None,
+                   "guidance": "Monte Carlo with fixed seeds; report bias, coverage and RMSE."},
+}
+
+
+def topic_for(topic: str, domain: str | None) -> str:
+    guidance = DOMAINS.get(domain or "", {}).get("guidance")
+    return f"{topic}\n\nMethod guidance: {guidance}" if guidance else topic
+
+
+def start(run_id: str, topic: str, mode: str, dataset: str | None, lessons: list[dict], domain: str | None = None) -> dict:
     return _call("POST", "/jobs", {
-        "job_id": run_id, "topic": topic, "mode": mode, "dataset": dataset, "lessons": lessons,
+        "job_id": run_id, "topic": topic_for(topic, domain), "mode": mode, "dataset": dataset,
+        "lessons": lessons, "profile": DOMAINS.get(domain or "", {}).get("profile"),
     })
+
+
+def stages(run_id: str) -> dict:
+    return _call("GET", f"/jobs/{run_id}/stages")
 
 
 def status(run_id: str) -> dict:
@@ -128,6 +160,9 @@ def import_results(db: Path, run: dict) -> None:
     ]
     if metrics:
         create_metrics(db, run["experiment_id"], metrics, recorded_by=None)
+    from .crud.research_runs import set_result_summary
+
+    set_result_summary(db, run["id"], registry)
     with get_db(db) as conn:
         for lesson in lessons:
             conn.execute(

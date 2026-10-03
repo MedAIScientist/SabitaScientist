@@ -62,3 +62,19 @@ def test_token_and_path_guards(client: TestClient, tmp_path: Path) -> None:
     _job(tmp_path)
     assert client.get("/jobs/j1/file", params={"path": "../job.json"}, headers=auth).status_code == 404
     assert client.post("/jobs/j1/response", json={"action": "approve"}, headers=auth).status_code == 409
+
+
+def test_stages_report_progress_decisions_and_retries(tmp_path: Path) -> None:
+    out = _job(tmp_path) / "out"
+    _write(out / "stage-02" / "stage_health.json", {"status": "done", "duration_sec": 4.3})
+    _write(out / "stage-02" / "decision.json", {"decision": "proceed"})
+    _write(out / "stage-02" / "topic_evaluation.json", {"overall": 6, "suggestion": "broaden"})
+    _write(out / "stage-02" / "problem_tree.md", "tree")
+    _write(out / "stage-13" / "stage_health.json", {"status": "failed", "error": "NaN loss"})
+    _write(out / "stage-13_r1" / "stage_health.json", {"status": "done", "duration_sec": 30})
+    _write(out / "stage-13_r1" / "decision.json", {"decision": "refine"})
+    r = worker.run_stages(out)
+    assert r["topic_evaluation"]["overall"] == 6
+    by = {s["stage"]: s for s in r["stages"]}
+    assert by[2]["artifacts"] == ["stage-02/problem_tree.md", "stage-02/topic_evaluation.json"]
+    assert (by[13]["attempts"], by[13]["status"], by[13]["decision"]) == (2, "done", "refine")
