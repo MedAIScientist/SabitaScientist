@@ -62,3 +62,15 @@ def test_model_falls_back_to_the_default_when_unset(monkeypatch) -> None:
 
     monkeypatch.delenv("PM_RUNNER_MODEL", raising=False)
     assert agent_runner._get_model() == DEFAULT_RUNNER_MODEL
+
+
+def test_runner_uses_the_configured_endpoint(monkeypatch) -> None:
+    """Switching provider (e.g. to NVIDIA) must move background runs too, not only the copilot."""
+    from gazzali.runner import agent_runner
+
+    monkeypatch.setenv("PM_LLM_BASE_URL", "https://integrate.api.nvidia.com/v1/")
+    monkeypatch.setenv("PM_LLM_API_KEY", "nvapi-test")
+    monkeypatch.setenv("PM_LLM_MODEL", "nvidia/nemotron-3-super-120b-a12b")
+    monkeypatch.delenv("PM_RUNNER_MODEL", raising=False)
+    assert agent_runner._get_endpoint() == ("https://integrate.api.nvidia.com/v1", "nvapi-test")
+    assert agent_runner._get_model() == "nvidia/nemotron-3-super-120b-a12b"

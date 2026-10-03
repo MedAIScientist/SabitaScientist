@@ -1,7 +1,7 @@
-"""Asyncio task registry for Groq-backed agent runs with queue-based SSE streaming.
+"""Asyncio task registry for background AI runs with queue-based SSE streaming.
 
-Replaces the previous LangGraph-based agent runner with direct Groq API calls
-via httpx streaming.
+Streams from the same OpenAI-compatible endpoint as the rest of the PM
+(``settings.get_llm_config``: Groq by default, NVIDIA or any other by env).
 """
 
 from __future__ import annotations
@@ -9,7 +9,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import os
 import time
 from collections.abc import AsyncGenerator
 from datetime import UTC, datetime
@@ -17,14 +16,13 @@ from pathlib import Path
 
 import httpx
 
+from ..settings import DEFAULT_LLM_MODEL, get_llm_config, get_runner_model
+
 logger = logging.getLogger(__name__)
 
-_GROQ_BASE_URL = "https://api.groq.com/openai/v1"
-
-# Groq decommissions models on a schedule; a hardcoded name here or in settings is
-# a time bomb that fails silently (the run just produces no output). Override per
-# deployment with PM_RUNNER_MODEL.
-DEFAULT_RUNNER_MODEL = "openai/gpt-oss-120b"
+# Providers retire models on a schedule; a stale name fails silently (the run just
+# produces no output). PM_RUNNER_MODEL overrides; otherwise the PM's model is used.
+DEFAULT_RUNNER_MODEL = DEFAULT_LLM_MODEL
 
 # Per-run asyncio queues: run_id → Queue of {type, data} dicts
 _run_queues: dict[str, asyncio.Queue[dict | None]] = {}
@@ -174,18 +172,15 @@ _SYSTEM_PROMPTS: dict[str, str] = {
 }
 
 def _get_model() -> str:
-    from ..settings import get_runner_model
-
-    return get_runner_model() or DEFAULT_RUNNER_MODEL
+    return get_runner_model() or get_llm_config()["model"]
 
 
-def _get_groq_api_key() -> str:
-    key = os.environ.get("GROQ_API_KEY", "")
-    if not key:
-        raise RuntimeError(
-            "GROQ_API_KEY environment variable is required for the Groq runner"
-        )
-    return key
+def _get_endpoint() -> tuple[str, str]:
+    """(base_url, api_key) of the configured OpenAI-compatible endpoint."""
+    cfg = get_llm_config()
+    if not cfg["api_key"]:
+        raise RuntimeError("No LLM API key: set PM_LLM_API_KEY (or GROQ_API_KEY)")
+    return cfg["base_url"].rstrip("/"), cfg["api_key"]
 
 
 async def start_run(
@@ -228,7 +223,7 @@ async def _run_agent(
     project_id: str | None = None,
     publication_id: str | None = None,
 ) -> None:
-    """Execute via Groq API streaming and push events."""
+    """Stream one completion from the configured endpoint and push events."""
 
     prefix = AGENT_PROMPTS.get(agent_type, prompt)
     system_prompt = _SYSTEM_PROMPTS.get(agent_type, "")
@@ -236,10 +231,10 @@ async def _run_agent(
 
     Path(workspace_dir).mkdir(parents=True, exist_ok=True)
 
-    api_key = _get_groq_api_key()
+    base_url, api_key = _get_endpoint()
     accumulated_text: list[str] = []
     model_name = _get_model()
-    # Groq reports usage only when it is asked to, and only in the final chunk.
+    # OpenAI-compatible APIs report usage only when asked, and only in the final chunk.
     # Without this the token counts are produced and thrown away.
     reported_usage: dict | None = None
     started = time.monotonic()
@@ -266,7 +261,7 @@ async def _run_agent(
         ) as client:
             async with client.stream(
                 "POST",
-                f"{_GROQ_BASE_URL}/chat/completions",
+                f"{base_url}/chat/completions",
                 headers=headers,
                 json=payload,
             ) as resp:

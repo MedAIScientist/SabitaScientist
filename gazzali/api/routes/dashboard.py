@@ -14,9 +14,7 @@ router = APIRouter()
 
 @router.get("/system/health")
 def system_health(current_user: User = Depends(get_current_user)):
-    """AI configuration status: models in use, whether keys are set, skills count."""
-    import os
-
+    """AI configuration status: models in use, whether a key is set, skills count."""
     from ... import settings
     from ..._ai import pm_model_choice
     from ...runner.agent_runner import _get_model as runner_model
@@ -28,13 +26,12 @@ def system_health(current_user: User = Depends(get_current_user)):
         for e in base.iterdir()
         if e.is_dir() and (e / "SKILL.md").exists()
     )
-    groq_key = os.environ.get("GROQ_API_KEY", "")
+    configured = bool(settings.get_llm_config()["api_key"])
     assistant_model, assistant_provider = pm_model_choice()
     return {
-        "groq": {"configured": bool(groq_key), "model": runner_model()},
         "ai": {
             "runner_model": runner_model(),
-            "runner_configured": bool(groq_key),
+            "runner_configured": configured,
             "assistant_model": assistant_model,
             "assistant_provider": assistant_provider,
         },
