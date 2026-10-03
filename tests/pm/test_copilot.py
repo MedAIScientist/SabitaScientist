@@ -132,12 +132,12 @@ def test_link_for_created_entities() -> None:
 
 
 def test_model_choice_follows_the_environment(monkeypatch) -> None:
-    """Groq + the default model unless PM_LLM_* point somewhere else."""
+    """NVIDIA + the default model unless PM_LLM_* point somewhere else."""
     from gazzali import _ai, settings
 
     for key in ("PM_LLM_MODEL", "PM_LLM_BASE_URL", "PM_LLM_API_KEY"):
         monkeypatch.delenv(key, raising=False)
-    assert _ai.pm_model_choice() == (settings.DEFAULT_LLM_MODEL, "api.groq.com")
+    assert _ai.pm_model_choice() == (settings.DEFAULT_LLM_MODEL, "integrate.api.nvidia.com")
 
     monkeypatch.setenv("PM_LLM_MODEL", "deepseek-v4-flash")
     monkeypatch.setenv("PM_LLM_BASE_URL", "https://api.deepseek.com/v1")

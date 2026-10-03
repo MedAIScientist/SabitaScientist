@@ -29,20 +29,20 @@ DATA_DIR = _env_path("GAZZALI_DATA_DIR", Path.home() / ".gazzali")
 USER_SKILLS_DIR = _env_path("GAZZALI_SKILLS_DIR", WORKSPACE_ROOT / "skills")
 GLOBAL_SKILLS_DIR = DATA_DIR / "skills"
 
-# The model that answers the PM's direct AI calls and the copilot. It must emit
-# native tool calls for the copilot. qwen/qwen3.6-27b was retired by Groq (404 on
-# 2026-10-03) and qwen3.8-27b exceeds our tier's request size with the tool schemas;
-# gpt-oss-120b answered and called the right tool 2/2 in production that day.
-DEFAULT_LLM_MODEL = "openai/gpt-oss-120b"
-DEFAULT_LLM_BASE_URL = "https://api.groq.com/openai/v1"
+# The model behind the PM's direct AI calls, background runs and the copilot (which
+# needs native tool calls). NVIDIA's free API: Nemotron-3 Super answered, called the
+# right copilot tool and accepted a 37k-token prompt on 2026-10-03, where Groq's free
+# tier capped requests at 8k tokens. The free key is limited to ~40 requests/minute.
+DEFAULT_LLM_MODEL = "nvidia/nemotron-3-super-120b-a12b"
+DEFAULT_LLM_BASE_URL = "https://integrate.api.nvidia.com/v1"
 
 
 def get_llm_config() -> dict:
-    """Any OpenAI-compatible endpoint; Groq by default."""
+    """Any OpenAI-compatible endpoint; NVIDIA's API by default."""
     return {
         "model": _env("PM_LLM_MODEL", DEFAULT_LLM_MODEL),
         "base_url": _env("PM_LLM_BASE_URL", DEFAULT_LLM_BASE_URL),
-        "api_key": _env("PM_LLM_API_KEY") or _env("GROQ_API_KEY"),
+        "api_key": _env("PM_LLM_API_KEY") or _env("NVIDIA_API_KEY"),
     }
 
 

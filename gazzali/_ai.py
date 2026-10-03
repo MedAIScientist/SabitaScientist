@@ -1,6 +1,6 @@
 """Direct LLM access for the PM's AI endpoints and the copilot.
 
-One OpenAI-compatible endpoint (Groq by default, see ``settings.get_llm_config``)
+One OpenAI-compatible endpoint (NVIDIA by default, see ``settings.get_llm_config``)
 serves every direct call. Skill guidance is read from SKILL.md files in the
 skills directories, when a caller asks for it.
 """

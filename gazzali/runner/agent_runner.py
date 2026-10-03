@@ -1,7 +1,7 @@
 """Asyncio task registry for background AI runs with queue-based SSE streaming.
 
 Streams from the same OpenAI-compatible endpoint as the rest of the PM
-(``settings.get_llm_config``: Groq by default, NVIDIA or any other by env).
+(``settings.get_llm_config``: NVIDIA by default, any other by env).
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ _orphan_cleanup_done = False
 
 
 def parse_stream_chunk(raw: str) -> tuple[str, dict | None]:
-    """Read one Groq SSE payload: return (text delta, usage if present).
+    """Read one OpenAI-compatible SSE payload: return (text delta, usage if present).
 
     Split out from the streaming loop because the stream's shape is the part that
     breaks: the usage-only final chunk carries ``"choices": []``, and the previous
@@ -179,7 +179,7 @@ def _get_endpoint() -> tuple[str, str]:
     """(base_url, api_key) of the configured OpenAI-compatible endpoint."""
     cfg = get_llm_config()
     if not cfg["api_key"]:
-        raise RuntimeError("No LLM API key: set PM_LLM_API_KEY (or GROQ_API_KEY)")
+        raise RuntimeError("No LLM API key: set NVIDIA_API_KEY (or PM_LLM_API_KEY)")
     return cfg["base_url"].rstrip("/"), cfg["api_key"]
 
 
