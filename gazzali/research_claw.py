@@ -122,6 +122,10 @@ def start(run_id: str, topic: str, mode: str, dataset: str | None, lessons: list
     })
 
 
+def deliverables(run_id: str) -> dict:
+    return _call("GET", f"/jobs/{run_id}/deliverables", timeout=60)
+
+
 def stages(run_id: str) -> dict:
     return _call("GET", f"/jobs/{run_id}/stages")
 

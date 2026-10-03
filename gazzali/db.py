@@ -940,6 +940,7 @@ CREATE TABLE IF NOT EXISTS research_runs (
     metric_direction TEXT,
     conditions_json TEXT,
     pi_quality    INTEGER CHECK(pi_quality BETWEEN 1 AND 10),
+    publication_id TEXT REFERENCES publications(id) ON DELETE SET NULL,
     imported_at   TEXT,
     created_at    TEXT NOT NULL,
     updated_at    TEXT NOT NULL
@@ -965,6 +966,9 @@ CREATE INDEX IF NOT EXISTS idx_research_lessons_lab ON research_lessons(lab_id, 
 
 _MIGRATIONS = [
     "ALTER TABLE research_lessons ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0",
+    # Verified result reporting: summary of the number check on AI drafts (verify_numbers.py).
+    "ALTER TABLE publication_versions ADD COLUMN verification_json TEXT",
+    "ALTER TABLE research_runs ADD COLUMN publication_id TEXT REFERENCES publications(id) ON DELETE SET NULL",
     "ALTER TABLE tasks ADD COLUMN phase_id TEXT REFERENCES project_phases(id) ON DELETE SET NULL",
     "ALTER TABLE experiments ADD COLUMN phase_id TEXT REFERENCES project_phases(id) ON DELETE SET NULL",
     "ALTER TABLE admissions ADD COLUMN aid_percentage REAL",

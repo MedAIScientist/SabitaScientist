@@ -145,6 +145,12 @@ def create_version(
     """
     ver_id = uuid.uuid4().hex
     now = datetime.now(UTC).isoformat()
+    verification = None
+    if content and generated_by and generated_by != "human":
+        # Every number an AI states must trace to a recorded measurement (paper §3.4).
+        from ..verify_numbers import verify_for_publication
+
+        content, verification = verify_for_publication(db_path, publication_id, content, section)
     with get_db(db_path) as conn:
         max_ver = conn.execute(
             "SELECT COALESCE(MAX(version), 0) FROM publication_versions WHERE publication_id = ?",
@@ -154,10 +160,10 @@ def create_version(
         conn.execute(
             """INSERT INTO publication_versions
                (id, publication_id, version, file_path, notes, created_by, created_at,
-                content, section, generated_by, model, prompt_hash)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                content, section, generated_by, model, prompt_hash, verification_json)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (ver_id, publication_id, new_ver, file_path, notes, created_by, now,
-             content, section, generated_by, model, prompt_hash),
+             content, section, generated_by, model, prompt_hash, verification),
         )
     return PublicationVersion(
         id=ver_id,
@@ -172,6 +178,7 @@ def create_version(
         generated_by=generated_by,
         model=model,
         prompt_hash=prompt_hash,
+        verification=json.loads(verification) if verification else None,
     )
 
 
@@ -207,6 +214,7 @@ def _row_to_version(row) -> PublicationVersion:
         generated_by=row["generated_by"],
         model=row["model"],
         prompt_hash=row["prompt_hash"],
+        verification=json.loads(row["verification_json"]) if row["verification_json"] else None,
     )
 
 

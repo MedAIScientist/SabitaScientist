@@ -1,4 +1,6 @@
 import React, { useCallback, useState } from 'react'
+import { NumberCheckBadge } from '../components/publication/NumberCheckBadge'
+import { ReferenceCheckPanel } from '../components/publication/ReferenceCheckPanel'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AiJobList } from '../components/AiJobList'
@@ -563,6 +565,7 @@ export function PublicationDetail() {
                       marginLeft: 6, padding: '1px 7px', borderRadius: 4, fontSize: 12, fontWeight: 700,
                       fontFamily: 'var(--font-mono)', background: 'rgba(245,158,11,0.12)', color: '#f59e0b',
                     }} title={v.model ? `Model: ${v.model}` : 'Model not recorded'}>AI</span>}
+                    <NumberCheckBadge check={v.verification} />
                     {v.notes && <span style={{ color: 'var(--text-2)', marginLeft: 10, fontSize: 16 }}>{v.notes}</span>}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -589,6 +592,8 @@ export function PublicationDetail() {
           </div>
 
           <AiDisclosurePanel pubId={id!} />
+
+          <ReferenceCheckPanel pubId={id!} />
 
           {/* Reviews */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>

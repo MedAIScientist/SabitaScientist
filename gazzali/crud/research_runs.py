@@ -144,3 +144,8 @@ def delete_lesson(db: Path, lab_id: str, lesson_id: str) -> bool:
     with get_db(db) as conn:
         cur = conn.execute("DELETE FROM research_lessons WHERE id = ? AND lab_id = ?", (lesson_id, lab_id))
     return cur.rowcount > 0
+
+
+def set_publication(db: Path, run_id: str, publication_id: str) -> None:
+    with get_db(db) as conn:
+        conn.execute("UPDATE research_runs SET publication_id = ? WHERE id = ?", (publication_id, run_id))

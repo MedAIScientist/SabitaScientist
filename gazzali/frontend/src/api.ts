@@ -306,6 +306,10 @@ export const api = {
   submitPublication: (id: string) => request<Publication_>('POST', `/publications/${id}/submit`),
   deletePublication: (id: string) => request<void>('DELETE', `/publications/${id}`),
   listVersions: (pubId: string) => request<Version[]>('GET', `/publications/${pubId}/versions`),
+  verifyReferences: (pubId: string, text?: string) =>
+    request<ReferenceCheck>('POST', `/publications/${pubId}/references/verify`, text ? { text } : {}),
+  publicationFromRun: (runId: string) =>
+    request<{ publication_id: string; version: number; verification: NumberCheck | null }>('POST', `/research-runs/${runId}/publication`),
   getVersion: (pubId: string, versionId: string) =>
     request<Version>('GET', `/publications/${pubId}/versions/${versionId}`),
   createVersion: (pubId: string, notes?: string) =>
@@ -952,6 +956,15 @@ export interface Version {
   section: string | null; generated_by: string | null; model: string | null
   prompt_hash: string | null; content_length: number
   content: string | null   // only populated by getVersion
+  verification?: NumberCheck | null
+}
+export interface NumberCheck {
+  checked: number; verified: number; unverified: number; unverified_in_results: number
+  recorded_values: number; examples: { value: string; context: string; strict: boolean }[]
+}
+export interface ReferenceCheck {
+  references: { reference: string; status: 'verified' | 'suspicious' | 'hallucinated'; matched_title: string | null; url: string | null; source: string | null }[]
+  counts: { verified: number; suspicious: number; hallucinated: number }
 }
 export interface AiDisclosure {
   publication_id: string; statement: string
@@ -1078,7 +1091,7 @@ export interface ResearchRun {
   error: string | null; created_at: string; updated_at: string
   domain?: string | null; queue_position?: number | null
   primary_metric?: number | null; primary_metric_std?: number | null; metric_direction?: string | null
-  conditions?: string[]; pi_quality?: number | null
+  conditions?: string[]; pi_quality?: number | null; publication_id?: string | null
 }
 export interface RunStage {
   stage: number; status: string; duration_sec: number | null; decision: string | null

@@ -261,6 +261,45 @@ def read_file(run_id: str, path: str, current_user: User = Depends(get_current_u
         raise HTTPException(404 if "404" in str(exc) else 503, str(exc)) from exc
 
 
+def _paper_title(paper: str, fallback: str) -> str:
+    for line in paper.splitlines():
+        m = re.match(r"^\s*#\s+(.+)$", line)
+        if m:
+            return m.group(1).strip()[:300]
+    return fallback[:300]
+
+
+@router.post("/research-runs/{run_id}/publication", status_code=201)
+def create_publication_from_run(run_id: str, request: Request, current_user: User = Depends(get_current_user)):
+    """Turn a finished run's paper into a publication draft (numbers are checked on save)."""
+    from ...crud.publications import create_publication, create_version, link_experiment
+
+    db = get_db_path()
+    run = _visible_run(db, run_id, current_user)
+    if get_member_role(db, run["project_id"], current_user.id) not in ("owner", "editor") and not current_user.is_admin:
+        raise HTTPException(403, "the project owner or an editor creates publications")
+    if run["status"] != "done":
+        raise HTTPException(409, "the run has not finished")
+    if run["publication_id"]:
+        raise HTTPException(409, f"already created: publication {run['publication_id']}")
+    try:
+        d = arc.deliverables(run_id)
+    except arc.WorkerError as exc:
+        raise HTTPException(404 if "404" in str(exc) else 503, str(exc)) from exc
+    paper = d["paper"]
+    if d.get("references_bib"):
+        paper += "\n\n## References (BibTeX, verified by AutoResearchClaw)\n\n```bibtex\n" + d["references_bib"] + "\n```\n"
+    pub = create_publication(db, _paper_title(paper, run["topic"]), current_user.id, project_id=run["project_id"])
+    link_experiment(db, pub.id, run["experiment_id"])
+    version = create_version(
+        db, pub.id, current_user.id, content=paper, generated_by="ai-autoresearchclaw",
+        notes=f"Imported from AutoResearchClaw run {run_id}",
+    )
+    runs_db.set_publication(db, run_id, pub.id)
+    log_action(request, current_user, "create", "publication", pub.id, f"from research run {run_id}")
+    return {"publication_id": pub.id, "version": version.version, "verification": version.verification}
+
+
 @router.post("/research-runs/{run_id}/cancel")
 def cancel(run_id: str, request: Request, current_user: User = Depends(get_current_user)):
     db = get_db_path()

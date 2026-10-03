@@ -46,7 +46,11 @@ def test_long_draft_survives_intact(tmp_db, publication, user_id):
         content=LONG_DRAFT, section="results", generated_by="ai-agent",
     )
     assert len(LONG_DRAFT) > 800
-    assert get_version(tmp_db, version.id).content == LONG_DRAFT
+    stored = get_version(tmp_db, version.id).content
+    assert stored == version.content
+    # AI results drafts carry [UNVERIFIED] marks on unrecorded numbers (verify_numbers.py);
+    # apart from those marks the text must be intact.
+    assert stored.replace(" [UNVERIFIED]", "") == LONG_DRAFT
 
 
 def test_version_listing_omits_content_but_reports_length(client, headers, tmp_db, publication, user_id):

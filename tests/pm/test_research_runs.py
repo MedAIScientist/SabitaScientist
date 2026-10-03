@@ -49,6 +49,9 @@ class FakeWorker:
             return {"stages": [{"stage": 1, "status": "done", "decision": "proceed", "duration_sec": 5.0,
                                 "attempts": 1, "artifacts": ["stage-01/goal.md"]}],
                     "topic_evaluation": {"overall": 6}}
+        if path.endswith("/deliverables"):
+            return {"paper": "# Class weighting and recall\n\n## Results\nRecall 0.912 vs 0.95.\n",
+                    "references_bib": "@article{a, title={T}}", "verification_report": None, "manifest": None}
         if "/file?" in path:
             return {"path": "stage-09/exp_plan.yaml", "content": "conditions: 60"}
         if path.endswith(("/response", "/cancel")):
@@ -283,3 +286,19 @@ def test_pi_scores_the_final_quality_gate_and_pins_lessons(world, worker) -> Non
     assert c.patch(url, json={"pinned": True}, headers=h["student"]).status_code == 403
     assert c.patch(url, json={"pinned": True}, headers=h["pi"]).json()["pinned"] is True
     assert c.get(f"/api/v1/labs/{world['lab'].id}/research-lessons", headers=h["pi"]).json()[0]["pinned"] is True
+
+
+def test_finished_run_becomes_a_checked_publication_once(world, worker) -> None:
+    run = _start(world).json()
+    c, h = world["client"], world["h"]
+    url = f"/api/v1/research-runs/{run['id']}/publication"
+    assert c.post(url, headers=h["student"]).status_code == 409  # not finished yet
+    worker.state = {"state": "done", "stage": 23, "stage_name": "CITATION_VERIFY"}
+    assert c.post(url, headers=h["viewer"]).status_code == 403
+    r = c.post(url, headers=h["student"])
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert (body["verification"]["verified"], body["verification"]["unverified_in_results"]) == (1, 1)
+    pub = c.get(f"/api/v1/publications/{body['publication_id']}", headers=h["student"]).json()
+    assert pub["title"] == "Class weighting and recall"
+    assert c.post(url, headers=h["student"]).status_code == 409
