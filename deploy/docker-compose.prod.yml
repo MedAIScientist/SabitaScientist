@@ -95,3 +95,8 @@ volumes:
 networks:
   gazzali-net:
     driver: bridge
+    # Pinned: Docker's next free /16 was 172.20.0.0/16, which contains the cluster
+    # gateway (platform.medai.medipol.edu.tr = 172.20.43.241) and broke routing to it.
+    ipam:
+      config:
+        - subnet: 172.19.0.0/16
