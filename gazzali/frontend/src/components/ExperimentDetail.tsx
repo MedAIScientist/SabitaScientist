@@ -6,6 +6,7 @@ import { AiAssistPanel } from './AiAssistPanel'
 import { AttachmentList } from './AttachmentList'
 import { ExperimentDataTab } from './experiment/ExperimentDataTab'
 import { ExperimentMetricsTab } from './experiment/ExperimentMetricsTab'
+import { ResearchRunsTab } from './experiment/ResearchRunsTab'
 
 const STATUS_META: Record<string, { color: string; label: string }> = {
   planned:   { color: '#f59e0b', label: 'Planned' },
@@ -23,7 +24,7 @@ interface Props {
   phases?: Phase[]
 }
 
-type Tab = 'overview' | 'data' | 'metrics' | 'notes' | 'results'
+type Tab = 'overview' | 'data' | 'metrics' | 'runs' | 'notes' | 'results'
 
 export function ExperimentDetail({ experiment, projectId, onClose, phases }: Props) {
   const qc = useQueryClient()
@@ -216,6 +217,7 @@ export function ExperimentDetail({ experiment, projectId, onClose, phases }: Pro
           <button style={tabStyle('overview')} onClick={() => setTab('overview')}>Overview</button>
           <button style={tabStyle('data')} onClick={() => setTab('data')}>Data</button>
           <button style={tabStyle('metrics')} onClick={() => setTab('metrics')}>Metrics</button>
+          <button style={tabStyle('runs')} onClick={() => setTab('runs')}>AutoResearchClaw</button>
           <button style={tabStyle('notes')} onClick={() => { setTab('notes'); setShowEditor(false) }}>Notes</button>
           <button style={tabStyle('results')} onClick={() => { setTab('results'); setShowEditor(false) }}>Results</button>
         </div>
@@ -298,6 +300,10 @@ export function ExperimentDetail({ experiment, projectId, onClose, phases }: Pro
 
         {tab === 'data' && (
           <ExperimentDataTab projectId={projectId} experimentId={experiment.id} />
+        )}
+
+        {tab === 'runs' && (
+          <ResearchRunsTab projectId={projectId} experimentId={experiment.id} hypothesis={experiment.hypothesis} />
         )}
 
         {tab === 'metrics' && (

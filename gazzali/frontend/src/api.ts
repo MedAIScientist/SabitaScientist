@@ -463,6 +463,18 @@ export const api = {
   // ── Companion applications (CVAT, Curator, JupyterHub, …) ───────────────
   listIntegrations: () => request<IntegrationStatus[]>('GET', '/integrations'),
 
+  // ── AutoResearchClaw runs ───────────────────────────────────────────────
+  listResearchRuns: (projectId: string, expId: string) =>
+    request<ResearchRun[]>('GET', `/projects/${projectId}/experiments/${expId}/research-runs`),
+  startResearchRun: (projectId: string, expId: string, body: { topic?: string; mode?: ResearchMode; dataset?: string; irb_id?: string }) =>
+    request<ResearchRun>('POST', `/projects/${projectId}/experiments/${expId}/research-runs`, body),
+  researchGates: () => request<ResearchRun[]>('GET', '/research-runs/gates'),
+  respondResearchGate: (runId: string, body: { action: GateAction; message?: string; guidance?: string }) =>
+    request<ResearchRun>('POST', `/research-runs/${runId}/respond`, body),
+  cancelResearchRun: (runId: string) => request<ResearchRun>('POST', `/research-runs/${runId}/cancel`),
+  researchRunFile: (runId: string, path: string) =>
+    request<{ path: string; content: string }>('GET', `/research-runs/${runId}/file?path=${encodeURIComponent(path)}`),
+
   // ── Global Search ────────────────────────────────────────────────────────
   globalSearch: (q: string) => request<SearchResults>('GET', `/search?q=${encodeURIComponent(q)}`),
 
@@ -1041,6 +1053,19 @@ export interface Template {
   phases: { name: string; color: string; position: number }[]
   experiment_types: { name: string; description: string }[]
   tasks: { title: string; description: string; phase: string; priority: string }[]
+}
+
+// ── AutoResearchClaw ─────────────────────────────────────────────────────────
+
+export type ResearchMode = 'co-pilot' | 'gate-only' | 'full-auto' | 'step-by-step'
+export type GateAction = 'approve' | 'reject' | 'edit' | 'skip' | 'rollback' | 'abort'
+export interface ResearchRun {
+  id: string; experiment_id: string; project_id: string; lab_id: string | null
+  topic: string; mode: ResearchMode; dataset: string | null; irb_id: string | null
+  status: 'running' | 'waiting' | 'done' | 'failed' | 'cancelled'
+  stage: number | null; stage_name: string | null
+  waiting: { stage: number; stage_name: string; reason: string; since: string; context_summary: string; output_files: string[] } | null
+  error: string | null; created_at: string; updated_at: string
 }
 
 // ── System Health ────────────────────────────────────────────────────────────

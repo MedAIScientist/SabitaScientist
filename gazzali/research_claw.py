@@ -14,6 +14,7 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
 import httpx
 
@@ -31,7 +32,7 @@ HALF_LIFE_DAYS = 30.0
 MAX_SEEDED_LESSONS = 200
 # Operational failures (provider limits, outages) are not research lessons;
 # seeding them would steer later runs away from sound designs.
-_INFRA_ERROR = re.compile(r"HTTP Error|rate.?limit|All models failed|timed? ?out|Connection", re.I)
+_INFRA_ERROR = re.compile(r"HTTP Error|rate.?limit|All models failed|timed? ?out|Connection", re.IGNORECASE)
 
 
 class WorkerError(RuntimeError):
@@ -103,6 +104,10 @@ def respond(run_id: str, decision: dict) -> dict:
 
 def cancel(run_id: str) -> dict:
     return _call("POST", f"/jobs/{run_id}/cancel")
+
+
+def read_file(run_id: str, path: str) -> dict:
+    return _call("GET", f"/jobs/{run_id}/file?{urlencode({'path': path})}")
 
 
 def import_results(db: Path, run: dict) -> None:

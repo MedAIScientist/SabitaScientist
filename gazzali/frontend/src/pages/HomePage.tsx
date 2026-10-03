@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../auth'
 import { AiUsagePanel } from '../components/AiUsagePanel'
 import { ApprovalsInbox } from '../components/imaging/ApprovalsInbox'
+import { ResearchGatesInbox } from '../components/experiment/ResearchGatesInbox'
 import { JoinRequestsInbox, NoLabPrompt } from '../components/supervision/LabJoin'
 
 /** Role-aware landing: each role gets its primary actions, not a generic dump. */
@@ -49,6 +50,7 @@ export function HomePage() {
       {!isStudent && <NoLabPrompt />}
       {!isStudent && <JoinRequestsInbox />}
       {!isStudent && <ApprovalsInbox />}
+      <ResearchGatesInbox />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 14 }}>
         {cards.map(c => (
           <button
