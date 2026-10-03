@@ -6,10 +6,10 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from EvoScientist.pm.api.app import create_app
-from EvoScientist.pm.auth import hash_password
-from EvoScientist.pm.crud.users import create_user, get_user_by_id
-from EvoScientist.pm.roles import role_for_email, sync_all_roles
+from gazzali.api.app import create_app
+from gazzali.auth import hash_password
+from gazzali.crud.users import create_user, get_user_by_id
+from gazzali.roles import role_for_email, sync_all_roles
 
 
 def test_role_for_email(monkeypatch) -> None:

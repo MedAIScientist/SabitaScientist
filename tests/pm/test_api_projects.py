@@ -14,8 +14,8 @@ def test_create_project(client, admin_token) -> None:
 
 
 def test_list_projects_only_own(client, tmp_db, admin_token) -> None:
-    from EvoScientist.pm.auth import hash_password
-    from EvoScientist.pm.crud.users import create_user
+    from gazzali.auth import hash_password
+    from gazzali.crud.users import create_user
     create_user(tmp_db, username="other", password_hash=hash_password("p"))
 
     # Admin creates a project; other user should NOT see it
@@ -28,9 +28,9 @@ def test_list_projects_only_own(client, tmp_db, admin_token) -> None:
 
 
 def test_viewer_cannot_delete_project(client, tmp_db, admin_token) -> None:
-    from EvoScientist.pm.auth import hash_password
-    from EvoScientist.pm.crud.projects import add_member
-    from EvoScientist.pm.crud.users import create_user
+    from gazzali.auth import hash_password
+    from gazzali.crud.projects import add_member
+    from gazzali.crud.users import create_user
 
     viewer = create_user(tmp_db, username="viewer", password_hash=hash_password("vp"))
     create_resp = client.post("/api/v1/projects", json={"name": "P"}, headers={"Authorization": f"Bearer {admin_token}"})
@@ -44,8 +44,8 @@ def test_viewer_cannot_delete_project(client, tmp_db, admin_token) -> None:
 
 
 def test_nonmember_gets_403(client, tmp_db, admin_token) -> None:
-    from EvoScientist.pm.auth import hash_password
-    from EvoScientist.pm.crud.users import create_user
+    from gazzali.auth import hash_password
+    from gazzali.crud.users import create_user
 
     create_user(tmp_db, username="outsider", password_hash=hash_password("op"))
     create_resp = client.post("/api/v1/projects", json={"name": "P"}, headers={"Authorization": f"Bearer {admin_token}"})

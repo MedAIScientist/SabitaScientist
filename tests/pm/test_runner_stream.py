@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 
-from EvoScientist.pm.runner.agent_runner import (
+from gazzali.runner.agent_runner import (
     DEFAULT_RUNNER_MODEL,
     parse_stream_chunk,
 )
@@ -51,14 +51,14 @@ def test_default_model_is_not_a_decommissioned_one() -> None:
 
 
 def test_configured_model_overrides_the_default(monkeypatch) -> None:
-    from EvoScientist.pm.runner import agent_runner
+    from gazzali.runner import agent_runner
 
     monkeypatch.setenv("PM_RUNNER_MODEL", "some/other-model")
     assert agent_runner._get_model() == "some/other-model"
 
 
 def test_model_falls_back_to_the_default_when_unset(monkeypatch) -> None:
-    from EvoScientist.pm.runner import agent_runner
+    from gazzali.runner import agent_runner
 
     monkeypatch.delenv("PM_RUNNER_MODEL", raising=False)
     assert agent_runner._get_model() == DEFAULT_RUNNER_MODEL

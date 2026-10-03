@@ -15,11 +15,11 @@ from urllib.error import HTTPError, URLError
 
 import pytest
 
-from EvoScientist.pm import platform_push
-from EvoScientist.pm.crud.projects import add_member, create_project, remove_member
-from EvoScientist.pm.crud.researchers import bump_researcher_generation, researcher_generation
-from EvoScientist.pm.crud.users import create_user
-from EvoScientist.pm.auth import hash_password
+from gazzali import platform_push
+from gazzali.crud.projects import add_member, create_project, remove_member
+from gazzali.crud.researchers import bump_researcher_generation, researcher_generation
+from gazzali.crud.users import create_user
+from gazzali.auth import hash_password
 
 
 @pytest.fixture
@@ -90,7 +90,7 @@ def test_build_researcher_state_lists_active_projects(tmp_db) -> None:
 
 
 def test_build_researcher_state_excludes_archived_projects(tmp_db) -> None:
-    from EvoScientist.pm.crud.projects import update_project
+    from gazzali.crud.projects import update_project
 
     u = _user(tmp_db, "ahmed", "a@x.co")
     live = create_project(tmp_db, name="live", description=None, created_by=u.id)
@@ -181,7 +181,7 @@ def test_push_all_researchers_covers_every_member(tmp_db, pushes) -> None:
 
 
 def test_creating_a_project_pushes_the_creator(client, tmp_db, admin_token, pushes) -> None:
-    from EvoScientist.pm.crud.users import update_user
+    from gazzali.crud.users import update_user
 
     admin = client.get("/api/v1/users/me", headers={"Authorization": f"Bearer {admin_token}"}).json()
     update_user(tmp_db, admin["id"], email="admin@x.co")
@@ -302,7 +302,7 @@ def test_a_failing_push_never_fails_the_governance_write(
 def test_creating_a_project_provisions_its_bucket_before_the_membership(
     client, tmp_db, admin_token, pushes
 ) -> None:
-    from EvoScientist.pm.crud.users import update_user
+    from gazzali.crud.users import update_user
 
     admin = client.get(
         "/api/v1/users/me", headers={"Authorization": f"Bearer {admin_token}"}
@@ -336,7 +336,7 @@ def test_ensure_project_space_refuses_an_unknown_project(tmp_db, pushes) -> None
 
 
 def test_ensure_all_project_spaces_skips_archived(tmp_db, pushes) -> None:
-    from EvoScientist.pm.crud.projects import update_project
+    from gazzali.crud.projects import update_project
 
     u = _user(tmp_db, "ahmed", "a@x.co")
     live = create_project(tmp_db, name="live", description=None, created_by=u.id)
@@ -418,13 +418,13 @@ def test_removing_a_member_through_crud_announces_it(tmp_db, pushes) -> None:
 
 
 def test_accepting_an_admission_announces_the_new_project(tmp_db, pushes) -> None:
-    from EvoScientist.pm.crud.admissions import accept_admission, create_admission
+    from gazzali.crud.admissions import accept_admission, create_admission
 
     reviewer = _user(tmp_db, "reviewer", "r@x.co")
     adm = create_admission(tmp_db, applicant_name="New Student", email="student@x.co",
                            service_areas="imaging", modas_members="none")
     # accept_admission makes the reviewer the new project's owner, so name one.
-    from EvoScientist.pm.db import get_db
+    from gazzali.db import get_db
 
     with get_db(tmp_db) as conn:
         conn.execute("UPDATE admissions SET reviewer_id = ? WHERE id = ?", (reviewer.id, adm.id))
@@ -464,8 +464,8 @@ def test_an_unreachable_cluster_never_breaks_project_creation(tmp_db, monkeypatc
 
 def _approved_dataset(tmp_db, owner, lab_name="Musculoskeletal Imaging",
                       project_name="Fracture detection", ds_name="Ankle radiographs 2019-2025"):
-    from EvoScientist.pm.crud.datasets import create_dataset, create_grant, update_dataset
-    from EvoScientist.pm.crud.labs import create_lab
+    from gazzali.crud.datasets import create_dataset, create_grant, update_dataset
+    from gazzali.crud.labs import create_lab
 
     lab = create_lab(tmp_db, name=lab_name, pi_id=owner.id)
     project = create_project(tmp_db, name=project_name, description=None, created_by=owner.id)
@@ -487,7 +487,7 @@ def test_the_push_carries_human_labels(tmp_db) -> None:
     assert doc["dataset"]["id"] == ds.id
     assert doc["dataset"]["lab_id"] == lab.id
     # A pending grant is not pushed at all, so approve it first.
-    from EvoScientist.pm.crud.datasets import approve_grant, list_grants
+    from gazzali.crud.datasets import approve_grant, list_grants
 
     approve_grant(tmp_db, list_grants(tmp_db, ds.id)[0].id, owner.id)
     doc = platform_push.build_desired_state(tmp_db, ds.id)

@@ -8,9 +8,9 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from EvoScientist.pm.api.app import create_app
-from EvoScientist.pm.auth import hash_password
-from EvoScientist.pm.crud.users import create_user
+from gazzali.api.app import create_app
+from gazzali.auth import hash_password
+from gazzali.crud.users import create_user
 
 
 @pytest.fixture
@@ -65,8 +65,8 @@ def test_list_attachments_empty(auth_client):
 
 def test_upload_attachment(auth_client):
     tc, pid, eid, enid = auth_client
-    with patch("EvoScientist.pm.api.routes.attachments.upload_file") as mock_upload, \
-         patch("EvoScientist.pm.api.routes.attachments.generate_presigned_url") as mock_url:
+    with patch("gazzali.api.routes.attachments.upload_file") as mock_upload, \
+         patch("gazzali.api.routes.attachments.generate_presigned_url") as mock_url:
         mock_upload.return_value = "entries/en1/uuid/test.txt"
         mock_url.return_value = "http://garage/presigned/test.txt"
 
@@ -95,7 +95,7 @@ def test_upload_attachment_type_rejected(auth_client):
 
 def test_upload_attachment_too_large(auth_client):
     tc, pid, eid, enid = auth_client
-    with patch("EvoScientist.pm.api.routes.attachments._MAX_BYTES", 1):
+    with patch("gazzali.api.routes.attachments._MAX_BYTES", 1):
         resp = tc.post(
             UPLOAD_URL.format(pid=pid, eid=eid, enid=enid),
             files={"file": ("big.txt", BytesIO(b"x" * 2), "text/plain")},
@@ -105,8 +105,8 @@ def test_upload_attachment_too_large(auth_client):
 
 def test_delete_attachment(auth_client):
     tc, pid, eid, enid = auth_client
-    with patch("EvoScientist.pm.api.routes.attachments.upload_file") as mu, \
-         patch("EvoScientist.pm.api.routes.attachments.generate_presigned_url") as mg:
+    with patch("gazzali.api.routes.attachments.upload_file") as mu, \
+         patch("gazzali.api.routes.attachments.generate_presigned_url") as mg:
         mu.return_value = "k"
         mg.return_value = "http://x"
         upload_resp = tc.post(
@@ -116,11 +116,11 @@ def test_delete_attachment(auth_client):
     assert upload_resp.status_code == 201, upload_resp.text
     att_id = upload_resp.json()["id"]
 
-    with patch("EvoScientist.pm.api.routes.attachments.delete_object"):
+    with patch("gazzali.api.routes.attachments.delete_object"):
         del_resp = tc.delete(f"/api/v1/attachments/{att_id}")
     assert del_resp.status_code == 204
 
     # Confirm deleted from list
-    with patch("EvoScientist.pm.api.routes.attachments.generate_presigned_url", return_value="http://x"):
+    with patch("gazzali.api.routes.attachments.generate_presigned_url", return_value="http://x"):
         list_resp = tc.get(UPLOAD_URL.format(pid=pid, eid=eid, enid=enid))
     assert list_resp.json() == []

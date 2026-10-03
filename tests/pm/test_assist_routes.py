@@ -11,7 +11,7 @@ import bcrypt
 import pytest
 from fastapi.testclient import TestClient
 
-from EvoScientist.pm.api.app import create_app
+from gazzali.api.app import create_app
 
 
 @pytest.fixture
@@ -67,7 +67,7 @@ def test_list_assists_empty(auth_client):
 
 def test_create_assist(auth_client):
     tc, _ = auth_client
-    with patch("EvoScientist.pm.api.routes.assists._notify_runner", new_callable=AsyncMock):
+    with patch("gazzali.api.routes.assists._notify_runner", new_callable=AsyncMock):
         resp = tc.post(ASSIST_URL, json={"prompt": "Write a hypothesis", "target_field": "hypothesis"})
     assert resp.status_code == 201
     data = resp.json()
@@ -81,7 +81,7 @@ def test_create_assist(auth_client):
 def test_context_includes_experiment_fields(auth_client):
     """Context snapshot assembled by POST must include experiment name."""
     tc, db_path = auth_client
-    with patch("EvoScientist.pm.api.routes.assists._notify_runner", new_callable=AsyncMock):
+    with patch("gazzali.api.routes.assists._notify_runner", new_callable=AsyncMock):
         resp = tc.post(ASSIST_URL, json={"prompt": "Help"})
     assist_id = resp.json()["id"]
 
@@ -99,7 +99,7 @@ def test_context_includes_experiment_fields(auth_client):
 
 def test_create_assist_experiment_not_found(auth_client):
     tc, _ = auth_client
-    with patch("EvoScientist.pm.api.routes.assists._notify_runner", new_callable=AsyncMock):
+    with patch("gazzali.api.routes.assists._notify_runner", new_callable=AsyncMock):
         resp = tc.post(
             "/api/v1/projects/p1/experiments/NOPE/assist",
             json={"prompt": "x"},
@@ -122,7 +122,7 @@ def test_create_assist_not_member(auth_client):
     )
     conn.commit()
     conn.close()
-    with patch("EvoScientist.pm.api.routes.assists._notify_runner", new_callable=AsyncMock):
+    with patch("gazzali.api.routes.assists._notify_runner", new_callable=AsyncMock):
         resp = tc.post(
             "/api/v1/projects/p2/experiments/e2/assist",
             json={"prompt": "x"},
@@ -132,11 +132,11 @@ def test_create_assist_not_member(auth_client):
 
 def test_cancel_assist(auth_client):
     tc, _ = auth_client
-    with patch("EvoScientist.pm.api.routes.assists._notify_runner", new_callable=AsyncMock):
+    with patch("gazzali.api.routes.assists._notify_runner", new_callable=AsyncMock):
         create_resp = tc.post(ASSIST_URL, json={"prompt": "Help"})
     assist_id = create_resp.json()["id"]
 
-    with patch("EvoScientist.pm.api.routes.assists.httpx.AsyncClient") as mock_client:
+    with patch("gazzali.api.routes.assists.httpx.AsyncClient") as mock_client:
         mock_client.return_value.__aenter__.return_value.delete = AsyncMock()
         resp = tc.delete(f"/api/v1/assists/{assist_id}")
     assert resp.status_code == 204

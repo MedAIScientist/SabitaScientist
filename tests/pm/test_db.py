@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from EvoScientist.pm.db import create_schema
+from gazzali.db import create_schema
 
 
 def test_create_schema_creates_all_tables(tmp_path: Path) -> None:
@@ -79,7 +79,7 @@ def test_create_schema_is_idempotent(tmp_path: Path) -> None:
 
 
 def test_project_phases_table_exists(tmp_path):
-    from EvoScientist.pm.db import create_schema
+    from gazzali.db import create_schema
     db = tmp_path / "t.db"
     create_schema(db)
     import sqlite3
@@ -92,7 +92,7 @@ def test_project_phases_table_exists(tmp_path):
     conn.close()
 
 def test_tasks_has_phase_id_column(tmp_path):
-    from EvoScientist.pm.db import create_schema
+    from gazzali.db import create_schema
     db = tmp_path / "t.db"
     create_schema(db)
     import sqlite3
@@ -102,7 +102,7 @@ def test_tasks_has_phase_id_column(tmp_path):
     conn.close()
 
 def test_experiments_has_phase_id_column(tmp_path):
-    from EvoScientist.pm.db import create_schema
+    from gazzali.db import create_schema
     db = tmp_path / "t.db"
     create_schema(db)
     import sqlite3
@@ -112,7 +112,7 @@ def test_experiments_has_phase_id_column(tmp_path):
     conn.close()
 
 def test_create_schema_idempotent_with_migrations(tmp_path):
-    from EvoScientist.pm.db import create_schema
+    from gazzali.db import create_schema
     db = tmp_path / "t.db"
     create_schema(db)
     create_schema(db)  # second call must not raise

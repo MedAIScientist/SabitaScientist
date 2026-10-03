@@ -6,7 +6,7 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 dist/
-!EvoScientist/pm/frontend/dist/
+!gazzali/frontend/dist/
 build/
 *.egg
 *.pytest_cache/
@@ -39,9 +39,7 @@ workspace/
 # Agent run artifacts (generated drafts); .dockerignore keeps them out of the image too
 runs/
 skills/
-!EvoScientist/skills/
 memory/
-!EvoScientist/memory/
 media/
 conversation_history/
 .deno_cache/

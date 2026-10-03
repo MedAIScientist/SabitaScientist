@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from EvoScientist.pm.auth import hash_password
-from EvoScientist.pm.crud.ai_usage import (
+from gazzali.auth import hash_password
+from gazzali.crud.ai_usage import (
     UsageContext,
     extract_usage,
     list_usage,
@@ -19,9 +19,9 @@ from EvoScientist.pm.crud.ai_usage import (
     record_usage_safely,
     summarize_usage,
 )
-from EvoScientist.pm.crud.projects import create_project
-from EvoScientist.pm.crud.publications import create_publication
-from EvoScientist.pm.crud.users import create_user
+from gazzali.crud.projects import create_project
+from gazzali.crud.publications import create_publication
+from gazzali.crud.users import create_user
 
 
 @pytest.fixture
@@ -211,7 +211,7 @@ def test_student_cannot_read_another_students_usage(client, users) -> None:
 def test_professor_reads_only_own_lab_students_and_admins_read_the_platform(client, tmp_db, users) -> None:
     """A professor sees the AI usage of the students in the labs they lead, nobody
     else's; platform-wide usage is for admins."""
-    from EvoScientist.pm.crud.labs import add_member, create_lab
+    from gazzali.crud.labs import add_member, create_lab
 
     prof, stud, other = users
     for who in (stud, other):

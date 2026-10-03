@@ -4,7 +4,7 @@
 set -euo pipefail
 
 GARAGE_CLI="docker compose exec garage /garage"
-BUCKET="${GARAGE_BUCKET:-evoscientist}"
+BUCKET="${GARAGE_BUCKET:-gazzali}"
 
 echo "==> Applying Garage layout (single node, capacity 1)..."
 NODE_ID=$($GARAGE_CLI status 2>/dev/null | grep 'NO ROLE' | awk '{print $1}' | head -1)
@@ -19,8 +19,8 @@ echo "==> Creating bucket '${BUCKET}'..."
 $GARAGE_CLI bucket create "${BUCKET}" 2>/dev/null || echo "Bucket already exists."
 $GARAGE_CLI bucket allow --read --write --owner "${BUCKET}" 2>/dev/null || true
 
-echo "==> Creating access key 'evoscientist-app'..."
-KEY_OUTPUT=$($GARAGE_CLI key create "evoscientist-app" 2>/dev/null || $GARAGE_CLI key list | grep evoscientist-app)
+echo "==> Creating access key 'gazzali-app'..."
+KEY_OUTPUT=$($GARAGE_CLI key create "gazzali-app" 2>/dev/null || $GARAGE_CLI key list | grep gazzali-app)
 echo "$KEY_OUTPUT"
 
 echo ""

@@ -1,5 +1,5 @@
 """Tests for Semantic Scholar query module (works without a database)."""
-from EvoScientist.pm.s2.queries import is_available, parse_citation_text, verify_citations
+from gazzali.s2.queries import is_available, parse_citation_text, verify_citations
 
 
 def test_is_available_returns_false_without_db():

@@ -7,8 +7,8 @@ def _auth(token: str) -> dict:
 
 def _make_user(client, tmp_db, username, password="pw", is_admin=False):
     """Create a user in the temp DB and return (user, token)."""
-    from EvoScientist.pm.auth import hash_password
-    from EvoScientist.pm.crud.users import create_user
+    from gazzali.auth import hash_password
+    from gazzali.crud.users import create_user
 
     user = create_user(
         tmp_db,
@@ -35,7 +35,7 @@ def _lab_with_pi(client, tmp_db, name="Imaging Lab"):
 
 
 def test_create_lab_sets_pi_id_and_pi_member(client, tmp_db) -> None:
-    from EvoScientist.pm.crud.labs import get_lab, get_member_role
+    from gazzali.crud.labs import get_lab, get_member_role
 
     lab, pi, _pi_token = _lab_with_pi(client, tmp_db)
     assert lab["pi_id"] == pi.id
@@ -84,7 +84,7 @@ def test_nonmember_list_labs_sees_size_but_no_roster(client, tmp_db) -> None:
 
 
 def test_member_sees_the_roster(client, tmp_db) -> None:
-    from EvoScientist.pm.crud.labs import add_member
+    from gazzali.crud.labs import add_member
 
     lab, pi, _pi_token = _lab_with_pi(client, tmp_db)
     visitor, visitor_token = _make_user(client, tmp_db, "visitor_user")
@@ -106,7 +106,7 @@ def test_member_sees_the_roster(client, tmp_db) -> None:
 def test_platform_admin_sees_the_roster_without_membership(
     client, tmp_db, admin_token
 ) -> None:
-    from EvoScientist.pm.crud.labs import get_member_role
+    from gazzali.crud.labs import get_member_role
 
     lab, pi, _pi_token = _lab_with_pi(client, tmp_db)
     admin_user_id = client.get("/api/v1/users/me", headers=_auth(admin_token)).json()[
@@ -122,7 +122,7 @@ def test_platform_admin_sees_the_roster_without_membership(
 
 def test_can_manage_matches_who_may_actually_write(client, tmp_db) -> None:
     """The flag the UI hides buttons on must agree with require_lab_role."""
-    from EvoScientist.pm.crud.labs import add_member
+    from gazzali.crud.labs import add_member
 
     lab, _pi, pi_token = _lab_with_pi(client, tmp_db)
     assert client.get(f"/api/v1/labs/{lab['id']}", headers=_auth(pi_token)).json()[
@@ -252,7 +252,7 @@ def test_nonmember_cannot_reassign_pi_id(client, tmp_db) -> None:
 
 def test_ms_member_cannot_add_member(client, tmp_db) -> None:
     """The live audit case: an 'ms' member inserting somebody else as 'pi'."""
-    from EvoScientist.pm.crud.labs import add_member
+    from gazzali.crud.labs import add_member
 
     lab, _pi, _pi_token = _lab_with_pi(client, tmp_db)
     student, student_token = _make_user(client, tmp_db, "student")
@@ -269,7 +269,7 @@ def test_ms_member_cannot_add_member(client, tmp_db) -> None:
 
 
 def test_postdoc_member_cannot_update_or_remove_or_change_role(client, tmp_db) -> None:
-    from EvoScientist.pm.crud.labs import add_member
+    from gazzali.crud.labs import add_member
 
     lab, pi, _pi_token = _lab_with_pi(client, tmp_db)
     postdoc, postdoc_token = _make_user(client, tmp_db, "postdoc_user")
@@ -299,7 +299,7 @@ def test_postdoc_member_cannot_update_or_remove_or_change_role(client, tmp_db) -
 
 
 def test_postdoc_member_cannot_reassign_pi_id(client, tmp_db) -> None:
-    from EvoScientist.pm.crud.labs import add_member, get_lab
+    from gazzali.crud.labs import add_member, get_lab
 
     lab, pi, _pi_token = _lab_with_pi(client, tmp_db)
     postdoc, postdoc_token = _make_user(client, tmp_db, "postdoc_user")
@@ -318,7 +318,7 @@ def test_postdoc_member_cannot_reassign_pi_id(client, tmp_db) -> None:
 
 
 def test_pi_can_add_change_role_update_and_remove(client, tmp_db) -> None:
-    from EvoScientist.pm.crud.labs import get_member_role
+    from gazzali.crud.labs import get_member_role
 
     lab, _pi, pi_token = _lab_with_pi(client, tmp_db)
     student, _student_token = _make_user(client, tmp_db, "student")
@@ -362,7 +362,7 @@ def test_pi_can_add_change_role_update_and_remove(client, tmp_db) -> None:
 def test_platform_admin_can_manage_lab_without_membership(
     client, tmp_db, admin_token
 ) -> None:
-    from EvoScientist.pm.crud.labs import get_member_role
+    from gazzali.crud.labs import get_member_role
 
     lab, _pi, _pi_token = _lab_with_pi(client, tmp_db)
     admin_user_id = client.get("/api/v1/users/me", headers=_auth(admin_token)).json()[
@@ -427,7 +427,7 @@ def test_duplicate_add_member_returns_409(client, tmp_db) -> None:
 
 def test_lab_admin_member_cannot_reassign_pi_id(client, tmp_db) -> None:
     """A 'admin'-role lab member passes the role gate but is not the PI."""
-    from EvoScientist.pm.crud.labs import add_member, get_lab
+    from gazzali.crud.labs import add_member, get_lab
 
     lab, pi, _pi_token = _lab_with_pi(client, tmp_db)
     lab_admin, lab_admin_token = _make_user(client, tmp_db, "lab_admin")
@@ -456,7 +456,7 @@ def test_lab_admin_member_cannot_reassign_pi_id(client, tmp_db) -> None:
 
 
 def test_pi_id_target_must_be_lab_member(client, tmp_db) -> None:
-    from EvoScientist.pm.crud.labs import get_lab
+    from gazzali.crud.labs import get_lab
 
     lab, pi, pi_token = _lab_with_pi(client, tmp_db)
     outsider, _outsider_token = _make_user(client, tmp_db, "outsider")
@@ -472,7 +472,7 @@ def test_pi_id_target_must_be_lab_member(client, tmp_db) -> None:
 
 
 def test_pi_can_reassign_pi_id_to_member(client, tmp_db) -> None:
-    from EvoScientist.pm.crud.labs import get_lab
+    from gazzali.crud.labs import get_lab
 
     lab, _pi, pi_token = _lab_with_pi(client, tmp_db)
     successor, _successor_token = _make_user(client, tmp_db, "successor")
@@ -493,7 +493,7 @@ def test_pi_can_reassign_pi_id_to_member(client, tmp_db) -> None:
 
 
 def test_platform_admin_can_reassign_pi_id(client, tmp_db, admin_token) -> None:
-    from EvoScientist.pm.crud.labs import add_member, get_lab
+    from gazzali.crud.labs import add_member, get_lab
 
     lab, _pi, _pi_token = _lab_with_pi(client, tmp_db)
     successor, _successor_token = _make_user(client, tmp_db, "successor")
@@ -510,8 +510,8 @@ def test_platform_admin_can_reassign_pi_id(client, tmp_db, admin_token) -> None:
 
 def test_legacy_pi_with_null_pi_id_can_repair_it(client, tmp_db) -> None:
     """Production labs predate pi_id being set, so the 'pi' row is the PI proof."""
-    from EvoScientist.pm.crud.labs import get_lab
-    from EvoScientist.pm.db import get_db
+    from gazzali.crud.labs import get_lab
+    from gazzali.db import get_db
 
     lab, pi, pi_token = _lab_with_pi(client, tmp_db)
     with get_db(tmp_db) as conn:
@@ -542,7 +542,7 @@ def test_change_role_of_unknown_member_returns_404(client, tmp_db) -> None:
 
 
 def test_change_role_rejects_invalid_role(client, tmp_db) -> None:
-    from EvoScientist.pm.crud.labs import get_member_role
+    from gazzali.crud.labs import get_member_role
 
     lab, _pi, pi_token = _lab_with_pi(client, tmp_db)
     student, _student_token = _make_user(client, tmp_db, "student")
@@ -565,7 +565,7 @@ def test_change_role_rejects_invalid_role(client, tmp_db) -> None:
 
 
 def test_wiki_refuses_non_member_and_allows_member(client, tmp_db) -> None:
-    from EvoScientist.pm.crud.labs import add_member
+    from gazzali.crud.labs import add_member
 
     lab, _pi, pi_token = _lab_with_pi(client, tmp_db)
     page = client.post(
@@ -638,7 +638,7 @@ def test_wiki_allows_platform_admin(client, tmp_db, admin_token) -> None:
 
 
 def test_research_impact_refuses_non_member_and_allows_member(client, tmp_db) -> None:
-    from EvoScientist.pm.crud.labs import add_member
+    from gazzali.crud.labs import add_member
 
     lab, _pi, _pi_token = _lab_with_pi(client, tmp_db)
     _outsider, outsider_token = _make_user(client, tmp_db, "outsider")
@@ -699,7 +699,7 @@ def test_pi_stats_leads_nothing_sees_zeros_not_every_lab(client, tmp_db) -> None
 
 
 def test_pi_stats_non_pi_member_sees_zeros(client, tmp_db) -> None:
-    from EvoScientist.pm.crud.labs import add_member
+    from gazzali.crud.labs import add_member
 
     _pi, pi_token = _make_user(client, tmp_db, "pi_user")
     lab = _lab_with_project(client, tmp_db, pi_token, "Imaging Lab", "Imaging Project")
@@ -714,7 +714,7 @@ def test_pi_stats_non_pi_member_sees_zeros(client, tmp_db) -> None:
 
 def test_pi_stats_matches_pi_row_when_pi_id_is_null(client, tmp_db) -> None:
     """Production labs have pi_id NULL — the 'pi' lab_members row must still match."""
-    from EvoScientist.pm.db import get_db
+    from gazzali.db import get_db
 
     _pi, pi_token = _make_user(client, tmp_db, "pi_user")
     lab = _lab_with_project(client, tmp_db, pi_token, "Imaging Lab", "Imaging Project")
@@ -751,8 +751,8 @@ def test_pi_stats_platform_admin_sees_all_labs(client, tmp_db, admin_token) -> N
 
 
 def test_removed_member_is_ended_not_erased_and_readd_reactivates(client, tmp_db) -> None:
-    from EvoScientist.pm.crud.labs import get_member_role
-    from EvoScientist.pm.db import get_db
+    from gazzali.crud.labs import get_member_role
+    from gazzali.db import get_db
 
     lab, _pi, pi_token = _lab_with_pi(client, tmp_db)
     student, student_token = _make_user(client, tmp_db, "leaver")

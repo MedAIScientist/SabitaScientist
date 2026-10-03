@@ -1,13 +1,13 @@
 version: 1
 metadata:
-  name: EvoScientist PM — OIDC Provider
+  name: Gazzali — OIDC Provider
   labels:
-    blueprint.evoscientist.ai/type: oidc
+    blueprint.gazzali.local/type: oidc
 entries:
   - model: authentik_providers_oauth2.oauth2provider
     id: pm-oidc
     attrs:
-      name: EvoScientist PM
+      name: Gazzali
       authentication_flow: !Find [authentik_flows.flow, [slug, default-source-authentication]]
       authorization_flow: !Find [authentik_flows.flow, [slug, default-provider-authorization-implicit-consent]]
       invalidation_flow: !Find [authentik_flows.flow, [slug, default-invalidation-flow]]
@@ -26,11 +26,10 @@ entries:
 
   - model: authentik_core.application
     attrs:
-      name: EvoScientist PM
-      slug: evoscientist-pm
-      group: EvoScientist
+      name: Gazzali
+      slug: gazzali
+      group: Gazzali
       meta_launch_url: ${PM_BASE_URL:-http://localhost:7860}
       meta_description: Research Project Management Dashboard
-      meta_icon: https://raw.githubusercontent.com/anomalyco/EvoScientist/main/frontend/public/favicon.ico
       provider: !Find [authentik_providers_oauth2.oauth2provider, [pk, pm-oidc]]
       policy_engine_mode: any

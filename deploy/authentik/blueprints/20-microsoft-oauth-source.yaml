@@ -2,7 +2,7 @@ version: 1
 metadata:
   name: Microsoft OAuth Source
   labels:
-    blueprint.evoscientist.ai/type: source
+    blueprint.gazzali.local/type: source
 entries:
   - model: authentik_sources_oauth.oauthsource
     id: microsoft-oauth

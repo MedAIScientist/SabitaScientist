@@ -7,10 +7,10 @@ from __future__ import annotations
 
 import pytest
 
-from EvoScientist.pm.auth import hash_password
-from EvoScientist.pm.crud.experiment_metrics import create_metrics, list_metrics
-from EvoScientist.pm.crud.users import create_user
-from EvoScientist.pm.metrics_csv import parse_metrics_csv
+from gazzali.auth import hash_password
+from gazzali.crud.experiment_metrics import create_metrics, list_metrics
+from gazzali.crud.users import create_user
+from gazzali.metrics_csv import parse_metrics_csv
 
 
 @pytest.fixture
@@ -110,8 +110,8 @@ def test_csv_upload_records_metrics(client, headers, experiment, tmp_db):
         json={"type": "result", "title": "Final run"}, headers=headers,
     ).json()
 
-    with patch("EvoScientist.pm.api.routes.attachments.upload_file"), \
-         patch("EvoScientist.pm.api.routes.attachments.generate_presigned_url", return_value="http://x"):
+    with patch("gazzali.api.routes.attachments.upload_file"), \
+         patch("gazzali.api.routes.attachments.generate_presigned_url", return_value="http://x"):
         resp = client.post(
             f"/api/v1/projects/{project_id}/experiments/{exp_id}/entries/{entry['id']}/attachments",
             files={"file": ("results.csv", b"split,accuracy\ntest,0.88\n", "text/csv")},
@@ -128,7 +128,7 @@ def test_csv_upload_records_metrics(client, headers, experiment, tmp_db):
 
 def test_context_states_none_when_no_metrics_recorded(app, tmp_db, experiment):
     """No metrics must read as an explicit refusal, not an empty gap."""
-    from EvoScientist.pm.api.routes.drafting_helpers import render_metrics_block
+    from gazzali.api.routes.drafting_helpers import render_metrics_block
 
     _, exp_id = experiment
     block = render_metrics_block(exp_id)
@@ -137,8 +137,8 @@ def test_context_states_none_when_no_metrics_recorded(app, tmp_db, experiment):
 
 
 def test_context_contains_recorded_values(app, tmp_db, experiment):
-    from EvoScientist.pm.api.routes.drafting_helpers import render_metrics_block
-    from EvoScientist.pm.metrics_csv import ParsedMetric
+    from gazzali.api.routes.drafting_helpers import render_metrics_block
+    from gazzali.metrics_csv import ParsedMetric
 
     _, exp_id = experiment
     create_metrics(
@@ -152,7 +152,7 @@ def test_context_contains_recorded_values(app, tmp_db, experiment):
 
 def test_result_entries_are_never_truncated():
     """Notes may be clipped; a result entry is the record and must survive whole."""
-    from EvoScientist.pm.api.routes.drafting_helpers import _entry_body
+    from gazzali.api.routes.drafting_helpers import _entry_body
 
     class _Entry:
         def __init__(self, type_, body):
@@ -165,7 +165,7 @@ def test_result_entries_are_never_truncated():
 
 
 def test_grounding_rule_is_attached_to_section_prompts():
-    from EvoScientist.pm.api.routes.drafting import _build_section_prompt
+    from gazzali.api.routes.drafting import _build_section_prompt
 
     prompt = _build_section_prompt("some context", "results", "standard")
     assert "Recorded metrics" in prompt

@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pytest
 
-from EvoScientist.pm.api.app import create_app
-from EvoScientist.pm.auth import hash_password
-from EvoScientist.pm.db import configure_db_path, create_schema
+from gazzali.api.app import create_app
+from gazzali.auth import hash_password
+from gazzali.db import configure_db_path, create_schema
 
 
 @pytest.fixture
@@ -54,7 +54,7 @@ def client(app):
 @pytest.fixture
 def admin_user(tmp_db: Path):
     """Create and return an admin user in the temp DB."""
-    from EvoScientist.pm.crud.users import create_user
+    from gazzali.crud.users import create_user
     return create_user(tmp_db, username="admin", password_hash=hash_password("adminpass"), is_admin=True)
 
 

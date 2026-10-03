@@ -8,8 +8,8 @@ import json
 import httpx
 import pytest
 
-from EvoScientist.pm.api.routes import drafting
-from EvoScientist.pm.crud.ai_jobs import AiJobError
+from gazzali.api.routes import drafting
+from gazzali.crud.ai_jobs import AiJobError
 
 # drafting.httpx *is* the httpx module, so patching it is global: keep the real class.
 _REAL_CLIENT = httpx.AsyncClient
@@ -121,8 +121,8 @@ def test_empty_output_and_unexpected_errors_fail_with_a_message(client, admin_to
 
 
 def test_jobs_are_private_to_their_owner(client, admin_token, tmp_db, monkeypatch) -> None:
-    from EvoScientist.pm.auth import hash_password
-    from EvoScientist.pm.crud.users import create_user
+    from gazzali.auth import hash_password
+    from gazzali.crud.users import create_user
 
     async def fake_output(*args, **kwargs):
         return "ok"
@@ -138,9 +138,9 @@ def test_jobs_are_private_to_their_owner(client, admin_token, tmp_db, monkeypatc
 
 
 def test_jobs_left_running_by_a_restart_are_failed(tmp_db) -> None:
-    from EvoScientist.pm.auth import hash_password
-    from EvoScientist.pm.crud.ai_jobs import create_job, fail_stale_jobs, get_job
-    from EvoScientist.pm.crud.users import create_user
+    from gazzali.auth import hash_password
+    from gazzali.crud.ai_jobs import create_job, fail_stale_jobs, get_job
+    from gazzali.crud.users import create_user
 
     user = create_user(tmp_db, username="u", password_hash=hash_password("p"))
     job = create_job(tmp_db, kind="draft-section", title="Draft", user_id=user.id)
@@ -151,8 +151,8 @@ def test_jobs_left_running_by_a_restart_are_failed(tmp_db) -> None:
 def test_system_health_reports_the_models_in_use(client, admin_token) -> None:
     """It used to report a hard-coded 'mixtral-8x7b-32768' and the UI read a field
     (langgraph_dev) that no longer existed, which crashed Settings → Analytics."""
-    from EvoScientist.pm._ai import pm_model_choice
-    from EvoScientist.pm.runner.agent_runner import _get_model
+    from gazzali._ai import pm_model_choice
+    from gazzali.runner.agent_runner import _get_model
 
     body = client.get("/api/v1/system/health", headers={"Authorization": f"Bearer {admin_token}"}).json()
     assert body["ai"]["runner_model"] == _get_model()

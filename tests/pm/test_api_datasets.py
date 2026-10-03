@@ -13,8 +13,8 @@ def _auth(token: str) -> dict:
 
 
 def _make_user(client, tmp_db, username, password="pw", is_admin=False):
-    from EvoScientist.pm.auth import hash_password
-    from EvoScientist.pm.crud.users import create_user
+    from gazzali.auth import hash_password
+    from gazzali.crud.users import create_user
 
     user = create_user(
         tmp_db,
@@ -400,7 +400,7 @@ def test_outsiders_get_404_and_empty_lists(client, tmp_db) -> None:
 
 
 def test_desired_state_document_shape(client, tmp_db) -> None:
-    from EvoScientist.pm.platform_push import build_desired_state
+    from gazzali.platform_push import build_desired_state
 
     s = _scaffold(client, tmp_db)
     ds = _approved_dataset(client, s)
@@ -439,7 +439,7 @@ def test_desired_state_document_shape(client, tmp_db) -> None:
 
 
 def test_push_is_a_noop_without_env(client, tmp_db, monkeypatch) -> None:
-    from EvoScientist.pm.platform_push import push_dataset
+    from gazzali.platform_push import push_dataset
 
     monkeypatch.delenv("MEDAI_PLATFORM_CONTROL_URL", raising=False)
     s = _scaffold(client, tmp_db)
@@ -490,7 +490,7 @@ def test_project_with_dataset_grant_cannot_be_deleted(client, tmp_db) -> None:
 
 
 def test_annotate_grant_needs_renders_and_a_provisioned_cvat_project(client, tmp_db) -> None:
-    from EvoScientist.pm.crud.cvat import create_cvat_project
+    from gazzali.crud.cvat import create_cvat_project
 
     s = _scaffold(client, tmp_db)
     # a dataset approved WITHOUT renders can never carry an annotation grant —
@@ -521,7 +521,7 @@ def test_annotate_grant_needs_renders_and_a_provisioned_cvat_project(client, tmp
     assert g["cvat_project_id"] == 42 and g["task_size"] == 20
 
     # ...and it travels in the push document
-    from EvoScientist.pm.platform_push import build_desired_state
+    from gazzali.platform_push import build_desired_state
     client.post(f"/api/v1/datasets/{ds2['id']}/grants/{g['id']}/approve",
                 headers=_auth(s["admin_token"]))
     doc = build_desired_state(tmp_db, ds2["id"])

@@ -1,20 +1,17 @@
 # syntax=docker/dockerfile:1.7
 
 ARG BASE_IMAGE=ghcr.io/astral-sh/uv:python3.11-trixie-slim@sha256:7936cc6625ca04cafa6ecc3c2881ddfe90a747c55c74480cd4ac6ffad6a5af1e
-ARG NODE_IMAGE=node:24-trixie-slim@sha256:735dd688da64d22ebd9dd374b3e7e5a874635668fd2a6ec20ca1f99264294086
 
-FROM ${NODE_IMAGE} AS nodejs
-
-# ---------- Frontend builder (PM dashboard React app) ----------
+# ---------- Frontend (React SPA) ----------
 FROM node:20-slim AS frontend-builder
 
 WORKDIR /frontend
-COPY EvoScientist/pm/frontend/package*.json ./
+COPY gazzali/frontend/package*.json ./
 RUN npm ci --silent
-COPY EvoScientist/pm/frontend/ ./
+COPY gazzali/frontend/ ./
 RUN npm run build
 
-# ---------- Builder ----------
+# ---------- Python builder ----------
 FROM ${BASE_IMAGE} AS builder
 
 ENV UV_COMPILE_BYTECODE=1 \
@@ -26,69 +23,47 @@ WORKDIR /src
 
 COPY pyproject.toml uv.lock README.md ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-install-project --no-dev \
-        --extra pm --extra all-channels
+    uv sync --frozen --no-install-project --no-dev
 
-COPY EvoScientist/ ./EvoScientist/
-COPY docs ./EvoScientist/docs
-
-# Overlay the freshly-built frontend dist
-COPY --from=frontend-builder /frontend/dist ./EvoScientist/pm/frontend/dist
+COPY gazzali/ ./gazzali/
+COPY --from=frontend-builder /frontend/dist ./gazzali/frontend/dist
 
 # --reinstall-package: uv otherwise reuses the wheel it cached for the project on
-# a previous build, so newly added modules never reach site-packages. The image
-# must always reflect the source tree it is built from.
+# a previous build, so newly added modules never reach site-packages.
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-editable --reinstall-package EvoScientist \
-        --extra pm --extra all-channels
+    uv sync --frozen --no-dev --no-editable --reinstall-package gazzali
 
 # ---------- Runtime ----------
 FROM ${BASE_IMAGE} AS runtime
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        git \
-        ca-certificates \
-        tini \
-        curl \
+    && apt-get install -y --no-install-recommends ca-certificates tini curl \
     && rm -rf /var/lib/apt/lists/*
-
-COPY --from=nodejs /usr/local/bin/node /usr/local/bin/node
-COPY --from=nodejs /usr/local/lib/node_modules /usr/local/lib/node_modules
-RUN ln -sf /usr/local/lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
-    && ln -sf /usr/local/lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
 
 ARG UID=1000
 ARG GID=1000
-RUN groupadd --gid ${GID} evosci \
-    && useradd  --uid ${UID} --gid ${GID} --create-home --shell /bin/bash evosci
+RUN groupadd --gid ${GID} gazzali \
+    && useradd --uid ${UID} --gid ${GID} --create-home --shell /bin/bash gazzali
 
 COPY --from=builder /opt/venv /opt/venv
 
-ENV PATH="/opt/venv/bin:/home/evosci/.evoscientist/.local/bin:${PATH}" \
+ENV PATH="/opt/venv/bin:${PATH}" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    EVOSCIENTIST_WORKSPACE_DIR=/workspace \
-    EVOSCIENTIST_DATA_DIR=/home/evosci/.evoscientist \
-    XDG_CONFIG_HOME=/home/evosci/.evoscientist/.config \
-    UV_TOOL_DIR=/home/evosci/.evoscientist/.local/share/uv/tools \
-    UV_TOOL_BIN_DIR=/home/evosci/.evoscientist/.local/bin
+    GAZZALI_WORKSPACE_DIR=/workspace \
+    GAZZALI_DATA_DIR=/home/gazzali/.gazzali
 
-RUN mkdir -p /workspace \
-        /home/evosci/.evoscientist/.config/evoscientist \
-        /home/evosci/.evoscientist/.local/bin \
-        /home/evosci/.evoscientist/.local/share/uv/tools \
-    && chown -R ${UID}:${GID} /workspace /home/evosci
+RUN mkdir -p /workspace /home/gazzali/.gazzali \
+    && chown -R ${UID}:${GID} /workspace /home/gazzali
 
-USER evosci
+USER gazzali
 WORKDIR /workspace
 
-LABEL org.opencontainers.image.title="EvoScientist" \
-      org.opencontainers.image.description="EvoScientist agent with core + all-channels dependencies pre-installed." \
-      org.opencontainers.image.source="https://github.com/EvoScientist/EvoScientist" \
-      org.opencontainers.image.documentation="https://github.com/EvoScientist/EvoScientist#-docker" \
+LABEL org.opencontainers.image.title="Gazzali" \
+      org.opencontainers.image.description="Gazzali research management platform (API, SPA, AI runner)." \
       org.opencontainers.image.licenses="Apache-2.0"
 
 EXPOSE 7860 8001
 
-ENTRYPOINT ["tini", "--", "evosci"]
+ENTRYPOINT ["tini", "--", "python", "-m", "gazzali"]
+CMD ["--host", "0.0.0.0"]

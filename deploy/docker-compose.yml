@@ -1,4 +1,4 @@
-# Production deployment for EvoScientist Research Ecosystem.
+# Production deployment for Gazzali Research Ecosystem.
 # Usage:
 #   cp .env deploy/.env && vim deploy/.env   # set API keys
 #   docker compose -f deploy/docker-compose.yml up -d
@@ -14,14 +14,14 @@ x-shared: &shared
 
 services:
   # ── Main application: PM API + SPA + Agent Runner ──────────────────────────
-  evoscientist:
+  gazzali:
     <<: *shared
     build:
       context: ..
       dockerfile: Dockerfile
-    image: evoscientist:prod
-    container_name: evoscientist
-    entrypoint: ["tini", "--", "evosci"]
+    image: gazzali:prod
+    container_name: gazzali
+    entrypoint: ["tini", "--", "gazzali"]
     command: ["dashboard", "--host", "0.0.0.0", "--no-open"]
     ports:
       - "7860:7860"
@@ -30,15 +30,15 @@ services:
       garage:
         condition: service_healthy
     environment:
-      - EVOSCIENTIST_PM_DB=/data/pm.db
-      - EVOSCIENTIST_WORKSPACE_DIR=/data/workspaces
+      - GAZZALI_PM_DB=/data/pm.db
+      - GAZZALI_WORKSPACE_DIR=/data/workspaces
       - GARAGE_S3_ENDPOINT=${GARAGE_S3_ENDPOINT:-http://garage:3900}
       - GARAGE_ACCESS_KEY=${GARAGE_ACCESS_KEY:-}
       - GARAGE_SECRET_KEY=${GARAGE_SECRET_KEY:-}
-      - GARAGE_BUCKET=${GARAGE_BUCKET:-evoscientist}
+      - GARAGE_BUCKET=${GARAGE_BUCKET:-gazzali}
     volumes:
-      - evoscientist-prod-data:/data
-      - evoscientist-home:/home/evosci/.evoscientist
+      - gazzali-prod-data:/data
+      - gazzali-home:/home/gazzali/.gazzali
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:7860/api/v1/health"]
       interval: 30s
@@ -49,7 +49,7 @@ services:
   # ── S3-compatible object storage for file attachments ──────────────────────
   garage:
     image: dxflrs/garage:v1.0.1
-    container_name: evoscientist-garage
+    container_name: gazzali-garage
     ports:
       - "127.0.0.1:3900:3900"
     environment:
@@ -66,6 +66,6 @@ services:
       start_period: 30s
 
 volumes:
-  evoscientist-prod-data:
-  evoscientist-home:
+  gazzali-prod-data:
+  gazzali-home:
   garage-prod-data:

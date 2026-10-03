@@ -1,6 +1,6 @@
-# Contributing to EvoScientist
+# Contributing to Gazzali
 
-We appreciate your interest and the time you spend helping improve EvoScientist. Please read the following guidelines before contributing.
+We appreciate your interest and the time you spend helping improve Gazzali. Please read the following guidelines before contributing.
 
 ## How you can contribute
 
@@ -10,21 +10,20 @@ We appreciate your interest and the time you spend helping improve EvoScientist.
 
 ## What we are looking for in PRs
 
-We aim to keep EvoScientist focused on core functionality that benefits the majority of users. PRs should only include:
+We aim to keep Gazzali focused on core functionality that benefits the majority of users. PRs should only include:
 
 - Bug fixes / improvements to existing features
 - New features that were proposed in an issue and agreed upon with maintainers
 - Documentation updates and examples
 - Meaningful additions to the test suite
 
-If you want to add a niche or specialized workflow, consider contributing to the [EvoSkills repository](https://github.com/EvoScientist/EvoSkills) instead.
 
 ## Development setup
 
 1. **Fork and clone** the repository:
    ```bash
-   git clone https://github.com/<your-username>/EvoScientist.git
-   cd EvoScientist
+   git clone https://github.com/<your-username>/Gazzali.git
+   cd Gazzali
    ```
 
 2. **Install dependencies** (requires [uv](https://docs.astral.sh/uv/)):
@@ -60,7 +59,7 @@ If you want to add a niche or specialized workflow, consider contributing to the
 
 ## Project overview
 
-EvoScientist is a multi-agent AI system for automated scientific experimentation and discovery. It orchestrates specialized sub-agents that plan experiments, search literature, write code, debug, analyze data, and draft reports.
+Gazzali is a multi-agent AI system for automated scientific experimentation and discovery. It orchestrates specialized sub-agents that plan experiments, search literature, write code, debug, analyze data, and draft reports.
 
 | Fact | Value |
 |------|-------|
@@ -69,9 +68,9 @@ EvoScientist is a multi-agent AI system for automated scientific experimentation
 | Framework | [DeepAgents](https://github.com/langchain-ai/deepagents) + [LangChain](https://python.langchain.com/) + [LangGraph](https://langchain-ai.github.io/langgraph/) |
 | Default model | `claude-sonnet-4-6` (Anthropic) |
 | Tests | ~890 across 36 files, no API keys needed |
-| Config file | `~/.config/evoscientist/config.yaml` |
+| Config file | `~/.config/gazzali/config.yaml` |
 
-### Sub-Agents (defined in `EvoScientist/subagent.yaml`)
+### Sub-Agents (defined in `Gazzali/subagent.yaml`)
 
 | Agent | Purpose |
 |-------|---------|
@@ -89,7 +88,7 @@ User Input (CLI / TUI / 10 Channel Integrations)
     |
 CLI (cli/) / TUI (cli/tui_*) / Channel Server (channels/)
     |
-Main Agent (EvoScientist.py) -- create_deep_agent()
+Main Agent (Gazzali.py) -- create_deep_agent()
     +-- System Prompt (prompts.py)
     +-- Chat Model (llm/ -- multi-provider)
     +-- Middleware: Memory (middleware/memory.py)
@@ -108,4 +107,3 @@ Stream Events --> Emitter --> Tracker --> State --> Rich Display / TUI
 
 ## Need help?
 
-Reach us on [Discord](https://discord.gg/AZ9ZMXkunY) or WeChat (linked in README).

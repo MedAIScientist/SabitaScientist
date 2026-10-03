@@ -12,11 +12,11 @@ import json
 
 import pytest
 
-from EvoScientist.pm import platform_pull
-from EvoScientist.pm.crud.datasets import create_dataset, get_dataset, update_dataset
-from EvoScientist.pm.crud.labs import create_lab
-from EvoScientist.pm.crud.users import create_user
-from EvoScientist.pm.auth import hash_password
+from gazzali import platform_pull
+from gazzali.crud.datasets import create_dataset, get_dataset, update_dataset
+from gazzali.crud.labs import create_lab
+from gazzali.crud.users import create_user
+from gazzali.auth import hash_password
 
 
 # ── the policy, on its own ──────────────────────────────────────────────────
@@ -77,7 +77,7 @@ def catalogue(monkeypatch):
 def pushes(monkeypatch):
     """Capture the pushes the sync makes, without a network call."""
     sent: list[str] = []
-    monkeypatch.setattr("EvoScientist.pm.platform_push.push_dataset",
+    monkeypatch.setattr("gazzali.platform_push.push_dataset",
                         lambda db, dataset_id: sent.append(dataset_id) or True)
     return sent
 
@@ -167,7 +167,7 @@ def test_one_bad_dataset_does_not_abort_the_rest(tmp_db, catalogue, monkeypatch)
             raise RuntimeError("the cluster hung up")
         return True
 
-    monkeypatch.setattr("EvoScientist.pm.platform_push.push_dataset", _explode)
+    monkeypatch.setattr("gazzali.platform_push.push_dataset", _explode)
     report = platform_pull.sync_delivery_facts(tmp_db, apply=True)
     assert len(calls) == 2                       # both were attempted
     assert report.sealed == [second.id]
