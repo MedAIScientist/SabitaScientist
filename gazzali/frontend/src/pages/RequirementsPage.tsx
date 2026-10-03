@@ -1,14 +1,29 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supervisionApi } from '../api'
+import { useAuth } from '../auth'
 
 const LEVELS = ['BSc', 'MSc', 'PhD', 'Postdoc', 'IR', 'Other']
 // Publication-only platform: course credits and GPA are not tracked here, so the
 // two transcript-based requirement types are no longer offered.
 const TYPES = ['research_item', 'milestone', 'custom']
+// Values the readiness calculation recognises (anything else counts all publications).
+const ITEM_TYPES = ['', 'Journal Paper', 'Conference Paper']
+
+// Common requirement kinds to start from. They only fill the form: the admin sets the
+// programme's real numbers before adding. Nothing here is saved automatically.
+const STARTERS: { label: string; req_type: string; research_item_type: string; title: string; unit: string }[] = [
+  { label: 'Journal papers', req_type: 'research_item', research_item_type: 'Journal Paper', title: 'Journal publications', unit: 'papers' },
+  { label: 'Conference papers', req_type: 'research_item', research_item_type: 'Conference Paper', title: 'Conference publications', unit: 'papers' },
+  { label: 'Any publications', req_type: 'research_item', research_item_type: '', title: 'Publications', unit: 'papers' },
+  { label: 'Thesis proposal', req_type: 'milestone', research_item_type: '', title: 'Thesis proposal approved', unit: '' },
+  { label: 'Qualifying exam', req_type: 'milestone', research_item_type: '', title: 'Qualifying exam passed', unit: '' },
+  { label: 'Thesis defence', req_type: 'milestone', research_item_type: '', title: 'Thesis defended', unit: '' },
+]
 
 export function RequirementsPage() {
   const qc = useQueryClient()
+  const { isAdmin } = useAuth()
   const [level, setLevel] = useState('All')
   const [form, setForm] = useState({
     level: 'PhD', req_type: 'research_item', title: '', description: '',
@@ -92,7 +107,7 @@ export function RequirementsPage() {
                     <td style={{ padding: '8px 10px' }}>{r.target_value} {r.unit}</td>
                     <td style={{ padding: '8px 10px' }}>{r.required ? 'Yes' : 'Optional'}</td>
                     <td style={{ padding: '8px 10px' }}>
-                      <button onClick={() => archive(r.id)} style={btnGhost}>Remove</button>
+                      {isAdmin && <button onClick={() => archive(r.id)} style={btnGhost}>Remove</button>}
                     </td>
                   </tr>
                 ))}
@@ -104,8 +119,22 @@ export function RequirementsPage() {
           )}
         </div>
 
+        {!isAdmin ? (
+          <aside style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 14, background: 'var(--surface-panel)', height: 'fit-content', fontSize: 14 }}>
+            Students see these on their home page and journey. A platform admin adds and changes them; ask the graduate office or an admin if your programme’s rules are missing.
+          </aside>
+        ) : (
         <aside style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 14, background: 'var(--surface-panel)', height: 'fit-content' }}>
-          <h3 style={{ margin: '0 0 10px', fontSize: 15, color: 'var(--text-heading)' }}>Add requirement</h3>
+          <h3 style={{ margin: '0 0 6px', fontSize: 15, color: 'var(--text-heading)' }}>Add requirement</h3>
+          <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 6 }}>Start from a common kind (fills the form; set your programme’s numbers before adding):</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+            {STARTERS.map(s => (
+              <button key={s.label} type="button" style={btnGhost}
+                onClick={() => setForm(f => ({ ...f, req_type: s.req_type, research_item_type: s.research_item_type, title: s.title, unit: s.unit, target_value: '1' }))}>
+                {s.label}
+              </button>
+            ))}
+          </div>
           <div style={{ display: 'grid', gap: 8 }}>
             <select value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value }))} style={inputStyle}>
               {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
@@ -115,7 +144,11 @@ export function RequirementsPage() {
             </select>
             <input placeholder="Requirement title *" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} style={inputStyle} />
             <input placeholder="Description" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={inputStyle} />
-            <input placeholder="Research item type (optional)" value={form.research_item_type} onChange={e => setForm(f => ({ ...f, research_item_type: e.target.value }))} style={inputStyle} />
+            {form.req_type === 'research_item' && (
+              <select aria-label="Counts" value={form.research_item_type} onChange={e => setForm(f => ({ ...f, research_item_type: e.target.value }))} style={inputStyle}>
+                {ITEM_TYPES.map(t => <option key={t} value={t}>{t ? `Counts: ${t}s` : 'Counts: all publications'}</option>)}
+              </select>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               <input type="number" placeholder="Target" value={form.target_value} onChange={e => setForm(f => ({ ...f, target_value: e.target.value }))} style={inputStyle} />
               <input placeholder="Unit" value={form.unit} onChange={e => setForm(f => ({ ...f, unit: e.target.value }))} style={inputStyle} />
@@ -127,6 +160,7 @@ export function RequirementsPage() {
             <button onClick={createRequirement} style={btnPrimary}>Add requirement</button>
           </div>
         </aside>
+        )}
       </div>
     </div>
   )

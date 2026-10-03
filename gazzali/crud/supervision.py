@@ -334,6 +334,11 @@ def assigned_tasks_for_week(
     not — otherwise every old task would be re-reported forever — so a finished
     task is included only when it was completed during the week.
 
+    A task that already has an item in this week's report stays in scope even once
+    it falls outside that window. Otherwise an item mirrored into a week that is
+    still a draft would keep claiming "in progress" after the task was finished,
+    and the draft would quietly lie.
+
     Each row also carries the report item it is already linked to, when this week's
     report exists, so a caller can tell what the student has already written.
     """
@@ -354,7 +359,7 @@ def assigned_tasks_for_week(
                  LEFT JOIN weekly_report_items i
                         ON i.task_id = t.id AND i.report_id = r.id
                 WHERE t.assignee_id = ?
-                  AND (t.status != 'done' OR t.updated_at >= ?)
+                  AND (t.status != 'done' OR t.updated_at >= ? OR i.id IS NOT NULL)
                 ORDER BY t.status = 'done', t.deadline IS NULL, t.deadline, t.created_at""",
             (student_id, student_id, week_start, student_id, week_start),
         ).fetchall()
@@ -701,7 +706,7 @@ def list_requirements(
     sql = "SELECT * FROM graduation_requirements WHERE 1=1"
     params: list = []
     if level and level != "All":
-        sql += " AND level = ?"
+        sql += " AND lower(level) = lower(?)"  # journeys store "phd", requirements "PhD"
         params.append(level)
     if active_only:
         sql += " AND active = 1"
