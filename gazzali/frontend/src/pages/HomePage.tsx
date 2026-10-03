@@ -4,6 +4,7 @@ import { AiUsagePanel } from '../components/AiUsagePanel'
 import { ApprovalsInbox } from '../components/imaging/ApprovalsInbox'
 import { ResearchGatesInbox } from '../components/experiment/ResearchGatesInbox'
 import { JoinRequestsInbox, NoLabPrompt } from '../components/supervision/LabJoin'
+import { StudentDashboard } from '../components/student/StudentDashboard'
 
 /** Role-aware landing: each role gets its primary actions, not a generic dump. */
 export function HomePage() {
@@ -12,6 +13,17 @@ export function HomePage() {
 
   const isStudent = role === 'student' && !isAdmin
   const isProfessor = role === 'professor' && !isAdmin
+
+  if (isStudent) {
+    return (
+      <div style={{ padding: '28px 32px', maxWidth: 1200 }}>
+        <StudentDashboard username={username} />
+        <div style={{ marginTop: 22, maxWidth: 620 }}>
+          <AiUsagePanel title="My AI usage" days={30} />
+        </div>
+      </div>
+    )
+  }
 
   const cards: { title: string; desc: string; path: string }[] = isAdmin
     ? [

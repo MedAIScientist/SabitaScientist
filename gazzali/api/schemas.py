@@ -1647,3 +1647,51 @@ class AiJobResponse(BaseModel):
     error: str | None = None
     created_at: str
     finished_at: str | None = None
+
+
+class WeeklyTaskResponse(BaseModel):
+    """An assigned project task as it appears in a week's update."""
+
+    id: str
+    title: str
+    status: str
+    priority: str
+    deadline: str | None
+    project_id: str
+    project_name: str
+    # Present once the task has been mirrored into that week's report.
+    item_id: str | None = None
+    item_status: str | None = None
+    item_progress_pct: int | None = None
+    item_needs_help: bool | None = None
+    report_id: str | None = None
+    report_status: str | None = None
+
+
+class WeeklyTasksResponse(BaseModel):
+    week_start: str
+    report_id: str | None
+    report_status: str | None
+    tasks: list[WeeklyTaskResponse]
+
+
+class WeeklyTaskUpdateRequest(BaseModel):
+    """Update a task and its weekly item in one action.
+
+    ``status`` moves the task — the same vocabulary the board uses. The remaining
+    fields are narrative and belong to the student's report, so they are written to
+    the item only.
+    """
+
+    status: str | None = Field(default=None, pattern="^(todo|in_progress|done)$")
+    needs_help: bool | None = None
+    what_changed: str | None = None
+    next_step: str | None = None
+    blocker: str | None = None
+
+
+class WeeklyTaskUpdateResponse(BaseModel):
+    task: WeeklyTaskResponse
+    # True when the week's report was already submitted, so only the task moved and
+    # the record of that week was deliberately left untouched.
+    report_locked: bool

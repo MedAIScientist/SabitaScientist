@@ -29,6 +29,10 @@ from ..schemas import (
     SupervisorAssignmentResponse,
     SupervisorAssignRequest,
     WeeklyReportResponse,
+    WeeklyTaskResponse,
+    WeeklyTasksResponse,
+    WeeklyTaskUpdateRequest,
+    WeeklyTaskUpdateResponse,
 )
 
 router = APIRouter()
@@ -143,10 +147,14 @@ def my_supervisor(current_user: User = Depends(get_current_user)):
     a = supervision_crud.get_active_supervisor(get_db_path(), current_user.id)
     if not a:
         return None
+    from ...crud.users import get_user_by_id
+
+    professor = get_user_by_id(get_db_path(), a.professor_id)
     return SupervisorAssignmentResponse(
         id=a.id,
         student_id=a.student_id,
         professor_id=a.professor_id,
+        professor_name=professor.username if professor else None,
         active_from=a.active_from,
         active_until=a.active_until,
         created_at=a.created_at,
@@ -275,8 +283,12 @@ def get_or_create_current_week(
     if current_user.role == "professor" and not current_user.is_admin:
         raise HTTPException(status_code=403, detail="Professors review reports; students submit them")
     week_start = week or _week_start()
-    report = supervision_crud.get_or_create_report(get_db_path(), student_id, week_start)
-    return _report_to_response(get_db_path(), report)
+    db = get_db_path()
+    report = supervision_crud.get_or_create_report(db, student_id, week_start)
+    # Assigned tasks are the week's raw material: mirror them in before the student
+    # sees the form, so the update starts from their real work instead of a blank page.
+    supervision_crud.reconcile_report_tasks(db, report)
+    return _report_to_response(db, report)
 
 
 @router.put("/reports/{report_id}/summary", response_model=WeeklyReportResponse)
@@ -301,6 +313,152 @@ def update_summary(
         body.support_requested,
     )
     return _report_to_response(db, updated)
+
+
+def _weekly_task_rows(db, student_id: str, week_start: str) -> list[dict]:
+    return supervision_crud.assigned_tasks_for_week(db, student_id, week_start)
+
+
+def _task_response(row: dict) -> WeeklyTaskResponse:
+    return WeeklyTaskResponse(
+        id=row["id"],
+        title=row["title"],
+        status=row["status"],
+        priority=row["priority"],
+        deadline=row["deadline"],
+        project_id=row["project_id"],
+        project_name=row["project_name"],
+        item_id=row.get("item_id"),
+        item_status=row.get("item_status"),
+        item_progress_pct=row.get("item_progress_pct"),
+        item_needs_help=(
+            None if row.get("item_needs_help") is None else bool(row["item_needs_help"])
+        ),
+        report_id=row.get("item_report_id"),
+        report_status=row.get("report_status"),
+    )
+
+
+@router.get("/weekly/tasks", response_model=WeeklyTasksResponse)
+def weekly_tasks(
+    week: str | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
+):
+    """This week's assigned tasks, and what the update already says about them.
+
+    Read-only: visiting the dashboard must not create a report. The report is
+    created (and tasks mirrored into it) when the student opens the weekly update.
+    """
+    if current_user.role == "professor" and not current_user.is_admin:
+        raise HTTPException(
+            status_code=403, detail="Professors review reports; students submit them"
+        )
+    db = get_db_path()
+    week_start = week or _week_start()
+    rows = _weekly_task_rows(db, current_user.id, week_start)
+    report_id = next((r["item_report_id"] for r in rows if r.get("item_report_id")), None)
+    report_status = next((r["report_status"] for r in rows if r.get("report_status")), None)
+    return WeeklyTasksResponse(
+        week_start=week_start,
+        report_id=report_id,
+        report_status=report_status,
+        tasks=[_task_response(r) for r in rows],
+    )
+
+
+@router.put("/weekly/tasks/{task_id}", response_model=WeeklyTaskUpdateResponse)
+def update_weekly_task(
+    task_id: str,
+    body: WeeklyTaskUpdateRequest,
+    week: str | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
+):
+    """Move a task and record it in the same week's update, in one action.
+
+    A student should not have to update the board and then retype the same fact in
+    their weekly report. The task stays the source of truth for status; the report
+    keeps the narrative.
+    """
+    if current_user.role == "professor" and not current_user.is_admin:
+        raise HTTPException(
+            status_code=403, detail="Professors review reports; students submit them"
+        )
+    db = get_db_path()
+    student_id = current_user.id
+    if not supervision_crud.task_belongs_to_student(db, task_id, student_id):
+        if not current_user.is_admin:
+            raise HTTPException(
+                status_code=403, detail="This task is not assigned to you in a project you belong to"
+            )
+
+    from ...crud.tasks import update_task as _update_task
+
+    if body.status is not None:
+        _update_task(db, task_id, status=body.status)
+
+    week_start = week or _week_start()
+    report = supervision_crud.get_or_create_report(db, student_id, week_start)
+    supervision_crud.reconcile_report_tasks(db, report)
+
+    report_locked = report.status == "submitted"
+    narrative = {
+        key: value
+        for key, value in (
+            ("needs_help", body.needs_help),
+            ("what_changed", body.what_changed),
+            ("next_step", body.next_step),
+            ("blocker", body.blocker),
+        )
+        if value is not None
+    }
+    if narrative and not report_locked:
+        item = next(
+            (i for i in supervision_crud.list_report_items(db, report.id) if i.task_id == task_id),
+            None,
+        )
+        if item is not None:
+            supervision_crud.upsert_report_item(
+                db,
+                report.id,
+                item.item_title,
+                item_id=item.id,
+                task_id=item.task_id,
+                publication_id=item.publication_id,
+                experiment_id=item.experiment_id,
+                item_kind=item.item_kind,
+                progress_pct=item.progress_pct,
+                status=item.status,
+                blocker=narrative.get("blocker", item.blocker),
+                needs_help=narrative.get("needs_help", item.needs_help),
+                what_changed=narrative.get("what_changed", item.what_changed),
+                next_step=narrative.get("next_step", item.next_step),
+                risk_level=item.risk_level,
+                next_deadline=item.next_deadline,
+                sort_order=item.sort_order,
+            )
+
+    rows = supervision_crud.assigned_tasks_for_week(db, student_id, week_start)
+    row = next((r for r in rows if r["id"] == task_id), None)
+    if row is None:
+        # The task left the week's scope (e.g. marked done after the week closed).
+        from ...crud.tasks import get_task as _get_task
+
+        task = _get_task(db, task_id)
+        if task is None:
+            raise HTTPException(status_code=404, detail="Task not found")
+        row = {
+            "id": task.id,
+            "title": task.title,
+            "status": task.status,
+            "priority": task.priority,
+            "deadline": task.deadline,
+            "project_id": task.project_id,
+            "project_name": "",
+        }
+    return WeeklyTaskUpdateResponse(
+        task=_task_response(row),
+        report_locked=report_locked,
+    )
 
 
 @router.put("/reports/{report_id}/items", response_model=ReportItemResponse)

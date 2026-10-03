@@ -50,6 +50,7 @@ from .routes import (
     meeting_briefs,
     patents,
     peer_review,
+    my_work,
     references,
     research_runs,
     phases,
@@ -136,6 +137,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     # Before labs/experiments routers so its /labs/{id}/research-lessons paths are not shadowed.
     app.include_router(research_runs.router, prefix="/api/v1", tags=["research-runs"])
     app.include_router(references.router, prefix="/api/v1", tags=["publications"])
+    app.include_router(my_work.router, prefix="/api/v1", tags=["me"])
     app.include_router(lab_join.router, prefix="/api/v1/labs", tags=["labs"])
     app.include_router(labs.router, prefix="/api/v1/labs", tags=["labs"])
     app.include_router(templates.router, prefix="/api/v1/templates", tags=["templates"])
