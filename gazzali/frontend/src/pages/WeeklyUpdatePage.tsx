@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { supervisionApi, WeeklyReport, WeeklyReportItem, api } from '../api'
 import { useAuth } from '../auth'
@@ -16,6 +17,7 @@ const ITEM_STATUSES = ['planned', 'in_progress', 'needs_review', 'done', 'blocke
 
 export function WeeklyUpdatePage() {
   const { role, isAdmin } = useAuth()
+  const navigate = useNavigate()
   const qc = useQueryClient()
   const week = currentWeekStart()
   const [draftItems, setDraftItems] = useState<Partial<WeeklyReportItem>[]>([])
@@ -29,6 +31,15 @@ export function WeeklyUpdatePage() {
     queryFn: () => supervisionApi.currentWeekReport(week),
     enabled: canSubmit,
   })
+
+  // The report item carries only the task id; the task list supplies the project
+  // and deadline that make the link and the date meaningful.
+  const { data: weeklyTasks } = useQuery({
+    queryKey: ['weekly-tasks', week],
+    queryFn: () => supervisionApi.weeklyTasks(week),
+    enabled: canSubmit,
+  })
+  const taskById = new Map((weeklyTasks?.tasks ?? []).map(t => [t.id, t]))
 
   useEffect(() => {
     if (!report) return
@@ -69,6 +80,9 @@ export function WeeklyUpdatePage() {
         await supervisionApi.upsertItem(report.id, {
           item_id: item.id,
           item_title: item.item_title,
+          // Keep the task link: dropping it here would untie the item from the work
+          // it reports, and the next reconciliation would add a duplicate.
+          task_id: item.task_id || undefined,
           item_kind: item.item_kind || undefined,
           progress_pct: item.progress_pct ?? 0,
           status: item.status || undefined,
@@ -118,13 +132,39 @@ export function WeeklyUpdatePage() {
 
       <section style={{ marginBottom: 22 }}>
         <h2 style={{ fontSize: 15, margin: '0 0 10px', color: 'var(--text-heading)' }}>Action-point updates</h2>
-        {draftItems.map((item, idx) => (
+        <p style={{ color: 'var(--text-3)', fontSize: 13, margin: '0 0 12px' }}>
+          Tasks assigned to you are listed here automatically. Their status follows the task —
+          change it on the board or from your dashboard — while what changed, next step and
+          blockers are yours to write.
+        </p>
+        {draftItems.map((item, idx) => {
+          const task = item.task_id ? taskById.get(item.task_id) : undefined
+          return (
           <div key={item.id || idx} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 14, marginBottom: 10, background: 'var(--surface-panel)' }}>
+            {item.task_id && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, fontSize: 12 }}>
+                <span style={{ fontFamily: 'var(--font-mono)', letterSpacing: '0.06em', color: 'var(--accent)' }}>
+                  FROM YOUR TASKS
+                </span>
+                {task ? (
+                  <a
+                    href={`/projects/${task.project_id}`}
+                    onClick={e => { e.preventDefault(); navigate(`/projects/${task.project_id}`) }}
+                    style={{ color: 'var(--text-3)' }}
+                  >
+                    {task.project_name}{task.deadline ? ` · due ${task.deadline}` : ''} →
+                  </a>
+                ) : (
+                  <span style={{ color: 'var(--text-3)' }}>task no longer in this week’s scope</span>
+                )}
+              </div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 10, marginBottom: 8 }}>
               <input
                 placeholder="Item title (paper, patent, task…)"
                 value={item.item_title || ''}
-                disabled={locked}
+                disabled={locked || !!item.task_id}
+                title={item.task_id ? 'The task title is the source of truth; rename it on the board' : undefined}
                 onChange={e => updateDraft(idx, { item_title: e.target.value })}
                 style={inputStyle}
               />
@@ -154,7 +194,8 @@ export function WeeklyUpdatePage() {
               <input placeholder="Blocker (optional)" value={item.blocker || ''} disabled={locked} onChange={e => updateDraft(idx, { blocker: e.target.value })} style={{ ...inputStyle, flex: 1 }} />
             </div>
           </div>
-        ))}
+          )
+        })}
         {!locked && (
           <button onClick={addDraft} style={btnGhost}>+ Add item update</button>
         )}

@@ -478,6 +478,7 @@ export const api = {
   cancelResearchRun: (runId: string) => request<ResearchRun>('POST', `/research-runs/${runId}/cancel`),
   researchRunStages: (runId: string) => request<RunStages>('GET', `/research-runs/${runId}/stages`),
   researchUsage: () => request<ResearchUsage>('GET', '/research-runs/usage'),
+  myTasks: () => request<{ id: string; title: string; status: string; priority: string; deadline: string | null; project_id: string; project_name: string }[]>('GET', '/me/tasks'),
   researchEvaluation: () => request<ResearchEvaluation>('GET', '/research-runs/evaluation'),
   researchDomains: () => request<ResearchDomain[]>('GET', '/research-runs/domains'),
   researchTopicCheck: (topic: string, domain?: string) =>
@@ -1146,6 +1147,22 @@ export interface SupervisorAssignment {
   active_from: string; active_until: string | null; created_at: string
 }
 
+/** The workflow a project task actually has — the only values the API accepts. */
+export type TaskStatus = 'todo' | 'in_progress' | 'done'
+
+/** A project task as it appears in one week's update. */
+export interface WeeklyTask {
+  id: string; title: string; status: string; priority: string
+  deadline: string | null; project_id: string; project_name: string
+  item_id: string | null; item_status: string | null; item_progress_pct: number | null
+  item_needs_help: boolean | null; report_id: string | null; report_status: string | null
+}
+
+export interface WeeklyTasks {
+  week_start: string; report_id: string | null; report_status: string | null
+  tasks: WeeklyTask[]
+}
+
 export interface WeeklyReportItem {
   id: string; report_id: string
   task_id: string | null; publication_id: string | null; experiment_id: string | null
@@ -1224,6 +1241,17 @@ export const supervisionApi = {
   deleteItem: (reportId: string, itemId: string) =>
     request<void>('DELETE', `/supervision/reports/${reportId}/items/${itemId}`),
   submitReport: (id: string) => request<WeeklyReport>('POST', `/supervision/reports/${id}/submit`),
+  /** Assigned tasks for a week, and what the update already says about them. */
+  weeklyTasks: (week?: string) =>
+    request<WeeklyTasks>('GET', `/supervision/weekly/tasks${week ? `?week=${week}` : ''}`),
+  /** Move a task and record it in the same week's update, in one action. */
+  updateWeeklyTask: (
+    taskId: string,
+    data: { status?: TaskStatus; needs_help?: boolean; what_changed?: string; next_step?: string; blocker?: string },
+    week?: string,
+  ) => request<{ task: WeeklyTask; report_locked: boolean }>(
+    'PUT', `/supervision/weekly/tasks/${taskId}${week ? `?week=${week}` : ''}`, data,
+  ),
   startMeetingBrief: (studentId: string) =>
     request<{ job_id: string }>('POST', `/supervision/students/${studentId}/meeting-brief`),
   latestMeetingBrief: (studentId: string) =>

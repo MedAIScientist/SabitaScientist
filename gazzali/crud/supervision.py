@@ -293,6 +293,150 @@ def get_report(db_path: Path, report_id: str) -> WeeklyReport | None:
     return _row_report(row) if row else None
 
 
+# ── Project tasks ↔ weekly report items ──────────────────────────────────────
+#
+# A student's assigned project tasks are the raw material of a weekly update: the
+# work either moved or it did not. Rather than making the student retype each task
+# as a report item, task-backed items are derived from the task.
+#
+# Ownership is split deliberately:
+#   * the TASK owns title, status and deadline — it is where the work is tracked;
+#   * the STUDENT owns the narrative — what changed, next step, blocker, help flag,
+#     risk — because no database column knows why a week went badly.
+# Reconciliation therefore refreshes only the derived half and never touches the
+# narrative half.
+
+# Task status is a 3-value workflow; a weekly item distinguishes 'blocked' and
+# 'waiting' too. The mapping is deliberately total, so an unknown task status can
+# never leave an item in an impossible state.
+TASK_STATUS_TO_ITEM = {"todo": "planned", "in_progress": "in_progress", "done": "done"}
+ITEM_STATUS_TO_TASK = {
+    "planned": "todo",
+    "in_progress": "in_progress",
+    "done": "done",
+    # These say "the task is alive but not progressing" — the task itself keeps the
+    # only status it can honestly hold.
+    "blocked": "in_progress",
+    "waiting": "in_progress",
+    "needs_review": "in_progress",
+}
+# Progress a task implies on its own. 'in_progress' is intentionally absent: a
+# percentage the student typed beats a number this code made up.
+TASK_PROGRESS = {"todo": 0, "done": 100}
+
+
+def assigned_tasks_for_week(
+    db_path: Path, student_id: str, week_start: str
+) -> list[dict]:
+    """Tasks assigned to the student that belong in the week starting *week_start*.
+
+    Open work always belongs in the update. Work finished before this week does
+    not — otherwise every old task would be re-reported forever — so a finished
+    task is included only when it was completed during the week.
+
+    Each row also carries the report item it is already linked to, when this week's
+    report exists, so a caller can tell what the student has already written.
+    """
+    with get_db(db_path) as conn:
+        rows = conn.execute(
+            """SELECT t.id, t.title, t.status, t.priority, t.deadline, t.updated_at,
+                      t.project_id, p.name AS project_name,
+                      i.id AS item_id, i.status AS item_status,
+                      i.progress_pct AS item_progress_pct,
+                      i.needs_help AS item_needs_help,
+                      i.report_id AS item_report_id,
+                      r.status AS report_status
+                 FROM tasks t
+                 JOIN projects p ON p.id = t.project_id AND p.archived_at IS NULL
+                 JOIN project_members m ON m.project_id = t.project_id AND m.user_id = ?
+                 LEFT JOIN weekly_reports r
+                        ON r.student_id = ? AND r.week_start = ?
+                 LEFT JOIN weekly_report_items i
+                        ON i.task_id = t.id AND i.report_id = r.id
+                WHERE t.assignee_id = ?
+                  AND (t.status != 'done' OR t.updated_at >= ?)
+                ORDER BY t.status = 'done', t.deadline IS NULL, t.deadline, t.created_at""",
+            (student_id, student_id, week_start, student_id, week_start),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def reconcile_report_tasks(db_path: Path, report: WeeklyReport) -> list[WeeklyReportItem]:
+    """Mirror this week's assigned tasks into the report as derived items.
+
+    Idempotent, and safe to call on every read of the report: a task that already
+    has an item is refreshed, a task without one gets an item, and nothing else is
+    touched. A submitted report is a closed book — it is returned as-is, because
+    rewriting a week a supervisor already reviewed would falsify the record.
+    """
+    existing = list_report_items(db_path, report.id)
+    if report.status == "submitted":
+        return existing
+
+    by_task = {item.task_id: item for item in existing if item.task_id}
+    tasks = assigned_tasks_for_week(db_path, report.student_id, report.week_start)
+    seen: set[str] = set()
+
+    for order, task in enumerate(tasks):
+        task_id = task["id"]
+        seen.add(task_id)
+        derived_title = task["title"]
+        derived_status = TASK_STATUS_TO_ITEM.get(task["status"], "planned")
+        item = by_task.get(task_id)
+
+        if item is None:
+            upsert_report_item(
+                db_path,
+                report.id,
+                derived_title,
+                task_id=task_id,
+                item_kind="task",
+                progress_pct=TASK_PROGRESS.get(task["status"], 50),
+                status=derived_status,
+                next_deadline=task["deadline"],
+                sort_order=order,
+            )
+            continue
+
+        # Refresh derived fields; keep every narrative field as the student left it.
+        progress = item.progress_pct
+        if task["status"] in TASK_PROGRESS:
+            progress = TASK_PROGRESS[task["status"]]
+        upsert_report_item(
+            db_path,
+            report.id,
+            derived_title,
+            item_id=item.id,
+            task_id=task_id,
+            publication_id=item.publication_id,
+            experiment_id=item.experiment_id,
+            item_kind=item.item_kind or "task",
+            progress_pct=progress,
+            status=derived_status,
+            blocker=item.blocker,
+            needs_help=item.needs_help,
+            what_changed=item.what_changed,
+            next_step=item.next_step,
+            risk_level=item.risk_level,
+            next_deadline=task["deadline"],
+            sort_order=item.sort_order or order,
+        )
+
+    return list_report_items(db_path, report.id)
+
+
+def task_belongs_to_student(db_path: Path, task_id: str, student_id: str) -> bool:
+    """True when the student is the assignee and still a member of the project."""
+    with get_db(db_path) as conn:
+        row = conn.execute(
+            """SELECT 1 FROM tasks t
+                 JOIN project_members m ON m.project_id = t.project_id AND m.user_id = ?
+                WHERE t.id = ? AND t.assignee_id = ?""",
+            (student_id, task_id, student_id),
+        ).fetchone()
+    return row is not None
+
+
 # ── Weekly report items ──────────────────────────────────────────────────────
 
 
