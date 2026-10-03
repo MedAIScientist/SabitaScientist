@@ -24,9 +24,11 @@ def _make_project(client, admin_token: str) -> str:
     return resp.json()["id"]
 
 
-def test_generate_hypothesis_dispatches_agent(client, admin_token) -> None:
+def test_generate_hypothesis_runs_the_debate_panel(client, admin_token) -> None:
+    from gazzali import _ai
+
     project_id = _make_project(client, admin_token)
-    with patch(SEAM, new=AsyncMock(return_value="H1: X causes Y.")) as mock_agent:
+    with patch.object(_ai, "debate", new=AsyncMock(return_value="## Synthesis\nH1: X causes Y.")) as mock_debate:
         resp = client.post(
             f"/api/v1/projects/{project_id}/generate-hypothesis",
             json={"topic": "protein folding"},
@@ -34,7 +36,8 @@ def test_generate_hypothesis_dispatches_agent(client, admin_token) -> None:
         )
     assert resp.status_code == 202
     assert resp.json()["status"] == "generating"
-    mock_agent.assert_awaited_once()
+    mock_debate.assert_awaited_once()
+    assert mock_debate.await_args.args[1] is _ai.HYPOTHESIS_ROLES
 
 
 def test_draft_section_dispatches_agent(client, admin_token, admin_user, tmp_db) -> None:
@@ -85,3 +88,22 @@ def test_draft_section_bad_section_rejected(client, admin_token, admin_user, tmp
 )
 def test_ai_endpoints_require_auth(client, path, body) -> None:
     assert client.post(path, json=body).status_code == 401
+
+
+def test_debate_runs_three_roles_then_synthesizes(monkeypatch) -> None:
+    import asyncio
+
+    from gazzali import _ai
+
+    calls: list[str] = []
+
+    async def fake_llm(system, user, **kw):
+        calls.append(system)
+        return "SYNTH" if system.startswith("You synthesize") else f"view of {system.split('.')[0]}"
+
+    monkeypatch.setattr(_ai, "run_llm_direct_async", fake_llm)
+    out = asyncio.run(_ai.debate("Is X true?", _ai.HYPOTHESIS_ROLES, "Distill hypotheses."))
+    assert len(calls) == 4
+    assert out.startswith("## Synthesis\n\nSYNTH")
+    for role in ("Innovator", "Pragmatist", "Contrarian"):
+        assert f"### {role}\nview of You are the {role}" in out

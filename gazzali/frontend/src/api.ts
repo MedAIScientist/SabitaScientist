@@ -478,6 +478,7 @@ export const api = {
   cancelResearchRun: (runId: string) => request<ResearchRun>('POST', `/research-runs/${runId}/cancel`),
   researchRunStages: (runId: string) => request<RunStages>('GET', `/research-runs/${runId}/stages`),
   researchUsage: () => request<ResearchUsage>('GET', '/research-runs/usage'),
+  researchEvaluation: () => request<ResearchEvaluation>('GET', '/research-runs/evaluation'),
   researchDomains: () => request<ResearchDomain[]>('GET', '/research-runs/domains'),
   researchTopicCheck: (topic: string, domain?: string) =>
     request<TopicScore>('POST', '/research-runs/topic-check', { topic, domain }),
@@ -1104,6 +1105,13 @@ export interface ResearchUsage {
   runs_running: number; runs_waiting: number; runs_queued: number; max_concurrent: number
 }
 export interface ResearchDomain { id: string; label: string; guidance: string }
+export interface ResearchEvaluation {
+  summary: { runs: number; finished: number; completion_rate: number | null; mean_interventions: number | null; mean_pi_quality: number | null }
+  runs: { id: string; topic: string; status: string; mode: string; created_at: string; stage: number | null
+    interventions: number; refines: number | null; pivots: number | null; retries: number | null
+    unverified_in_paper: number | null; pi_quality: number | null; primary_metric: number | null }[]
+  gates: { stage: number; stage_name: string | null; approved: number; redirected: number; total: number; approve_rate: number; advice: string }[]
+}
 export interface ResearchDataset { id: string; name: string; modality: string | null; irb_ids: string[] }
 export interface ResearchLesson {
   id: string; run_id: string | null; category: string; severity: number; pinned: boolean

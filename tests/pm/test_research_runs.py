@@ -302,3 +302,23 @@ def test_finished_run_becomes_a_checked_publication_once(world, worker) -> None:
     pub = c.get(f"/api/v1/publications/{body['publication_id']}", headers=h["student"]).json()
     assert pub["title"] == "Class weighting and recall"
     assert c.post(url, headers=h["student"]).status_code == 409
+
+
+def test_evaluation_counts_interventions_self_healing_and_advises(world, worker) -> None:
+    c, h = world["client"], world["h"]
+    runs = []
+    for _ in range(5):
+        run = _start(world).json()
+        worker.state = {"state": "waiting", "stage": 9, "stage_name": "EXPERIMENT_DESIGN", "waiting": {"stage": 9}}
+        c.post(f"/api/v1/research-runs/{run['id']}/respond", json={"action": "approve"}, headers=h["student"])
+        worker.state = {"state": "done", "stage": 23, "stage_name": "CITATION_VERIFY"}
+        c.get(_runs_url(world), headers=h["student"])  # refresh: done -> import
+        runs.append(run["id"])
+    assert c.get("/api/v1/research-runs/evaluation", headers=h["student"]).status_code == 403
+    ev = c.get("/api/v1/research-runs/evaluation", headers=h["pi"]).json()
+    assert ev["summary"]["runs"] == 5
+    assert ev["summary"]["mean_interventions"] == 1.0
+    assert {r["interventions"] for r in ev["runs"]} == {1}
+    gate = ev["gates"][0]
+    assert (gate["stage"], gate["approved"], gate["approve_rate"]) == (9, 5, 1.0)
+    assert "Gate-only" in gate["advice"]

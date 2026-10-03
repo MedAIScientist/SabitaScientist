@@ -6,9 +6,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends git tini \
     && rm -rf /var/lib/apt/lists/*
 
 # ARC itself, pinned (it moves fast; we integrate only through its CLI and files).
+# Editable install: building its wheel fails at this commit (a template file is added twice).
 RUN git clone https://github.com/aiming-lab/AutoResearchClaw /opt/arc \
     && git -C /opt/arc checkout ${ARC_COMMIT} \
-    && pip install --no-cache-dir /opt/arc fastapi uvicorn pytest httpx
+    && pip install --no-cache-dir -e /opt/arc fastapi uvicorn pytest httpx
 
 # The experiments' own Python, with pip so ARC can add packages (CPU only).
 RUN python -m venv /opt/expvenv \

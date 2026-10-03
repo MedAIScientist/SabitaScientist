@@ -7,6 +7,7 @@ skills directories, when a caller asks for it.
 
 from __future__ import annotations
 
+import asyncio
 import time
 from urllib.parse import urlparse
 
@@ -115,3 +116,39 @@ async def run_llm_direct_async(
         int((time.monotonic() - started) * 1000),
     )
     return str(result.content)
+
+
+# Multi-agent debate (paper arXiv:2605.20025 §3.2): one model arguing with itself from
+# complementary roles surfaces weak assumptions a single answer tends to confirm.
+HYPOTHESIS_ROLES = {
+    "Innovator": "Propose bold, high-risk hypotheses that challenge conventional assumptions.",
+    "Pragmatist": "Judge feasibility with the data, compute and time actually available; keep what can be tested.",
+    "Contrarian": "Look for weaknesses, confounds and reasons each idea could be wrong or trivial.",
+}
+REVIEW_ROLES = {
+    "Optimist": "Identify the strongest, best-supported findings and contributions.",
+    "Skeptic": "Challenge statistical significance, flag confounds and claims the evidence does not support.",
+    "Methodologist": "Evaluate reproducibility, data leakage, baselines and reporting completeness.",
+}
+
+
+async def debate(
+    task: str,
+    roles: dict[str, str],
+    synthesis_instruction: str,
+    context: UsageContext | None = None,
+) -> str:
+    """K role answers in parallel, then a synthesizer; returns Markdown with all parts."""
+    names = list(roles)
+    answers = await asyncio.gather(*(
+        run_llm_direct_async(f"You are the {n}. {roles[n]} Be specific and concise.", task, context=context)
+        for n in names
+    ))
+    panel = "\n\n".join(f"### {n}\n{a.strip()}" for n, a in zip(names, answers, strict=True))
+    synthesis = await run_llm_direct_async(
+        f"You synthesize a debate between {', '.join(names)}. {synthesis_instruction} "
+        "Never invent results, numbers or citations.",
+        f"Task:\n{task}\n\nDebate:\n{panel}",
+        context=context,
+    )
+    return f"## Synthesis\n\n{synthesis.strip()}\n\n## Debate\n\n{panel}\n"

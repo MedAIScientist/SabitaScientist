@@ -941,6 +941,7 @@ CREATE TABLE IF NOT EXISTS research_runs (
     conditions_json TEXT,
     pi_quality    INTEGER CHECK(pi_quality BETWEEN 1 AND 10),
     publication_id TEXT REFERENCES publications(id) ON DELETE SET NULL,
+    stage_stats_json TEXT,
     imported_at   TEXT,
     created_at    TEXT NOT NULL,
     updated_at    TEXT NOT NULL
@@ -969,6 +970,7 @@ _MIGRATIONS = [
     # Verified result reporting: summary of the number check on AI drafts (verify_numbers.py).
     "ALTER TABLE publication_versions ADD COLUMN verification_json TEXT",
     "ALTER TABLE research_runs ADD COLUMN publication_id TEXT REFERENCES publications(id) ON DELETE SET NULL",
+    "ALTER TABLE research_runs ADD COLUMN stage_stats_json TEXT",
     "ALTER TABLE tasks ADD COLUMN phase_id TEXT REFERENCES project_phases(id) ON DELETE SET NULL",
     "ALTER TABLE experiments ADD COLUMN phase_id TEXT REFERENCES project_phases(id) ON DELETE SET NULL",
     "ALTER TABLE admissions ADD COLUMN aid_percentage REAL",

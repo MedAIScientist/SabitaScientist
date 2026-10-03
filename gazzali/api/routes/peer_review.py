@@ -6,7 +6,6 @@ from functools import partial
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 
-from ...settings import RUNS_DIR
 from ...crud.ai_jobs import create_job, run_tracked
 from ...crud.publications import (
     create_review,
@@ -17,6 +16,7 @@ from ...crud.publications import (
 from ...crud.users import get_user_by_id
 from ...db import get_db_path
 from ...models import User
+from ...settings import RUNS_DIR
 from ..deps import get_current_user
 from ..schemas import ReviewAssignmentRequest
 
@@ -127,19 +127,21 @@ async def generate_ai_review(
 
 
 async def _run_ai_review(pub_id: str, run_id: str, prompt: str, workspace_dir: str, user_id: str) -> str | None:
+    from ..._ai import REVIEW_ROLES, debate
     from ...crud.ai_usage import UsageContext
-    from .drafting import _run_agent_and_get_output
 
-    text = await _run_agent_and_get_output(
-        run_id, prompt, workspace_dir, agent_type="research",
+    text = await debate(
+        prompt, REVIEW_ROLES,
+        "Write the review: separate supported from unsupported claims, list required changes, and end "
+        "with one decision word: accept, minor_revision, major_revision or reject.",
         context=UsageContext(task="ai-peer-review", user_id=user_id, publication_id=pub_id),
     )
     if not text:
         return None
     # Extract decision from the review text
-    decision = next((d for d in ("accept", "minor_revision", "major_revision", "reject")
-                     if d in text[:500].lower()), None)
-    create_review(get_db_path(), pub_id, round=1, reviewer_name="AI Reviewer", comments=text[:2000], decision=decision)
+    synthesis = text.split("## Debate")[0].lower()
+    decision = next((d for d in ("minor_revision", "major_revision", "reject", "accept") if d in synthesis), None)
+    create_review(get_db_path(), pub_id, round=1, reviewer_name="AI Reviewer (debate panel)", comments=text[:6000], decision=decision)
     return f"/publications/{pub_id}"
 
 

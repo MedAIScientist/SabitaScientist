@@ -151,6 +151,20 @@ async def topic_check(body: TopicCheck, current_user: User = Depends(get_current
         raise HTTPException(502, "the model did not return a score; try again") from exc
 
 
+@router.get("/research-runs/evaluation")
+def evaluation(current_user: User = Depends(get_current_user)):
+    """For lab PIs (their labs) and platform admins (all labs)."""
+    from ... import research_eval
+
+    db = get_db_path()
+    if current_user.is_admin:
+        return research_eval.evaluate(db, None)
+    labs = led_lab_ids(db, current_user.id)
+    if not labs:
+        raise HTTPException(403, "for lab PIs")
+    return research_eval.evaluate(db, labs)
+
+
 @router.get("/research-runs/usage")
 def usage(current_user: User = Depends(get_current_user)):
     return sync.usage(get_db_path())
