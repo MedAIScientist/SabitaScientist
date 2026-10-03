@@ -339,6 +339,27 @@ def _task_response(row: dict) -> WeeklyTaskResponse:
     )
 
 
+@router.get("/weekly/report", response_model=WeeklyReportResponse | None)
+def peek_week_report(
+    week: str | None = Query(default=None),
+    current_user: User = Depends(get_current_user),
+):
+    """Look at one week's report without creating it.
+
+    The week picker lets a student browse their own history, and browsing must not
+    litter the database with empty drafts a supervisor would then see in the reports
+    list. Creating a week happens when the student chooses to write it.
+    """
+    if current_user.role == "professor" and not current_user.is_admin:
+        raise HTTPException(
+            status_code=403, detail="Professors review reports; students submit them"
+        )
+    db = get_db_path()
+    week_start = week or _week_start()
+    report = supervision_crud.get_report_for_week(db, current_user.id, week_start)
+    return _report_to_response(db, report) if report else None
+
+
 @router.get("/weekly/tasks", response_model=WeeklyTasksResponse)
 def weekly_tasks(
     week: str | None = Query(default=None),
@@ -742,69 +763,77 @@ def list_journeys(
     ]
 
 
-@router.post("/requirements", response_model=RequirementResponse, status_code=201)
-def create_requirement(
-    body: RequirementRequest,
-    _admin: User = Depends(require_admin),
-):
-    r = supervision_crud.create_requirement(
-        get_db_path(),
-        body.level,
-        body.title,
-        body.req_type,
-        body.target_value,
-        description=body.description,
-        research_item_type=body.research_item_type,
-        min_stage=body.min_stage,
-        unit=body.unit,
-        required=body.required,
-    )
+def _professors_of(db, student_id: str) -> list[str]:
+    """The professors whose requirements apply to a student: supervisor + lab leaders."""
+    from ...supervision_scope import lab_leaders_of
+
+    ids = [p["professor_id"] for p in lab_leaders_of(db, student_id)]
+    sup = supervision_crud.get_active_supervisor(db, student_id)
+    if sup:
+        ids.append(sup.professor_id)
+    return list(dict.fromkeys(ids))
+
+
+def _requirement_out(db, r) -> RequirementResponse:
+    from ...crud.users import get_user_by_id
+
+    student = get_user_by_id(db, r.student_id) if r.student_id else None
     return RequirementResponse(
-        id=r.id,
-        level=r.level,
-        title=r.title,
-        description=r.description,
-        req_type=r.req_type,
-        research_item_type=r.research_item_type,
-        min_stage=r.min_stage,
-        target_value=r.target_value,
-        unit=r.unit,
-        required=r.required,
-        active=r.active,
-        created_at=r.created_at,
+        id=r.id, level=r.level, title=r.title, description=r.description, req_type=r.req_type,
+        research_item_type=r.research_item_type, min_stage=r.min_stage, target_value=r.target_value,
+        unit=r.unit, required=r.required, active=r.active, created_at=r.created_at,
+        professor_id=r.professor_id, student_id=r.student_id,
+        student_name=student.username if student else None,
     )
+
+
+@router.post("/requirements", response_model=RequirementResponse, status_code=201)
+def create_requirement(body: RequirementRequest, current_user: User = Depends(get_current_user)):
+    """A professor sets a requirement for all their students at a level, or for one student."""
+    from .followups import is_supervisor
+
+    db = get_db_path()
+    if current_user.role != "professor" and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Professors set requirements for their students")
+    if body.student_id and not current_user.is_admin and not is_supervisor(db, current_user.id, body.student_id):
+        raise HTTPException(status_code=403, detail="This student is not in a lab you lead")
+    r = supervision_crud.create_requirement(
+        db, body.level, body.title, body.req_type, body.target_value,
+        description=body.description, research_item_type=body.research_item_type,
+        min_stage=body.min_stage, unit=body.unit, required=body.required,
+        # An admin's rule is platform-wide (applies to every student at the level).
+        professor_id=current_user.id if current_user.role == "professor" else None,
+        student_id=body.student_id,
+    )
+    return _requirement_out(db, r)
 
 
 @router.get("/requirements", response_model=list[RequirementResponse])
 def list_requirements(
     level: str | None = Query(default=None),
     active_only: bool = Query(default=True),
-    _user: User = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
-    rows = supervision_crud.list_requirements(get_db_path(), level, active_only)
-    return [
-        RequirementResponse(
-            id=r.id,
-            level=r.level,
-            title=r.title,
-            description=r.description,
-            req_type=r.req_type,
-            research_item_type=r.research_item_type,
-            min_stage=r.min_stage,
-            target_value=r.target_value,
-            unit=r.unit,
-            required=r.required,
-            active=r.active,
-            created_at=r.created_at,
-        )
-        for r in rows
-    ]
+    """Professors: theirs plus platform-wide ones. Students: the ones that apply to them. Admin: all."""
+    db = get_db_path()
+    if current_user.is_admin:
+        rows = supervision_crud.list_requirements(db, level, active_only)
+    elif current_user.role == "professor":
+        rows = supervision_crud.list_requirements(db, level, active_only, professor_id=current_user.id)
+    else:
+        journey = supervision_crud.get_active_journey(db, current_user.id)
+        rows = supervision_crud.requirements_for_student(
+            db, current_user.id, journey.level if journey else level, _professors_of(db, current_user.id))
+    return [_requirement_out(db, r) for r in rows]
 
 
 @router.delete("/requirements/{requirement_id}", status_code=204)
-def archive_requirement(requirement_id: str, _admin: User = Depends(require_admin)):
-    if not supervision_crud.archive_requirement(get_db_path(), requirement_id):
+def archive_requirement(requirement_id: str, current_user: User = Depends(get_current_user)):
+    db = get_db_path()
+    r = supervision_crud.get_requirement(db, requirement_id)
+    if r is None or not (current_user.is_admin or (r.professor_id and r.professor_id == current_user.id)):
         raise HTTPException(status_code=404, detail="Requirement not found")
+    supervision_crud.archive_requirement(db, requirement_id)
 
 
 # ── Research items (unified view) ────────────────────────────────────────────
@@ -931,9 +960,8 @@ def graduation_readiness(
         journey = journeys[0] if journeys else None
     level = journey.level if journey else None
 
-    requirements = (
-        supervision_crud.list_requirements(db, level, True) if level else []
-    )
+    # The student's own professors decide what they must meet.
+    requirements = supervision_crud.requirements_for_student(db, sid, level, _professors_of(db, sid))
 
     # Evidence counts — publication output only. Course credits and GPA are not
     # tracked here on purpose: this platform is for publication work, and the

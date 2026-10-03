@@ -318,6 +318,45 @@ def test_a_submitted_week_is_never_rewritten(client: TestClient) -> None:
     assert after["status"] == before["status"]
 
 
+def test_peeking_at_a_week_does_not_create_it(client: TestClient, tmp_db: Path) -> None:
+    """Browsing history through the week picker must not litter empty drafts."""
+    import sqlite3
+
+    project_id = _project(client, client.stud_token)
+    _task(client, client.stud_token, project_id, assignee_id=client.stud_id)
+
+    resp = client.get(
+        f"/api/v1/supervision/weekly/report?week={_monday(-2)}", headers=_h(client.stud_token)
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json() is None
+
+    conn = sqlite3.connect(tmp_db)
+    reports = conn.execute("SELECT COUNT(*) FROM weekly_reports").fetchone()[0]
+    conn.close()
+    assert reports == 0
+
+
+def test_peeking_returns_a_week_that_exists_with_its_items(client: TestClient) -> None:
+    _project_id, task_id, report_id = _week_with_task(client, title="Peek at me")
+
+    body = client.get(
+        f"/api/v1/supervision/weekly/report?week={_monday()}", headers=_h(client.stud_token)
+    ).json()
+    assert body["id"] == report_id
+    assert any(i["task_id"] == task_id for i in body["items"])
+
+
+def test_peeking_at_another_students_week_is_impossible(client: TestClient) -> None:
+    """The endpoint is scoped to the caller: there is no student_id parameter to abuse."""
+    resp = client.get(
+        f"/api/v1/supervision/weekly/report?week={_monday()}&student_id={client.other_id}",
+        headers=_h(client.stud_token),
+    )
+    assert resp.status_code == 200
+    assert resp.json() is None
+
+
 def test_the_task_list_is_read_only(client: TestClient, tmp_db: Path) -> None:
     """Looking at the dashboard must not create a report for the week."""
     import sqlite3

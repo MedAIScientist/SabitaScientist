@@ -23,7 +23,11 @@ const STARTERS: { label: string; req_type: string; research_item_type: string; t
 
 export function RequirementsPage() {
   const qc = useQueryClient()
-  const { isAdmin } = useAuth()
+  const { isAdmin, role } = useAuth()
+  const isProfessor = role === 'professor' && !isAdmin
+  const canEdit = isProfessor || isAdmin
+  const { data: students = [] } = useQuery({ queryKey: ['my-students'], queryFn: () => supervisionApi.myStudents(), enabled: isProfessor })
+  const [appliesTo, setAppliesTo] = useState('')  // '' = all my students at the level
   const [level, setLevel] = useState('All')
   const [form, setForm] = useState({
     level: 'PhD', req_type: 'research_item', title: '', description: '',
@@ -48,6 +52,7 @@ export function RequirementsPage() {
         target_value: Number(form.target_value) || 1,
         unit: form.unit || undefined,
         required: form.required,
+        ...(appliesTo ? { student_id: appliesTo } : {}),
       })
       setMsg('Requirement added.')
       setForm(f => ({ ...f, title: '', description: '', research_item_type: '', unit: '' }))
@@ -72,7 +77,7 @@ export function RequirementsPage() {
       <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', letterSpacing: '0.04em', color: 'var(--text-dim)' }}>Administration</div>
       <h1 style={{ margin: '4px 0 6px', fontSize: 22, color: 'var(--text-heading)' }}>Graduation requirements</h1>
       <p style={{ color: 'var(--text-2)', margin: '0 0 18px', fontSize: 14 }}>
-        Define reusable, year-independent requirements for every study level. Remove archives — it never deletes student progress.
+        Set what your students need to graduate: for all of them at a level, or for one student. Removing a requirement archives it; student progress is never deleted.
       </p>
 
       {msg && <div style={{ padding: '8px 12px', marginBottom: 14, borderRadius: 6, background: 'rgba(var(--accent-rgb),0.12)', border: '1px solid rgba(var(--accent-rgb),0.3)' }}>{msg}</div>}
@@ -90,7 +95,7 @@ export function RequirementsPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
               <thead>
                 <tr>
-                  {['Level', 'Requirement', 'Type', 'Target', 'Required', ''].map(h => (
+                  {['Level', 'Requirement', 'Applies to', 'Type', 'Target', 'Required', ''].map(h => (
                     <th key={h} style={{ textAlign: 'left', padding: '8px 10px', borderBottom: '1px solid var(--border)', color: 'var(--text-dim)', fontSize: 12 }}>{h}</th>
                   ))}
                 </tr>
@@ -103,29 +108,36 @@ export function RequirementsPage() {
                       <div style={{ fontWeight: 700 }}>{r.title}</div>
                       {r.description && <div style={{ fontSize: 12, color: 'var(--text-2)' }}>{r.description}</div>}
                     </td>
+                    <td style={{ padding: '8px 10px', fontSize: 13 }}>
+                      {r.student_id ? (r.student_name ?? 'one student') : r.professor_id ? (isAdmin ? 'A professor’s students' : `All my ${r.level} students`) : 'Platform-wide'}
+                    </td>
                     <td style={{ padding: '8px 10px', fontSize: 12 }}>{r.req_type}{r.research_item_type ? ` · ${r.research_item_type}` : ''}</td>
                     <td style={{ padding: '8px 10px' }}>{r.target_value} {r.unit}</td>
                     <td style={{ padding: '8px 10px' }}>{r.required ? 'Yes' : 'Optional'}</td>
                     <td style={{ padding: '8px 10px' }}>
-                      {isAdmin && <button onClick={() => archive(r.id)} style={btnGhost}>Remove</button>}
+                      {(isAdmin || (isProfessor && r.professor_id)) && <button onClick={() => archive(r.id)} style={btnGhost}>Remove</button>}
                     </td>
                   </tr>
                 ))}
                 {!requirements?.length && (
-                  <tr><td colSpan={6} style={{ padding: 16, color: 'var(--text-2)' }}>No requirements yet.</td></tr>
+                  <tr><td colSpan={7} style={{ padding: 16, color: 'var(--text-2)' }}>No requirements yet. Add what your students need to graduate; they see it on their home page.</td></tr>
                 )}
               </tbody>
             </table>
           )}
         </div>
 
-        {!isAdmin ? (
+        {!canEdit ? (
           <aside style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 14, background: 'var(--surface-panel)', height: 'fit-content', fontSize: 14 }}>
-            Students see these on their home page and journey. A platform admin adds and changes them; ask the graduate office or an admin if your programme’s rules are missing.
+            Your supervisor sets what you need to graduate. You see it on your home page and journey.
           </aside>
         ) : (
         <aside style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 14, background: 'var(--surface-panel)', height: 'fit-content' }}>
           <h3 style={{ margin: '0 0 6px', fontSize: 15, color: 'var(--text-heading)' }}>Add requirement</h3>
+          <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 8 }}>
+            {isAdmin ? 'As an admin, what you add is platform-wide: every student at that level sees it.'
+              : 'For your own students. They see it on their home page.'}
+          </div>
           <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 6 }}>Start from a common kind (fills the form; set your programme’s numbers before adding):</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
             {STARTERS.map(s => (
@@ -139,6 +151,12 @@ export function RequirementsPage() {
             <select value={form.level} onChange={e => setForm(f => ({ ...f, level: e.target.value }))} style={inputStyle}>
               {LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
             </select>
+            {isProfessor && (
+              <select aria-label="Applies to" value={appliesTo} onChange={e => setAppliesTo(e.target.value)} style={inputStyle}>
+                <option value="">All my {form.level} students</option>
+                {students.map(s => <option key={s.student_id} value={s.student_id}>Only {s.student_name ?? s.student_id}</option>)}
+              </select>
+            )}
             <select value={form.req_type} onChange={e => setForm(f => ({ ...f, req_type: e.target.value }))} style={inputStyle}>
               {TYPES.map(t => <option key={t} value={t}>{t}</option>)}
             </select>

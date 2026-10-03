@@ -1570,6 +1570,7 @@ class RequirementRequest(BaseModel):
     target_value: float = 1
     unit: str | None = None
     required: bool = True
+    student_id: str | None = None  # None = all my students at this level
 
 
 class RequirementResponse(BaseModel):
@@ -1585,6 +1586,9 @@ class RequirementResponse(BaseModel):
     required: bool
     active: bool
     created_at: str
+    professor_id: str | None = None
+    student_id: str | None = None
+    student_name: str | None = None
 
 
 # ── AI usage accounting ──────────────────────────────────────────────────────

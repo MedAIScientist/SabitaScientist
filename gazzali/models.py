@@ -725,6 +725,8 @@ class GraduationRequirement:
     unit: str | None = None
     required: bool = True
     active: bool = True
+    professor_id: str | None = None  # the professor who set it (None: old platform-wide rule)
+    student_id: str | None = None  # one student only; None = all the professor's students at this level
 
 
 # Where AI usage is attributed. ``DIRECT`` is pm/_ai.py's in-process call;
