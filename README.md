@@ -3,7 +3,7 @@
 Research management platform for university labs: projects and Kanban boards,
 experiments, publications, grants, IRB approvals, lab supervision (weekly
 reports, meetings, join requests) and AI assistance (drafting, reviews,
-copilot) on an OpenAI-compatible endpoint (Groq by default).
+copilot) on an OpenAI-compatible endpoint (NVIDIA's API by default).
 
 Production: https://medai.medipol.edu.tr
 
@@ -26,7 +26,7 @@ cd gazzali/frontend && npx vitest run
 ## Configuration
 
 All settings are environment variables, read in `gazzali/settings.py`
-(`GAZZALI_*`, `PM_*`, `GARAGE_*`, `OIDC_*`, `GROQ_API_KEY`, `PM_LLM_*`).
+(`GAZZALI_*`, `PM_*`, `GARAGE_*`, `OIDC_*`, `NVIDIA_API_KEY`, `PM_LLM_*`).
 See `.env.example` and `CLAUDE.md`.
 
 ## Deploy

@@ -79,7 +79,7 @@ def _read_json(path: Path) -> dict | None:
 
 
 def render_config(req: JobRequest) -> dict:
-    """ARC config: Groq (OpenAI-compatible), CPU sandbox, no OpenCode."""
+    """ARC config: NVIDIA API (OpenAI-compatible), CPU sandbox, no OpenCode."""
     return {
         "project": {"name": req.job_id, "mode": req.mode},
         "research": {"topic": req.topic, "domains": ["machine-learning"]},
@@ -88,11 +88,11 @@ def render_config(req: JobRequest) -> dict:
         "knowledge_base": {"backend": "markdown", "root": "kb"},
         "llm": {
             "provider": "openai-compatible",
-            "base_url": os.environ.get("ARC_LLM_BASE_URL", "https://api.groq.com/openai/v1"),
+            "base_url": os.environ.get("ARC_LLM_BASE_URL", "https://integrate.api.nvidia.com/v1"),
             "wire_api": "chat_completions",
-            "api_key_env": os.environ.get("ARC_LLM_API_KEY_ENV", "GROQ_API_KEY"),
-            "primary_model": os.environ.get("ARC_LLM_MODEL", "openai/gpt-oss-120b"),
-            "fallback_models": [os.environ.get("ARC_LLM_FALLBACK", "qwen/qwen3.6-27b")],
+            "api_key_env": os.environ.get("ARC_LLM_API_KEY_ENV", "NVIDIA_API_KEY"),
+            "primary_model": os.environ.get("ARC_LLM_MODEL", "nvidia/nemotron-3-super-120b-a12b"),
+            "fallback_models": [m for m in [os.environ.get("ARC_LLM_FALLBACK", "")] if m],
         },
         "literature_search": {
             "sources": ["openalex", "semantic_scholar", "arxiv"],

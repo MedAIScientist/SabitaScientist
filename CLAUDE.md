@@ -107,7 +107,7 @@ gazzali/
 | `POST /publications/{id}/generate-ai-review` | runner | AI peer review |
 
 AI endpoints can load SKILL.md files (from `skills/` dirs) for guidance.
-Direct LLM endpoints use `gazzali/_ai.py` (one OpenAI-compatible endpoint; Groq by default).
+Direct LLM endpoints use `gazzali/_ai.py` (one OpenAI-compatible endpoint; NVIDIA by default).
 
 ### Runtime
 
@@ -118,7 +118,7 @@ EvoScientist core was removed). Production starts it with
 | Module | What it provides |
 |---|---|
 | `gazzali/settings.py` | Paths + all settings from env vars |
-| `gazzali/_ai.py` | `ChatOpenAI` on one OpenAI-compatible endpoint: `PM_LLM_BASE_URL` (default Groq), `PM_LLM_MODEL` (default `openai/gpt-oss-120b`), `PM_LLM_API_KEY` (default `GROQ_API_KEY`) |
+| `gazzali/_ai.py` | `ChatOpenAI` on one OpenAI-compatible endpoint: `PM_LLM_BASE_URL` (default NVIDIA `integrate.api.nvidia.com`), `PM_LLM_MODEL` (default `nvidia/nemotron-3-super-120b-a12b`), `PM_LLM_API_KEY` (default `NVIDIA_API_KEY`); the free key allows ~40 requests/minute shared by everything |
 | `gazzali/agent_tools.py` | Copilot tools (permission-checked) |
 | `gazzali/__main__.py` | Entrypoint |
 

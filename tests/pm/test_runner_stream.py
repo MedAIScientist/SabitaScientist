@@ -1,6 +1,6 @@
 """Tests for the runner's streaming contract and its AI usage reporting.
 
-The runner streams from Groq's OpenAI-compatible API. Two things about that stream
+The runner streams from an OpenAI-compatible API. Two things about that stream
 have already broken production once: the model name can be decommissioned under us,
 and the usage-only final chunk carries no `choices`, which the original parser
 indexed blindly.
@@ -44,10 +44,10 @@ def test_malformed_payload_is_skipped_not_raised() -> None:
 
 
 def test_default_model_is_not_a_decommissioned_one() -> None:
-    """Guard the specific regression: the shipped default was decommissioned by Groq,
+    """Guard the specific regression: the shipped default was decommissioned by the provider,
     which made every runner-backed AI feature fail silently in production."""
     assert DEFAULT_RUNNER_MODEL != "mixtral-8x7b-32768"
-    assert "/" in DEFAULT_RUNNER_MODEL, "Groq model ids are namespaced, e.g. openai/gpt-oss-120b"
+    assert "/" in DEFAULT_RUNNER_MODEL, "provider model ids are namespaced, e.g. nvidia/nemotron-3-super-120b-a12b"
 
 
 def test_configured_model_overrides_the_default(monkeypatch) -> None:
@@ -62,3 +62,15 @@ def test_model_falls_back_to_the_default_when_unset(monkeypatch) -> None:
 
     monkeypatch.delenv("PM_RUNNER_MODEL", raising=False)
     assert agent_runner._get_model() == DEFAULT_RUNNER_MODEL
+
+
+def test_runner_uses_the_configured_endpoint(monkeypatch) -> None:
+    """Switching provider (e.g. to NVIDIA) must move background runs too, not only the copilot."""
+    from gazzali.runner import agent_runner
+
+    monkeypatch.setenv("PM_LLM_BASE_URL", "https://integrate.api.nvidia.com/v1/")
+    monkeypatch.setenv("PM_LLM_API_KEY", "nvapi-test")
+    monkeypatch.setenv("PM_LLM_MODEL", "nvidia/nemotron-3-super-120b-a12b")
+    monkeypatch.delenv("PM_RUNNER_MODEL", raising=False)
+    assert agent_runner._get_endpoint() == ("https://integrate.api.nvidia.com/v1", "nvapi-test")
+    assert agent_runner._get_model() == "nvidia/nemotron-3-super-120b-a12b"
