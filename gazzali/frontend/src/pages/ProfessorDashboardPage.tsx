@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { supervisionApi } from '../api'
 import { ApprovalsInbox } from '../components/imaging/ApprovalsInbox'
+import { ResearchGatesInbox } from '../components/experiment/ResearchGatesInbox'
 import { CohortView } from '../components/supervision/CohortView'
 import { JoinRequestsInbox, NoLabPrompt } from '../components/supervision/LabJoin'
 import { useAuth } from '../auth'
@@ -47,6 +48,7 @@ export function ProfessorDashboardPage() {
       <NoLabPrompt />
       <JoinRequestsInbox />
       <ApprovalsInbox />
+      <ResearchGatesInbox />
       <CohortView />
 
       {/* KPI cards */}

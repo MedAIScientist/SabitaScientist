@@ -108,6 +108,14 @@ def get_s2_db_path() -> str:
     return _env("S2_DB_PATH")
 
 
+def get_arc_worker_config() -> dict:
+    """The AutoResearchClaw worker (internal service, see deploy/researchclaw)."""
+    return {
+        "url": _env("ARC_WORKER_URL", "http://researchclaw:8100").rstrip("/"),
+        "token": _env("ARC_WORKER_TOKEN"),
+    }
+
+
 def get_max_upload_bytes() -> int:
     """Return max attachment upload size in bytes."""
     return int(_env("PM_MAX_UPLOAD_MB", "50")) * 1024 * 1024

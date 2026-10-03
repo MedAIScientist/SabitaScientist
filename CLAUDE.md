@@ -122,6 +122,17 @@ EvoScientist core was removed). Production starts it with
 | `gazzali/agent_tools.py` | Copilot tools (permission-checked) |
 | `gazzali/__main__.py` | Entrypoint |
 
+### AutoResearchClaw (computational experiments)
+
+Plan: `plan/autoresearchclaw-integration.md` (arXiv:2605.20025). The `researchclaw`
+compose service (`deploy/researchclaw/`, internal only, CPU, ARC pinned) runs
+pipelines; `gazzali/research_claw.py` talks to it (`ARC_WORKER_URL`, `ARC_WORKER_TOKEN`).
+Routes in `api/routes/research_runs.py`; table `research_runs` mirrors a run and is
+refreshed whenever it is read. CoPilot is the default mode. Gates before stage 14 are
+decided by the project owner/editor, from stage 14 on by a lab PI. Dataset runs need
+an approved, unexpired IRB of the project. Finished runs import ARC's verified numbers
+into `experiment_metrics` and lessons into the lab's `research_lessons`.
+
 ### Frontend Pages (29+)
 
 | Route | Page | Features |

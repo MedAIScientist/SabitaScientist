@@ -87,10 +87,33 @@ services:
       timeout: 3s
       retries: 3
 
+  # AutoResearchClaw worker (plan/autoresearchclaw-integration.md). Internal only:
+  # no published port, no Docker socket. Experiments run CPU-only inside it.
+  researchclaw:
+    <<: *shared
+    build:
+      context: researchclaw
+    image: researchclaw-worker:prod
+    container_name: researchclaw
+    expose:
+      - "8100"
+    environment:
+      - ARC_TIME_BUDGET_SEC=${ARC_TIME_BUDGET_SEC:-900}
+    volumes:
+      - researchclaw-runs:/runs
+      # IRB-approved datasets; the PM only starts a run on one after checking the approval.
+      - /home/medaiadm/arc-datasets:/datasets:ro
+    cpus: 4
+    mem_limit: 6g
+    pids_limit: 512
+    networks:
+      - gazzali-net
+
 volumes:
   gazzali-data:
   gazzali-home:
   garage-data:
+  researchclaw-runs:
 
 networks:
   gazzali-net:

@@ -914,6 +914,45 @@ CREATE TABLE IF NOT EXISTS skill_assessments (
     updated_at   TEXT NOT NULL,
     UNIQUE(student_id, perspective, term)
 );
+
+-- AutoResearchClaw runs (plan/autoresearchclaw-integration.md). The worker owns the
+-- run; this row mirrors its state, refreshed whenever the PM reads it.
+CREATE TABLE IF NOT EXISTS research_runs (
+    id            TEXT PRIMARY KEY,
+    experiment_id TEXT NOT NULL REFERENCES experiments(id) ON DELETE CASCADE,
+    project_id    TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    lab_id        TEXT REFERENCES labs(id) ON DELETE SET NULL,
+    started_by    TEXT NOT NULL REFERENCES users(id),
+    topic         TEXT NOT NULL,
+    mode          TEXT NOT NULL DEFAULT 'co-pilot',
+    dataset       TEXT,
+    irb_id        TEXT REFERENCES irb_approvals(id) ON DELETE SET NULL,
+    status        TEXT NOT NULL DEFAULT 'running'
+                  CHECK(status IN ('running', 'waiting', 'done', 'failed', 'cancelled')),
+    stage         INTEGER,
+    stage_name    TEXT,
+    waiting_json  TEXT,
+    error         TEXT,
+    imported_at   TEXT,
+    created_at    TEXT NOT NULL,
+    updated_at    TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_research_runs_exp ON research_runs(experiment_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_research_runs_status ON research_runs(status);
+
+-- Cross-run lessons (paper §3.6), one store per lab so they stay inside the
+-- supervision boundary. Ranked by severity * 2^(-age / 30 days).
+CREATE TABLE IF NOT EXISTS research_lessons (
+    id          TEXT PRIMARY KEY,
+    lab_id      TEXT REFERENCES labs(id) ON DELETE CASCADE,
+    run_id      TEXT REFERENCES research_runs(id) ON DELETE SET NULL,
+    category    TEXT NOT NULL,
+    severity    REAL NOT NULL,
+    lesson_json TEXT NOT NULL,
+    created_at  TEXT NOT NULL,
+    UNIQUE(run_id, lesson_json)
+);
+CREATE INDEX IF NOT EXISTS idx_research_lessons_lab ON research_lessons(lab_id, created_at);
 """
 
 _MIGRATIONS = [
