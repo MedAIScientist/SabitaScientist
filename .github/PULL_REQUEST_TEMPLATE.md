@@ -15,7 +15,6 @@
 ## Checklist
 
 - [ ] I have read the [Contributing Guidelines](../CONTRIBUTING.md)
-- [ ] This targets **core functionality** used by the majority of users (niche features belong in [EvoSkills](https://github.com/EvoScientist/EvoSkills))
 - [ ] I have added/updated tests where applicable
 - [ ] `uv run ruff check .` passes
 - [ ] `uv run pytest` passes

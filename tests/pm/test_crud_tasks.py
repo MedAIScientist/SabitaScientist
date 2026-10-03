@@ -5,8 +5,8 @@ from pathlib import Path
 
 import pytest
 
-from EvoScientist.pm.crud.projects import create_project
-from EvoScientist.pm.crud.tasks import (
+from gazzali.crud.projects import create_project
+from gazzali.crud.tasks import (
     create_comment,
     create_task,
     delete_comment,
@@ -16,8 +16,8 @@ from EvoScientist.pm.crud.tasks import (
     list_tasks,
     update_task,
 )
-from EvoScientist.pm.crud.users import create_user
-from EvoScientist.pm.db import create_schema
+from gazzali.crud.users import create_user
+from gazzali.db import create_schema
 
 
 @pytest.fixture

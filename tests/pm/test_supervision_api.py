@@ -7,9 +7,9 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from EvoScientist.pm.api.app import create_app
-from EvoScientist.pm.auth import hash_password
-from EvoScientist.pm.crud.users import create_user
+from gazzali.api.app import create_app
+from gazzali.auth import hash_password
+from gazzali.crud.users import create_user
 
 
 @pytest.fixture
@@ -565,8 +565,8 @@ def test_only_the_assigned_supervisor_reviews(client: TestClient) -> None:
 
 
 def test_students_cannot_drop_followups_and_others_cannot_see_them(client: TestClient, tmp_db) -> None:
-    from EvoScientist.pm.auth import hash_password
-    from EvoScientist.pm.crud.users import create_user
+    from gazzali.auth import hash_password
+    from gazzali.crud.users import create_user
 
     _assign(client)
     report_id = _submitted_report(client)
@@ -594,7 +594,7 @@ def test_students_cannot_drop_followups_and_others_cannot_see_them(client: TestC
 
 
 def test_meeting_brief_uses_only_the_record_and_is_stored(client: TestClient, monkeypatch) -> None:
-    from EvoScientist.pm import _ai
+    from gazzali import _ai
 
     seen: dict = {}
 
@@ -627,7 +627,7 @@ def test_meeting_brief_uses_only_the_record_and_is_stored(client: TestClient, mo
 
 
 def test_meeting_brief_with_nothing_recorded_fails_honestly(client: TestClient, monkeypatch) -> None:
-    from EvoScientist.pm import _ai
+    from gazzali import _ai
 
     async def must_not_be_called(*a, **k):
         raise AssertionError("the model must not be asked to summarise an empty record")
@@ -689,7 +689,7 @@ def test_skills_check_validates_and_stays_private(client: TestClient) -> None:
 def test_term_boundaries() -> None:
     from datetime import date
 
-    from EvoScientist.pm.api.routes.skills import term_of
+    from gazzali.api.routes.skills import term_of
 
     assert term_of(date(2026, 9, 1)) == "2026 Fall"
     assert term_of(date(2027, 1, 20)) == "2026 Fall"
@@ -703,7 +703,7 @@ def test_term_boundaries() -> None:
 def test_publication_gap_projects_only_with_a_real_pace(client: TestClient, tmp_db) -> None:
     from datetime import date, timedelta
 
-    from EvoScientist.pm.crud.publications import create_publication, update_publication
+    from gazzali.crud.publications import create_publication, update_publication
 
     _assign(client)
     start = (date.today() - timedelta(days=360)).isoformat()  # ~12 months ago
@@ -753,7 +753,7 @@ def test_readiness_is_for_the_students_own_supervisor(client: TestClient) -> Non
 def test_progress_report_contents_escaping_and_word_download(client: TestClient) -> None:
     from datetime import date
 
-    from EvoScientist.pm.api.routes.skills import term_of
+    from gazzali.api.routes.skills import term_of
 
     _assign(client)
     report_id = client.post("/api/v1/supervision/weekly/current", headers=_h(client.stud_token)).json()["id"]
@@ -799,7 +799,7 @@ def test_progress_report_access_and_term_validation(client: TestClient) -> None:
 
 
 def test_cohort_view_compares_students_on_recorded_data(client: TestClient, tmp_db) -> None:
-    from EvoScientist.pm.crud.users import create_user
+    from gazzali.crud.users import create_user
 
     _assign(client)
     report_id = client.post("/api/v1/supervision/weekly/current", headers=_h(client.stud_token)).json()["id"]
@@ -842,7 +842,7 @@ def test_cohort_view_is_for_supervisors(client: TestClient) -> None:
 
 def test_professor_sees_only_students_of_labs_they_lead(client: TestClient, tmp_db) -> None:
     """A professor of another lab — or a non-leading member of the same lab — sees nothing."""
-    from EvoScientist.pm.crud.users import create_user
+    from gazzali.crud.users import create_user
 
     lab_id = _lab_with(client, client.stud_id)
     report_id = client.post("/api/v1/supervision/weekly/current", headers=_h(client.stud_token)).json()["id"]

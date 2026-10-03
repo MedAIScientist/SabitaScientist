@@ -16,8 +16,8 @@ def _auth(token: str) -> dict:
 
 
 def _make_user(client, tmp_db, username, password="pw", is_admin=False):
-    from EvoScientist.pm.auth import hash_password
-    from EvoScientist.pm.crud.users import create_user
+    from gazzali.auth import hash_password
+    from gazzali.crud.users import create_user
 
     user = create_user(
         tmp_db,
@@ -479,7 +479,7 @@ def test_outsider_sees_404_on_every_subresource(client, tmp_db) -> None:
 
 
 def test_reader_role_can_read_but_not_write_the_plan(client, tmp_db) -> None:
-    from EvoScientist.pm.crud.labs import add_member
+    from gazzali.crud.labs import add_member
 
     lab, _pi, pi_token = _lab_with_pi(client, tmp_db)
     gid = _grant(client, pi_token, lab_id=lab["id"])["id"]
@@ -508,7 +508,7 @@ def test_reader_role_can_read_but_not_write_the_plan(client, tmp_db) -> None:
 
 def test_can_manage_flag_matches_write_access(client, tmp_db) -> None:
     """The UI hides edit affordances off this flag, so it must track real access."""
-    from EvoScientist.pm.crud.labs import add_member
+    from gazzali.crud.labs import add_member
 
     lab, _pi, pi_token = _lab_with_pi(client, tmp_db)
     gid = _grant(client, pi_token, lab_id=lab["id"])["id"]

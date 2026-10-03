@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ────────────────────────────────────────────────────────────────────────────
-# Authentik IAM Setup — deploy alongside EvoScientist PM
+# Authentik IAM Setup — deploy alongside Gazzali PM
 # ────────────────────────────────────────────────────────────────────────────
 # All generated secrets are written to the project root .env so docker compose
 # can interpolate them (env_file values are NOT used for compose interpolation).
@@ -19,9 +19,9 @@ set -euo pipefail
 #
 # Then:
 #   1. Visit http://localhost:9000 and log in with admin credentials
-#   2. Admin → Applications → EvoScientist PM → Provider tab
+#   2. Admin → Applications → Gazzali PM → Provider tab
 #   3. Copy Client ID / Client Secret into ../.env as OIDC_CLIENT_ID / OIDC_CLIENT_SECRET
-#   4. docker compose restart evoscientist
+#   4. docker compose restart gazzali
 # ────────────────────────────────────────────────────────────────────────────
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -131,7 +131,7 @@ echo "OIDC credentials auto-generated — PM is already configured."
 echo ""
 echo "Next steps:"
 echo "  1. Open http://localhost:9000 and log in:"
-echo "     User:     admin@evoscientist.local"
+echo "     User:     admin@gazzali.local"
 echo "     Password: (check AUTHENTIK_BOOTSTRAP_PASSWORD in .env)"
 echo ""
 echo "  2. Verify Microsoft OAuth source:"

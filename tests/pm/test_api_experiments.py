@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import pytest
 
-from EvoScientist.pm.auth import hash_password
-from EvoScientist.pm.crud.users import create_user
+from gazzali.auth import hash_password
+from gazzali.crud.users import create_user
 
 
 @pytest.fixture

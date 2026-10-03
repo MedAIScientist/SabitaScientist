@@ -11,7 +11,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-SEAM = "EvoScientist.pm.api.routes.drafting._run_agent_and_get_output"
+SEAM = "gazzali.api.routes.drafting._run_agent_and_get_output"
 
 
 def _auth(token: str) -> dict:
@@ -38,7 +38,7 @@ def test_generate_hypothesis_dispatches_agent(client, admin_token) -> None:
 
 
 def test_draft_section_dispatches_agent(client, admin_token, admin_user, tmp_db) -> None:
-    from EvoScientist.pm.crud.publications import create_publication
+    from gazzali.crud.publications import create_publication
 
     project_id = _make_project(client, admin_token)
     pub = create_publication(tmp_db, title="Paper", created_by=admin_user.id, project_id=project_id)
@@ -65,7 +65,7 @@ def test_draft_section_unknown_publication_404(client, admin_token) -> None:
 
 
 def test_draft_section_bad_section_rejected(client, admin_token, admin_user, tmp_db) -> None:
-    from EvoScientist.pm.crud.publications import create_publication
+    from gazzali.crud.publications import create_publication
 
     pub = create_publication(tmp_db, title="Paper", created_by=admin_user.id)
     resp = client.post(

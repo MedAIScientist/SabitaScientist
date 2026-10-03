@@ -8,12 +8,12 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture
 def runner_client():
-    from EvoScientist.pm.runner.main import create_runner_app
+    from gazzali.runner.main import create_runner_app
     return TestClient(create_runner_app())
 
 
 def test_start_run_returns_202(runner_client):
-    with patch("EvoScientist.pm.runner.routes.runs.agent_runner.start_run", new=AsyncMock()):
+    with patch("gazzali.runner.routes.runs.agent_runner.start_run", new=AsyncMock()):
         resp = runner_client.post("/runs", json={
             "run_id": "abc123",
             "agent_type": "research",
@@ -35,12 +35,12 @@ def test_start_run_invalid_agent_type(runner_client):
 
 
 def test_cancel_run_returns_204_when_found(runner_client):
-    with patch("EvoScientist.pm.runner.routes.runs.agent_runner.cancel", new=AsyncMock(return_value=True)):
+    with patch("gazzali.runner.routes.runs.agent_runner.cancel", new=AsyncMock(return_value=True)):
         resp = runner_client.delete("/runs/abc123")
     assert resp.status_code == 204
 
 
 def test_cancel_run_returns_404_when_not_found(runner_client):
-    with patch("EvoScientist.pm.runner.routes.runs.agent_runner.cancel", new=AsyncMock(return_value=False)):
+    with patch("gazzali.runner.routes.runs.agent_runner.cancel", new=AsyncMock(return_value=False)):
         resp = runner_client.delete("/runs/missing")
     assert resp.status_code == 404

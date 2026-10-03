@@ -10,8 +10,8 @@ def _auth(token: str) -> dict:
 
 
 def _make_user(client, tmp_db, username, password="pw", is_admin=False):
-    from EvoScientist.pm.auth import hash_password
-    from EvoScientist.pm.crud.users import create_user
+    from gazzali.auth import hash_password
+    from gazzali.crud.users import create_user
 
     user = create_user(
         tmp_db,

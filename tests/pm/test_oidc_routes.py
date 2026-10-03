@@ -6,15 +6,15 @@ import sqlite3
 
 from fastapi.testclient import TestClient
 
-from EvoScientist.pm.api.app import create_app
-from EvoScientist.pm.api.routes import auth_oidc as auth_oidc_mod
-from EvoScientist.pm.auth import hash_password
-from EvoScientist.pm.crud.users import (
+from gazzali.api.app import create_app
+from gazzali.api.routes import auth_oidc as auth_oidc_mod
+from gazzali.auth import hash_password
+from gazzali.crud.users import (
     create_user,
     get_user_by_email,
     get_user_by_username,
 )
-from EvoScientist.pm.oidc import OIDCUser
+from gazzali.oidc import OIDCUser
 
 
 def _patch_oidc(monkeypatch, db_path, oidc_user):

@@ -10,12 +10,12 @@ from pathlib import Path
 
 import pytest
 
-from EvoScientist.pm.auth import hash_password
-from EvoScientist.pm.crud.experiments import create_experiment
-from EvoScientist.pm.crud.projects import add_member, create_project
-from EvoScientist.pm.crud.tasks import list_tasks
-from EvoScientist.pm.crud.users import create_user
-from EvoScientist.pm import agent_tools as t
+from gazzali.auth import hash_password
+from gazzali.crud.experiments import create_experiment
+from gazzali.crud.projects import add_member, create_project
+from gazzali.crud.tasks import list_tasks
+from gazzali.crud.users import create_user
+from gazzali import agent_tools as t
 
 
 @pytest.fixture
@@ -87,7 +87,7 @@ def test_publication_cannot_be_attached_to_a_foreign_project(world) -> None:
 
 def test_owner_can_add_an_experiment_entry(world) -> None:
     """pm_add_experiment_entry used to pass type= to create_entry and always raised."""
-    from EvoScientist.pm.crud.experiment_entries import list_entries
+    from gazzali.crud.experiment_entries import list_entries
 
     _as(world["owner"])
     result = t.pm_add_experiment_entry.invoke(

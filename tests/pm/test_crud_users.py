@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from EvoScientist.pm.crud.users import (
+from gazzali.crud.users import (
     create_user,
     delete_user,
     get_user_by_id,
@@ -14,7 +14,7 @@ from EvoScientist.pm.crud.users import (
     list_users,
     update_user_password,
 )
-from EvoScientist.pm.db import create_schema
+from gazzali.db import create_schema
 
 
 @pytest.fixture

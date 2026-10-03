@@ -7,8 +7,8 @@ def _auth(token: str) -> dict:
 
 def _make_user(client, tmp_db, username, password="pw", is_admin=False):
     """Create a user in the temp DB and return (user, token)."""
-    from EvoScientist.pm.auth import hash_password
-    from EvoScientist.pm.crud.users import create_user
+    from gazzali.auth import hash_password
+    from gazzali.crud.users import create_user
 
     user = create_user(
         tmp_db,
@@ -78,7 +78,7 @@ def test_outsider_get_by_id_is_404_not_403(client, tmp_db) -> None:
 
 
 def test_outsider_cannot_update_or_delete(client, tmp_db) -> None:
-    from EvoScientist.pm.crud.grants import get_grant
+    from gazzali.crud.grants import get_grant
 
     lab, _pi, pi_token = _lab_with_pi(client, tmp_db)
     grant = _grant(client, pi_token, lab_id=lab["id"])
@@ -153,7 +153,7 @@ def test_lab_pi_can_read_and_write(client, tmp_db) -> None:
 
 
 def test_lab_admin_member_can_write(client, tmp_db) -> None:
-    from EvoScientist.pm.crud.labs import add_member
+    from gazzali.crud.labs import add_member
 
     lab, _pi, pi_token = _lab_with_pi(client, tmp_db)
     grant = _grant(client, pi_token, lab_id=lab["id"])
@@ -170,8 +170,8 @@ def test_lab_admin_member_can_write(client, tmp_db) -> None:
 
 
 def test_lab_ms_member_reads_but_cannot_write(client, tmp_db) -> None:
-    from EvoScientist.pm.crud.grants import get_grant
-    from EvoScientist.pm.crud.labs import add_member
+    from gazzali.crud.grants import get_grant
+    from gazzali.crud.labs import add_member
 
     lab, _pi, pi_token = _lab_with_pi(client, tmp_db)
     grant = _grant(client, pi_token, lab_id=lab["id"])
@@ -231,7 +231,7 @@ def test_project_owner_can_read_and_write(client, tmp_db) -> None:
 
 
 def test_project_editor_can_write(client, tmp_db) -> None:
-    from EvoScientist.pm.crud.projects import add_member
+    from gazzali.crud.projects import add_member
 
     project, _owner, owner_token = _project_with_owner(client, tmp_db)
     grant = _grant(client, owner_token, project_id=project["id"])
@@ -248,7 +248,7 @@ def test_project_editor_can_write(client, tmp_db) -> None:
 
 
 def test_project_viewer_reads_but_cannot_write(client, tmp_db) -> None:
-    from EvoScientist.pm.crud.projects import add_member
+    from gazzali.crud.projects import add_member
 
     project, _owner, owner_token = _project_with_owner(client, tmp_db)
     grant = _grant(client, owner_token, project_id=project["id"])
@@ -345,7 +345,7 @@ def test_unattached_grant_readable_and_writable_by_its_named_pi(client, tmp_db) 
 
 def test_unattached_grant_cannot_be_pushed_into_a_foreign_lab(client, tmp_db) -> None:
     """Re-targeting is a write against the destination as well as the source."""
-    from EvoScientist.pm.crud.grants import get_grant
+    from gazzali.crud.grants import get_grant
 
     lab, _pi, _pi_token = _lab_with_pi(client, tmp_db)
     _creator, creator_token = _make_user(client, tmp_db, "creator")

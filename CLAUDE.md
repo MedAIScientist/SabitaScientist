@@ -18,24 +18,20 @@ uv run pytest -v --timeout=30
 uv run ruff check .
 uv run ruff format .
 
-# Run the PM dashboard locally
-uv run python -m EvoScientist.pm --host 0.0.0.0   # or: uv run EvoSci dashboard
-
-# Run agent locally
-EvoSci                          # interactive TUI
-EvoSci onboard                  # interactive config wizard
+# Run Gazzali locally (API + SPA on :7860, AI runner on :8001)
+uv run python -m gazzali --host 0.0.0.0
 ```
 
-## PM Module Architecture
+## Gazzali Architecture
 
-The **Project Management (PM) module** lives at `EvoScientist/pm/` — a full-stack FastAPI + SQLite + React SPA for running a university research ecosystem. It runs standalone: it imports nothing from the rest of the EvoScientist package (see "Standalone PM" below).
+The **Project Management (PM) module** lives at `gazzali/` — a full-stack FastAPI + SQLite + React SPA for running a university research ecosystem. It runs standalone: it imports nothing from the rest of the EvoScientist package (see "Standalone PM" below).
 
 ```
-pm/
+gazzali/
   settings.py       # Paths + config from env vars
   _ai.py            # Direct LLM (OpenAI-compatible endpoint) + skill guidance
   agent_tools.py    # Copilot tools
-  __main__.py       # python -m EvoScientist.pm
+  __main__.py       # python -m gazzali
   api/              # ~65 FastAPI endpoints across 30 route files
     routes/         # Auth, projects, tasks, experiments, publications,
     |               # labs, grants, conferences, IRB, wiki, search, audit,
@@ -51,7 +47,7 @@ pm/
                     # Uses get_checkpointer() for persistence + memory recording
   frontend/         # 29+ React pages (Vite + TypeScript)
   templates/        # YAML project templates (life-science, medical, ml-research)
-  db.py             # 26 tables, 7 migrations (path via EvoScientist.paths.DATA_DIR)
+  db.py             # 26 tables, 7 migrations (path via GAZZALI_PM_DB or GAZZALI_DATA_DIR)
   models.py         # 25+ dataclasses
   notifications.py  # Email (EMAIL_SMTP_* env vars)
   oidc.py           # Microsoft O365 SSO (OIDC_* env vars)
@@ -111,22 +107,20 @@ pm/
 | `POST /publications/{id}/generate-ai-review` | runner | AI peer review |
 
 AI endpoints can load SKILL.md files (from `skills/` dirs) for guidance.
-Direct LLM endpoints use `pm/_ai.py` (one OpenAI-compatible endpoint; Groq by default).
+Direct LLM endpoints use `gazzali/_ai.py` (one OpenAI-compatible endpoint; Groq by default).
 
-### Standalone PM (no EvoScientist core)
+### Runtime
 
-The PM imports nothing from the rest of the `EvoScientist` package
-(`tests/pm/test_standalone.py` enforces it). Production starts it with
-`python -m EvoScientist.pm --host 0.0.0.0` (API + SPA on :7860, runner on :8001).
+Gazzali is a standalone package (it began as EvoScientist's PM module; the
+EvoScientist core was removed). Production starts it with
+`python -m gazzali --host 0.0.0.0`.
 
-| PM module | Replaces | What it provides |
-|---|---|---|
-| `pm/settings.py` | `paths.py`, `config/settings.py` | Paths + all PM settings from env vars (same names as before) |
-| `pm/_ai.py` | `llm.get_chat_model()`, `prompts` | `ChatOpenAI` on one OpenAI-compatible endpoint: `PM_LLM_BASE_URL` (default Groq), `PM_LLM_MODEL` (default `openai/gpt-oss-120b`), `PM_LLM_API_KEY` (default `GROQ_API_KEY`) |
-| `pm/agent_tools.py` | `tools/pm_tools.py` | Copilot tools (permission-checked) |
-| `pm/__main__.py` | `evosci dashboard` | Entrypoint; `evosci dashboard` delegates to it |
-
-Removed as EvoScientist-agent-only: `/mcp`, `/memory`, `/middleware`, `/models`, `/system-prompt`, `/schedules` routes and the MCP/Memory pages.
+| Module | What it provides |
+|---|---|
+| `gazzali/settings.py` | Paths + all settings from env vars |
+| `gazzali/_ai.py` | `ChatOpenAI` on one OpenAI-compatible endpoint: `PM_LLM_BASE_URL` (default Groq), `PM_LLM_MODEL` (default `openai/gpt-oss-120b`), `PM_LLM_API_KEY` (default `GROQ_API_KEY`) |
+| `gazzali/agent_tools.py` | Copilot tools (permission-checked) |
+| `gazzali/__main__.py` | Entrypoint |
 
 ### Frontend Pages (29+)
 
@@ -158,15 +152,15 @@ Removed as EvoScientist-agent-only: `/mcp`, `/memory`, `/middleware`, `/models`,
 
 ### PM Tools (Agent Access)
 
-The copilot's tools live in `pm/agent_tools.py`: they read and (after user confirmation) create projects, tasks, experiments, entries, papers and labs, re-checking the signed-in user's permissions.
+The copilot's tools live in `gazzali/agent_tools.py`: they read and (after user confirmation) create projects, tasks, experiments, entries, papers and labs, re-checking the signed-in user's permissions.
 
 ### Configuration
 
-All PM configuration is read from environment variables in `pm/settings.py` (no config.yaml).
+All PM configuration is read from environment variables in `gazzali/settings.py` (no config.yaml).
 
 | Config Field | Env Var | Purpose |
 |---|---|---|
-| `pm_db_path` | `EVOSCIENTIST_PM_DB` | PM SQLite DB path |
+| `pm_db_path` | `GAZZALI_PM_DB` | PM SQLite DB path |
 | `pm_runner_url` | `PM_RUNNER_URL` | Agent runner URL (default: :8001) |
 | `pm_base_url` | `PM_BASE_URL` | PM web UI base URL |
 | `pm_smtp_from` | `PM_SMTP_FROM` | Notification sender address |
@@ -178,44 +172,44 @@ All PM configuration is read from environment variables in `pm/settings.py` (no 
 
 ### Deployment
 
-Production server: `medaiadm@10.150.145.10` — domain `https://medai.medipol.edu.tr`
-Uses Docker Compose on bare metal (no Swarm/K8s). Three containers: `evoscientist`, `evoscientist-garage`, `evoscientist-nginx`.
+Production server: `medaiadm@medai-prod` (Tailscale; the raw IP 10.150.145.10 times out on port 22) — domain `https://medai.medipol.edu.tr`
+Uses Docker Compose on bare metal (no Swarm/K8s). Compose project `gazzali`; three containers: `gazzali`, `gazzali-garage`, `gazzali-nginx`.
 
 **IMPORTANT — deploy ONLY via the deploy script. Never run ad-hoc Docker commands.**
 
 ```bash
 # Deploy to production (syncs code → builds Docker → restarts container)
-./deploy/deploy.sh medaiadm@10.150.145.10
+./deploy/deploy.sh medaiadm@medai-prod
 ```
 
 The deploy script handles:
 1. **Rsync** — syncs source code (excluding .git, node_modules, .venv, .env, etc.)
 2. **SSL check** — verifies certs at `deploy/nginx/ssl/`
-3. **Docker build** — builds `evoscientist:prod` image (uses cache, no `--no-cache`)
-4. **Deploy** — recreates evoscientist container (garage + nginx stay up), waits for healthy
+3. **Docker build** — builds `gazzali:prod` image (uses cache, no `--no-cache`)
+4. **Deploy** — recreates the gazzali container (garage + nginx stay up), waits for healthy
 
 **Services:**
 
 | Container | Image | Ports |
 |-----------|-------|-------|
-| evoscientist | evoscientist:prod | 7860 (API + SPA), 8001 (runner) |
-| evoscientist-garage | dxflrs/garage:v1.0.1 | 3900 (S3) |
-| evoscientist-nginx | nginx:alpine | 80 → 443 → evoscientist:7860 |
+| gazzali | gazzali:prod | 7860 (API + SPA), 8001 (runner) |
+| gazzali-garage | dxflrs/garage:v1.0.1 | 3900 (S3) |
+| gazzali-nginx | nginx:alpine | 80 → 443 → gazzali:7860 |
 
 **Compose file:** `deploy/docker-compose.prod.yml` (single unified file)
 
-**Data volumes:** `evoscientist-prod-data` (/data with pm.db + workspaces), `evoscientist-home`
+**Data volumes:** `gazzali_gazzali-data` (/data with pm.db + workspaces), `gazzali_gazzali-home`, `gazzali_garage-data`
 
 **Secrets:** `.env` at project root + `deploy/.env` (deploy overrides root). SSL certs at `deploy/nginx/ssl/`.
 
 **OIDC / Microsoft SSO:** Azure App with Client ID `991f879e-3b91-4d8f-850d-0b2ad468c976`. Redirect URI must match `https://medai.medipol.edu.tr/api/v1/auth/oidc/callback`.
 
-**Skills:** EvoScientist skills installed at `skills/` on the server (from `evoscientist/evoskills`).
+**Skills:** SKILL.md files under `skills/` on the server (and `~/.gazzali/skills` in the container).
 
 **Troubleshooting:**
 - Check health: `curl -sk https://medai.medipol.edu.tr/api/v1/health`
-- View logs: `docker logs evoscientist`
-- DB query: `docker exec evoscientist python3 -c "import sqlite3; c=sqlite3.connect('/data/pm.db')"`
+- View logs: `docker logs gazzali`
+- DB query: `docker exec gazzali python3 -c "import sqlite3; c=sqlite3.connect('/data/pm.db')"`
 
 ### Adding a new entity
 
@@ -225,7 +219,7 @@ The deploy script handles:
 4. Create `crud/{entity}.py` with direct SQL functions (use explicit named params + `_row_to_*()` helpers)
 5. Create `api/routes/{entity}.py` with FastAPI routes (use Pydantic schemas + `response_model=` + `log_action()`)
 6. Wire in `api/app.py`
-7. Create frontend page in `pm/frontend/src/pages/`
+7. Create frontend page in `gazzali/frontend/src/pages/`
 8. Add route in `main.tsx`
 9. Add API methods in `api.ts`
 

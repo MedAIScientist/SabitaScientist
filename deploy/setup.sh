@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ── EvoScientist Production Setup ─────────────────────────────────────────────
+# ── Gazzali Production Setup ─────────────────────────────────────────────
 # Run once on a fresh VPS to bootstrap the deployment.
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$REPO_DIR"
 
-echo "=== EvoScientist Production Setup ==="
+echo "=== Gazzali Production Setup ==="
 echo ""
 
 # ── 1. Environment file ────────────────────────────────────────────────────────
@@ -77,7 +77,7 @@ sleep 3
 
 ACCESS_KEY="${GARAGE_ACCESS_KEY:-GK1234567890abc}"
 SECRET_KEY="${GARAGE_SECRET_KEY:-abcdef1234567890abcdef1234567890}"
-BUCKET="${GARAGE_BUCKET:-evoscientist}"
+BUCKET="${GARAGE_BUCKET:-gazzali}"
 
 # Configure Garage if not already done (expects curl in the container)
 docker compose -f deploy/docker-compose.yml exec -T garage \
@@ -87,7 +87,7 @@ docker compose -f deploy/docker-compose.yml exec -T garage \
 
 # Create access key and bucket
 docker compose -f deploy/docker-compose.yml exec -T garage \
-    garage key create -c /etc/garage.toml --name evoscientist "$ACCESS_KEY" 2>/dev/null || true
+    garage key create -c /etc/garage.toml --name gazzali "$ACCESS_KEY" 2>/dev/null || true
 docker compose -f deploy/docker-compose.yml exec -T garage \
     garage bucket create -c /etc/garage.toml "$BUCKET" 2>/dev/null || true
 docker compose -f deploy/docker-compose.yml exec -T garage \

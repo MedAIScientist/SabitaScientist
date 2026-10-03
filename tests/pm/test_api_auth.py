@@ -1,6 +1,6 @@
 """Tests for /auth routes."""
-from EvoScientist.pm.auth import hash_password
-from EvoScientist.pm.crud.users import create_user
+from gazzali.auth import hash_password
+from gazzali.crud.users import create_user
 
 
 def test_login_success(client, tmp_db) -> None:

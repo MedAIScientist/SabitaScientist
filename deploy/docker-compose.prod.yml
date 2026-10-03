@@ -1,4 +1,5 @@
 # Production deployment — single compose file for all services
+name: gazzali
 x-shared: &shared
   env_file:
     - ../.env
@@ -6,16 +7,13 @@ x-shared: &shared
   restart: unless-stopped
 
 services:
-  evoscientist:
+  gazzali:
     <<: *shared
     build:
       context: ..
       dockerfile: Dockerfile
-    image: evoscientist:prod
-    container_name: evoscientist
-    # The PM runs on its own; the EvoScientist CLI agent is not started or imported.
-    entrypoint: ["tini", "--", "python", "-m", "EvoScientist.pm"]
-    command: ["--host", "0.0.0.0"]
+    image: gazzali:prod
+    container_name: gazzali
     expose:
       - "7860"
       - "8001"
@@ -23,12 +21,12 @@ services:
       garage:
         condition: service_healthy
     environment:
-      - EVOSCIENTIST_PM_DB=/data/pm.db
-      - EVOSCIENTIST_WORKSPACE_DIR=/data/workspaces
+      - GAZZALI_PM_DB=/data/pm.db
+      - GAZZALI_WORKSPACE_DIR=/data/workspaces
       - GARAGE_S3_ENDPOINT=${GARAGE_S3_ENDPOINT:-http://garage:3900}
       - GARAGE_ACCESS_KEY=${GARAGE_ACCESS_KEY:-}
       - GARAGE_SECRET_KEY=${GARAGE_SECRET_KEY:-}
-      - GARAGE_BUCKET=${GARAGE_BUCKET:-evoscientist}
+      - GARAGE_BUCKET=${GARAGE_BUCKET:-gazzali}
     # platform-control desired-state pushes (DMZ -> cluster): the hostname
     # resolves to the cluster gateway VIP only inside this container (public DNS
     # for it points back at this very host's nginx, which has no location for
@@ -36,8 +34,8 @@ services:
     extra_hosts:
       - "platform.medai.medipol.edu.tr:172.20.43.241"
     volumes:
-      - evoscientist-prod-data:/data
-      - evoscientist-home:/home/evosci/.evoscientist
+      - gazzali-data:/data
+      - gazzali-home:/home/gazzali/.gazzali
       - /home/medaiadm/sabita-internal-ca.pem:/etc/ssl/sabita-internal-ca.pem:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:7860/api/v1/health"]
@@ -50,13 +48,13 @@ services:
 
   garage:
     image: dxflrs/garage:v1.0.1
-    container_name: evoscientist-garage
+    container_name: gazzali-garage
     expose:
       - "3900"
     environment:
       - GARAGE_CONFIG_FILE=/etc/garage.toml
     volumes:
-      - garage-prod-data:/data
+      - garage-data:/data
       - ../garage.toml:/etc/garage.toml:ro
     restart: unless-stopped
     healthcheck:
@@ -70,7 +68,7 @@ services:
 
   nginx:
     image: nginx:alpine
-    container_name: evoscientist-nginx
+    container_name: gazzali-nginx
     ports:
       - "80:80"
       - "443:443"
@@ -79,7 +77,7 @@ services:
       - ./nginx/ssl:/etc/nginx/ssl:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
     depends_on:
-      - evoscientist
+      - gazzali
     networks:
       - gazzali-net
     restart: unless-stopped
@@ -90,9 +88,9 @@ services:
       retries: 3
 
 volumes:
-  evoscientist-prod-data:
-  evoscientist-home:
-  garage-prod-data:
+  gazzali-data:
+  gazzali-home:
+  garage-data:
 
 networks:
   gazzali-net:

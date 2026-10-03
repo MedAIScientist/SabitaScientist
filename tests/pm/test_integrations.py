@@ -5,7 +5,7 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from EvoScientist.pm import integrations
+from gazzali import integrations
 
 CVAT = next(i for i in integrations.INTEGRATIONS if i.key == "cvat")
 AUTH = next(i for i in integrations.INTEGRATIONS if i.key == "auth")
@@ -186,8 +186,8 @@ def _auth(token: str) -> dict:
 
 
 def _make_user(client, tmp_db, username, password="pw", is_admin=False):
-    from EvoScientist.pm.auth import hash_password
-    from EvoScientist.pm.crud.users import create_user
+    from gazzali.auth import hash_password
+    from gazzali.crud.users import create_user
 
     create_user(
         tmp_db,
@@ -202,7 +202,7 @@ def _make_user(client, tmp_db, username, password="pw", is_admin=False):
 
 def test_route_lists_apps_with_status(client, tmp_db, monkeypatch) -> None:
     # The route module imported `statuses` by name, so patch it there.
-    import EvoScientist.pm.api.routes.integrations as route_mod
+    import gazzali.api.routes.integrations as route_mod
 
     monkeypatch.setattr(route_mod, "statuses", _fake_probe_all)
     token = _make_user(client, tmp_db, "app_user")
@@ -225,7 +225,7 @@ def test_route_lists_apps_with_status(client, tmp_db, monkeypatch) -> None:
 def test_identity_provider_is_hidden_from_non_admins(
     client, tmp_db, monkeypatch
 ) -> None:
-    import EvoScientist.pm.api.routes.integrations as route_mod
+    import gazzali.api.routes.integrations as route_mod
 
     monkeypatch.setattr(route_mod, "statuses", _fake_probe_all)
     user_token = _make_user(client, tmp_db, "plain_user")

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ── Gazzali PM Production Deploy ─────────────────────────────────────────
+# ── Gazzali Production Deploy ─────────────────────────────────────────
 # Usage:  ./deploy/deploy.sh [server-address]
 # Example: ./deploy/deploy.sh medaiadm@medai-prod
 # Prerequisites: Docker, docker compose, rsync, ssh on the remote host.
@@ -15,11 +15,11 @@ SERVER="${1:-medaiadm@medai-prod}"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # Keep-alives: a session that dies mid-build (e.g. a Tailscale re-auth) fails in ~2 min instead of hanging.
 SSH="ssh -o ServerAliveInterval=30 -o ServerAliveCountMax=4 ${SERVER}"
-DEPLOY_DIR="/home/medaiadm/EvoScientist"
+DEPLOY_DIR="/home/medaiadm/Gazzali"
 COMPOSE_FILE="deploy/docker-compose.prod.yml"
 
 echo "╔══════════════════════════════════════════════════╗"
-echo "║     Gazzali PM — Production Deploy               ║"
+echo "║     Gazzali — Production Deploy               ║"
 echo "╚══════════════════════════════════════════════════╝"
 echo "Server: ${SERVER}"
 echo ""
@@ -30,7 +30,7 @@ rsync -avz --delete \
   --exclude '.git' --exclude 'node_modules' --exclude '__pycache__' \
   --exclude '.venv' --exclude '.pytest_cache' --exclude '.ruff_cache' \
   --exclude '*.pyc' --exclude '.env' --exclude '.coverage' \
-  --exclude 'build/' --exclude 'EvoScientist.egg-info/' \
+  --exclude 'build/' --exclude 'gazzali.egg-info/' \
   --exclude 'skills/' --exclude '.github/' --exclude '.superpowers/' \
   --exclude '.agents/' \
   --exclude 'deploy/nginx/ssl/' --exclude '*.bak*' --exclude 'runs/' \
@@ -41,7 +41,7 @@ echo "  ✓ Code synced"
 # ── Step 3: Build Docker image (background, for backend changes) ──────────
 echo "[3/5] Building Docker image (background)..."
 # Run build in background, capture PID, wait with periodic status
-${SSH} "cd ${DEPLOY_DIR} && docker compose -f ${COMPOSE_FILE} build evoscientist" &
+${SSH} "cd ${DEPLOY_DIR} && docker compose -f ${COMPOSE_FILE} build gazzali" &
 BUILD_PID=$!
 while kill -0 $BUILD_PID 2>/dev/null; do
     sleep 30
@@ -54,30 +54,30 @@ wait $BUILD_PID && echo "  ✓ Build complete" || {
 # ── Step 4: Deploy containers + fast frontend ────────────────────────────
 echo "[4/5] Deploying containers + fast frontend..."
 # Sync dist to server temp dir for fast docker cp after restart
-rsync -avz --delete "${REPO_DIR}/EvoScientist/pm/frontend/dist/" "${SERVER}:/tmp/pm-frontend-dist/" 2>/dev/null || true
+rsync -avz --delete "${REPO_DIR}/gazzali/frontend/dist/" "${SERVER}:/tmp/pm-frontend-dist/" 2>/dev/null || true
 # Pull nginx image if needed
 ${SSH} "cd ${DEPLOY_DIR} && docker compose -f ${COMPOSE_FILE} pull nginx garage" 2>/dev/null || true
 
-# Stop only evoscientist (garage and nginx stay up)
+# Stop only gazzali (garage and nginx stay up)
 # Recreate in the foreground: polling health while this runs in the background
 # used to match the *old* container and report healthy before the swap.
-${SSH} "cd ${DEPLOY_DIR} && docker compose -f ${COMPOSE_FILE} up -d --no-deps --force-recreate evoscientist"
+${SSH} "cd ${DEPLOY_DIR} && docker compose -f ${COMPOSE_FILE} up -d --no-deps --force-recreate gazzali"
 
-echo "  ... waiting for the new evoscientist container to become healthy"
+echo "  ... waiting for the new gazzali container to become healthy"
 HEALTHY=0
 for i in $(seq 1 60); do
-    STATUS=$(${SSH} "docker inspect evoscientist --format='{{.State.Health.Status}}' 2>/dev/null" || true)
+    STATUS=$(${SSH} "docker inspect gazzali --format='{{.State.Health.Status}}' 2>/dev/null" || true)
     if [ "${STATUS}" = "healthy" ]; then
-        echo "  ✓ evoscientist healthy (after $((i * 2))s)"
+        echo "  ✓ gazzali healthy (after $((i * 2))s)"
         HEALTHY=1
         break
     fi
     sleep 2
 done
-[ "${HEALTHY}" = "1" ] || echo "  ⚠ evoscientist not healthy after 120s (status: ${STATUS:-unknown})"
+[ "${HEALTHY}" = "1" ] || echo "  ⚠ gazzali not healthy after 120s (status: ${STATUS:-unknown})"
 
 # Fast frontend deploy: docker cp the updated dist into the fresh container
-${SSH} "docker cp /tmp/pm-frontend-dist/. evoscientist:/opt/venv/lib/python3.11/site-packages/EvoScientist/pm/frontend/dist/ 2>/dev/null" && echo "  ✓ Frontend hot-updated via docker cp"
+${SSH} "docker cp /tmp/pm-frontend-dist/. gazzali:/opt/venv/lib/python3.11/site-packages/gazzali/frontend/dist/ 2>/dev/null" && echo "  ✓ Frontend hot-updated via docker cp"
 
 # Ensure nginx is running
 ${SSH} "cd ${DEPLOY_DIR} && docker compose -f ${COMPOSE_FILE} up -d --no-deps nginx" 2>/dev/null || true
@@ -105,7 +105,7 @@ else
     echo "╔══════════════════════════════════════════════════╗"
     echo "║  ⚠  Deployment completed but health check        ║"
     echo "║     failed. Check logs:                           ║"
-    echo "║     docker logs evoscientist                       ║"
+    echo "║     docker logs gazzali                       ║"
     echo "╚══════════════════════════════════════════════════╝"
     exit 1
 fi

@@ -6,14 +6,14 @@ from pathlib import Path
 
 import pytest
 
-from EvoScientist.pm.crud.dependencies import (
+from gazzali.crud.dependencies import (
     add_dependency,
     get_blocked_by,
     list_dependencies,
     list_dependents,
     remove_dependency,
 )
-from EvoScientist.pm.db import create_schema
+from gazzali.db import create_schema
 
 
 @pytest.fixture

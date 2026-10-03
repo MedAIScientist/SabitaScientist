@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from EvoScientist.pm.models import (
+from gazzali.models import (
     EXPERIMENT_ASSET_ROLES,
     EXPERIMENT_ASSET_TYPES,
     EXPERIMENT_STATUSES,
@@ -22,8 +22,8 @@ def _auth(token: str) -> dict:
 
 
 def _admin(client, tmp_db, username="exp_admin"):
-    from EvoScientist.pm.auth import hash_password
-    from EvoScientist.pm.crud.users import create_user
+    from gazzali.auth import hash_password
+    from gazzali.crud.users import create_user
 
     create_user(
         tmp_db, username=username, password_hash=hash_password("pw"), is_admin=True
@@ -35,8 +35,8 @@ def _admin(client, tmp_db, username="exp_admin"):
 
 def _make_user(client, tmp_db, username, password="pw"):
     """A plain, non-admin user; returns (user, token)."""
-    from EvoScientist.pm.auth import hash_password
-    from EvoScientist.pm.crud.users import create_user
+    from gazzali.auth import hash_password
+    from gazzali.crud.users import create_user
 
     user = create_user(tmp_db, username=username, password_hash=hash_password(password), role="professor")
     token = client.post(
@@ -222,7 +222,7 @@ def test_asset_vocabularies_are_stable() -> None:
 def test_every_asset_type_is_expressible(asset_type) -> None:
     import re
 
-    from EvoScientist.pm.api.schemas import EXPERIMENT_ASSET_TYPE_PATTERN
+    from gazzali.api.schemas import EXPERIMENT_ASSET_TYPE_PATTERN
 
     assert re.match(EXPERIMENT_ASSET_TYPE_PATTERN, asset_type)
 
@@ -481,9 +481,9 @@ def test_deleting_the_experiment_removes_its_links(client, tmp_db) -> None:
 
 
 def test_viewer_can_read_lineage_but_not_change_it(client, tmp_db) -> None:
-    from EvoScientist.pm.auth import hash_password
-    from EvoScientist.pm.crud.projects import add_member
-    from EvoScientist.pm.crud.users import create_user
+    from gazzali.auth import hash_password
+    from gazzali.crud.projects import add_member
+    from gazzali.crud.users import create_user
 
     token = _admin(client, tmp_db)
     pid = _project(client, token)

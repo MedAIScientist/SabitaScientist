@@ -61,7 +61,7 @@ Dockerfile.*
 docker-compose*.override.yml
 
 # PM frontend dev dependencies
-EvoScientist/pm/frontend/node_modules/
+gazzali/frontend/node_modules/
 
 # OS
 .DS_Store

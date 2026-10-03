@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from EvoScientist.pm.auth import hash_password
-from EvoScientist.pm.crud.users import create_user
+from gazzali.auth import hash_password
+from gazzali.crud.users import create_user
 
 
 @pytest.fixture
@@ -31,7 +31,7 @@ def project_task(tmp_db, member_token, client):
 
 def test_create_run_returns_201(client, member_token, project_task):
     project_id, task_id = project_task
-    with patch("EvoScientist.pm.api.routes.runs._notify_runner", new=AsyncMock()):
+    with patch("gazzali.api.routes.runs._notify_runner", new=AsyncMock()):
         resp = client.post(
             f"/api/v1/projects/{project_id}/tasks/{task_id}/runs",
             json={"agent_type": "research", "prompt": "Find gel protocols"},
@@ -57,7 +57,7 @@ def test_list_runs_returns_empty_initially(client, member_token, project_task):
 def test_list_runs_returns_created_runs(client, member_token, project_task):
     project_id, task_id = project_task
     headers = {"Authorization": f"Bearer {member_token}"}
-    with patch("EvoScientist.pm.api.routes.runs._notify_runner", new=AsyncMock()):
+    with patch("gazzali.api.routes.runs._notify_runner", new=AsyncMock()):
         client.post(
             f"/api/v1/projects/{project_id}/tasks/{task_id}/runs",
             json={"agent_type": "research", "prompt": "p1"},

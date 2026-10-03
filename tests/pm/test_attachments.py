@@ -6,13 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from EvoScientist.pm.crud.attachments import (
+from gazzali.crud.attachments import (
     create_attachment,
     delete_attachment,
     get_attachment,
     list_attachments,
 )
-from EvoScientist.pm.db import create_schema
+from gazzali.db import create_schema
 
 
 @pytest.fixture

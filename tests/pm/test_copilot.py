@@ -10,7 +10,7 @@ from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, AIMessageChunk
 from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
 
-from EvoScientist.pm.api.routes import copilot
+from gazzali.api.routes import copilot
 
 
 class ScriptedModel(BaseChatModel):
@@ -133,9 +133,9 @@ def test_link_for_created_entities() -> None:
 
 def test_model_choice_follows_the_environment(monkeypatch) -> None:
     """Groq + the default model unless PM_LLM_* point somewhere else."""
-    from EvoScientist.pm import _ai, settings
+    from gazzali import _ai, settings
 
-    for key in ("PM_LLM_MODEL", "PM_LLM_BASE_URL", "PM_LLM_API_KEY", "EVOSCIENTIST_AUXILIARY_MODEL"):
+    for key in ("PM_LLM_MODEL", "PM_LLM_BASE_URL", "PM_LLM_API_KEY"):
         monkeypatch.delenv(key, raising=False)
     assert _ai.pm_model_choice() == (settings.DEFAULT_LLM_MODEL, "api.groq.com")
 

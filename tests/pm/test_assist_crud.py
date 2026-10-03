@@ -5,14 +5,14 @@ from pathlib import Path
 
 import pytest
 
-from EvoScientist.pm.crud.assists import (
+from gazzali.crud.assists import (
     create_assist,
     get_assist,
     list_assists_for_experiment,
     update_assist_output,
     update_assist_status,
 )
-from EvoScientist.pm.db import create_schema
+from gazzali.db import create_schema
 
 
 @pytest.fixture

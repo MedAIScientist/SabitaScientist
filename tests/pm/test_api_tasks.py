@@ -26,9 +26,9 @@ def test_update_task_status(client, admin_token) -> None:
 
 
 def test_viewer_cannot_create_task(client, tmp_db, admin_token) -> None:
-    from EvoScientist.pm.auth import hash_password
-    from EvoScientist.pm.crud.projects import add_member
-    from EvoScientist.pm.crud.users import create_user
+    from gazzali.auth import hash_password
+    from gazzali.crud.projects import add_member
+    from gazzali.crud.users import create_user
 
     viewer = create_user(tmp_db, username="v2", password_hash=hash_password("p"))
     pid = _make_project(client, admin_token)
@@ -64,7 +64,7 @@ def test_legacy_critical_priority_is_folded_into_high(client, admin_token) -> No
 
 
 def test_schema_migration_folds_existing_critical_tasks(tmp_db, admin_token, client) -> None:
-    from EvoScientist.pm.db import create_schema, get_db
+    from gazzali.db import create_schema, get_db
 
     pid = _make_project(client, admin_token)
     tid = client.post(f"/api/v1/projects/{pid}/tasks", json={"title": "T"}, headers={"Authorization": f"Bearer {admin_token}"}).json()["id"]

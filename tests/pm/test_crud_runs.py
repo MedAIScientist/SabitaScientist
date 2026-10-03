@@ -2,14 +2,14 @@
 from __future__ import annotations
 from pathlib import Path
 import pytest
-from EvoScientist.pm.crud.projects import create_project
-from EvoScientist.pm.crud.tasks import create_task
-from EvoScientist.pm.crud.users import create_user
-from EvoScientist.pm.crud.runs import (
+from gazzali.crud.projects import create_project
+from gazzali.crud.tasks import create_task
+from gazzali.crud.users import create_user
+from gazzali.crud.runs import (
     create_run, get_run, list_runs_for_task,
     update_run_status, update_run_output,
 )
-from EvoScientist.pm.db import create_schema
+from gazzali.db import create_schema
 
 @pytest.fixture
 def setup(tmp_path: Path):

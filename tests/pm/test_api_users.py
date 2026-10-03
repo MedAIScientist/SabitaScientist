@@ -11,8 +11,8 @@ def test_search_returns_empty_for_short_query(client, admin_token) -> None:
 
 
 def test_search_returns_matching_users(client, tmp_db, admin_token) -> None:
-    from EvoScientist.pm.auth import hash_password
-    from EvoScientist.pm.crud.users import create_user
+    from gazzali.auth import hash_password
+    from gazzali.crud.users import create_user
 
     create_user(tmp_db, username="alice_lab", password_hash=hash_password("p"))
     create_user(tmp_db, username="bob_lab", password_hash=hash_password("p"))
@@ -33,8 +33,8 @@ def test_search_returns_matching_users(client, tmp_db, admin_token) -> None:
 
 
 def test_search_is_case_insensitive(client, tmp_db, admin_token) -> None:
-    from EvoScientist.pm.auth import hash_password
-    from EvoScientist.pm.crud.users import create_user
+    from gazzali.auth import hash_password
+    from gazzali.crud.users import create_user
 
     create_user(tmp_db, username="ALICE_LAB", password_hash=hash_password("p"))
 

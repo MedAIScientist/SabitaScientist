@@ -7,9 +7,9 @@ from __future__ import annotations
 
 import pytest
 
-from EvoScientist.pm.auth import hash_password
-from EvoScientist.pm.crud.publications import create_version, get_version
-from EvoScientist.pm.crud.users import create_user
+from gazzali.auth import hash_password
+from gazzali.crud.publications import create_version, get_version
+from gazzali.crud.users import create_user
 
 LONG_DRAFT = "Results: accuracy was 0.912 on the held-out split. " * 200
 
@@ -144,7 +144,7 @@ def test_disclosure_does_not_invent_a_model_name(client, headers, tmp_db, public
 
 
 def test_prompt_fingerprint_is_stable_and_not_the_prompt():
-    from EvoScientist.pm.api.routes.drafting_helpers import prompt_fingerprint
+    from gazzali.api.routes.drafting_helpers import prompt_fingerprint
 
     prompt = "Write a Results section. Patient 4 had a p-value of 0.03."
     digest = prompt_fingerprint(prompt)

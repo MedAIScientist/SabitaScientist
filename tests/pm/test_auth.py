@@ -4,13 +4,13 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from EvoScientist.pm.auth import (
+from gazzali.auth import (
     create_token,
     hash_password,
     validate_token,
     verify_password,
 )
-from EvoScientist.pm.db import create_schema, get_db
+from gazzali.db import create_schema, get_db
 
 
 def test_hash_password_returns_string() -> None:

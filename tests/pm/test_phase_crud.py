@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from EvoScientist.pm.crud.phases import (
+from gazzali.crud.phases import (
     assign_experiment_phase,
     assign_task_phase,
     create_phase,
@@ -15,7 +15,7 @@ from EvoScientist.pm.crud.phases import (
     list_phases,
     update_phase,
 )
-from EvoScientist.pm.db import create_schema
+from gazzali.db import create_schema
 
 
 @pytest.fixture

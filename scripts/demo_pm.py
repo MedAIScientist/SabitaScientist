@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-EvoScientist PM — Full-Lifecycle Demo Script.
+Gazzali — Full-Lifecycle Demo Script.
 
 Walks through the entire research workflow:
   Setup → Login → Lab → Project (from template) → Tasks → Experiments →
@@ -81,7 +81,7 @@ def run(base_url: str, admin_user: str, admin_pass: str) -> None:
     BASE = base_url.rstrip("/") + "/api/v1"
     CLIENT = httpx.Client(verify=False)
 
-    print(f"\n  EvoScientist PM Demo")
+    print(f"\n  Gazzali Demo")
     print(f"  Target: {BASE}")
     print(f"  Admin:  {admin_user}\n")
 
@@ -99,7 +99,7 @@ def run(base_url: str, admin_user: str, admin_pass: str) -> None:
     if r.status_code == 200 and r.json().get("needs_setup"):
         print("  First-run detected — bootstrapping admin...")
         r2 = _req("POST", "/users/setup/admin", json={
-            "username": admin_user, "password": admin_pass, "email": "demo@evoscientist.local",
+            "username": admin_user, "password": admin_pass, "email": "demo@gazzali.local",
         })
         if r2.status_code == 201:
             print(f"  ✓ Admin '{admin_user}' created")
@@ -389,7 +389,7 @@ def run(base_url: str, admin_user: str, admin_pass: str) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="EvoScientist PM Demo Script")
+    parser = argparse.ArgumentParser(description="Gazzali Demo Script")
     parser.add_argument("--url", default="http://localhost:7860", help="PM dashboard URL")
     parser.add_argument("--username", default="demo_admin", help="Admin username")
     parser.add_argument("--password", default="demo_pass_123", help="Admin password")
