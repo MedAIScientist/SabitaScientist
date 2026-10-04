@@ -23,7 +23,7 @@ interface Props {
   phases?: Phase[]
 }
 
-type Tab = 'overview' | 'data' | 'metrics' | 'runs' | 'notes' | 'results'
+type Tab = 'overview' | 'data' | 'runs' | 'notes' | 'results'
 
 export function ExperimentDetail({ experiment, projectId, onClose, phases }: Props) {
   const qc = useQueryClient()
@@ -203,7 +203,6 @@ export function ExperimentDetail({ experiment, projectId, onClose, phases }: Pro
             ['notes', 'Notes', undefined],
             ['results', 'Results', undefined],
             ['data', 'Data', undefined],
-            ['metrics', 'Metrics', undefined],
             ['runs', 'AI runs', 'Automated experiment runs (AutoResearchClaw)'],
           ] as [Tab, string, string | undefined][]).map(([t, label, title]) => (
             <button key={t} role="tab" aria-selected={tab === t} title={title} style={tabStyle(t)}
@@ -295,8 +294,11 @@ export function ExperimentDetail({ experiment, projectId, onClose, phases }: Pro
           <ResearchRunsTab projectId={projectId} experimentId={experiment.id} hypothesis={experiment.hypothesis} />
         )}
 
-        {tab === 'metrics' && (
-          <ExperimentMetricsTab projectId={projectId} experimentId={experiment.id} />
+        {tab === 'results' && (
+          <div style={{ marginBottom: 18 }}>
+            <ExperimentMetricsTab projectId={projectId} experimentId={experiment.id} />
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-2)', margin: '14px 0 0', borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>Written results</div>
+          </div>
         )}
 
         {(tab === 'notes' || tab === 'results') && (
