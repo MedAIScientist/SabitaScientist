@@ -314,6 +314,9 @@ export const api = {
     request<Version>('GET', `/publications/${pubId}/versions/${versionId}`),
   createVersion: (pubId: string, notes?: string) =>
     request<Version>('POST', `/publications/${pubId}/versions`, { notes }),
+  // A human revision of one section (counts as human work in the AI disclosure).
+  saveSectionText: (pubId: string, section: string, content: string) =>
+    request<Version>('POST', `/publications/${pubId}/versions`, { section, content, notes: `Edited ${section}` }),
   getAiDisclosure: (pubId: string) =>
     request<AiDisclosure>('GET', `/publications/${pubId}/ai-disclosure`),
   listReviews: (pubId: string) => request<Review[]>('GET', `/publications/${pubId}/reviews`),
