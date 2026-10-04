@@ -119,7 +119,7 @@ export function ExperimentDetail({ experiment, projectId, onClose, phases }: Pro
     : []
 
   const tabStyle = (t: Tab): React.CSSProperties => ({
-    padding: '5px 12px', fontSize: 15, fontFamily: 'var(--font-mono)',
+    padding: '6px 10px', fontSize: 14, fontFamily: 'var(--font-mono)', whiteSpace: 'nowrap', flex: 'none',
     color: tab === t ? 'var(--accent)' : 'var(--text-3)',
     background: 'none', border: 'none', borderBottomStyle: 'solid',
     borderBottomWidth: 2, borderBottomColor: tab === t ? 'var(--accent)' : 'transparent',
@@ -213,13 +213,18 @@ export function ExperimentDetail({ experiment, projectId, onClose, phases }: Pro
         </div>
 
         {/* Tab bar */}
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--border-subtle)', marginTop: 4 }}>
-          <button style={tabStyle('overview')} onClick={() => setTab('overview')}>Overview</button>
-          <button style={tabStyle('data')} onClick={() => setTab('data')}>Data</button>
-          <button style={tabStyle('metrics')} onClick={() => setTab('metrics')}>Metrics</button>
-          <button style={tabStyle('runs')} onClick={() => setTab('runs')}>AutoResearchClaw</button>
-          <button style={tabStyle('notes')} onClick={() => { setTab('notes'); setShowEditor(false) }}>Notes</button>
-          <button style={tabStyle('results')} onClick={() => { setTab('results'); setShowEditor(false) }}>Results</button>
+        <div role="tablist" aria-label="Experiment" style={{ display: 'flex', flexWrap: 'wrap', columnGap: 2, borderBottom: '1px solid var(--border-subtle)', marginTop: 4 }}>
+          {([
+            ['overview', 'Overview', undefined],
+            ['notes', 'Notes', undefined],
+            ['results', 'Results', undefined],
+            ['data', 'Data', undefined],
+            ['metrics', 'Metrics', undefined],
+            ['runs', 'AI runs', 'Automated experiment runs (AutoResearchClaw)'],
+          ] as [Tab, string, string | undefined][]).map(([t, label, title]) => (
+            <button key={t} role="tab" aria-selected={tab === t} title={title} style={tabStyle(t)}
+              onClick={() => { setTab(t); if (t === 'notes' || t === 'results') setShowEditor(false) }}>{label}</button>
+          ))}
         </div>
       </div>
 
