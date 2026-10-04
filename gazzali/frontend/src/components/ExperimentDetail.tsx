@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, Experiment, ExperimentEntry, Task } from '../api'
 import { EntryEditor } from './EntryEditor'
-import { AiAssistPanel } from './AiAssistPanel'
 import { AttachmentList } from './AttachmentList'
 import { ExperimentDataTab } from './experiment/ExperimentDataTab'
 import { ExperimentMetricsTab } from './experiment/ExperimentMetricsTab'
@@ -32,8 +31,6 @@ export function ExperimentDetail({ experiment, projectId, onClose, phases }: Pro
   const [showEditor, setShowEditor] = useState(false)
   const [editingEntry, setEditingEntry] = useState<ExperimentEntry | null>(null)
   const [taskSearch, setTaskSearch] = useState('')
-  const [showAiPanel, setShowAiPanel] = useState(false)
-  const [pendingEntryBody, setPendingEntryBody] = useState<{ text: string; type: 'note' | 'result' } | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState(experiment.name)
   const [editStatus, setEditStatus] = useState<string>(experiment.status)
@@ -190,19 +187,6 @@ export function ExperimentDetail({ experiment, projectId, onClose, phases }: Pro
               {isEditing ? '💾 Save' : '✎ Edit'}
             </button>
             <button
-              onClick={() => setShowAiPanel(p => !p)}
-              style={{
-                background: showAiPanel ? 'rgba(167,139,250,0.12)' : 'none',
-                border: showAiPanel ? '1px solid rgba(167,139,250,0.3)' : '1px solid transparent',
-                borderRadius: 4, color: '#a78bfa', fontSize: 15,
-                cursor: 'pointer', padding: '2px 8px',
-                fontFamily: 'var(--font-mono)', fontWeight: 700,
-              }}
-              title="AI Writing Assistant"
-            >
-              ✦ AI
-            </button>
-            <button
               onClick={onClose}
               aria-label="✕"
               style={{ background: 'none', border: 'none', color: 'var(--text-3)', fontSize: 20, cursor: 'pointer', padding: 4 }}
@@ -326,29 +310,13 @@ export function ExperimentDetail({ experiment, projectId, onClose, phases }: Pro
             onDelete={(id: string) => deleteEntryMutation.mutate(id)}
             onSaveNew={(data: { title: string; body: string }) => createEntryMutation.mutate(data)}
             onSaveEdit={(data: { title: string; body: string }) => editingEntry && updateEntryMutation.mutate({ id: editingEntry.id, data })}
-            onCancelEditor={() => { setShowEditor(false); setEditingEntry(null); setPendingEntryBody(null) }}
-            pendingBody={pendingEntryBody?.type === (tab === 'notes' ? 'note' : 'result') ? pendingEntryBody.text : undefined}
+            onCancelEditor={() => { setShowEditor(false); setEditingEntry(null) }}
             projectId={projectId}
             expId={experiment.id}
           />
         )}
       </div>
 
-      {showAiPanel && (
-        <AiAssistPanel
-          experiment={experiment}
-          projectId={projectId}
-          onClose={() => setShowAiPanel(false)}
-          onApplyHypothesis={(text) => updateExperimentMutation.mutate({ hypothesis: text })}
-          onApplyProtocol={(text) => updateExperimentMutation.mutate({ protocol: text })}
-          onApplyEntryBody={(text, type) => {
-            setPendingEntryBody({ text, type })
-            setTab(type === 'note' ? 'notes' : 'results')
-            setShowEditor(true)
-            setEditingEntry(null)
-          }}
-        />
-      )}
     </div>
   )
 }
