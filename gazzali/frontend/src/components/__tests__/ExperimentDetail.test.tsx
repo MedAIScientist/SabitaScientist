@@ -49,9 +49,9 @@ describe('ExperimentDetail', () => {
 
   it('renders OVERVIEW, NOTES, RESULTS tabs', () => {
     render(wrap(<ExperimentDetail experiment={MOCK_EXP} projectId="p1" onClose={vi.fn()} />))
-    expect(screen.getByRole('button', { name: /OVERVIEW/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /NOTES/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /RESULTS/i })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /OVERVIEW/i })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /NOTES/i })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /RESULTS/i })).toBeInTheDocument()
   })
 
   it('shows hypothesis in OVERVIEW tab', () => {
@@ -61,13 +61,13 @@ describe('ExperimentDetail', () => {
 
   it('switches to NOTES tab and shows Add Note button', async () => {
     render(wrap(<ExperimentDetail experiment={MOCK_EXP} projectId="p1" onClose={vi.fn()} />))
-    fireEvent.click(screen.getByRole('button', { name: /NOTES/i }))
+    fireEvent.click(screen.getByRole('tab', { name: /NOTES/i }))
     await waitFor(() => expect(screen.getByText(/ADD NOTE/i)).toBeInTheDocument())
   })
 
   it('switches to RESULTS tab and shows Add Result button', async () => {
     render(wrap(<ExperimentDetail experiment={MOCK_EXP} projectId="p1" onClose={vi.fn()} />))
-    fireEvent.click(screen.getByRole('button', { name: /RESULTS/i }))
+    fireEvent.click(screen.getByRole('tab', { name: /RESULTS/i }))
     await waitFor(() => expect(screen.getByText(/ADD RESULT/i)).toBeInTheDocument())
   })
 
