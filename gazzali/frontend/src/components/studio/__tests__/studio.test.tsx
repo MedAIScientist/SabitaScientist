@@ -30,6 +30,6 @@ describe('SectionEditor', () => {
     fireEvent.change(screen.getByLabelText('introduction text'), { target: { value: 'My revised intro.' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save my revision' }))
     await waitFor(() => expect(api.saveSectionText).toHaveBeenCalledWith('p', 'introduction', 'My revised intro.'))
-    expect(screen.getByRole('button', { name: 'Redraft with AI' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Rewrite with AI' })).toBeInTheDocument()
   })
 })

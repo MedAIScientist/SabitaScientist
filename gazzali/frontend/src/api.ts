@@ -338,9 +338,9 @@ export const api = {
     request<{ publication_id: string; section: string; style: string; status: string }>(
       'POST', `/publications/${pubId}/draft-section`, { section, style }
     ),
-  draftFromExperiment: (projectId: string, experimentId: string, section: string, style: string = 'standard') =>
+  draftFromExperiment: (projectId: string, experimentId: string, section: string, style: string = 'standard', publicationId?: string) =>
     request<{ publication_id: string; experiment_id: string; section: string; status: string }>(
-      'POST', `/projects/${projectId}/experiments/${experimentId}/draft-to-publication?section=${section}&style=${style}`
+      'POST', `/projects/${projectId}/experiments/${experimentId}/draft-to-publication?section=${section}&style=${style}${publicationId ? `&publication_id=${publicationId}` : ''}`
     ),
   revisePublication: (pubId: string, instructions: string, text?: string) =>
     request<{ publication_id: string; status: string }>(
