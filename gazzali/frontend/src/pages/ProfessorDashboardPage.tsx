@@ -4,6 +4,7 @@ import { supervisionApi } from '../api'
 import { ApprovalsInbox } from '../components/imaging/ApprovalsInbox'
 import { ResearchGatesInbox } from '../components/experiment/ResearchGatesInbox'
 import { CohortView } from '../components/supervision/CohortView'
+import { StudentsTracker } from '../components/professor/StudentsTracker'
 import { JoinRequestsInbox, NoLabPrompt } from '../components/supervision/LabJoin'
 import { useAuth } from '../auth'
 
@@ -49,6 +50,7 @@ export function ProfessorDashboardPage() {
       <JoinRequestsInbox />
       <ApprovalsInbox />
       <ResearchGatesInbox />
+      <StudentsTracker />
       <CohortView />
 
       {/* KPI cards */}

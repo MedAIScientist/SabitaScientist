@@ -967,6 +967,52 @@ CREATE TABLE IF NOT EXISTS research_lessons (
     UNIQUE(run_id, lesson_json)
 );
 CREATE INDEX IF NOT EXISTS idx_research_lessons_lab ON research_lessons(lab_id, created_at);
+
+-- Versioned Project Research Corpus snapshots for reproducible paper drafts.
+CREATE TABLE IF NOT EXISTS paper_context_snapshots (
+    id             TEXT PRIMARY KEY,
+    project_id     TEXT REFERENCES projects(id) ON DELETE CASCADE,
+    publication_id TEXT REFERENCES publications(id) ON DELETE CASCADE,
+    payload_json   TEXT NOT NULL,
+    label          TEXT,
+    created_by     TEXT REFERENCES users(id) ON DELETE SET NULL,
+    created_at     TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_paper_context_pub ON paper_context_snapshots(publication_id);
+
+-- Outline claims bound to evidence ids (exp:/metric:/ref:…).
+CREATE TABLE IF NOT EXISTS paper_claim_map (
+    id             TEXT PRIMARY KEY,
+    publication_id TEXT NOT NULL REFERENCES publications(id) ON DELETE CASCADE,
+    section        TEXT NOT NULL,
+    claim_text     TEXT NOT NULL,
+    evidence_ids   TEXT NOT NULL DEFAULT '[]',
+    sort_order     INTEGER NOT NULL DEFAULT 0,
+    status         TEXT NOT NULL DEFAULT 'planned',
+    created_at     TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_paper_claim_map_pub ON paper_claim_map(publication_id);
+
+CREATE TABLE IF NOT EXISTS paper_integrity_runs (
+    id             TEXT PRIMARY KEY,
+    publication_id TEXT NOT NULL REFERENCES publications(id) ON DELETE CASCADE,
+    checks_json    TEXT NOT NULL,
+    passed         INTEGER NOT NULL DEFAULT 0,
+    created_at     TEXT NOT NULL
+);
+
+-- Reviewer comment → action tracking (per point).
+CREATE TABLE IF NOT EXISTS paper_review_points (
+    id             TEXT PRIMARY KEY,
+    publication_id TEXT NOT NULL REFERENCES publications(id) ON DELETE CASCADE,
+    round          INTEGER NOT NULL DEFAULT 1,
+    comment        TEXT NOT NULL,
+    action         TEXT,
+    section        TEXT,
+    status         TEXT NOT NULL DEFAULT 'open',
+    created_at     TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_paper_review_points_pub ON paper_review_points(publication_id);
 """
 
 _MIGRATIONS = [
@@ -1018,6 +1064,9 @@ _MIGRATIONS = [
     # types were computed from the dropped course tables, so remove the rows
     # instead of leaving them permanently unmet in every readiness score.
     "DELETE FROM graduation_requirements WHERE req_type IN ('course_credits', 'gpa')",
+    # Paper pipeline — claim-bound drafts need provenance of which evidence was used.
+    "ALTER TABLE publication_versions ADD COLUMN evidence_ids TEXT",
+    "ALTER TABLE publication_versions ADD COLUMN stage TEXT",
     # Submission compliance statements. Present in the CREATE TABLE too, so a fresh
     # database is self-documenting; the runner skips these as duplicate columns.
     "ALTER TABLE publications ADD COLUMN reporting_guideline TEXT",

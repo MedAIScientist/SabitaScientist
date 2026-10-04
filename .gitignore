@@ -50,3 +50,6 @@ conversation_history/
 botpy.log
 large_tool_results/
 .worktrees/
+
+.playwright-mcp/*
+*.png

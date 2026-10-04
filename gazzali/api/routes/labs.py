@@ -65,7 +65,7 @@ def _lab_to_response(lab, db_path, viewer: User) -> LabResponse:
         updated_at=lab.updated_at,
         members=member_responses,
         member_count=len(members),
-        can_manage=viewer.is_admin or viewer_role in ("pi", "admin"),
+        can_manage=viewer.is_admin or viewer_role in ("pi", "admin") or lab.pi_id == viewer.id,
     )
 
 

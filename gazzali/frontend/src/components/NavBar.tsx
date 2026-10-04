@@ -60,7 +60,6 @@ const NAV_GROUPS: NavGroup[] = [
     { path: '/research-items', label: 'Research items', icon: 'flask' },
     { path: '/publications', label: 'Papers', icon: 'paper' },
     { path: '/labs', label: 'Labs', icon: 'lab' },
-    { path: '/research/evaluation', label: 'Run evaluation', icon: 'chart', roles: ['professor', 'admin'] },
   ] },
   { title: 'Supervision', items: [
     { path: '/weekly-update', label: 'Weekly update', icon: 'pen', roles: ['student', 'professor'] },
@@ -73,7 +72,6 @@ const NAV_GROUPS: NavGroup[] = [
     { path: '/grants', label: 'Grants', icon: 'coin' },
     { path: '/conferences', label: 'Conferences', icon: 'calendar' },
     { path: '/irb', label: 'Ethics (IRB)', icon: 'shield' },
-    { path: '/admissions', label: 'Admissions', icon: 'inbox', roles: ['professor', 'admin'] },
   ] },
   { title: 'Tools', items: [
     { path: '/apps', label: 'Apps', icon: 'grid' },

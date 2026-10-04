@@ -94,6 +94,14 @@ def require_project_role(*allowed_roles: str):
     return _dep
 
 
+def _is_lab_pi(lab_id: str, user_id: str) -> bool:
+    from ..db import get_db
+
+    with get_db(get_db_path()) as conn:
+        row = conn.execute("SELECT 1 FROM labs WHERE id = ? AND pi_id = ?", (lab_id, user_id)).fetchone()
+    return row is not None
+
+
 def require_lab_role(*allowed_roles: str):
     """Return a dependency that checks the caller's role in a lab.
 
@@ -112,6 +120,8 @@ def require_lab_role(*allowed_roles: str):
         if current_user.is_admin:
             return current_user
         role = get_lab_member_role(get_db_path(), lab_id, current_user.id)
+        if role is None and _is_lab_pi(lab_id, current_user.id):
+            role = "pi"  # PI recorded only as labs.pi_id (e.g. an admin created the lab)
         if role is None:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

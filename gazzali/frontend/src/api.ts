@@ -1112,6 +1112,25 @@ export interface ResearchEvaluation {
     interventions: number; refines: number | null; pivots: number | null; retries: number | null
     unverified_in_paper: number | null; pi_quality: number | null; primary_metric: number | null }[]
   gates: { stage: number; stage_name: string | null; approved: number; redirected: number; total: number; approve_rate: number; advice: string }[]
+  quality_trend: { id: string; created_at: string; status: string; pi_quality: number | null; interventions: number; refines: number | null; pivots: number | null; retries: number | null }[]
+  gate_economics: {
+    top_intervention_stages: { stage: number; stage_name: string | null; redirected: number; total: number; approve_rate: number }[]
+    auto_approve_candidates: { stage: number; stage_name: string | null; approve_rate: number; total: number }[]
+    min_decisions_for_advice: number
+  }
+  integrity: {
+    papers_tracked: number
+    papers_with_unverified_data: number
+    unverified_total: number
+    papers: { publication_id: string; title: string | null; pub_status: string | null; unverified_in_results: number | null; integrity_passed: boolean | null; integrity_at: string | null }[]
+  }
+  outcomes: {
+    runs_with_publication: number
+    runs_with_metric: number
+    finished_with_paper: number
+    mean_primary_metric: number | null
+    papers: ResearchEvaluation['integrity']['papers']
+  }
 }
 export interface ResearchDataset { id: string; name: string; modality: string | null; irb_ids: string[] }
 export interface ResearchLesson {
@@ -1141,6 +1160,14 @@ export interface IntegrationStatus {
 }
 
 // ── Academic supervision ────────────────────────────────────────────────────
+
+export interface StudentOverview {
+  student_id: string; name: string; lab_name: string | null; level: string | null; thesis_title: string | null
+  this_week: 'not_started' | 'draft' | 'submitted' | 'reviewed'; last_submitted: string | null
+  weeks_submitted: number; weeks_window: number; risk: string | null; help_requested: string | null
+  awaiting_review: number; followups_open: number; followups_overdue: number; tasks_open: number; tasks_overdue: number
+  blocked: { title: string; blocker: string | null }[]; active_papers: number; attention: number; reasons: string[]
+}
 
 export interface SupervisorAssignment {
   id: string; student_id: string; student_name?: string | null; professor_name?: string | null; professor_id: string
@@ -1212,6 +1239,7 @@ export interface GraduationRequirement {
 
 export const supervisionApi = {
   myStudents: () => request<SupervisorAssignment[]>('GET', '/supervision/my-students'),
+  studentsOverview: () => request<StudentOverview[]>('GET', '/supervision/students/overview'),
   mySupervisor: () => request<SupervisorAssignment | null>('GET', '/supervision/my-supervisor'),
   assignSupervisor: (studentId: string, professorId: string) =>
     request<SupervisorAssignment>('POST', '/supervision/assignments', { student_id: studentId, professor_id: professorId }),
@@ -1504,3 +1532,84 @@ export interface CohortRow {
   skills_self: number | null; skills_supervisor: number | null
 }
 export interface CohortView { term: string; rows: CohortRow[]; medians: Record<string, number | null> }
+
+
+// ── Paper Studio pipeline ───────────────────────────────────────────────────
+
+export interface PaperContextSummary {
+  publication_id: string
+  summary: { counts: Record<string, number>; warnings: string[]; metric_count: number; experiment_ids: string[] }
+  meta: { project_id: string | null; publication_id: string | null; project_name: string | null; publication_title: string | null; built_at: string }
+  sources: Record<string, { id: string; label: string }[]>
+  snapshots: { id: string; label: string | null; created_at: string; created_by: string | null }[]
+}
+
+export interface ClaimItem {
+  id: string
+  section: string
+  claim_text: string
+  evidence_ids: string[]
+  sort_order: number
+  status: string
+}
+
+export interface IntegrityCheck {
+  id: string
+  label: string
+  passed: boolean
+  detail: string
+}
+
+export interface PaperStages {
+  publication_id: string
+  status: string
+  stages: Record<string, boolean>
+  claim_count: number
+  sections_done: string[]
+  snapshot_count: number
+  integrity: { passed: boolean; created_at: string; checks: IntegrityCheck[] } | null
+}
+
+export interface ReviewPoint {
+  id: string
+  publication_id: string
+  round: number
+  comment: string
+  action: string | null
+  section: string | null
+  status: string
+  created_at: string
+}
+
+export const paperApi = {
+  context: (pubId: string) => request<PaperContextSummary>('GET', `/publications/${pubId}/context`),
+  snapshot: (pubId: string, label?: string) =>
+    request<{ snapshot: { id: string } | null; summary: PaperContextSummary['summary']; sources: PaperContextSummary['sources']; evidence_ids: string[] }>(
+      'POST', `/publications/${pubId}/context`, { snapshot: true, label: label || 'Evidence pack' }
+    ),
+  outline: (pubId: string) => request<{ claims: ClaimItem[] }>('GET', `/publications/${pubId}/outline`),
+  generateOutline: (pubId: string) =>
+    request<{ claims: ClaimItem[] }>('POST', `/publications/${pubId}/outline/generate`),
+  saveOutline: (pubId: string, claims: { section: string; claim_text: string; evidence_ids: string[] }[]) =>
+    request<{ claims: ClaimItem[] }>('PUT', `/publications/${pubId}/outline`, { claims }),
+  draftSection: (pubId: string, section: string, style = 'academic', extraInstructions?: string) =>
+    request<{ section: string; evidence_ids: string[]; claim_count: number }>(
+      'POST', `/publications/${pubId}/sections/draft`,
+      { section, style, extra_instructions: extraInstructions || undefined }
+    ),
+  coherence: (pubId: string) => request<{ status: string }>('POST', `/publications/${pubId}/coherence`),
+  integrity: (pubId: string) =>
+    request<{ passed: boolean; checks: IntegrityCheck[]; blocking: string[] }>(
+      'POST', `/publications/${pubId}/integrity`
+    ),
+  stages: (pubId: string) => request<PaperStages>('GET', `/publications/${pubId}/stages`),
+  reviewPoints: (pubId: string) => request<{ points: ReviewPoint[] }>('GET', `/publications/${pubId}/review-points`),
+  addReviewPoint: (pubId: string, data: { comment: string; action?: string; section?: string; round?: number }) =>
+    request<ReviewPoint>('POST', `/publications/${pubId}/review-points`, data),
+  updateReviewPoint: (pubId: string, pointId: string, data: { comment: string; action?: string; section?: string; status: string; round?: number }) =>
+    request<ReviewPoint>('PUT', `/publications/${pubId}/review-points/${pointId}`, data),
+  submitPack: (pubId: string) =>
+    request<{ title: string; manuscript: { version_id: string | null; length: number; section: string | null }; claim_map_size: number; evidence_snapshot_id: string | null; ai_disclosure: { ai_versions: number; human_versions: number }; integrity_passed: boolean; open_review_points: number }>(
+      'POST', `/publications/${pubId}/submit-pack`
+    ),
+}
