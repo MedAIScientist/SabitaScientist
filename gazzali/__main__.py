@@ -25,9 +25,12 @@ def serve(host: str = "127.0.0.1", port: int = 7860, runner_port: int = 8001) ->
     os.environ.setdefault("PM_RUNNER_URL", f"http://127.0.0.1:{runner_port}")
     app = create_app()
     from . import settings
+    from .backup import start_weekly_backup
+    from .db import get_db_path
+
+    start_weekly_backup(get_db_path())
 
     if settings.get_arc_worker_config()["token"]:
-        from .db import get_db_path
         from .research_sync import start_background_sync
 
         start_background_sync(get_db_path())  # AutoResearchClaw: refresh, queue, notify

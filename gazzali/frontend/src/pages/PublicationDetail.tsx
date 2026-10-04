@@ -4,7 +4,7 @@ import { ReferenceCheckPanel } from '../components/publication/ReferenceCheckPan
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AiJobList } from '../components/AiJobList'
-import { api, Publication_, Version, Review, Pipeline } from '../api'
+import { api, paperApi, Publication_, Version, Review, Pipeline } from '../api'
 
 const STATUS_OPTIONS = ['draft', 'submitted', 'reviewing', 'accepted', 'published', 'rejected']
 const STATUS_COLORS: Record<string, string> = {
@@ -12,7 +12,7 @@ const STATUS_COLORS: Record<string, string> = {
   accepted: '#10b981', published: '#059669', rejected: '#f43f5e',
 }
 
-type AITab = 'section' | 'revise' | 'review_response' | null
+type AITab = 'revise' | 'review_response' | null
 
 /** Full text of one draft version, fetched on demand. */
 function VersionContent({ pubId, versionId }: { pubId: string; versionId: string }) {
@@ -57,22 +57,6 @@ function AiDisclosurePanel({ pubId }: { pubId: string }) {
   )
 }
 
-const SECTIONS = [
-  { id: 'abstract', label: 'Abstract' },
-  { id: 'introduction', label: 'Introduction' },
-  { id: 'methods', label: 'Methods' },
-  { id: 'results', label: 'Results' },
-  { id: 'discussion', label: 'Discussion' },
-  { id: 'conclusion', label: 'Conclusion' },
-]
-
-const STYLES = [
-  { id: 'standard', label: 'Standard' },
-  { id: 'concise', label: 'Concise' },
-  { id: 'detailed', label: 'Detailed' },
-  { id: 'lay', label: 'Lay Summary' },
-]
-
 export function PublicationDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -93,11 +77,8 @@ export function PublicationDetail() {
 
   // AI paper composer state
   const [aiTab, setAiTab] = useState<AITab>(null)
-  const [aiSection, setAiSection] = useState('abstract')
-  const [aiStyle, setAiStyle] = useState('standard')
   const [reviseInstructions, setReviseInstructions] = useState('')
   const [reviewerComments, setReviewerComments] = useState('')
-  const [expMsg, setExpMsg] = useState<{ text: string; error?: boolean } | null>(null)
 
   const { data: pub, isLoading } = useQuery({
     queryKey: ['publication', id],
@@ -117,11 +98,7 @@ export function PublicationDetail() {
     enabled: Boolean(id),
   })
 
-  const { data: projectExps = [] } = useQuery({
-    queryKey: ['experiments', pub?.project_id],
-    queryFn: () => pub?.project_id ? api.listExperiments(pub.project_id) : [],
-    enabled: Boolean(pub?.project_id),
-  })
+  const { data: studio } = useQuery({ queryKey: ['paper-stages', id], queryFn: () => paperApi.stages(id!), enabled: !!id })
 
   const { data: pipeline } = useQuery({
     queryKey: ['pipeline', id],
@@ -158,27 +135,6 @@ export function PublicationDetail() {
     qc.invalidateQueries({ queryKey: ['publication', id] })
     qc.invalidateQueries({ queryKey: ['reviews', id] })
   }, [qc, id])
-
-  const draftSectionMutation = useMutation({
-    mutationFn: () => api.draftSection(id!, aiSection, aiStyle),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['ai-jobs'] })
-      qc.invalidateQueries({ queryKey: ['versions', id] })
-      setAiTab(null)
-    },
-  })
-
-  const draftFromExpMutation = useMutation({
-    mutationFn: ({ expId, section }: { expId: string; section: string }) =>
-      api.draftFromExperiment(pub!.project_id!, expId, section, aiStyle, id),
-    onMutate: ({ section }) => setExpMsg({ text: `Starting the ${section} draft…` }),
-    onError: (e: Error) => setExpMsg({ text: e.message, error: true }),
-    onSuccess: (_r, { section }) => {
-      setExpMsg({ text: `AI is writing the ${section} section from this experiment. It appears under Versions in about a minute.` })
-      qc.invalidateQueries({ queryKey: ['ai-jobs'] })
-      qc.invalidateQueries({ queryKey: ['versions', id] })
-    },
-  })
 
   const reviseMutation = useMutation({
     mutationFn: () => api.revisePublication(id!, reviseInstructions, pub?.abstract || undefined),
@@ -245,11 +201,6 @@ export function PublicationDetail() {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                <button onClick={() => navigate(`/publications/${id}/studio`)} style={{
-                  cursor: 'pointer', padding: '6px 12px',
-                  background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.3)',
-                  borderRadius: 6, color: '#a78bfa', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
-                }}>Studio</button>
                 {pub.status === 'draft' && (
                   <button onClick={() => submitMutation.mutate()} style={{
                     cursor: 'pointer', padding: '6px 12px',
@@ -393,106 +344,38 @@ export function PublicationDetail() {
             </div>
           )}
 
-          {/* AI Paper Composer */}
+          {/* Writing happens in Paper Studio */}
+          <div className="card" style={{ marginBottom: 16, padding: '14px 16px', display: 'flex', gap: 14, alignItems: 'center', flexWrap: 'wrap', borderLeft: '4px solid var(--accent)' }}>
+            <div style={{ flex: 1, minWidth: 240 }}>
+              <div style={{ fontWeight: 700, fontSize: 16 }}>Write this paper in Paper Studio</div>
+              <div style={{ fontSize: 14, color: 'var(--text-2)' }}>
+                Step by step from your results: key points, sections (also from a single experiment), final check.
+                {studio && ` ${Object.values(studio.stages).filter(Boolean).length} of ${Object.keys(studio.stages).length} steps done.`}
+              </div>
+            </div>
+            <button className="btn btn-primary" onClick={() => navigate(`/publications/${id}/studio`)}>Open Paper Studio →</button>
+          </div>
+
+          {/* After review: revise text, answer reviewers */}
           <div style={{ marginBottom: 24 }}>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' }}>
+              <span style={{ fontSize: 13, color: 'var(--text-3)' }}>Quick AI help:</span>
               {([
-                { key: 'section' as const, label: '✍ Draft Section', color: '#6366f1' },
-                { key: 'revise' as const, label: '✏ Revise', color: '#f59e0b' },
-                { key: 'review_response' as const, label: '📝 Reviewer Response', color: '#ec4899' },
+                { key: 'revise' as const, label: '✏ Revise the abstract', color: '#f59e0b' },
+                { key: 'review_response' as const, label: '📝 Answer reviewers', color: '#ec4899' },
               ]).map(btn => (
                 <button
                   key={btn.key}
                   onClick={() => setAiTab(aiTab === btn.key ? null : btn.key)}
+                  aria-expanded={aiTab === btn.key}
                   style={{
-                    cursor: 'pointer', padding: '5px 12px', fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                    cursor: 'pointer', padding: '5px 12px', fontSize: 14, fontWeight: 700,
                     background: aiTab === btn.key ? `${btn.color}18` : `${btn.color}08`,
                     border: `1px solid ${btn.color}30`, borderRadius: 5, color: btn.color,
-                    letterSpacing: '0.04em', transition: 'background 0.12s',
                   }}
                 >{btn.label}</button>
               ))}
             </div>
-
-            {/* Section drafting panel */}
-            {aiTab === 'section' && (
-              <div style={{ background: 'var(--surface-card)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 10, padding: 18, marginBottom: 12 }}>
-                <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#6366f1', marginBottom: 12 }}>Draft a Section</div>
-                <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dim)', marginBottom: 3, fontFamily: 'var(--font-mono)' }}>Section</div>
-                    <select value={aiSection} onChange={e => setAiSection(e.target.value)} style={inputStyle}>
-                      {SECTIONS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                    </select>
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dim)', marginBottom: 3, fontFamily: 'var(--font-mono)' }}>Style</div>
-                    <select value={aiStyle} onChange={e => setAiStyle(e.target.value)} style={inputStyle}>
-                      {STYLES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                    </select>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'end' }}>
-                    <button onClick={() => draftSectionMutation.mutate()} disabled={draftSectionMutation.isPending}
-                      style={{
-                        padding: '8px 16px', cursor: 'pointer', height: 44,
-                        background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.28)',
-                        borderRadius: 6, color: '#6366f1', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >{draftSectionMutation.isPending ? '…' : 'Generate'}</button>
-                  </div>
-                </div>
-
-                {/* Draft from experiment */}
-                {pub.project_id && projectExps.length > 0 && (
-                  <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 10, marginTop: 10 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dim)', marginBottom: 6, fontFamily: 'var(--font-mono)' }}>Or draft from experiment</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      {projectExps.map(exp => (
-                        <div key={exp.id} style={{
-                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                          background: 'var(--surface-input)', borderRadius: 6, padding: '8px 12px',
-                        }}>
-                          <span style={{ fontSize: 16, color: 'var(--text-2)' }}>{exp.name}</span>
-                          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                            {['results', 'methods', 'discussion'].map(sec => (
-                              <button key={sec}
-                                onClick={() => draftFromExpMutation.mutate({ expId: exp.id, section: sec })}
-                                disabled={draftFromExpMutation.isPending}
-                                title={`Write the ${sec} section from this experiment with AI`}
-                                style={{
-                                  cursor: 'pointer', padding: '2px 7px', fontSize: 12, fontFamily: 'var(--font-mono)',
-                                  background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)',
-                                  borderRadius: 3, color: '#6366f1', fontWeight: 700,
-                                }}
-                              >{sec}</button>
-                            ))}
-                            {pipeline?.linked_experiments?.some(l => l.experiment_id === exp.id) ? (
-                              <span style={{ fontSize: 12, color: '#10b981', fontWeight: 700, padding: '2px 7px' }} title="This experiment is linked to the paper">✓ linked</span>
-                            ) : <button
-                              title="Mark this experiment as part of the paper"
-                              onClick={async () => {
-                                try {
-                                  await api.linkExperimentToPub(id!, exp.id)
-                                  qc.invalidateQueries({ queryKey: ['pipeline', id] })
-                                  setExpMsg({ text: `${exp.name} is now linked to this paper.` })
-                                } catch (e) { setExpMsg({ text: e instanceof Error ? e.message : 'Could not link the experiment', error: true }) }
-                              }}
-                              style={{
-                                cursor: 'pointer', padding: '2px 7px', fontSize: 12, fontFamily: 'var(--font-mono)',
-                                background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)',
-                                borderRadius: 3, color: '#10b981', fontWeight: 700,
-                              }}
-                            >🔗 link</button>}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    {expMsg && <div role={expMsg.error ? 'alert' : 'status'} style={{ marginTop: 8, fontSize: 14, color: expMsg.error ? '#f43f5e' : 'var(--text-2)' }}>{expMsg.text}</div>}
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Revise panel */}
             {aiTab === 'revise' && (

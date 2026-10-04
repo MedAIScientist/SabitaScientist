@@ -42,6 +42,7 @@ export function PaperStudioPage() {
   const { data: stages } = useQuery({ queryKey: ['paper-stages', id], queryFn: () => paperApi.stages(id), enabled: !!id, refetchInterval: waiting ? 5000 : false })
   const { data: context } = useQuery({ queryKey: ['paper-context', id], queryFn: () => paperApi.context(id), enabled: !!id })
   const { data: outline } = useQuery({ queryKey: ['paper-outline', id], queryFn: () => paperApi.outline(id), enabled: !!id })
+  const { data: experiments = [] } = useQuery({ queryKey: ['experiments', pub?.project_id], queryFn: () => api.listExperiments(pub!.project_id!), enabled: !!pub?.project_id })
   const { data: versions = [] } = useQuery({ queryKey: ['pub-versions', id], queryFn: () => api.listVersions(id), enabled: !!id, refetchInterval: waiting ? 5000 : false })
 
   useEffect(() => {
@@ -58,6 +59,14 @@ export function PaperStudioPage() {
   const genOutline = useMutation({ mutationFn: () => paperApi.generateOutline(id), onError: fail,
     onSuccess: r => { setNotice({ text: `${r.claims.length} key points suggested. Read them, then start writing.` }); refresh('paper-outline') } })
   const draft = useMutation({ mutationFn: () => paperApi.draftSection(id, section, 'academic'), onError: fail,
+    onSuccess: () => { wait(`The ${section} draft`); refresh('pub-versions') } })
+  // Draft from one experiment; linking it records that the experiment contributed to the paper.
+  const draftFromExp = useMutation({
+    mutationFn: async (expId: string) => {
+      await api.linkExperimentToPub(id, expId)
+      return api.draftFromExperiment(pub!.project_id!, expId, section, 'standard', id)
+    },
+    onError: fail,
     onSuccess: () => { wait(`The ${section} draft`); refresh('pub-versions') } })
   const coherence = useMutation({ mutationFn: () => paperApi.coherence(id), onError: fail,
     onSuccess: () => { wait('Feedback on the flow'); refresh('pub-versions') } })
@@ -77,7 +86,7 @@ export function PaperStudioPage() {
   const sectionsDone = new Set((stages?.sections_done ?? []).map(s => s.toLowerCase()))
   const checks = integrity?.checks ?? stages?.integrity?.checks ?? null
   const passed = integrity?.passed ?? stages?.integrity?.passed ?? null
-  const busy = snap.isPending || genOutline.isPending || draft.isPending || coherence.isPending || runIntegrity.isPending || buildPack.isPending
+  const busy = snap.isPending || genOutline.isPending || draft.isPending || draftFromExp.isPending || coherence.isPending || runIntegrity.isPending || buildPack.isPending
   const go = (key: string) => { setViewKey(key); setNotice(null) }
   const openSection = (s: string) => { setSection(SECTIONS.includes(s) ? s : 'introduction'); go('sections') }
 
@@ -194,6 +203,17 @@ export function PaperStudioPage() {
                 claims={claims.filter(c => c.section.toLowerCase() === section)}
                 versions={versions.filter(v => (v.section ?? '').toLowerCase() === section || v.section === 'full-draft')}
                 onDraft={() => draft.mutate()} drafting={draft.isPending || !!waiting} canDraft={claims.length > 0} />
+              {experiments.length > 0 && (
+                <div className="card" style={{ padding: '10px 14px' }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>Or write the {section} from one experiment</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {experiments.map(e => (
+                      <button key={e.id} className="btn" disabled={busy || !!waiting} onClick={() => draftFromExp.mutate(e.id)}
+                        title={`AI writes the ${section} from "${e.name}" and links the experiment to this paper`}>{e.name}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <details className="card" style={{ padding: '10px 14px' }}>
                 <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Reviewer comments for this paper</summary>
                 <div style={{ marginTop: 8 }}><ReviewPointsPanel pubId={id} section={section} /></div>

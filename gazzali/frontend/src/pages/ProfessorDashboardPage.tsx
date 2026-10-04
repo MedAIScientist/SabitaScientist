@@ -5,6 +5,7 @@ import { ApprovalsInbox } from '../components/imaging/ApprovalsInbox'
 import { ResearchGatesInbox } from '../components/experiment/ResearchGatesInbox'
 import { CohortView } from '../components/supervision/CohortView'
 import { StudentsTracker } from '../components/professor/StudentsTracker'
+import { RequirementsPrompt } from '../components/professor/RequirementsPrompt'
 import { JoinRequestsInbox, NoLabPrompt } from '../components/supervision/LabJoin'
 import { useAuth } from '../auth'
 
@@ -47,6 +48,7 @@ export function ProfessorDashboardPage() {
       </div>
 
       <NoLabPrompt />
+      {role === 'professor' && <RequirementsPrompt />}
       <JoinRequestsInbox />
       <ApprovalsInbox />
       <ResearchGatesInbox />
