@@ -58,6 +58,14 @@ rsync -avz --delete "${REPO_DIR}/gazzali/frontend/dist/" "${SERVER}:/tmp/pm-fron
 # Pull nginx image if needed
 ${SSH} "cd ${DEPLOY_DIR} && docker compose -f ${COMPOSE_FILE} pull nginx garage" 2>/dev/null || true
 
+# Back up the live DB before the container is replaced (keeps the last 3; see gazzali/backup.py).
+# A failed backup stops the deploy: never replace the app without a copy of the data.
+if ${SSH} "docker ps --format '{{.Names}}' | grep -qx gazzali"; then
+    # stdlib only, so it runs on the old image too; same naming/pruning as gazzali/backup.py
+    ${SSH} "docker exec gazzali python3 -c \"import sqlite3,time,pathlib;d=pathlib.Path('/data/backups');d.mkdir(exist_ok=True);p=d/time.strftime('predeploy-%Y%m%d-%H%M%S.db',time.gmtime());s=sqlite3.connect('/data/pm.db');o=sqlite3.connect(p);s.backup(o);o.close();s.close();[f.unlink() for f in sorted(d.glob('predeploy-*.db'))[:-3]];print('  ✓ DB backup',p,p.stat().st_size,'bytes')\"" \
+        || { echo "  ✗ DB backup failed; deploy stopped"; exit 1; }
+fi
+
 # Stop only gazzali (garage and nginx stay up)
 # Recreate in the foreground: polling health while this runs in the background
 # used to match the *old* container and report healthy before the swap.
