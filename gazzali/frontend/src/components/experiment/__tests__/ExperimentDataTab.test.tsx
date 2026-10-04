@@ -124,7 +124,7 @@ describe('ExperimentMetricsTab', () => {
 
     expect(screen.getByText('0.8734 ± 0.012')).toBeInTheDocument()
     expect(screen.getByText(/dice · test · n=42 · From CSV/)).toBeInTheDocument()
-    expect(screen.getByText(/1 METRIC · 1 FROM UPLOADED RESULTS/i)).toBeInTheDocument()
+    expect(screen.getByText(/1 number · 1 from uploaded tables/i)).toBeInTheDocument()
   })
 
   test('formats a metric with a unit', () => {
@@ -139,13 +139,13 @@ describe('ExperimentMetricsTab', () => {
     respondWith({})
     render(<ExperimentMetricsTab projectId="p1" experimentId="e1" />)
 
-    const button = screen.getByRole('button', { name: /RECORD METRIC/i })
+    const button = screen.getByRole('button', { name: /Add this number/i })
     expect(button).toBeDisabled()
 
-    fireEvent.change(screen.getByPlaceholderText(/metric name/), { target: { value: 'dice' } })
+    fireEvent.change(screen.getByLabelText('What did you measure'), { target: { value: 'dice' } })
     expect(button).toBeDisabled()  // still missing the value
 
-    fireEvent.change(screen.getByPlaceholderText('value'), { target: { value: '0.9' } })
+    fireEvent.change(screen.getByLabelText('Value'), { target: { value: '0.9' } })
     expect(button).not.toBeDisabled()
   })
 
@@ -155,9 +155,9 @@ describe('ExperimentMetricsTab', () => {
     respondWith({})
     render(<ExperimentMetricsTab projectId="p1" experimentId="e1" />)
 
-    fireEvent.change(screen.getByPlaceholderText(/metric name/), { target: { value: 'iou' } })
-    fireEvent.change(screen.getByPlaceholderText('value'), { target: { value: '0.81' } })
-    fireEvent.click(screen.getByRole('button', { name: /RECORD METRIC/i }))
+    fireEvent.change(screen.getByLabelText('What did you measure'), { target: { value: 'iou' } })
+    fireEvent.change(screen.getByLabelText('Value'), { target: { value: '0.81' } })
+    fireEvent.click(screen.getByRole('button', { name: /Add this number/i }))
 
     expect(mutate).toHaveBeenCalled()
   })
@@ -165,6 +165,6 @@ describe('ExperimentMetricsTab', () => {
   test('explains the empty state', () => {
     respondWith({})
     render(<ExperimentMetricsTab projectId="p1" experimentId="e1" />)
-    expect(screen.getByText('No results recorded yet.')).toBeInTheDocument()
+    expect(screen.getByText(/No numbers yet/)).toBeInTheDocument()
   })
 })

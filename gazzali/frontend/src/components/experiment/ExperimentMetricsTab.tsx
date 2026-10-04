@@ -59,11 +59,10 @@ export function ExperimentMetricsTab({ projectId, experimentId }: {
 
   return (
     <div>
-      <div style={{
-        fontSize: 15, color: 'var(--text-dim)', marginBottom: 12, lineHeight: 1.5,
-      }}>
-        Recorded results. Uploading a results table to a RESULTS entry fills these
-        automatically, and drafting takes its numbers from here and nowhere else.
+      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>Measured numbers</div>
+      <div style={{ fontSize: 14, color: 'var(--text-dim)', marginBottom: 10, lineHeight: 1.5 }}>
+        Paper drafts only use numbers recorded here, so the AI never invents results.
+        Add them one by one, or attach a results table (CSV) to a written result below.
       </div>
 
       {error && (
@@ -82,21 +81,21 @@ export function ExperimentMetricsTab({ projectId, experimentId }: {
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 8, marginBottom: 8 }}>
           <input
             value={name} onChange={e => setName(e.target.value)}
-            placeholder="metric name (e.g. dice)" style={inputStyle}
+            placeholder="What did you measure? (e.g. AUC)" aria-label="What did you measure" style={inputStyle}
           />
           <input
             value={value} onChange={e => setValue(e.target.value)}
-            placeholder="value" inputMode="decimal" style={inputStyle}
+            placeholder="Value (e.g. 0.91)" aria-label="Value" inputMode="decimal" style={inputStyle}
           />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           <input
             value={unit} onChange={e => setUnit(e.target.value)}
-            placeholder="unit (optional)" style={inputStyle}
+            placeholder="Unit (e.g. %, mm) — optional" aria-label="Unit" style={inputStyle}
           />
           <input
             value={split} onChange={e => setSplit(e.target.value)}
-            placeholder="split (optional)" style={inputStyle}
+            placeholder="Group or data split — optional" aria-label="Group" style={inputStyle}
           />
         </div>
         <button
@@ -108,21 +107,21 @@ export function ExperimentMetricsTab({ projectId, experimentId }: {
             background: !canSubmit || create.isPending ? 'rgba(var(--accent-rgb),0.35)' : 'var(--accent)',
             color: '#fff', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
           }}
-        >{create.isPending ? 'Recording…' : '+ Record metric'}</button>
+        >{create.isPending ? 'Saving…' : '+ Add this number'}</button>
       </div>
 
       {isLoading ? (
         <Muted>Loading…</Muted>
       ) : metrics.length === 0 ? (
-        <Muted>No results recorded yet.</Muted>
+        <Muted>No numbers yet. Results drafts will say “not recorded” until you add some.</Muted>
       ) : (
         <>
           <div style={{
             fontSize: 13, color: 'var(--text-3)', fontFamily: 'var(--font-mono)',
             marginBottom: 6,
           }}>
-            {metrics.length} metric{metrics.length === 1 ? '' : 's'}
-            {fromUpload > 0 ? ` · ${fromUpload} FROM UPLOADED RESULTS` : ''}
+            {metrics.length} number{metrics.length === 1 ? '' : 's'}
+            {fromUpload > 0 ? ` · ${fromUpload} from uploaded tables` : ''}
           </div>
           {metrics.map(m => (
             <div key={m.id} style={{
@@ -143,7 +142,7 @@ export function ExperimentMetricsTab({ projectId, experimentId }: {
                 </div>
               </div>
               <button
-                onClick={() => remove.mutate(m.id)}
+                onClick={() => remove.mutate(m.id)} aria-label={`Remove ${m.name}`} title="Remove"
                 style={{
                   cursor: 'pointer', padding: '4px 9px', borderRadius: 4,
                   background: 'transparent', border: '1px solid rgba(244,63,94,0.3)',
