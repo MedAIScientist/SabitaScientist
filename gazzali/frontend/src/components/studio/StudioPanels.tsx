@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { paperApi, type IntegrityCheck, type PaperContextSummary } from '../../api'
+import { paperApi, type ClaimItem, type IntegrityCheck, type PaperContextSummary } from '../../api'
 import { kindLabel } from './studioSteps'
 
 export function Panel({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
@@ -14,60 +14,80 @@ export function Panel({ title, action, children }: { title: string; action?: Rea
   )
 }
 
-/** What the paper may cite, grouped by kind; gaps folded into one summary. */
-export function EvidencePanel({ context, onFreeze, freezing }: { context?: PaperContextSummary; onFreeze: () => void; freezing: boolean }) {
+const muted = { fontSize: 13, color: 'var(--text-3)', margin: 0 } as const
+
+/** What the paper may use, grouped by kind, with what is still missing. */
+export function EvidenceView({ context }: { context?: PaperContextSummary }) {
   const [openKind, setOpenKind] = useState<string | null>(null)
-  const [showGaps, setShowGaps] = useState(false)
-  if (!context) return <Panel title="Evidence">Loading…</Panel>
+  if (!context) return <p style={muted}>Loading your project's results…</p>
   const kinds = Object.entries(context.sources).filter(([, items]) => items.length > 0)
   const gaps = context.summary.warnings
   const last = context.snapshots[0]
   return (
-    <Panel title="Evidence" action={<button className="btn" disabled={freezing} onClick={onFreeze}>{freezing ? 'Freezing…' : last ? 'Refreeze' : 'Freeze'}</button>}>
-      <p style={{ fontSize: 13, color: 'var(--text-3)', margin: '0 0 8px' }}>
-        {last ? `Frozen ${new Date(last.created_at).toLocaleString()}` : 'Not frozen yet: drafts cite the live project.'} · {context.summary.metric_count} measured results
+    <div style={{ display: 'grid', gap: 14 }}>
+      <p style={{ margin: 0, fontSize: 14 }}>
+        {last ? <>✓ Saved on <b>{new Date(last.created_at).toLocaleString()}</b>.</> : 'Not saved yet. Until you save, drafts use whatever is in the project right now.'}
+        {' '}{context.summary.metric_count === 0 ? 'No measured numbers yet.' : `${context.summary.metric_count} measured numbers available.`}
       </p>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        {kinds.map(([kind, items]) => (
-          <button key={kind} className="chip" style={{ cursor: 'pointer' }} aria-expanded={openKind === kind} onClick={() => setOpenKind(openKind === kind ? null : kind)}>
-            {items.length} {kindLabel(kind, items.length)}
-          </button>
-        ))}
-        {kinds.length === 0 && <span style={{ fontSize: 13, color: 'var(--text-3)' }}>No evidence linked yet.</span>}
+      <div>
+        <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 6 }}>What the paper can use</div>
+        {kinds.length === 0 ? <p style={muted}>Nothing linked yet. Add experiments or results to the project first.</p> : (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {kinds.map(([kind, items]) => (
+              <button key={kind} className="chip" style={{ cursor: 'pointer', fontSize: 13, padding: '4px 10px' }} aria-expanded={openKind === kind}
+                onClick={() => setOpenKind(openKind === kind ? null : kind)}>
+                {items.length} {kindLabel(kind, items.length)} {openKind === kind ? '▴' : '▾'}
+              </button>
+            ))}
+          </div>
+        )}
+        {openKind && <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 13 }}>{context.sources[openKind].map(i => <li key={i.id} title={i.id}>{i.label}</li>)}</ul>}
       </div>
-      {openKind && (
-        <ul style={{ margin: '8px 0 0', paddingLeft: 18, fontSize: 13 }}>
-          {context.sources[openKind].map(i => <li key={i.id} title={i.id}>{i.label}</li>)}
-        </ul>
-      )}
       {gaps.length > 0 && (
-        <div style={{ marginTop: 10 }}>
-          <button className="text-link" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#f59e0b' }}
-            aria-expanded={showGaps} onClick={() => setShowGaps(v => !v)}>
-            {gaps.length} gap{gaps.length > 1 ? 's' : ''} to fill {showGaps ? '▴' : '▾'}
-          </button>
-          {showGaps && <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 13 }}>{gaps.map(g => <li key={g}>{g.replace(/^⚠\s*/, '')}</li>)}</ul>}
+        <div style={{ borderLeft: '3px solid #f59e0b', paddingLeft: 10 }}>
+          <div style={{ fontWeight: 600, fontSize: 14 }}>Worth adding before you write ({gaps.length})</div>
+          <p style={{ ...muted, marginBottom: 4 }}>Optional, but each one makes the paper stronger.</p>
+          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>{gaps.map(g => <li key={g}>{g.replace(/^⚠\s*/, '')}</li>)}</ul>
         </div>
       )}
-    </Panel>
+    </div>
   )
 }
 
-export function IntegrityPanel({ checks, passed, onRun, running }: { checks: IntegrityCheck[] | null; passed: boolean | null; onRun: () => void; running: boolean }) {
+/** The proposed key points, grouped by section. */
+export function KeyPointsView({ claims, onOpenSection }: { claims: ClaimItem[]; onOpenSection: (s: string) => void }) {
+  if (claims.length === 0) return <p style={muted}>No key points yet. They appear here a few seconds after you ask for them.</p>
+  const bySection = claims.reduce<Record<string, ClaimItem[]>>((acc, c) => ({ ...acc, [c.section]: [...(acc[c.section] ?? []), c] }), {})
   return (
-    <Panel title="Integrity" action={<button className="btn" disabled={running} onClick={onRun}>{running ? 'Checking…' : checks ? 'Run again' : 'Run'}</button>}>
-      {!checks ? <p style={{ fontSize: 13, color: 'var(--text-3)', margin: 0 }}>Checks unverified numbers, citations and human revision before submission.</p> : (
-        <>
-          <p style={{ margin: '0 0 6px', fontWeight: 600, color: passed ? '#10b981' : '#f43f5e' }}>{passed ? 'Ready to submit' : 'Not ready yet'}</p>
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 4, fontSize: 13 }}>
-            {checks.map(c => (
-              <li key={c.id}><span style={{ color: c.passed ? '#10b981' : '#f43f5e' }}>{c.passed ? '✓' : '✗'}</span> {c.label}
-                {!c.passed && c.detail && <div style={{ color: 'var(--text-3)', paddingLeft: 16 }}>{c.detail}</div>}</li>
-            ))}
+    <div style={{ display: 'grid', gap: 12 }}>
+      {Object.entries(bySection).map(([section, items]) => (
+        <div key={section}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <b style={{ textTransform: 'capitalize' }}>{section}</b>
+            <button className="text-link" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }} onClick={() => onOpenSection(section.toLowerCase())}>Write this section →</button>
+          </div>
+          <ul style={{ margin: '4px 0 0', paddingLeft: 18, fontSize: 14, lineHeight: 1.5 }}>
+            {items.map(c => <li key={c.id}>{c.claim_text} <span style={{ color: c.evidence_ids.length ? 'var(--text-3)' : '#f59e0b', fontSize: 12 }}>
+              {c.evidence_ids.length ? `· backed by ${c.evidence_ids.length}` : '· no evidence yet'}</span></li>)}
           </ul>
-        </>
-      )}
-    </Panel>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export function FinalCheckView({ checks, passed }: { checks: IntegrityCheck[] | null; passed: boolean | null }) {
+  if (!checks) return <p style={muted}>Not run yet. It takes a few seconds and changes nothing in your paper.</p>
+  return (
+    <div>
+      <p style={{ margin: '0 0 8px', fontWeight: 600, color: passed ? '#10b981' : '#f43f5e' }}>{passed ? '✓ Ready to submit' : 'Not ready yet. Fix the items marked ✗ and run it again.'}</p>
+      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 6, fontSize: 14 }}>
+        {checks.map(c => (
+          <li key={c.id}><span style={{ color: c.passed ? '#10b981' : '#f43f5e' }}>{c.passed ? '✓' : '✗'}</span> {c.label}
+            {!c.passed && c.detail && <div style={{ color: 'var(--text-3)', paddingLeft: 18, fontSize: 13 }}>{c.detail}</div>}</li>
+        ))}
+      </ul>
+    </div>
   )
 }
 
@@ -115,19 +135,16 @@ export function ReviewPointsPanel({ pubId, section }: { pubId: string; section: 
 
 type Pack = Awaited<ReturnType<typeof paperApi.submitPack>>
 
-export function SubmitPackPanel({ pack, onBuild, building, ready }: { pack: Pack | null; onBuild: () => void; building: boolean; ready: boolean }) {
+export function SubmitPackView({ pack, ready }: { pack: Pack | null; ready: boolean }) {
+  if (!pack) return <p style={muted}>{ready ? 'The final check passed. Build the package when you are ready.' : 'You can build it any time; it is complete once the final check passes.'}</p>
   return (
-    <Panel title="Submission pack" action={<button className={ready ? 'btn btn-primary' : 'btn'} disabled={building} onClick={onBuild}>{building ? 'Building…' : 'Build'}</button>}>
-      {!pack ? <p style={{ fontSize: 13, color: 'var(--text-3)', margin: 0 }}>{ready ? 'Integrity passed: build the pack.' : 'Available after the integrity check passes.'}</p> : (
-        <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13 }}>
-          <li>Manuscript: {pack.manuscript.length.toLocaleString()} characters</li>
-          <li>{pack.claim_map_size} claims mapped to evidence</li>
-          <li>Evidence snapshot: {pack.evidence_snapshot_id ? 'frozen' : 'not frozen'}</li>
-          <li>AI disclosure: {pack.ai_disclosure.ai_versions} AI / {pack.ai_disclosure.human_versions} human versions</li>
-          <li style={{ color: pack.integrity_passed ? '#10b981' : '#f43f5e' }}>Integrity {pack.integrity_passed ? 'passed' : 'not passed'}</li>
-          <li>{pack.open_review_points} open reviewer comments</li>
-        </ul>
-      )}
-    </Panel>
+    <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, lineHeight: 1.6 }}>
+      <li>Manuscript: {pack.manuscript.length.toLocaleString()} characters</li>
+      <li>{pack.claim_map_size} key points linked to evidence</li>
+      <li>Evidence: {pack.evidence_snapshot_id ? 'saved copy included' : 'not saved yet'}</li>
+      <li>AI-use statement: {pack.ai_disclosure.ai_versions} AI drafts, {pack.ai_disclosure.human_versions} of your revisions</li>
+      <li style={{ color: pack.integrity_passed ? '#10b981' : '#f43f5e' }}>Final check {pack.integrity_passed ? 'passed' : 'not passed yet'}</li>
+      <li>{pack.open_review_points} reviewer comments still open</li>
+    </ul>
   )
 }

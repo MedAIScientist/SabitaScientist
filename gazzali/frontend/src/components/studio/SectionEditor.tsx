@@ -36,19 +36,19 @@ export function SectionEditor({ pubId, section, claims, versions, onDraft, draft
       <div style={{ display: 'flex', gap: 6 }}>
         {!editing && version && <button className="btn" onClick={() => setEditing(true)}>Edit</button>}
         <button className={withText.length ? 'btn' : 'btn btn-primary'} disabled={drafting || !canDraft} onClick={onDraft}
-          title={canDraft ? undefined : 'Generate the outline first'}>
-          {drafting ? 'Drafting…' : withText.length ? 'Redraft with AI' : 'Draft with AI'}
+          title={canDraft ? undefined : 'Plan the key points first (step 3)'}>
+          {drafting ? 'AI is writing…' : withText.length ? 'Rewrite with AI' : 'Write first draft with AI'}
         </button>
       </div>
     }>
       {claims.length > 0 ? (
         <details style={{ marginBottom: 8 }}>
-          <summary style={{ cursor: 'pointer', fontSize: 13, color: 'var(--text-2)' }}>{claims.length} claim{claims.length > 1 ? 's' : ''} this section must support</summary>
+          <summary style={{ cursor: 'pointer', fontSize: 13, color: 'var(--text-2)' }}>{claims.length} key point{claims.length > 1 ? 's' : ''} this section should make</summary>
           <ul style={{ margin: '6px 0 0', paddingLeft: 18, fontSize: 13 }}>
-            {claims.map(c => <li key={c.id}>{c.claim_text} <span style={{ color: 'var(--text-3)' }}>({c.evidence_ids.length} evidence)</span></li>)}
+            {claims.map(c => <li key={c.id}>{c.claim_text} <span style={{ color: 'var(--text-3)' }}>(backed by {c.evidence_ids.length})</span></li>)}
           </ul>
         </details>
-      ) : <p style={{ fontSize: 13, color: 'var(--text-3)', margin: '0 0 8px' }}>No claims for this section yet; generate the outline first.</p>}
+      ) : <p style={{ fontSize: 13, color: 'var(--text-3)', margin: '0 0 8px' }}>No key points for this section yet. Plan them in step 3, or just write it yourself.</p>}
 
       {withText.length > 1 && !editing && (
         <select className="input" aria-label="Version" value={current ?? ''} onChange={e => setVersionId(e.target.value)} style={{ marginBottom: 8, maxWidth: 360 }}>
@@ -63,12 +63,12 @@ export function SectionEditor({ pubId, section, claims, versions, onDraft, draft
           <div style={{ display: 'flex', gap: 6, marginTop: 6, alignItems: 'center' }}>
             <button className="btn btn-primary" disabled={save.isPending || !text.trim()} onClick={() => save.mutate()}>{save.isPending ? 'Saving…' : 'Save my revision'}</button>
             <button className="btn" onClick={() => { setEditing(false); setText(version?.content ?? '') }}>Cancel</button>
-            <span style={{ fontSize: 12, color: 'var(--text-3)' }}>Saved as your own version; the integrity check needs one.</span>
+            <span style={{ fontSize: 12, color: 'var(--text-3)' }}>Your revision is kept as a separate version; the AI draft is not lost.</span>
           </div>
           {save.isError && <div className="msg msg-error" role="alert">{(save.error as Error).message}</div>}
         </>
       ) : !current ? (
-        <p style={{ color: 'var(--text-3)', margin: 0 }}>No text yet. Draft it with AI from the claims, or <button className="text-link" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }} onClick={() => { setText(''); setEditing(true) }}>write it yourself</button>.</p>
+        <p style={{ color: 'var(--text-3)', margin: 0 }}>No text yet. Let AI write a first draft from the key points, or <button className="text-link" style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }} onClick={() => { setText(''); setEditing(true) }}>write it yourself</button>.</p>
       ) : isLoading ? <p>Loading…</p> : (
         <>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, color: 'var(--text-3)', marginBottom: 6 }}>

@@ -1,14 +1,21 @@
 // The Paper Studio pipeline in plain language, and which step comes next.
-export interface Step { key: string; title: string; explain: string; action: string }
+export interface Step { key: string; title: string; explain: string; action: string; done: string; ai?: boolean }
 
 export const STEPS: Step[] = [
-  { key: 'setup', title: 'Set up', explain: 'Link the paper to its project so the studio can find its evidence.', action: 'Open paper details' },
-  { key: 'evidence', title: 'Collect evidence', explain: 'Freeze what the paper may cite: experiments, measured results, references.', action: 'Freeze the evidence' },
-  { key: 'outline', title: 'Outline & claims', explain: 'Each claim in the outline is tied to evidence, so nothing is said without support.', action: 'Generate the outline' },
-  { key: 'sections', title: 'Draft sections', explain: 'Draft each section with AI, then revise it yourself.', action: 'Draft this section' },
-  { key: 'coherence', title: 'Coherence', explain: 'Check that the sections tell one consistent story.', action: 'Run the coherence pass' },
-  { key: 'integrity', title: 'Integrity check', explain: 'Blocks submission while numbers are unverified or no human has revised the text.', action: 'Run the integrity check' },
-  { key: 'submit', title: 'Submission pack', explain: 'Manuscript, claim map, evidence snapshot and AI disclosure in one place.', action: 'Build the submission pack' },
+  { key: 'setup', title: 'Paper basics', explain: 'Give the paper a title and link it to its project, so the studio knows where your results are.',
+    action: 'Open paper details', done: 'The paper has a title and a project.' },
+  { key: 'evidence', title: 'Gather your results', explain: 'Save a fixed copy of what the paper may use: your experiments, measured numbers and references. Later changes to the project will not silently change the paper.',
+    action: 'Save this evidence', done: 'Evidence saved. Save again whenever you add new results.' },
+  { key: 'outline', title: 'Plan the key points', explain: 'AI proposes the main points of each section. Every point is linked to a piece of your evidence, so the paper never says something you cannot back up.',
+    action: 'Suggest key points', done: 'Key points ready. Check them before writing.', ai: true },
+  { key: 'sections', title: 'Write the sections', explain: 'Pick a section. Let AI write a first draft from its key points, then edit it in your own words.',
+    action: 'Write with AI', done: 'Main sections have text. Keep revising in your own words.', ai: true },
+  { key: 'coherence', title: 'Read it as a whole', explain: 'AI reads all sections together and points out contradictions, repetition and gaps between them.',
+    action: 'Get feedback on the flow', done: 'Feedback received. Fix what you agree with.', ai: true },
+  { key: 'integrity', title: 'Final check', explain: 'Before submitting: every number must come from your results, references must be real, and a person must have revised the text.',
+    action: 'Run the final check', done: 'All checks passed.' },
+  { key: 'submit', title: 'Prepare to submit', explain: 'Collect the manuscript, the point-to-evidence map, the saved evidence and the AI-use statement in one package.',
+    action: 'Build the package', done: 'The paper is submitted.' },
 ]
 
 export function nextStep(flags: Record<string, boolean>): Step | null {

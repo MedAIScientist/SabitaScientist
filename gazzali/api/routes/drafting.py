@@ -442,6 +442,7 @@ async def draft_from_experiment(
     current_user: User = Depends(require_project_role("owner", "editor")),
     section: str = Query(default="results", description="Paper section to generate"),
     style: str = Query(default="standard", description="Writing style"),
+    publication_id: str | None = Query(default=None, description="Paper to save the draft into"),
 ):
     """Draft a paper section from a specific experiment's data. Creates a publication if none exists."""
     db = get_db_path()
@@ -451,15 +452,20 @@ async def draft_from_experiment(
 
     context = _build_experiment_context(experiment_id)
 
-    # Find or create a publication linked to this project
-    pubs = list_publications(db, project_id=project_id)
-    pub = pubs[0] if pubs else create_publication(
-        db,
-        title=f"Draft from: {exp.name}",
-        created_by=current_user.id,
-        project_id=project_id,
-        venue_type="preprint",
-    )
+    if publication_id:
+        pub = get_publication(db, publication_id)
+        if not pub or pub.project_id != project_id:
+            raise HTTPException(status_code=404, detail="Paper not found in this project")
+    else:
+        # Find or create a publication linked to this project
+        pubs = list_publications(db, project_id=project_id)
+        pub = pubs[0] if pubs else create_publication(
+            db,
+            title=f"Draft from: {exp.name}",
+            created_by=current_user.id,
+            project_id=project_id,
+            venue_type="preprint",
+        )
 
     prompt = _build_section_prompt(context, section, style)
     workspace_dir = str(RUNS_DIR / "sections" / f"exp-{experiment_id}")

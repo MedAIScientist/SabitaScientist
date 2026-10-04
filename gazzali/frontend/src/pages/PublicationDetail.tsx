@@ -97,6 +97,7 @@ export function PublicationDetail() {
   const [aiStyle, setAiStyle] = useState('standard')
   const [reviseInstructions, setReviseInstructions] = useState('')
   const [reviewerComments, setReviewerComments] = useState('')
+  const [expMsg, setExpMsg] = useState<{ text: string; error?: boolean } | null>(null)
 
   const { data: pub, isLoading } = useQuery({
     queryKey: ['publication', id],
@@ -169,8 +170,11 @@ export function PublicationDetail() {
 
   const draftFromExpMutation = useMutation({
     mutationFn: ({ expId, section }: { expId: string; section: string }) =>
-      api.draftFromExperiment(pub!.project_id!, expId, section, aiStyle),
-    onSuccess: () => {
+      api.draftFromExperiment(pub!.project_id!, expId, section, aiStyle, id),
+    onMutate: ({ section }) => setExpMsg({ text: `Starting the ${section} draft…` }),
+    onError: (e: Error) => setExpMsg({ text: e.message, error: true }),
+    onSuccess: (_r, { section }) => {
+      setExpMsg({ text: `AI is writing the ${section} section from this experiment. It appears under Versions in about a minute.` })
       qc.invalidateQueries({ queryKey: ['ai-jobs'] })
       qc.invalidateQueries({ queryKey: ['versions', id] })
     },
@@ -454,6 +458,8 @@ export function PublicationDetail() {
                             {['results', 'methods', 'discussion'].map(sec => (
                               <button key={sec}
                                 onClick={() => draftFromExpMutation.mutate({ expId: exp.id, section: sec })}
+                                disabled={draftFromExpMutation.isPending}
+                                title={`Write the ${sec} section from this experiment with AI`}
                                 style={{
                                   cursor: 'pointer', padding: '2px 7px', fontSize: 12, fontFamily: 'var(--font-mono)',
                                   background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)',
@@ -461,21 +467,28 @@ export function PublicationDetail() {
                                 }}
                               >{sec}</button>
                             ))}
-                            <button
+                            {pipeline?.linked_experiments?.some(l => l.experiment_id === exp.id) ? (
+                              <span style={{ fontSize: 12, color: '#10b981', fontWeight: 700, padding: '2px 7px' }} title="This experiment is linked to the paper">✓ linked</span>
+                            ) : <button
+                              title="Mark this experiment as part of the paper"
                               onClick={async () => {
-                                try { await api.linkExperimentToPub(id!, exp.id); qc.invalidateQueries({ queryKey: ['pipeline', id] }) }
-                                catch (e) { alert(e instanceof Error ? e.message : 'Failed') }
+                                try {
+                                  await api.linkExperimentToPub(id!, exp.id)
+                                  qc.invalidateQueries({ queryKey: ['pipeline', id] })
+                                  setExpMsg({ text: `${exp.name} is now linked to this paper.` })
+                                } catch (e) { setExpMsg({ text: e instanceof Error ? e.message : 'Could not link the experiment', error: true }) }
                               }}
                               style={{
                                 cursor: 'pointer', padding: '2px 7px', fontSize: 12, fontFamily: 'var(--font-mono)',
                                 background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)',
                                 borderRadius: 3, color: '#10b981', fontWeight: 700,
                               }}
-                            >🔗 link</button>
+                            >🔗 link</button>}
                           </div>
                         </div>
                       ))}
                     </div>
+                    {expMsg && <div role={expMsg.error ? 'alert' : 'status'} style={{ marginTop: 8, fontSize: 14, color: expMsg.error ? '#f43f5e' : 'var(--text-2)' }}>{expMsg.text}</div>}
                   </div>
                 )}
               </div>

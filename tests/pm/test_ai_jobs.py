@@ -170,3 +170,25 @@ def test_system_health_reports_the_models_in_use(client, admin_token) -> None:
     assert body["ai"]["assistant_model"] == pm_model_choice()[0]
     assert isinstance(body["ai"]["runner_configured"], bool)
     assert "mixtral-8x7b-32768" not in str(body)
+
+
+def test_draft_from_experiment_goes_into_the_paper_you_are_on(client, admin_token, monkeypatch) -> None:
+    """With two papers in a project, the draft must land in the one the button was clicked on."""
+    h = {"Authorization": f"Bearer {admin_token}"}
+    pid = _project(client, admin_token)
+    mine = client.post("/api/v1/publications", json={"title": "Mine", "project_id": pid}, headers=h).json()["id"]
+    client.post("/api/v1/publications", json={"title": "Other", "project_id": pid}, headers=h)
+    exp = client.post(f"/api/v1/projects/{pid}/experiments", json={"name": "E1"}, headers=h).json()["id"]
+
+    async def fake_output(*args, **kwargs):
+        return "Results text."
+
+    monkeypatch.setattr(drafting, "_run_agent_and_get_output", fake_output)
+    r = client.post(f"/api/v1/projects/{pid}/experiments/{exp}/draft-to-publication?section=results&publication_id={mine}", headers=h)
+    assert r.status_code == 202
+    assert r.json()["publication_id"] == mine
+    assert any(v["section"] == "results" for v in client.get(f"/api/v1/publications/{mine}/versions", headers=h).json())
+
+    other_project = _project(client, admin_token)
+    bad = client.post(f"/api/v1/projects/{other_project}/experiments/{exp}/draft-to-publication?publication_id={mine}", headers=h)
+    assert bad.status_code == 404
