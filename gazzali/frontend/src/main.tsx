@@ -45,7 +45,6 @@ import { JourneyPage }        from './pages/JourneyPage'
 import { RequirementsPage }   from './pages/RequirementsPage'
 import { ProfessorDashboardPage } from './pages/ProfessorDashboardPage'
 import { ResearchItemsPage }  from './pages/ResearchItemsPage'
-import { PaperWorkspacePage } from './pages/PaperWorkspacePage'
 import { PaperStudioPage }   from './pages/PaperStudioPage'
 
 const queryClient = new QueryClient()
