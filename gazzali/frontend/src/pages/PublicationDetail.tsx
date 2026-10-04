@@ -241,11 +241,11 @@ export function PublicationDetail() {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                <button onClick={() => navigate(`/publications/${id}/workspace`)} style={{
+                <button onClick={() => navigate(`/publications/${id}/studio`)} style={{
                   cursor: 'pointer', padding: '6px 12px',
                   background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.3)',
                   borderRadius: 6, color: '#a78bfa', fontSize: 15, fontWeight: 700, fontFamily: 'var(--font-mono)',
-                }}>Workspace</button>
+                }}>Studio</button>
                 {pub.status === 'draft' && (
                   <button onClick={() => submitMutation.mutate()} style={{
                     cursor: 'pointer', padding: '6px 12px',

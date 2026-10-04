@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { ResearchMemoryPage } from '../ResearchMemoryPage'
-import { ResearchEvaluationPage } from '../ResearchEvaluationPage'
 import { api } from '../../api'
 
 vi.mock('../../api', () => ({
@@ -36,6 +35,33 @@ describe('research pages', () => {
       runs: [{ id: 'r1', topic: 'Class weighting', status: 'done', mode: 'co-pilot', created_at: '2026-10-01T00:00:00Z', stage: 23,
         interventions: 2, refines: 1, pivots: 0, retries: 1, unverified_in_paper: 0, pi_quality: 8, primary_metric: 0.91 }],
       gates: [{ stage: 9, stage_name: 'EXPERIMENT_DESIGN', approved: 5, redirected: 0, total: 5, approve_rate: 1, advice: 'Almost always approved: for routine runs, Gate-only mode would save this step.' }],
+      quality_trend: [
+        { id: 'r1', created_at: '2026-10-01T00:00:00Z', status: 'done', pi_quality: 8, interventions: 2, refines: 1, pivots: 0, retries: 1 },
+      ],
+      gate_economics: {
+        top_intervention_stages: [],
+        auto_approve_candidates: [
+          { stage: 9, stage_name: 'EXPERIMENT_DESIGN', approve_rate: 1, total: 5 },
+        ],
+        min_decisions_for_advice: 5,
+      },
+      integrity: {
+        papers_tracked: 1,
+        papers_with_unverified_data: 0,
+        unverified_total: 0,
+        papers: [
+          { publication_id: 'p1', title: 'Class weighting paper', pub_status: 'draft', unverified_in_results: 0, integrity_passed: true, integrity_at: '2026-10-01T00:00:00Z' },
+        ],
+      },
+      outcomes: {
+        runs_with_publication: 1,
+        runs_with_metric: 1,
+        finished_with_paper: 1,
+        mean_primary_metric: 0.91,
+        papers: [
+          { publication_id: 'p1', title: 'Class weighting paper', pub_status: 'draft', unverified_in_results: 0, integrity_passed: true, integrity_at: '2026-10-01T00:00:00Z' },
+        ],
+      },
     })
   })
 
@@ -46,10 +72,4 @@ describe('research pages', () => {
     await waitFor(() => expect(api.pinResearchLesson).toHaveBeenCalledWith('lab1', 'l1', true))
   })
 
-  it('shows evaluation summary and gate advice in plain language', async () => {
-    render(wrap(<ResearchEvaluationPage />))
-    expect(await screen.findByText('80%')).toBeInTheDocument()
-    expect(screen.getByText('9. Designing the experiment')).toBeInTheDocument()
-    expect(screen.getByText(/Gate-only mode would save this step/)).toBeInTheDocument()
-  })
 })

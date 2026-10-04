@@ -60,7 +60,7 @@ export function ResearchItemsPage() {
       setDraftTitle('')
       setSelected(new Set())
       await qc.invalidateQueries({ queryKey: ['research-items'] })
-      navigate(`/publications/${result.publication_id}/workspace`)
+      navigate(`/publications/${result.publication_id}/studio`)
     } catch (e: any) {
       setMsg(e.message)
     }
@@ -162,7 +162,7 @@ export function ResearchItemsPage() {
                   </td>
                   <td style={{ ...td, whiteSpace: 'nowrap' }}>
                     {item.kind === 'publication' ? (
-                      <button onClick={() => navigate(`/publications/${item.id}/workspace`)} style={btnPrimary}>Workspace</button>
+                      <button onClick={() => navigate(`/publications/${item.id}/studio`)} style={btnPrimary}>Studio</button>
                     ) : (
                       <button onClick={() => navigate(item.link_path)} style={btnGhost}>Open</button>
                     )}

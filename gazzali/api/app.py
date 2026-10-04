@@ -51,6 +51,8 @@ from .routes import (
     patents,
     peer_review,
     my_work,
+    student_overview,
+    papers,
     references,
     research_runs,
     phases,
@@ -138,6 +140,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     app.include_router(research_runs.router, prefix="/api/v1", tags=["research-runs"])
     app.include_router(references.router, prefix="/api/v1", tags=["publications"])
     app.include_router(my_work.router, prefix="/api/v1", tags=["me"])
+    app.include_router(student_overview.router, prefix="/api/v1", tags=["supervision"])
     app.include_router(lab_join.router, prefix="/api/v1/labs", tags=["labs"])
     app.include_router(labs.router, prefix="/api/v1/labs", tags=["labs"])
     app.include_router(templates.router, prefix="/api/v1/templates", tags=["templates"])
@@ -178,6 +181,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     app.include_router(
         supervision.router, prefix="/api/v1/supervision", tags=["supervision"]
     )
+    app.include_router(papers.router, prefix="/api/v1", tags=["papers"])
     app.include_router(
         followups.router, prefix="/api/v1/supervision", tags=["supervision"]
     )

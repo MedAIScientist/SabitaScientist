@@ -23,7 +23,7 @@ import { AdminDashboard }     from './pages/AdminDashboard'
 import { AnalyticsPage }      from './pages/AnalyticsPage'
 import { ImpactPage }         from './pages/ImpactPage'
 import { ResearchMemoryPage } from './pages/ResearchMemoryPage'
-import { ResearchEvaluationPage } from './pages/ResearchEvaluationPage'
+import { StudentProfilePage } from './pages/StudentProfilePage'
 import { GrantsPage }         from './pages/GrantsPage'
 import { GrantDetail }        from './pages/GrantDetail'
 import { ConferencesPage }    from './pages/ConferencesPage'
@@ -46,8 +46,7 @@ import { RequirementsPage }   from './pages/RequirementsPage'
 import { ProfessorDashboardPage } from './pages/ProfessorDashboardPage'
 import { ResearchItemsPage }  from './pages/ResearchItemsPage'
 import { PaperWorkspacePage } from './pages/PaperWorkspacePage'
-import { AdmissionsPage }     from './pages/AdmissionsPage'
-import { AdmissionDetail }    from './pages/AdmissionDetail'
+import { PaperStudioPage }   from './pages/PaperStudioPage'
 
 const queryClient = new QueryClient()
 
@@ -79,9 +78,10 @@ function App() {
         <Route path="/journey" element={<PrivateRoute><JourneyPage /></PrivateRoute>} />
         <Route path="/requirements" element={<PrivateRoute><RequirementsPage /></PrivateRoute>} />
         <Route path="/research-items" element={<PrivateRoute><ResearchItemsPage /></PrivateRoute>} />
-        <Route path="/publications/:id/workspace" element={<PrivateRoute><PaperWorkspacePage /></PrivateRoute>} />
-        <Route path="/admissions" element={<PrivateRoute><AdmissionsPage /></PrivateRoute>} />
-        <Route path="/admissions/:id" element={<PrivateRoute><AdmissionDetail /></PrivateRoute>} />
+        <Route path="/publications/:id/workspace" element={<PrivateRoute><PaperStudioPage /></PrivateRoute>} />
+        <Route path="/publications/:id/studio" element={<PrivateRoute><PaperStudioPage /></PrivateRoute>} />
+        <Route path="/admissions" element={<Navigate to="/home" replace />} />
+        <Route path="/admissions/:id" element={<Navigate to="/home" replace />} />
         <Route path="/projects" element={<PrivateRoute><Projects /></PrivateRoute>} />
         <Route path="/projects/:id" element={<PrivateRoute><Board /></PrivateRoute>} />
         <Route path="/projects/:id/experiments" element={<PrivateRoute><ExperimentsPage /></PrivateRoute>} />
@@ -94,7 +94,8 @@ function App() {
         <Route path="/labs/:id"        element={<PrivateRoute><LabDetail /></PrivateRoute>} />
         <Route path="/labs/:id/impact" element={<PrivateRoute><ImpactPage /></PrivateRoute>} />
         <Route path="/labs/:id/research-memory" element={<PrivateRoute><ResearchMemoryPage /></PrivateRoute>} />
-        <Route path="/research/evaluation" element={<PrivateRoute><ResearchEvaluationPage /></PrivateRoute>} />
+        <Route path="/students/:id" element={<PrivateRoute><StudentProfilePage /></PrivateRoute>} />
+        <Route path="/research/evaluation" element={<Navigate to="/home" replace />} />
         <Route path="/admin"           element={<PrivateRoute><AdminDashboard /></PrivateRoute>} />
         <Route path="/analytics"       element={<PrivateRoute><AnalyticsPage /></PrivateRoute>} />
         <Route path="/grants"          element={<PrivateRoute><GrantsPage /></PrivateRoute>} />
