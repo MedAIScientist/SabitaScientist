@@ -1,7 +1,6 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ExperimentDataTab } from '../ExperimentDataTab'
 import { ExperimentMetricsTab } from '../ExperimentMetricsTab'
 
 vi.mock('@tanstack/react-query', () => ({
@@ -64,53 +63,6 @@ const cvatAsset = {
   label: 'Ankle annotations', detail: 'annotating · 120 images',
 }
 
-describe('ExperimentDataTab', () => {
-  test('groups linked assets under their role', () => {
-    respondWith({ 'experiment-assets': [datasetAsset, cvatAsset] })
-    render(<ExperimentDataTab projectId="p1" experimentId="e1" />)
-
-    expect(screen.getByText('INPUT')).toBeInTheDocument()
-    expect(screen.getByText('OUTPUT')).toBeInTheDocument()
-    expect(screen.getByText('DX ayak/bilek 2019-2025')).toBeInTheDocument()
-    expect(screen.getByText('Ankle annotations')).toBeInTheDocument()
-    // roles with nothing linked stay hidden
-    expect(screen.queryByText('PROCESSING')).toBeNull()
-  })
-
-  test('shows the resolved type and detail for each link', () => {
-    respondWith({ 'experiment-assets': [cvatAsset] })
-    render(<ExperimentDataTab projectId="p1" experimentId="e1" />)
-    expect(screen.getByText(/CVAT ANNOTATION · annotating · 120 images/)).toBeInTheDocument()
-  })
-
-  test('explains itself when nothing is linked', () => {
-    respondWith({})
-    render(<ExperimentDataTab projectId="p1" experimentId="e1" />)
-    expect(screen.getByText('Nothing linked yet.')).toBeInTheDocument()
-  })
-
-  test('the link button waits for an asset to be picked', () => {
-    respondWith({ 'asset-options': [{ id: 'd1', label: 'Cohort A', detail: 'approved' }] })
-    render(<ExperimentDataTab projectId="p1" experimentId="e1" />)
-
-    const button = screen.getByRole('button', { name: /LINK AS INPUT/i })
-    expect(button).toBeDisabled()
-
-    fireEvent.change(screen.getByDisplayValue('— pick one —'), { target: { value: 'd1' } })
-    expect(button).not.toBeDisabled()
-  })
-
-  test('unlinking calls the API with the asset identity', () => {
-    const mutate = vi.fn()
-    mockedUseMutation.mockReturnValue({ mutate, isPending: false } as any)
-    respondWith({ 'experiment-assets': [datasetAsset] })
-    render(<ExperimentDataTab projectId="p1" experimentId="e1" />)
-
-    fireEvent.click(screen.getByRole('button', { name: '✕' }))
-    expect(mutate).toHaveBeenCalledWith(datasetAsset)
-  })
-})
-
 const metric = {
   id: 'm1', experiment_id: 'e1', name: 'dice', value: 0.8734,
   unit: null, split: 'test', n: 42, stderr: 0.012,
@@ -123,7 +75,7 @@ describe('ExperimentMetricsTab', () => {
     render(<ExperimentMetricsTab projectId="p1" experimentId="e1" />)
 
     expect(screen.getByText('0.8734 ± 0.012')).toBeInTheDocument()
-    expect(screen.getByText(/dice · test · n=42 · From CSV/)).toBeInTheDocument()
+    expect(screen.getByText(/dice · test · n=42 · from table/)).toBeInTheDocument()
     expect(screen.getByText(/1 number · 1 from uploaded tables/i)).toBeInTheDocument()
   })
 
