@@ -150,3 +150,96 @@ async def get_project(cvat_id: int) -> dict:
     """Return one CVAT project by its numeric id."""
     resp = await _request("GET", f"/api/projects/{int(cvat_id)}")
     return _check(resp, expected=(200,), what=f"CVAT project {cvat_id} is unreadable")
+
+
+# ponytail: page cap so one huge project cannot hang a request; raise if projects outgrow it
+_MAX_PAGES = 50
+_MAX_JOBS_FOR_COUNTS = 500
+
+
+async def _get_all(path: str) -> list[dict]:
+    """Every result of a paginated CVAT list endpoint."""
+    sep = "&" if "?" in path else "?"
+    out: list[dict] = []
+    for page in range(1, _MAX_PAGES + 1):
+        resp = await _request("GET", f"{path}{sep}page_size=100&page={page}")
+        data = _check(resp, expected=(200,), what=f"CVAT list {path.split('?')[0]} is unreadable")
+        out.extend(data.get("results") or [])
+        if not data.get("next"):
+            break
+    return out
+
+
+def _frames(job: dict) -> int:
+    if job.get("frame_count") is not None:
+        return int(job["frame_count"])
+    return int(job.get("stop_frame", 0)) - int(job.get("start_frame", 0)) + 1
+
+
+def _work_jobs(jobs: list[dict]) -> list[dict]:
+    """Annotation jobs only; ground-truth (honeypot) jobs would double-count frames."""
+    return [j for j in jobs if j.get("type", "annotation") != "ground_truth"]
+
+
+async def project_progress(cvat_id: int) -> dict:
+    """How far annotation is: frames in finished jobs out of all frames, per annotator too.
+
+    A job counts as finished when its state is "completed" or it reached the acceptance stage.
+    """
+    jobs = _work_jobs(await _get_all(f"/api/jobs?project_id={int(cvat_id)}"))
+    people: dict[str, dict] = {}
+    total = done = jobs_done = 0
+    for j in jobs:
+        n = _frames(j)
+        finished = j.get("state") == "completed" or j.get("stage") == "acceptance"
+        who = (j.get("assignee") or {}).get("username") or "unassigned"
+        p = people.setdefault(who, {"name": who, "jobs": 0, "jobs_done": 0, "frames": 0, "frames_done": 0})
+        p["jobs"] += 1
+        p["frames"] += n
+        total += n
+        if finished:
+            p["jobs_done"] += 1
+            p["frames_done"] += n
+            done += n
+            jobs_done += 1
+    return {
+        "tasks": len({j.get("task_id") for j in jobs}),
+        "jobs": len(jobs),
+        "jobs_done": jobs_done,
+        "frames_total": total,
+        "frames_done": done,
+        "by_assignee": sorted(people.values(), key=lambda p: p["name"]),
+    }
+
+
+async def annotation_summary(cvat_id: int) -> dict:
+    """Objects per label and how many frames carry at least one annotation.
+
+    A track is one object however many frames it spans; tags count as one object each.
+    """
+    labels = {lab["id"]: lab["name"] for lab in await _get_all(f"/api/labels?project_id={int(cvat_id)}")}
+    jobs = _work_jobs(await _get_all(f"/api/jobs?project_id={int(cvat_id)}"))
+    if len(jobs) > _MAX_JOBS_FOR_COUNTS:
+        raise CVATError(f"project has {len(jobs)} jobs; counting is limited to {_MAX_JOBS_FOR_COUNTS}")
+    counts: dict[str, int] = {}
+    annotated: set[tuple[int, int]] = set()  # (task, frame): frame numbers restart per task
+    for j in jobs:
+        resp = await _request("GET", f"/api/jobs/{int(j['id'])}/annotations")
+        ann = _check(resp, expected=(200,), what=f"CVAT job {j['id']} annotations are unreadable")
+        task = j.get("task_id")
+        for item in [*(ann.get("shapes") or []), *(ann.get("tags") or [])]:
+            name = labels.get(item.get("label_id"), f"label {item.get('label_id')}")
+            counts[name] = counts.get(name, 0) + 1
+            annotated.add((task, int(item.get("frame", 0))))
+        for track in ann.get("tracks") or []:
+            name = labels.get(track.get("label_id"), f"label {track.get('label_id')}")
+            counts[name] = counts.get(name, 0) + 1
+            for s in track.get("shapes") or []:
+                if not s.get("outside"):
+                    annotated.add((task, int(s.get("frame", 0))))
+    return {
+        "labels": dict(sorted(counts.items())),
+        "frames_annotated": len(annotated),
+        "frames_total": sum(_frames(j) for j in jobs),
+        "jobs": len(jobs),
+    }

@@ -174,7 +174,7 @@ def import_results(db: Path, run: dict) -> None:
         for value, source in registry.get("values", [])
     ]
     if metrics:
-        create_metrics(db, run["experiment_id"], metrics, recorded_by=None)
+        create_metrics(db, run["experiment_id"], metrics, recorded_by=None, source="ai_run")
     from .crud.research_runs import set_result_summary, set_stage_stats
 
     set_result_summary(db, run["id"], registry)

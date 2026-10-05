@@ -19,8 +19,10 @@ def create_metrics(
     metrics: Iterable[ParsedMetric],
     recorded_by: str | None = None,
     source_attachment_id: str | None = None,
+    source: str | None = None,
 ) -> list[ExperimentMetric]:
     """Insert parsed metrics for an experiment in one transaction."""
+    source = source or _derive_source(source_attachment_id, recorded_by)
     now = datetime.now(UTC).isoformat()
     created = [
         ExperimentMetric(
@@ -35,6 +37,7 @@ def create_metrics(
             stderr=m.stderr,
             source_attachment_id=source_attachment_id,
             recorded_by=recorded_by,
+            source=source,
         )
         for m in metrics
     ]
@@ -44,8 +47,8 @@ def create_metrics(
         conn.executemany(
             """INSERT INTO experiment_metrics
                (id, experiment_id, name, value, unit, split, n, stderr,
-                source_attachment_id, recorded_by, created_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                source_attachment_id, recorded_by, created_at, source)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             [
                 (
                     m.id,
@@ -59,11 +62,29 @@ def create_metrics(
                     m.source_attachment_id,
                     m.recorded_by,
                     m.created_at,
+                    m.source,
                 )
                 for m in created
             ],
         )
     return created
+
+
+def _derive_source(source_attachment_id: str | None, recorded_by: str | None) -> str:
+    """Rows written before the source column: a file → csv, a person → manual, else an AI run."""
+    if source_attachment_id:
+        return "csv"
+    return "manual" if recorded_by else "ai_run"
+
+
+def delete_metrics_by_source(db_path: Path, experiment_id: str, source: str, split: str | None) -> int:
+    """Remove one source's numbers for an experiment (e.g. before re-importing from CVAT)."""
+    with get_db(db_path) as conn:
+        cur = conn.execute(
+            "DELETE FROM experiment_metrics WHERE experiment_id = ? AND source = ? AND split IS ?",
+            (experiment_id, source, split),
+        )
+    return cur.rowcount
 
 
 def list_metrics(db_path: Path, experiment_id: str) -> list[ExperimentMetric]:
@@ -110,4 +131,5 @@ def _row_to_metric(row: sqlite3.Row) -> ExperimentMetric:
         stderr=row["stderr"],
         source_attachment_id=row["source_attachment_id"],
         recorded_by=row["recorded_by"],
+        source=row["source"] or _derive_source(row["source_attachment_id"], row["recorded_by"]),
     )

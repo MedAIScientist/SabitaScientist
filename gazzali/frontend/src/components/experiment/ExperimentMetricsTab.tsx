@@ -8,6 +8,60 @@ const inputStyle: React.CSSProperties = {
   borderRadius: 6, color: 'var(--text)', fontSize: 15, outline: 'none',
 }
 
+const SOURCE_TEXT: Record<string, string> = { manual: 'typed in', csv: 'from table', cvat: 'from CVAT', ai_run: 'from AI run' }
+
+type Parsed = Awaited<ReturnType<typeof api.importMetricsCsv>>['metrics']
+
+/** Upload a results table: preview what was understood, then save. Nothing is guessed. */
+function CsvImport({ projectId, experimentId, onSaved }: { projectId: string; experimentId: string; onSaved: () => void }) {
+  const [text, setText] = useState<string | null>(null)
+  const [preview, setPreview] = useState<Parsed | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const run = useMutation({
+    mutationFn: ({ csv, save }: { csv: string; save: boolean }) => api.importMetricsCsv(projectId, experimentId, csv, save),
+    onSuccess: (r, { save }) => {
+      if (save) { setText(null); setPreview(null); onSaved(); return }
+      setPreview(r.metrics)
+      setError(r.metrics.length ? null : 'No numbers found. Use a column for the metric name and one for the value, or one numeric column per metric.')
+    },
+    onError: (e: unknown) => setError(e instanceof Error ? e.message : 'Could not read the file'),
+  })
+  const pick = async (f: File | undefined) => {
+    if (!f) return
+    const csv = await new Promise<string>((resolve, reject) => {
+      const r = new FileReader()
+      r.onload = () => resolve(String(r.result))
+      r.onerror = () => reject(r.error)
+      r.readAsText(f)
+    }).catch(() => null)
+    if (csv == null) { setError('Could not read the file'); return }
+    setText(csv)
+    run.mutate({ csv, save: false })
+  }
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <label className="btn" style={{ display: 'inline-block', cursor: 'pointer' }}>
+        ⬆ Upload results table (CSV)
+        <input type="file" accept=".csv,.tsv,text/csv" aria-label="Results table file" style={{ display: 'none' }}
+          onChange={e => { pick(e.target.files?.[0]); e.target.value = '' }} />
+      </label>
+      {error && <div role="alert" style={{ color: '#f43f5e', fontSize: 14, marginTop: 6 }}>{error}</div>}
+      {preview && preview.length > 0 && text && (
+        <div style={{ marginTop: 8, background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: 10 }}>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Found {preview.length} number{preview.length === 1 ? '' : 's'}. Check before saving:</div>
+          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 14, maxHeight: 180, overflow: 'auto' }}>
+            {preview.map((m, i) => <li key={i}>{m.name}{m.split ? ` (${m.split})` : ''}: <b>{m.value}</b>{m.unit ? ` ${m.unit}` : ''}{m.stderr != null ? ` ± ${m.stderr}` : ''}</li>)}
+          </ul>
+          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+            <button className="btn btn-primary" disabled={run.isPending} onClick={() => run.mutate({ csv: text, save: true })}>Save {preview.length} numbers</button>
+            <button className="btn" onClick={() => { setText(null); setPreview(null) }}>Cancel</button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function formatValue(m: ExperimentMetric): string {
   const digits = Math.abs(m.value) < 10 ? 4 : 2
   const value = m.value.toLocaleString('en-US', { maximumFractionDigits: digits })
@@ -62,7 +116,7 @@ export function ExperimentMetricsTab({ projectId, experimentId }: {
       <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 2 }}>Measured numbers</div>
       <div style={{ fontSize: 14, color: 'var(--text-dim)', marginBottom: 10, lineHeight: 1.5 }}>
         Paper drafts only use numbers recorded here, so the AI never invents results.
-        Add them one by one, or attach a results table (CSV) to a written result below.
+        Type them in one by one, or upload a results table (CSV).
       </div>
 
       {error && (
@@ -110,6 +164,9 @@ export function ExperimentMetricsTab({ projectId, experimentId }: {
         >{create.isPending ? 'Saving…' : '+ Add this number'}</button>
       </div>
 
+      <CsvImport projectId={projectId} experimentId={experimentId}
+        onSaved={() => qc.invalidateQueries({ queryKey: ['experiment-metrics', projectId, experimentId] })} />
+
       {isLoading ? (
         <Muted>Loading…</Muted>
       ) : metrics.length === 0 ? (
@@ -138,7 +195,7 @@ export function ExperimentMetricsTab({ projectId, experimentId }: {
                   {m.name}
                   {m.split ? ` · ${m.split}` : ''}
                   {m.n != null ? ` · n=${m.n}` : ''}
-                  {m.source_attachment_id ? ' · From CSV' : ''}
+                  {m.source ? ` · ${SOURCE_TEXT[m.source] ?? m.source}` : m.source_attachment_id ? ' · from table' : ''}
                 </div>
               </div>
               <button

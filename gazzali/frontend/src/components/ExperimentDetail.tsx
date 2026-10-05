@@ -287,7 +287,7 @@ export function ExperimentDetail({ experiment, projectId, onClose, phases }: Pro
         )}
 
         {tab === 'data' && (
-          <ExperimentDataTab projectId={projectId} experimentId={experiment.id} />
+          <ExperimentDataTab projectId={projectId} experimentId={experiment.id} onOpenResults={() => setTab('results')} />
         )}
 
         {tab === 'runs' && (

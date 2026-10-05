@@ -156,6 +156,7 @@ class ExperimentMetric:
     stderr: float | None = None
     source_attachment_id: str | None = None
     recorded_by: str | None = None
+    source: str | None = None  # manual | csv | cvat | ai_run
 
 
 @dataclass

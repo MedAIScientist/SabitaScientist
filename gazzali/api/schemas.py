@@ -306,6 +306,12 @@ class ExperimentMetricResponse(BaseModel):
     source_attachment_id: str | None
     recorded_by: str | None
     created_at: str
+    source: str | None = None
+
+
+class MetricsCsvRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=2_000_000)
+    save: bool = False
 
 
 class ExperimentEntryResponse(BaseModel):

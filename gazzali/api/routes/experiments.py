@@ -40,7 +40,7 @@ from ...crud.experiments import (
 )
 from ...crud.tasks import get_task
 from ...db import get_db_path
-from ...metrics_csv import ParsedMetric
+from ...metrics_csv import ParsedMetric, parse_metrics_csv
 from ...models import User
 from ..deps import require_project_role
 from ..schemas import (
@@ -54,6 +54,7 @@ from ..schemas import (
     ExperimentMetricResponse,
     ExperimentResponse,
     ExperimentUpdate,
+    MetricsCsvRequest,
     ProjectAssetLink,
     TaskResponse,
 )
@@ -435,6 +436,7 @@ def _metric_to_response(m) -> ExperimentMetricResponse:
         source_attachment_id=m.source_attachment_id,
         recorded_by=m.recorded_by,
         created_at=m.created_at,
+        source=m.source,
     )
 
 
@@ -483,6 +485,27 @@ def create_experiment_metric(
         recorded_by=current_user.id,
     )
     return _metric_to_response(created[0])
+
+
+@router.post(
+    "/{project_id}/experiments/{exp_id}/metrics/csv",
+    summary="Preview (or save) measured numbers from a results table",
+)
+def import_metrics_csv(
+    project_id: str,
+    exp_id: str,
+    body: MetricsCsvRequest,
+    current_user: User = Depends(require_project_role("owner", "editor")),
+):
+    """Parse a pasted/uploaded CSV. ``save=false`` only previews; nothing is guessed."""
+    _get_exp_or_404(project_id, exp_id)
+    parsed = parse_metrics_csv(body.text.lstrip("\ufeff"))
+    if body.save and parsed:
+        create_metrics(get_db_path(), experiment_id=exp_id, metrics=parsed, recorded_by=current_user.id, source="csv")
+    return {
+        "metrics": [m.__dict__ for m in parsed],
+        "saved": len(parsed) if body.save else 0,
+    }
 
 
 @router.delete(

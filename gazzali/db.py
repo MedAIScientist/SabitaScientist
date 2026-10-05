@@ -1079,6 +1079,8 @@ _MIGRATIONS = [
     # The project an imaging-data request is for, so the request can be tracked
     # from draft to "ready for this project". Optional: datasets predate it.
     "ALTER TABLE datasets ADD COLUMN project_id TEXT REFERENCES projects(id) ON DELETE SET NULL",
+    # Where a measured number came from: manual | csv | cvat | ai_run (NULL on older rows: derived).
+    "ALTER TABLE experiment_metrics ADD COLUMN source TEXT",
 ]
 
 
