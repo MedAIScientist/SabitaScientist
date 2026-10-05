@@ -295,6 +295,9 @@ def build_paper_context(
                         },
                         f"dataset:{d['id']}",
                     )
+            if project_id:
+                for rec in _lineage_records(conn, project_id):
+                    _add("data", rec, rec["id"])
 
         # Weekly narrative + open questions
         if project_id and flags.get("weekly", True):
@@ -358,6 +361,60 @@ def build_paper_context(
         "text": text,
         "evidence_ids": sorted(set(evidence_ids)),
     }
+
+
+def _lineage_records(conn, project_id: str) -> list[dict]:
+    """What the experiments actually used and produced, as facts the Methods section can cite:
+    the cohort (with its IRB protocol), de-identification, and annotation (labels, counts)."""
+    links = conn.execute(
+        """SELECT a.asset_type, a.asset_id, group_concat(e.name, '; ') AS experiments
+             FROM experiment_assets a JOIN experiments e ON e.id = a.experiment_id
+            WHERE e.project_id = ? GROUP BY a.asset_type, a.asset_id""",
+        (project_id,),
+    ).fetchall()
+    out: list[dict] = []
+    for link in links:
+        t, aid, used_by = link["asset_type"], link["asset_id"], link["experiments"]
+        text = ""
+        if t == "dataset":
+            d = conn.execute("SELECT name, modality, purpose FROM datasets WHERE id = ?", (aid,)).fetchone()
+            if not d:
+                continue
+            irbs = [f"{r['institution']} protocol {r['protocol_number']}" for r in conn.execute(
+                """SELECT i.institution, i.protocol_number FROM dataset_irbs di
+                     JOIN irb_approvals i ON i.id = di.irb_id WHERE di.dataset_id = ?""", (aid,))]
+            label = d["name"]
+            text = f"Cohort; modality {d['modality'] or 'n/a'}. {d['purpose'] or ''} IRB: {', '.join(irbs) or 'not recorded'}."
+        elif t == "pipeline_run":
+            r = conn.execute(
+                """SELECT r.records_processed, r.verification_status, p.name FROM deid_pipeline_runs r
+                     LEFT JOIN deid_pipelines p ON p.id = r.pipeline_id WHERE r.id = ?""", (aid,)).fetchone()
+            if not r:
+                continue
+            label = r["name"] or "De-identification"
+            text = (f"De-identification: {r['records_processed'] if r['records_processed'] is not None else 'unknown number of'} "
+                    f"records processed; verification {r['verification_status'] or 'not recorded'}.")
+        elif t == "cvat_project":
+            c = conn.execute("SELECT name, labels_json, num_images, num_annotations FROM cvat_projects WHERE id = ?", (aid,)).fetchone()
+            if not c:
+                continue
+            try:
+                names = [lab.get("name") for lab in json.loads(c["labels_json"] or "[]") if isinstance(lab, dict)]
+            except json.JSONDecodeError:
+                names = []
+            label = c["name"]
+            text = (f"Manual annotation in CVAT. Labels: {', '.join(n for n in names if n) or 'not recorded'}. "
+                    f"Images: {c['num_images'] or 'not recorded'}; annotated objects: {c['num_annotations'] or 'not recorded'}.")
+        elif t == "webknossos_dataset":
+            w = conn.execute("SELECT name, status, num_volumes, num_skeletons FROM webknossos_datasets WHERE id = ?", (aid,)).fetchone()
+            if not w:
+                continue
+            label = w["name"]
+            text = f"Segmentation in WebKnossos ({w['status']}): {w['num_volumes']} volume and {w['num_skeletons']} skeleton annotations."
+        else:
+            continue
+        out.append({"id": f"{t}:{aid}", "label": label, "text": f"{text} Used by: {used_by}."})
+    return out
 
 
 def render_context_text(sources: dict[str, list[dict]], pub=None) -> str:

@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
+from ... import cvat_client
 from ...crud.cvat import (
     create_cvat_project,
     delete_cvat_project,
@@ -13,8 +14,11 @@ from ...crud.cvat import (
     update_cvat_project,
 )
 from ...crud.experiment_assets import clear_asset_links
+from ...crud.experiment_metrics import create_metrics, delete_metrics_by_source
+from ...crud.experiments import get_experiment
 from ...crud.projects import get_project
 from ...db import get_db_path
+from ...metrics_csv import ParsedMetric
 from ...models import User
 from ..deps import require_project_role
 
@@ -87,3 +91,58 @@ def delete_cvat(
     # Drop experiment lineage links first: asset_id has no FK to cascade them.
     clear_asset_links(get_db_path(), "cvat_project", cvat_id)
     delete_cvat_project(get_db_path(), cvat_id)
+
+
+def _own_cvat_or_404(project_id: str, cvat_id: str):
+    cp = get_cvat_project(get_db_path(), cvat_id)
+    if not cp or cp.project_id != project_id:
+        raise HTTPException(404, "CVAT project not found")
+    return cp
+
+
+@router.get("/projects/{project_id}/cvat/{cvat_id}/progress")
+async def cvat_progress(
+    project_id: str,
+    cvat_id: str,
+    current_user: User = Depends(require_project_role("owner", "editor", "viewer")),
+):
+    """Live annotation progress read from CVAT; also refreshes the stored image count."""
+    cp = _own_cvat_or_404(project_id, cvat_id)
+    try:
+        progress = await cvat_client.project_progress(cp.cvat_id)
+    except cvat_client.CVATError as exc:
+        raise HTTPException(502, str(exc)) from exc
+    if progress["frames_total"] != cp.num_images:
+        update_cvat_project(get_db_path(), cvat_id, num_images=progress["frames_total"])
+    return progress
+
+
+@router.post("/projects/{project_id}/experiments/{exp_id}/cvat/{cvat_id}/import-metrics")
+async def cvat_import_metrics(
+    project_id: str,
+    exp_id: str,
+    cvat_id: str,
+    current_user: User = Depends(require_project_role("owner", "editor")),
+):
+    """Turn CVAT annotations into measured numbers (source "cvat"), replacing the last import."""
+    exp = get_experiment(get_db_path(), exp_id)
+    if not exp or exp.project_id != project_id:
+        raise HTTPException(404, "Experiment not found")
+    cp = _own_cvat_or_404(project_id, cvat_id)
+    try:
+        summary = await cvat_client.annotation_summary(cp.cvat_id)
+    except cvat_client.CVATError as exc:
+        raise HTTPException(502, str(exc)) from exc
+    if summary["frames_annotated"] == 0:
+        raise HTTPException(409, "No annotations in CVAT yet; nothing was recorded.")
+    metrics = [
+        ParsedMetric(name="images annotated", value=summary["frames_annotated"], unit="images", split=cp.name),
+        ParsedMetric(name="images in annotation project", value=summary["frames_total"], unit="images", split=cp.name),
+        *(ParsedMetric(name=f"annotations: {label}", value=n, unit="objects", split=cp.name)
+          for label, n in summary["labels"].items()),
+    ]
+    db = get_db_path()
+    delete_metrics_by_source(db, exp_id, "cvat", cp.name)
+    create_metrics(db, exp_id, metrics, recorded_by=current_user.id, source="cvat")
+    update_cvat_project(db, cvat_id, num_images=summary["frames_total"], num_annotations=sum(summary["labels"].values()))
+    return {"saved": len(metrics), "summary": summary}

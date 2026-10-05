@@ -30,6 +30,6 @@ export function progress(flags: Record<string, boolean>): { done: number; total:
 export function kindLabel(kind: string, n: number): string {
   const base = ({ project: 'Project', tasks: 'Task', task: 'Task', weekly: 'Weekly update', experiments: 'Experiment',
     experiment: 'Experiment', metrics: 'Measured result', references: 'Reference', bibliography: 'Reference',
-    irb: 'Ethics approval', grants: 'Grant' } as Record<string, string>)[kind] ?? kind.replace(/_/g, ' ')
+    irb: 'Ethics approval', grants: 'Grant', data: 'Data source', ethics: 'Ethics approval', funding: 'Grant', literature: 'Reference' } as Record<string, string>)[kind] ?? kind.replace(/_/g, ' ')
   return n === 1 ? base : `${base}s`
 }

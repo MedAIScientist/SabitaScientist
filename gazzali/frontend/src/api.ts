@@ -149,6 +149,15 @@ export const api = {
   }) => request<ExperimentMetric>(
     'POST', `/projects/${projectId}/experiments/${expId}/metrics`, data,
   ),
+  /** Parse a results table; save=false only previews. */
+  importMetricsCsv: (projectId: string, expId: string, text: string, save: boolean) =>
+    request<{ metrics: { name: string; value: number; unit: string | null; split: string | null; n: number | null; stderr: number | null }[]; saved: number }>(
+      'POST', `/projects/${projectId}/experiments/${expId}/metrics/csv`, { text, save }),
+  cvatProgress: (projectId: string, cvatId: string) =>
+    request<CvatProgress>('GET', `/projects/${projectId}/cvat/${cvatId}/progress`),
+  importCvatMetrics: (projectId: string, expId: string, cvatId: string) =>
+    request<{ saved: number; summary: { labels: Record<string, number>; frames_annotated: number; frames_total: number } }>(
+      'POST', `/projects/${projectId}/experiments/${expId}/cvat/${cvatId}/import-metrics`),
   deleteExperimentMetric: (projectId: string, expId: string, metricId: string) =>
     request<void>('DELETE', `/projects/${projectId}/experiments/${expId}/metrics/${metricId}`),
   // ── Data / imaging assets a lineage link can point at ────────────────────
@@ -618,6 +627,11 @@ export interface ExperimentAsset {
   detail: string | null
 }
 
+export interface CvatProgress {
+  tasks: number; jobs: number; jobs_done: number; frames_total: number; frames_done: number
+  by_assignee: { name: string; jobs: number; jobs_done: number; frames: number; frames_done: number }[]
+}
+
 export interface ExperimentMetric {
   id: string
   experiment_id: string
@@ -628,6 +642,8 @@ export interface ExperimentMetric {
   n: number | null
   stderr: number | null
   source_attachment_id: string | null
+  /** manual | csv | cvat | ai_run */
+  source?: string | null
   recorded_by: string | null
   created_at: string
 }
