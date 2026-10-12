@@ -3,7 +3,7 @@
 ARG BASE_IMAGE=ghcr.io/astral-sh/uv:python3.11-trixie-slim@sha256:7936cc6625ca04cafa6ecc3c2881ddfe90a747c55c74480cd4ac6ffad6a5af1e
 
 # ---------- Frontend (React SPA) ----------
-FROM node:20-slim AS frontend-builder
+FROM node:26-slim AS frontend-builder
 
 WORKDIR /frontend
 COPY gazzali/frontend/package*.json ./
