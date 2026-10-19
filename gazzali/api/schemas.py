@@ -126,6 +126,7 @@ class TaskCreate(BaseModel):
     priority: str = Field(default="medium", pattern="^(critical|high|medium|low)$")
     deadline: str | None = None  # ISO date YYYY-MM-DD
     session_id: str | None = None
+    phase_id: str | None = None  # the board column's phase; None = unassigned
 
     @field_validator("priority")
     @classmethod
@@ -328,10 +329,30 @@ class ExperimentEntryResponse(BaseModel):
 # ── Attachments ───────────────────────────────────────────────────────────────
 
 
+class ProjectAttachmentResponse(BaseModel):
+    """One file in the project-wide view, with the thing it is attached to."""
+
+    id: str
+    filename: str
+    content_type: str
+    size_bytes: int
+    classification: str
+    created_at: str
+    uploaded_by: str | None = None
+    uploader_name: str | None = None
+    owner_kind: str  # 'task' | 'entry'
+    owner_id: str
+    owner_title: str
+    # Set for entry owners, so the row can link into the experiment.
+    experiment_id: str | None = None
+
+
 class AttachmentResponse(BaseModel):
     metrics_parsed: int = 0
     id: str
-    entry_id: str
+    # Exactly one owner is set: an entry or a task.
+    entry_id: str | None = None
+    task_id: str | None = None
     filename: str
     content_type: str
     size_bytes: int
@@ -1705,3 +1726,225 @@ class WeeklyTaskUpdateResponse(BaseModel):
     # True when the week's report was already submitted, so only the task moved and
     # the record of that week was deliberately left untouched.
     report_locked: bool
+
+
+# ---------------------------------------------------------------------------
+# Cohort analysis (plan/cohort-analiz-roadmap.md, phases 1-4)
+# ---------------------------------------------------------------------------
+
+CohortOrigin = Literal["public", "synthetic", "governed"]
+CohortMethod = Literal[
+    "descriptive",
+    "table1",
+    "compare",
+    "survival",
+    "cox",
+    "diagnostic",
+    "ratio2x2",
+    "logistic",
+    "mantel_haenszel",
+    "agreement",
+    "mcar",
+    "multiple_imputation",
+]
+
+
+class CohortTableCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
+    data_origin: CohortOrigin = "public"
+    # Required when data_origin is 'governed': the approved imaging dataset the rows
+    # came from, whose grant and IRB the route re-checks.
+    dataset_id: str | None = None
+    # Column labels and units for Table 1: {"age": {"label": "Age", "unit": "years"}}
+    dictionary: dict[str, dict[str, str]] = {}
+
+
+class CohortTableUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    description: str | None = Field(default=None, max_length=2000)
+    # Study configuration: {"mask_families": {...}} — see the README of the cohort page.
+    config: dict | None = None
+    dictionary: dict[str, dict[str, str]] | None = None
+
+
+class CohortVersionResponse(BaseModel):
+    id: str
+    table_id: str
+    version_no: int
+    rows: int
+    columns: int
+    columns_meta: list[dict] = []
+    content_sha256: str
+    parent_version_id: str | None = None
+    parse_report: dict | None = None
+    note: str | None = None
+    created_by: str
+    created_at: str
+
+
+class CohortTableResponse(BaseModel):
+    id: str
+    project_id: str
+    lab_id: str | None
+    name: str
+    description: str | None
+    data_origin: str
+    dataset_id: str | None
+    config: dict = {}
+    dictionary: dict = {}
+    created_by: str
+    created_at: str
+    updated_at: str
+    versions: list[CohortVersionResponse] = []
+    latest_version: CohortVersionResponse | None = None
+    populations: list[CohortPopulationResponse] = []
+    active_population: CohortPopulationResponse | None = None
+
+
+class CohortCriterion(BaseModel):
+    id: str
+    family: str
+    kind: str
+    name: str
+    description: str = ""
+    columns: list[str] = []
+
+
+class CohortPopulationCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    # Ticked criteria, by id, from the study configuration (see /cohort/tables/{id}).
+    criteria: list[str] = []
+    version_id: str | None = None
+
+
+class CohortPopulationResponse(BaseModel):
+    id: str
+    table_id: str
+    version_id: str
+    name: str
+    criteria: list[dict] = []
+    stages: list[dict] = []
+    counts: list[dict] = []
+    n_base: int
+    n_included: int
+    fingerprint: str
+    superseded_by: str | None = None
+    created_by: str
+    created_at: str
+
+
+class CohortAnalysisCreate(BaseModel):
+    method: CohortMethod
+    variables: list[str] = []
+    group: str | None = None
+    outcome: str | None = None
+    kind: str = "auto"
+    summary: str = "auto"
+    adjust: str = "holm"
+    alpha: float = Field(default=0.05, gt=0, lt=1)
+    # Survival: a follow-up time column and an event indicator (1 = event, 0 = censored).
+    time: str | None = None
+    event: str | None = None
+    # Cox: the covariates of the model (the time and event columns are added separately).
+    covariates: list[str] = []
+    # Diagnostic accuracy: the test column and an optional fixed cut-off.
+    test: str | None = None
+    cutoff: float | None = None
+    pos_label: str | None = None
+    # 2x2 association: the exposure column (the outcome column is `outcome`).
+    exposure: str | None = None
+    # Logistic: the level of a two-level outcome that counts as the event.
+    event_level: str | None = None
+    # Mantel-Haenszel: the column whose strata are pooled.
+    stratum: str | None = None
+    # Agreement: the measurement columns, and which measure to compute.
+    raters: list[str] = []
+    measure: str = "icc"
+    weights: str | None = None
+    icc_model: str = "ICC(2,1)"
+    # Multiple imputation: what to pool, how many imputations, and the seed.
+    target: str | None = None
+    m: int = Field(default=20, ge=2, le=200)
+    maxit: int = Field(default=10, ge=1, le=100)
+    seed: int | None = Field(default=None, ge=0)
+
+
+class CohortAnalysisValueResponse(BaseModel):
+    name: str
+    label: str | None
+    value: float
+    unit: str | None = None
+    ci_low: float | None = None
+    ci_high: float | None = None
+    p_value: float | None = None
+    n: int | None = None
+
+
+class CohortAnalysisResponse(BaseModel):
+    id: str
+    population_id: str
+    method: str
+    params: dict = {}
+    result: dict = {}
+    table: dict | None = None
+    n: int
+    engine_version: str
+    population_fingerprint: str
+    status: str
+    stale_reason: str | None = None
+    error: str | None = None
+    created_by: str
+    created_at: str
+    values: list[CohortAnalysisValueResponse] = []
+
+
+class CohortStepResponse(BaseModel):
+    id: str
+    seq: int
+    kind: str
+    params: dict = {}
+    data: dict = {}
+    version_id: str
+    out_version_id: str | None = None
+    prev_hash: str
+    hash: str
+    created_by: str | None = None
+    created_at: str
+
+
+class CohortTraceResponse(BaseModel):
+    table_id: str
+    steps: list[CohortStepResponse] = []
+    chain: dict = {}
+
+
+class CohortReplayStep(BaseModel):
+    seq: int
+    kind: str
+    version_no: int | None = None
+    status: str
+    detail: str = ""
+
+
+class CohortReplayResponse(BaseModel):
+    table_id: str
+    steps: list[CohortReplayStep] = []
+    reconciled: bool = False
+    problems: list[str] = []
+
+
+class CohortPublishRequest(BaseModel):
+    experiment_id: str
+    # Names of cohort_analysis_values to publish; empty means all of them.
+    names: list[str] = []
+
+
+class CohortPublishResponse(BaseModel):
+    analysis_id: str
+    experiment_id: str
+    published: list[dict] = []
+
+
+# CohortTableResponse refers to CohortPopulationResponse (defined below it).
+CohortTableResponse.model_rebuild()

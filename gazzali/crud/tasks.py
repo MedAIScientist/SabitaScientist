@@ -20,16 +20,21 @@ def create_task(
     priority: str = "medium",
     deadline: str | None = None,
     session_id: str | None = None,
+    phase_id: str | None = None,
 ) -> Task:
-    """Create a task and return it."""
+    """Create a task and return it.
+
+    ``phase_id`` places the task in the phase it was created from, so a task added
+    to a board column does not have to be dragged out of "unassigned" afterwards.
+    """
     task_id = uuid.uuid4().hex
     now = datetime.now(UTC).isoformat()
     with get_db(db_path) as conn:
         conn.execute(
             """INSERT INTO tasks
                (id, project_id, title, description, assignee_id, status, priority,
-                deadline, session_id, created_by, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, 'todo', ?, ?, ?, ?, ?, ?)""",
+                deadline, session_id, phase_id, created_by, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, 'todo', ?, ?, ?, ?, ?, ?, ?)""",
             (
                 task_id,
                 project_id,
@@ -39,6 +44,7 @@ def create_task(
                 priority,
                 deadline,
                 session_id,
+                phase_id,
                 created_by,
                 now,
                 now,
@@ -54,6 +60,7 @@ def create_task(
         priority=priority,
         deadline=deadline,
         session_id=session_id,
+        phase_id=phase_id,
         created_by=created_by,
         created_at=now,
         updated_at=now,

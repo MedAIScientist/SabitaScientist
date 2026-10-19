@@ -5,6 +5,8 @@ const TABS = [
   { suffix: '', label: 'Board' },
   { suffix: '/experiments', label: 'Experiments' },
   { suffix: '/data', label: 'Data' },
+  { suffix: '/cohort', label: 'Cohort' },
+  { suffix: '/files', label: 'Files' },
   { suffix: '/report', label: 'Report' },
 ]
 

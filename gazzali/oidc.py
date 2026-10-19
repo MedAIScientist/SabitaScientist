@@ -8,6 +8,7 @@ Falls back to Microsoft-specific URLs when ``issuer_url`` is empty (backward com
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -34,29 +35,78 @@ class OIDCUser:
     issuer: str
 
 
+class ProviderUnavailable(RuntimeError):
+    """The configured identity provider cannot be reached or described."""
+
+
 def is_configured() -> bool:
     return bool(OIDC_CONFIG["client_id"] and OIDC_CONFIG["client_secret"])
 
 
-def _load_discovery() -> dict | None:
-    """Fetch and cache OIDC discovery document from issuer_url."""
-    global _discovery_doc
-    if _discovery_doc is not None:
+# Discovery is cached, but not forever: an identity provider can move, and a document
+# fetched once would otherwise pin every authorize URL until the next restart. Failures
+# are cached too, briefly — retrying a 10s timeout on every request would make an IdP
+# outage feel like an application outage.
+_DISCOVERY_TTL_S = 600
+_DISCOVERY_FAILURE_TTL_S = 60
+_REACHABLE_TTL_S = 30
+_discovery_at: float = 0.0
+_reachable: tuple[float, bool] | None = None
+
+
+def _load_discovery(now: float | None = None) -> dict | None:
+    """Fetch and cache the discovery document from issuer_url."""
+    global _discovery_doc, _discovery_at
+    now = time.monotonic() if now is None else now
+    age = now - _discovery_at
+    if _discovery_at and age < (_DISCOVERY_TTL_S if _discovery_doc else _DISCOVERY_FAILURE_TTL_S):
         return _discovery_doc
     issuer_url = OIDC_CONFIG.get("issuer_url", "")
     if not issuer_url:
         _discovery_doc = None
+        _discovery_at = now
         return None
     disc_url = issuer_url.rstrip("/") + "/.well-known/openid-configuration"
     try:
         resp = httpx.get(disc_url, timeout=10.0)
         resp.raise_for_status()
         _discovery_doc = resp.json()
-        return _discovery_doc
     except Exception as exc:
         logger.warning("OIDC discovery failed for %s: %s", issuer_url, exc)
         _discovery_doc = None
-        return None
+    _discovery_at = now
+    return _discovery_doc
+
+
+def is_reachable(timeout: float = 3.0, now: float | None = None) -> bool:
+    """Whether the identity provider answers right now.
+
+    Sign-in is published behind a gateway that can be down while this application is
+    perfectly healthy. Without this check the sign-in button sends the user to a bare
+    gateway error page; with it the page can say so and point at password sign-in.
+
+    The probe goes out through our own reverse proxy, so the failures look different
+    depending on where the chain broke: a reset TLS handshake, a connection that never
+    completes, or a 5xx from the proxy itself. All three mean a user cannot sign in, so
+    all three count as unreachable. A 4xx still counts as reachable — that is a live
+    server answering, which is what this asks.
+    """
+    global _reachable
+    now = time.monotonic() if now is None else now
+    if _reachable is not None and now - _reachable[0] < _REACHABLE_TTL_S:
+        return _reachable[1]
+    issuer_url = OIDC_CONFIG.get("issuer_url", "")
+    target = (issuer_url.rstrip("/") + "/.well-known/openid-configuration") if issuer_url else ""
+    ok = False
+    if target:
+        try:
+            resp = httpx.get(target, timeout=timeout, follow_redirects=False)
+            # 5xx here is the proxy reporting a dead backend, not the provider answering.
+            ok = resp.status_code < 500
+        except Exception:
+            ok = False
+    _reachable = (now, ok)
+    return ok
 
 
 def _discovery_url(key: str) -> str | None:
@@ -70,28 +120,48 @@ def _discovery_url(key: str) -> str | None:
     return None
 
 
-def _authorize_url() -> str:
-    microsoft_url = (
-        f"https://login.microsoftonline.com/{OIDC_CONFIG['tenant_id']}"
-        "/oauth2/v2.0/authorize"
+def _provider_url(key: str, microsoft_default: str) -> str:
+    """An endpoint from discovery, or the Microsoft default for a legacy Entra setup.
+
+    A configured issuer defines the provider. If that provider cannot be described this
+    raises instead of substituting Microsoft, which is what it used to do and was wrong
+    in two ways at once: the browser was sent to a provider that has never heard of this
+    client id, and ID tokens were checked against Microsoft's keys while
+    ``_expected_issuer`` still demanded the configured issuer, so no token could ever
+    validate. The Microsoft defaults remain for deployments that never set an issuer.
+    """
+    discovered = _discovery_url(key)
+    if discovered:
+        return discovered
+    if not OIDC_CONFIG.get("issuer_url"):
+        return microsoft_default
+    raise ProviderUnavailable(
+        f"identity provider not answering: no '{key}' from {OIDC_CONFIG['issuer_url']}"
     )
-    return _discovery_url("authorization_endpoint") or microsoft_url
+
+
+def _authorize_url() -> str:
+    return _provider_url(
+        "authorization_endpoint",
+        f"https://login.microsoftonline.com/{OIDC_CONFIG['tenant_id']}"
+        "/oauth2/v2.0/authorize",
+    )
 
 
 def _token_url() -> str:
-    microsoft_url = (
+    return _provider_url(
+        "token_endpoint",
         f"https://login.microsoftonline.com/{OIDC_CONFIG['tenant_id']}"
-        "/oauth2/v2.0/token"
+        "/oauth2/v2.0/token",
     )
-    return _discovery_url("token_endpoint") or microsoft_url
 
 
 def _jwks_url() -> str:
-    microsoft_url = (
+    return _provider_url(
+        "jwks_uri",
         f"https://login.microsoftonline.com/{OIDC_CONFIG['tenant_id']}"
-        "/discovery/v2.0/keys"
+        "/discovery/v2.0/keys",
     )
-    return _discovery_url("jwks_uri") or microsoft_url
 
 
 def _expected_issuer() -> str:

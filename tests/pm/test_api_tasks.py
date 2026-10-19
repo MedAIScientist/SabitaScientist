@@ -73,3 +73,69 @@ def test_schema_migration_folds_existing_critical_tasks(tmp_db, admin_token, cli
     create_schema(tmp_db)
     with get_db(tmp_db) as conn:
         assert conn.execute("SELECT priority FROM tasks WHERE id = ?", (tid,)).fetchone()[0] == "high"
+
+
+def _make_phase(client, token, pid: str, name: str) -> str:
+    resp = client.post(
+        f"/api/v1/projects/{pid}/phases",
+        json={"name": name, "position": 0},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 201, resp.text
+    return resp.json()["id"]
+
+
+def test_a_task_can_be_created_in_a_phase(client, admin_token) -> None:
+    """Adding a task from a phase's column must place it there, not under 'Unassigned'."""
+    pid = _make_project(client, admin_token)
+    phase = _make_phase(client, admin_token, pid, "Data Analysis")
+
+    created = client.post(
+        f"/api/v1/projects/{pid}/tasks",
+        json={"title": "Denoise cohort", "phase_id": phase},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+
+    assert created.status_code == 201, created.text
+    assert created.json()["phase_id"] == phase
+    # …and it survives a re-read, not just the create response.
+    listed = client.get(f"/api/v1/projects/{pid}/tasks", headers={"Authorization": f"Bearer {admin_token}"}).json()
+    assert [t["phase_id"] for t in listed] == [phase]
+
+
+def test_a_task_created_without_a_phase_stays_unassigned(client, admin_token) -> None:
+    pid = _make_project(client, admin_token)
+    created = client.post(
+        f"/api/v1/projects/{pid}/tasks",
+        json={"title": "Loose end"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert created.status_code == 201, created.text
+    assert created.json()["phase_id"] is None
+
+
+def test_a_phase_from_another_project_is_refused(client, admin_token) -> None:
+    """Otherwise the task would be parked where nobody looking at this board can see it."""
+    pid = _make_project(client, admin_token)
+    other = _make_project(client, admin_token)
+    foreign_phase = _make_phase(client, admin_token, other, "Someone else's lane")
+
+    resp = client.post(
+        f"/api/v1/projects/{pid}/tasks",
+        json={"title": "Misfiled", "phase_id": foreign_phase},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert resp.status_code == 400
+
+    listed = client.get(f"/api/v1/projects/{pid}/tasks", headers={"Authorization": f"Bearer {admin_token}"}).json()
+    assert listed == [], "the task was created despite the bad phase"
+
+
+def test_an_unknown_phase_is_refused(client, admin_token) -> None:
+    pid = _make_project(client, admin_token)
+    resp = client.post(
+        f"/api/v1/projects/{pid}/tasks",
+        json={"title": "Nowhere", "phase_id": "no-such-phase"},
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert resp.status_code == 400

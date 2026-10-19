@@ -38,6 +38,11 @@ bridge/package-lock.json
 workspace/
 # Agent run artifacts (generated drafts); .dockerignore keeps them out of the image too
 runs/
+# Cohort analysis: immutable data versions live beside runs/ (GAZZALI_COHORT_DIR).
+# Anchored to the root so it cannot swallow the gazzali/cohort package.
+/cohort/
+# Scratch area used while verifying the cohort module locally
+/.tmp/
 skills/
 memory/
 media/

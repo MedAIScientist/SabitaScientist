@@ -5,6 +5,7 @@ import { useAuth } from '../auth'
 import { useTheme } from '../theme'
 import { api } from '../api'
 import { CopilotPanel } from './CopilotPanel'
+import { CompanionStatusBanner } from './CompanionStatusBanner'
 
 // ponytail: hand-drawn 24px stroke icons, swap for lucide-react if the set grows past ~30
 const ICONS: Record<string, string> = {
@@ -130,6 +131,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="shell-scrim" onClick={() => setMobileOpen(false)} />
       <main className="shell-main">
         <button className="shell-burger" aria-label="Open menu" onClick={() => setMobileOpen(true)}><Icon name="menu" /></button>
+        {/* Every signed-in page renders through here, so an outage of a cluster-hosted
+            companion is visible before a user clicks into a 502. */}
+        <CompanionStatusBanner />
         {children}
       </main>
       {paletteOpen && <CommandPalette onClose={() => setPaletteOpen(false)} />}

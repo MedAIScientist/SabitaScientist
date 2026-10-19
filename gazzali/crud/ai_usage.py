@@ -112,6 +112,13 @@ def record_usage(
     usage_id = uuid.uuid4().hex
     now = datetime.now(UTC).isoformat()
     with get_db(db_path) as conn:
+        # Attribution can come from a request body (the copilot sends the project the
+        # user is looking at), so an id may name something deleted or invented. Drop
+        # the stale reference rather than losing the whole row to a foreign key: the
+        # call happened, and a missing project is not a reason to make it invisible.
+        user_id = _existing_id(conn, "users", context.user_id)
+        project_id = _existing_id(conn, "projects", context.project_id)
+        publication_id = _existing_id(conn, "publications", context.publication_id)
         conn.execute(
             """INSERT INTO ai_usage
                (id, user_id, project_id, publication_id, run_id, task, source, model,
@@ -120,9 +127,9 @@ def record_usage(
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 usage_id,
-                context.user_id,
-                context.project_id,
-                context.publication_id,
+                user_id,
+                project_id,
+                publication_id,
                 context.run_id,
                 context.task,
                 context.source,
@@ -143,9 +150,9 @@ def record_usage(
         source=context.source,
         token_source=token_source,
         created_at=now,
-        user_id=context.user_id,
-        project_id=context.project_id,
-        publication_id=context.publication_id,
+        user_id=user_id,
+        project_id=project_id,
+        publication_id=publication_id,
         run_id=context.run_id,
         model=model,
         prompt_tokens=prompt_tokens,
@@ -174,6 +181,16 @@ def record_usage_safely(db_path: Path | None = None, **kwargs) -> AiUsage | None
             "AI usage could not be recorded", exc_info=True
         )
         return None
+
+
+def _existing_id(conn, table: str, value: str | None) -> str | None:
+    """Return the id only when the row exists, so a stale reference cannot break a row.
+
+    ``table`` is always one of this module's own constants, never user input.
+    """
+    if not value:
+        return None
+    return value if conn.execute(f"SELECT 1 FROM {table} WHERE id = ?", (value,)).fetchone() else None
 
 
 def _default_db_path() -> Path:

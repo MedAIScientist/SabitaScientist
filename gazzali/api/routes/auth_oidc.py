@@ -12,7 +12,13 @@ from fastapi.responses import RedirectResponse
 from ...auth import create_token, hash_password
 from ...crud.users import create_user, get_user_by_email, get_user_by_username
 from ...db import get_db, get_db_path
-from ...oidc import exchange_code, get_authorization_url, is_configured
+from ...oidc import (
+    ProviderUnavailable,
+    exchange_code,
+    get_authorization_url,
+    is_configured,
+    is_reachable,
+)
 
 router = APIRouter()
 _TOKEN_TTL_HOURS = 24
@@ -31,7 +37,17 @@ def oidc_login(redirect: str = "/login"):
 
     state = secrets.token_hex(16)
     _oidc_states[state] = redirect
-    auth_url = get_authorization_url(state)
+    try:
+        auth_url = get_authorization_url(state)
+    except ProviderUnavailable as exc:
+        # Never send the browser to a different provider as a stand-in; say what is
+        # wrong and let the user sign in with a password.
+        _oidc_states.pop(state, None)
+        raise HTTPException(
+            503,
+            "Single sign-on is unavailable: the identity provider is not answering. "
+            "Sign in with your username or e-mail and password instead.",
+        ) from exc
     return RedirectResponse(url=auth_url)
 
 
@@ -110,5 +126,14 @@ async def oidc_callback(
 
 @router.get("/auth/oidc/status")
 def oidc_status():
-    """Return whether OIDC is configured."""
-    return {"configured": is_configured()}
+    """Whether single sign-on is configured *and* the provider is answering.
+
+    Configuration alone is not enough to show a working button: the provider sits
+    behind a gateway that can be down while this app is healthy, and a user who
+    clicks into a gateway error page has no way to know a password still works.
+    """
+    configured = is_configured()
+    return {
+        "configured": configured,
+        "reachable": is_reachable() if configured else False,
+    }

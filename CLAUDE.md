@@ -65,6 +65,7 @@ gazzali/
 | Publications | publications, publication_versions, publication_reviews, publication_experiments |
 | Research Ops | grants, conferences, irb_approvals |
 | Pipeline | project_phases, task_dependencies, attachments |
+| Cohort analysis | cohort_tables, cohort_versions, cohort_steps, cohort_populations, cohort_analyses, cohort_analysis_values |
 | Admin | audit_log, admissions |
 
 ### API Endpoints (~65)
@@ -86,6 +87,7 @@ gazzali/
 | `/audit/logs` | List (admin) | Audit trail |
 | `/admin/stats` | System stats | Cross-lab analytics |
 | `/pi/stats` | Lab analytics | Mentorship + publications |
+| `/projects/{id}/cohort` | tables, versions, populations, analyses, trace | Cohort analysis: Table 1, participant flow, replay |
 | `/export/*` | CSV/JSON | Data export |
 | `/system/health` | Health check | AI models, keys configured, skills count |
 
@@ -133,6 +135,55 @@ decided by the project owner/editor, from stage 14 on by a lab PI. Dataset runs 
 an approved, unexpired IRB of the project. Finished runs import ARC's verified numbers
 into `experiment_metrics` and lessons into the lab's `research_lessons`.
 
+### Cohort analysis (clinical statistics)
+
+Plan: `plan/cohort-analiz-roadmap.md` (phases 1–6 implemented). An IRB-aware
+replacement for ad-hoc Excel/SPSS work on a clinical cohort: a versioned table, a
+declared analysis population with its STROBE participant flow, a quality scorecard,
+Table 1 and group comparisons, and a provenance trail that makes a stale number
+visible instead of silently current.
+
+| Module | What it provides |
+|---|---|
+| `gazzali/cohort/ingest.py` | CSV/TSV/XLSX/Parquet reader with encoding+dialect detection and a parse report |
+| `gazzali/cohort/quality.py` | Five-dimension scorecard (completeness, uniqueness, consistency, uniformity, validity) + the study's own rules |
+| `gazzali/cohort/transform.py` | Derived variables (sandboxed expressions) and row subsets — each writes a new version |
+| `gazzali/cohort/analyses.py` | Twelve methods: `descriptive`, `table1`, `compare`, `survival`, `cox`, `logistic`, `diagnostic`, `ratio_2x2`, `mantel_haenszel`, `agreement`, `mcar`, `multiple_imputation`; estimates with CIs first, assumptions as diagnostics, named multiplicity correction |
+| `gazzali/cohort/engine.py` | Version → population → analysis orchestration; no FastAPI, no SQLite |
+| `gazzali/cohort/store.py` | Immutable Parquet versions under `GAZZALI_COHORT_DIR` (default `<workspace>/cohort`), content-hash verified on read |
+| `gazzali/cohort/vendor/` | Vendored `core/` + `biostats/` from Cohort-Studio, Apache-2.0 — see `vendor/NOTICE` |
+
+Two invariants hold everywhere and are what the tests protect:
+
+1. **A version is immutable.** Every change of the rows writes a new Parquet file and
+   one link of a SHA-256 hash chain (`cohort_steps`). `POST …/replay` recomputes every
+   step and names the one that no longer reproduces the recorded table.
+2. **An analysis knows its population.** `cohort_analyses.population_fingerprint` is
+   compared on read; a superseded population or a new engine version marks the result
+   `stale`, `publish` refuses it, and `verify_numbers` stops counting its metrics as
+   verified. This is the point of the module: a number in a draft always has one
+   analysis and one population behind it.
+
+Routes are in `api/routes/cohort_analysis.py`, mounted at
+`/api/v1/projects/{project_id}/cohort/*` (distinct from the supervision `cohort.py`,
+which is a student cohort). Every method's values publish into `experiment_metrics`
+with `source='cohort:<analysis_id>'` and `source_analysis_id`, which is how a
+manuscript number becomes citable. Public and synthetic cohorts are ungated;
+`data_origin='governed'` requires an approved dataset, a live `dataset_grants` row and
+an unexpired approved IRB.
+
+Missing data is a *computation*, not a data version: `multiple_imputation` imputes `m`
+times in memory, pools one target (`compare`/`logistic`/`cox`) with Rubin's rules and
+shows the complete-case estimate beside it. Nothing singly-imputed is ever offered for
+inference. The pooling is checked against R `mice` 3.19 / `mitml` 0.4.5 by
+`tests/pm/test_cohort_mi_parity.py`: **do not change `biostats/mi/` without re-running
+it**, and never relax those tolerances.
+
+```bash
+uv run pytest tests/pm/test_cohort_api.py tests/pm/test_cohort_engine.py \
+    tests/pm/test_cohort_mi_parity.py -v
+```
+
 ### Frontend Pages (29+)
 
 | Route | Page | Features |
@@ -140,6 +191,7 @@ into `experiment_metrics` and lessons into the lab's `research_lessons`.
 | `/projects` | Projects | List, create, manage projects |
 | `/projects/:id` | Board | Kanban board with tasks, phases |
 | `/projects/:id/experiments` | ExperimentsPage | Experiment CRUD, entries |
+| `/projects/:id/cohort` | CohortPage | Cohort versions, population, analyses, quality, trace |
 | `/projects/:id/report` | ProjectReportPage | Per-project report |
 | `/labs` | LabsPage | Multi-tenant lab management |
 | `/labs/:id` | LabDetail | Lab members, projects |

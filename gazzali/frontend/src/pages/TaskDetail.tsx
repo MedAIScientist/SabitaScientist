@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, Task, Member } from '../api'
 import { AiRunsTab } from '../components/AiRunsTab'
+import { AttachmentList } from '../components/AttachmentList'
 import { TaskDetailView } from '../components/task/TaskDetailView'
 import { LabNotesTab } from '../components/task/LabNotesTab'
 import { TaskEditForm } from '../components/task/TaskEditForm'
@@ -15,7 +16,7 @@ interface Props {
   members: Member[]
 }
 
-type Tab = 'details' | 'notes' | 'ai' | 'edit'
+type Tab = 'details' | 'notes' | 'files' | 'ai' | 'edit'
 
 export function TaskDetail({ task, projectId, onClose, members }: Props) {
   const queryClient = useQueryClient()
@@ -214,6 +215,7 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
         <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 8 }}>
           {tabBtn('details', 'DETAILS')}
           {tabBtn('notes',   'NOTES')}
+          {tabBtn('files',   'FILES')}
           {tabBtn('ai',      '⬡ AI RUNS')}
           {tabBtn('edit',    'EDIT')}
         </div>
@@ -240,6 +242,18 @@ export function TaskDetail({ task, projectId, onClose, members }: Props) {
             onSubmit={() => addComment.mutate(commentBody)}
             isPending={addComment.isPending}
           />
+        )}
+
+        {activeTab === 'files' && (
+          <div style={{ padding: '2px 2px 0' }}>
+            <p style={{ fontSize: 14, color: 'var(--text-2)', margin: '0 0 10px' }}>
+              Datasets, figures, drafts — anything this task needs or produces.
+            </p>
+            <AttachmentList
+              target={{ kind: 'task', projectId, taskId: task.id }}
+              accent="var(--accent)"
+            />
+          </div>
         )}
 
         {activeTab === 'ai' && (

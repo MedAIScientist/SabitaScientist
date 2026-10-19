@@ -10,25 +10,24 @@ export function Login() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [oidcAvailable, setOidcAvailable] = useState(false)
+  const [oidcReachable, setOidcReachable] = useState(true)
 
   useEffect(() => {
     fetch('/api/v1/auth/oidc/status')
       .then(r => r.json())
-      .then(d => setOidcAvailable(d.configured))
+      .then(d => {
+        setOidcAvailable(d.configured)
+        setOidcReachable(d.reachable !== false)
+      })
       .catch(() => {})
-    // Check if we have a token in the URL (OIDC callback)
+    // A Microsoft sign-in lands here with nothing but a token. The identity — role
+    // included — is loaded by AuthProvider from /users/me, so it is not assembled
+    // twice, and the role cannot be the one field somebody forgets to copy.
     const params = new URLSearchParams(window.location.search)
     const token = params.get('token')
     if (token) {
       sessionStorage.setItem('pm_token', token)
-      fetch('/api/v1/users/me', { headers: { Authorization: `Bearer ${token}` } })
-        .then(r => r.json())
-        .then(u => {
-          sessionStorage.setItem('pm_username', u.username)
-          sessionStorage.setItem('pm_admin', String(u.is_admin))
-        })
-        .catch(() => {})
-        .finally(() => { window.location.href = '/projects' })
+      window.location.href = '/projects'
     }
   }, [])
 
@@ -130,16 +129,30 @@ export function Login() {
               <span style={{ fontSize: 14, color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>OR</span>
               <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
             </div>
-            <a href="/api/v1/login/oidc" style={{ textDecoration: 'none' }}>
-              <button type="button" style={{
-                ...btnBase, width: '100%',
-                background: 'rgba(99,102,241,0.08)', borderColor: 'rgba(99,102,241,0.28)',
-                color: '#818cf8',
-              }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.18)' }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.08)' }}
-              >Sign in with Microsoft</button>
-            </a>
+            {oidcReachable ? (
+              <a href="/api/v1/login/oidc" style={{ textDecoration: 'none' }}>
+                <button type="button" style={{
+                  ...btnBase, width: '100%',
+                  background: 'rgba(99,102,241,0.08)', borderColor: 'rgba(99,102,241,0.28)',
+                  color: '#818cf8',
+                }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.18)' }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.08)' }}
+                >Sign in with Microsoft</button>
+              </a>
+            ) : (
+              // The provider answers through a gateway that can be down while this
+              // application is fine. Sending the user into a bare gateway error page
+              // hides the fact that a password still works.
+              <div role="status" style={{
+                padding: '9px 11px', borderRadius: 7, fontSize: 14,
+                background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.28)',
+                color: '#f59e0b', lineHeight: 1.45,
+              }}>
+                Microsoft sign-in is unavailable right now — the identity provider is not
+                answering. Sign in above with your username or e-mail and password.
+              </div>
+            )}
           </>
         )}
       </form>

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Task, Experiment, ProjectPhase } from '../../api'
-import { DroppableColumn } from './DroppableColumn'
+import { DroppableColumn, type AddTarget } from './DroppableColumn'
 import { ColumnDef } from './DraggableCard'
 
 // ── Experiment status → column key ────────────────────────────────────────────
@@ -25,12 +25,14 @@ export interface PhaseSwimLaneProps {
   experiments: Experiment[]
   overColumnId: string | null
   activeTaskId: string | null
-  addingToCol: Task['status'] | null
+  // Which (phase, status) cell the user is adding to. Status alone is ambiguous:
+  // a board with phases shows the same three columns once per lane.
+  addingTo: AddTarget | null
   newTaskTitle: string
   onNewTaskTitleChange: (v: string) => void
-  onAddStart: (status: Task['status']) => void
+  onAddStart: (target: AddTarget) => void
   onAddCancel: () => void
-  onAddSubmit: (col: Task['status']) => (title: string) => void
+  onAddSubmit: (target: AddTarget) => (title: string) => void
   onCardClick: (task: Task) => void
   onExpClick: (exp: Experiment) => void
   members: { user_id: string; username: string }[]
@@ -42,7 +44,7 @@ export interface PhaseSwimLaneProps {
 
 export function PhaseSwimLane({
   phase, tasks, experiments, overColumnId, activeTaskId,
-  addingToCol, newTaskTitle, onNewTaskTitleChange,
+  addingTo, newTaskTitle, onNewTaskTitleChange,
   onAddStart, onAddCancel, onAddSubmit,
   onCardClick, onExpClick, members,
   selectedIds, onToggleSelect,
@@ -141,12 +143,12 @@ export function PhaseSwimLane({
               colExps={colExps}
               isDropTarget={overColumnId === col.key}
               activeTaskId={activeTaskId}
-              addingToCol={addingToCol}
+              isAdding={addingTo?.phaseId === (phase?.id ?? null) && addingTo.status === col.key}
               newTaskTitle={newTaskTitle}
               onNewTaskTitleChange={onNewTaskTitleChange}
-              onAddStart={onAddStart}
+              onAddStart={() => onAddStart({ phaseId: phase?.id ?? null, status: col.key })}
               onAddCancel={onAddCancel}
-              onAddSubmit={onAddSubmit(col.key)}
+              onAddSubmit={onAddSubmit({ phaseId: phase?.id ?? null, status: col.key })}
               onCardClick={onCardClick}
               onExpClick={onExpClick}
               members={members}

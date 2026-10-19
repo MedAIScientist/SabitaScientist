@@ -52,6 +52,9 @@ def test_create_schema_creates_all_tables(tmp_path: Path) -> None:
         "paper_claim_map",
         "paper_integrity_runs",
         "paper_review_points",
+        # Cohort analysis (plan/cohort-analiz-roadmap.md).
+        "cohort_tables", "cohort_versions", "cohort_steps",
+        "cohort_populations", "cohort_analyses", "cohort_analysis_values",
     }
 
 
@@ -76,12 +79,19 @@ def test_publications_has_the_submission_compliance_columns(tmp_path: Path) -> N
 def test_create_schema_is_idempotent(tmp_path: Path) -> None:
     db_path = tmp_path / "test.db"
     create_schema(db_path)
+
+    conn = sqlite3.connect(db_path)
+    first = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+    conn.close()
+
     create_schema(db_path)  # second call must not raise
 
     conn = sqlite3.connect(db_path)
-    cur = conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
-    assert len(cur.fetchall()) == 63
+    second = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     conn.close()
+    # Comparing the sets, not a hardcoded count: a new table must not break the test
+    # that exists to prove a second create_schema adds nothing.
+    assert second == first
 
 
 def test_project_phases_table_exists(tmp_path):

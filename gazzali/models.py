@@ -200,12 +200,14 @@ class TaskDependency:
 @dataclass
 class Attachment:
     id: str
-    entry_id: str
+    # Exactly one of these is set; see the CHECK on the table.
+    entry_id: str | None
     filename: str
     s3_key: str
     content_type: str
     size_bytes: int
     created_at: str
+    task_id: str | None = None
     uploaded_by: str | None = None
     classification: str = "unclassified"
 
@@ -266,7 +268,9 @@ class PublicationVersion:
     file_path: str | None = None
     content: str | None = None
     section: str | None = None
-    generated_by: str | None = None  # 'ai-agent' | 'ai-direct' | 'ai-autoresearchclaw' | 'human'
+    generated_by: str | None = (
+        None  # 'ai-agent' | 'ai-direct' | 'ai-autoresearchclaw' | 'human'
+    )
     model: str | None = None  # None when the producing model is unknown
     prompt_hash: str | None = None
     verification: dict | None = None  # number check on AI drafts (verify_numbers.py)
@@ -726,8 +730,12 @@ class GraduationRequirement:
     unit: str | None = None
     required: bool = True
     active: bool = True
-    professor_id: str | None = None  # the professor who set it (None: old platform-wide rule)
-    student_id: str | None = None  # one student only; None = all the professor's students at this level
+    professor_id: str | None = (
+        None  # the professor who set it (None: old platform-wide rule)
+    )
+    student_id: str | None = (
+        None  # one student only; None = all the professor's students at this level
+    )
 
 
 # Where AI usage is attributed. ``DIRECT`` is pm/_ai.py's in-process call;
@@ -789,3 +797,125 @@ class SupervisionFollowup:
     student_note: str | None
     created_at: str
     closed_at: str | None
+
+
+# ---------------------------------------------------------------------------
+# Cohort analysis (phases 1-4 of plan/cohort-analiz-roadmap.md)
+# ---------------------------------------------------------------------------
+
+# A cohort's provenance. 'governed' means real patient data and is gated on an
+# approved dataset, a live grant to the project and an unexpired approved IRB;
+# the other two need no governance at all, which is why phase 1 ships them.
+COHORT_DATA_ORIGINS: tuple[str, ...] = ("public", "synthetic", "governed")
+
+# Methods the engine can run. Kept here so the route, the schema and the UI all
+# advertise the same list.
+COHORT_METHODS: tuple[str, ...] = ("descriptive", "table1", "compare")
+
+
+@dataclass(frozen=True)
+class CohortTable:
+    """An analysis-ready table inside a project, with its study configuration."""
+
+    id: str
+    project_id: str
+    lab_id: str | None
+    data_origin: str
+    dataset_id: str | None
+    name: str
+    description: str | None
+    config_json: str
+    dictionary_json: str
+    created_by: str
+    created_at: str
+    updated_at: str
+
+
+@dataclass(frozen=True)
+class CohortVersion:
+    """One immutable snapshot of a cohort table's rows."""
+
+    id: str
+    table_id: str
+    version_no: int
+    rel_path: str
+    rows: int
+    columns: int
+    columns_json: str
+    content_sha256: str
+    parent_version_id: str | None
+    parse_report_json: str | None
+    note: str | None
+    created_by: str
+    created_at: str
+
+
+@dataclass(frozen=True)
+class CohortStep:
+    """One link of the hash-chained data lineage."""
+
+    id: str
+    table_id: str
+    version_id: str
+    seq: int
+    kind: str
+    params_json: str
+    data_json: str
+    out_version_id: str | None
+    prev_hash: str
+    hash: str
+    created_by: str | None
+    created_at: str
+
+
+@dataclass(frozen=True)
+class CohortPopulation:
+    """A declared analysis population: the criteria and the rows they kept."""
+
+    id: str
+    table_id: str
+    version_id: str
+    name: str
+    criteria_json: str
+    stages_json: str
+    counts_json: str
+    n_base: int
+    n_included: int
+    fingerprint: str
+    superseded_by: str | None
+    created_by: str
+    created_at: str
+
+
+@dataclass(frozen=True)
+class CohortAnalysis:
+    """A computed analysis, bound to the population fingerprint it ran on."""
+
+    id: str
+    population_id: str
+    method: str
+    params_json: str
+    result_json: str
+    table_json: str | None
+    n: int
+    engine_version: str
+    population_fingerprint: str
+    status: str
+    error: str | None
+    created_by: str
+    created_at: str
+
+
+@dataclass(frozen=True)
+class CohortAnalysisValue:
+    """One publishable number of an analysis."""
+
+    analysis_id: str
+    name: str
+    value: float
+    label: str | None = None
+    unit: str | None = None
+    ci_low: float | None = None
+    ci_high: float | None = None
+    p_value: float | None = None
+    n: int | None = None

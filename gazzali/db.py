@@ -172,19 +172,25 @@ CREATE TABLE IF NOT EXISTS task_dependencies (
     PRIMARY KEY (task_id, depends_on_id)
 );
 
+-- A file in object storage, attached to exactly one thing: an experiment entry or a
+-- task. The owner is a nullable pair with a CHECK rather than two tables, so upload
+-- validation, presigning, classification and download stay in one place.
 CREATE TABLE IF NOT EXISTS attachments (
     id            TEXT PRIMARY KEY,
-    entry_id      TEXT NOT NULL REFERENCES experiment_entries(id) ON DELETE CASCADE,
+    entry_id      TEXT REFERENCES experiment_entries(id) ON DELETE CASCADE,
+    task_id       TEXT REFERENCES tasks(id) ON DELETE CASCADE,
     filename      TEXT NOT NULL,
     s3_key        TEXT NOT NULL,
     content_type  TEXT NOT NULL,
     size_bytes    INTEGER NOT NULL,
     uploaded_by   TEXT REFERENCES users(id) ON DELETE SET NULL,
     created_at    TEXT NOT NULL,
-    classification TEXT NOT NULL DEFAULT 'unclassified'
+    classification TEXT NOT NULL DEFAULT 'unclassified',
+    CHECK ((entry_id IS NULL) <> (task_id IS NULL))
 );
 
 CREATE INDEX IF NOT EXISTS idx_attachments_entry ON attachments(entry_id);
+CREATE INDEX IF NOT EXISTS idx_attachments_task ON attachments(task_id);
 
 -- Structured experiment results. Paper drafting takes its numbers from here
 -- and nowhere else, so an unrecorded number cannot reach a manuscript.
@@ -1013,6 +1019,137 @@ CREATE TABLE IF NOT EXISTS paper_review_points (
     created_at     TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_paper_review_points_pub ON paper_review_points(publication_id);
+
+-- ============================================================================
+-- Cohort analysis (plan/cohort-analiz-roadmap.md, phases 1-4).
+--
+-- A cohort table is an analysis-ready tabular dataset inside a project. Versions
+-- are immutable: every change of the rows writes a NEW version plus one step of
+-- a hash-chained trace, so any analysed number can be re-derived. The analysis
+-- population is a set of DECLARED criteria (rows are never deleted); every
+-- analysis is bound to the population fingerprint it ran on, which is what lets
+-- the UI mark a result as stale instead of showing it as current.
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS cohort_tables (
+    id           TEXT PRIMARY KEY,
+    project_id   TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    lab_id       TEXT REFERENCES labs(id) ON DELETE SET NULL,
+    -- 'governed' means real patient data: it needs an approved dataset, a live
+    -- grant to this project and an unexpired approved IRB. Public/synthetic
+    -- cohorts need none of that (phase 1 ships public/synthetic only).
+    data_origin  TEXT NOT NULL DEFAULT 'public'
+                 CHECK(data_origin IN ('public','synthetic','governed')),
+    dataset_id   TEXT REFERENCES datasets(id) ON DELETE RESTRICT,
+    name         TEXT NOT NULL,
+    description  TEXT,
+    -- Study configuration: {"mask_families": {...}} — criterion families, in the
+    -- format of the vendored core/population.catalogue().
+    config_json  TEXT NOT NULL DEFAULT '{}',
+    -- Column dictionary {name: {label, unit, type}} used to label Table 1.
+    dictionary_json TEXT NOT NULL DEFAULT '{}',
+    created_by   TEXT NOT NULL REFERENCES users(id),
+    created_at   TEXT NOT NULL,
+    updated_at   TEXT NOT NULL,
+    UNIQUE(project_id, name),
+    CHECK (data_origin <> 'governed' OR dataset_id IS NOT NULL)
+);
+CREATE INDEX IF NOT EXISTS idx_cohort_tables_project ON cohort_tables(project_id);
+
+CREATE TABLE IF NOT EXISTS cohort_versions (
+    id             TEXT PRIMARY KEY,
+    table_id       TEXT NOT NULL REFERENCES cohort_tables(id) ON DELETE CASCADE,
+    version_no     INTEGER NOT NULL,
+    -- Path relative to GAZZALI_COHORT_DIR (never a client-supplied path).
+    rel_path       TEXT NOT NULL,
+    rows           INTEGER NOT NULL,
+    columns        INTEGER NOT NULL,
+    columns_json   TEXT NOT NULL,
+    content_sha256 TEXT NOT NULL,
+    parent_version_id TEXT REFERENCES cohort_versions(id),
+    parse_report_json TEXT,
+    note           TEXT,
+    created_by     TEXT NOT NULL REFERENCES users(id),
+    created_at     TEXT NOT NULL,
+    UNIQUE(table_id, version_no)
+);
+CREATE INDEX IF NOT EXISTS idx_cohort_versions_table ON cohort_versions(table_id, version_no);
+
+-- The data lineage: one row per change of the rows, chained by SHA-256. This is
+-- NOT audit_log: audit_log says who called which endpoint, this says what
+-- happened to the table. Both are needed; neither substitutes for the other.
+CREATE TABLE IF NOT EXISTS cohort_steps (
+    id          TEXT PRIMARY KEY,
+    table_id    TEXT NOT NULL REFERENCES cohort_tables(id) ON DELETE CASCADE,
+    version_id  TEXT NOT NULL REFERENCES cohort_versions(id) ON DELETE CASCADE,
+    seq         INTEGER NOT NULL,
+    kind        TEXT NOT NULL
+                CHECK(kind IN ('import','derive','filter','population')),
+    params_json TEXT NOT NULL,
+    data_json   TEXT NOT NULL,
+    out_version_id TEXT REFERENCES cohort_versions(id) ON DELETE SET NULL,
+    prev_hash   TEXT NOT NULL,
+    hash        TEXT NOT NULL,
+    created_by  TEXT REFERENCES users(id) ON DELETE SET NULL,
+    created_at  TEXT NOT NULL,
+    -- seq is the position in ONE chain per table, so the chain covers every version.
+    UNIQUE(table_id, seq)
+);
+CREATE INDEX IF NOT EXISTS idx_cohort_steps_version ON cohort_steps(table_id, seq);
+
+CREATE TABLE IF NOT EXISTS cohort_populations (
+    id            TEXT PRIMARY KEY,
+    table_id      TEXT NOT NULL REFERENCES cohort_tables(id) ON DELETE CASCADE,
+    version_id    TEXT NOT NULL REFERENCES cohort_versions(id) ON DELETE CASCADE,
+    name          TEXT NOT NULL,
+    criteria_json TEXT NOT NULL,
+    stages_json   TEXT NOT NULL,
+    counts_json   TEXT NOT NULL,
+    n_base        INTEGER NOT NULL,
+    n_included    INTEGER NOT NULL,
+    fingerprint   TEXT NOT NULL,
+    -- A newer population of the same table supersedes this one: its analyses are
+    -- then stale, not silently current.
+    superseded_by TEXT REFERENCES cohort_populations(id) ON DELETE SET NULL,
+    created_by    TEXT NOT NULL REFERENCES users(id),
+    created_at    TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_cohort_populations_table
+    ON cohort_populations(table_id, created_at);
+
+CREATE TABLE IF NOT EXISTS cohort_analyses (
+    id            TEXT PRIMARY KEY,
+    population_id TEXT NOT NULL REFERENCES cohort_populations(id) ON DELETE CASCADE,
+    method        TEXT NOT NULL,
+    params_json   TEXT NOT NULL,
+    result_json   TEXT NOT NULL,
+    -- Rendered rows/columns (Table 1 and friends) so the UI never recomputes a number.
+    table_json    TEXT,
+    n             INTEGER NOT NULL,
+    engine_version TEXT NOT NULL,
+    population_fingerprint TEXT NOT NULL,
+    status        TEXT NOT NULL DEFAULT 'current'
+                  CHECK(status IN ('current','stale','failed')),
+    error         TEXT,
+    created_by    TEXT NOT NULL REFERENCES users(id),
+    created_at    TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_cohort_analyses_pop
+    ON cohort_analyses(population_id, created_at);
+
+-- The individual numbers of an analysis. Only these are published into
+-- experiment_metrics, so a manuscript number always has one analysis behind it.
+CREATE TABLE IF NOT EXISTS cohort_analysis_values (
+    analysis_id TEXT NOT NULL REFERENCES cohort_analyses(id) ON DELETE CASCADE,
+    name        TEXT NOT NULL,
+    label       TEXT,
+    value       REAL NOT NULL,
+    unit        TEXT,
+    ci_low      REAL,
+    ci_high     REAL,
+    p_value     REAL,
+    n           INTEGER,
+    PRIMARY KEY (analysis_id, name)
+);
 """
 
 _MIGRATIONS = [
@@ -1079,8 +1216,13 @@ _MIGRATIONS = [
     # The project an imaging-data request is for, so the request can be tracked
     # from draft to "ready for this project". Optional: datasets predate it.
     "ALTER TABLE datasets ADD COLUMN project_id TEXT REFERENCES projects(id) ON DELETE SET NULL",
-    # Where a measured number came from: manual | csv | cvat | ai_run (NULL on older rows: derived).
+    # Where a measured number came from: manual | csv | cvat | ai_run | cohort
+    # (NULL on older rows: derived).
     "ALTER TABLE experiment_metrics ADD COLUMN source TEXT",
+    # A metric published from a cohort analysis keeps the link, so a number in a
+    # draft can be traced back to the population it was computed on — and stops
+    # counting as verified when that population is superseded.
+    "ALTER TABLE experiment_metrics ADD COLUMN source_analysis_id TEXT",
 ]
 
 
@@ -1124,6 +1266,11 @@ def create_schema(db_path: Path | None = None) -> None:
     path = db_path or get_db_path()
     conn = sqlite3.connect(path)
     try:
+        # Rebuilds run before the schema script: it creates indexes on columns an
+        # older table does not have yet, which would fail before the rebuild could
+        # add them. On a fresh database they are no-ops.
+        _rebuild_research_runs_if_stale(conn)
+        _rebuild_attachments_if_stale(conn)
         conn.executescript(_SCHEMA)
         for migration in _MIGRATIONS:
             try:
@@ -1131,10 +1278,41 @@ def create_schema(db_path: Path | None = None) -> None:
             except sqlite3.OperationalError as exc:
                 if "duplicate column" not in str(exc).lower():
                     raise
-        _rebuild_research_runs_if_stale(conn)
         conn.commit()
     finally:
         conn.close()
+
+
+def _rebuild_attachments_if_stale(conn: sqlite3.Connection) -> None:
+    """Give attachments a task owner as well as an entry owner.
+
+    A table created before tasks could hold files has ``entry_id NOT NULL`` and no
+    ``task_id``; SQLite cannot relax that, so it is rebuilt. Existing rows keep their
+    entry owner.
+    """
+    row = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='attachments'"
+    ).fetchone()
+    if row is None:
+        return
+    columns = [r[1] for r in conn.execute("PRAGMA table_info(attachments)")]
+    if "task_id" in columns:
+        return
+    create = _SCHEMA[_SCHEMA.index("CREATE TABLE IF NOT EXISTS attachments ("):]
+    create = create[: create.index(");") + 2].replace("attachments (", "attachments_new (", 1)
+    conn.commit()
+    conn.execute("PRAGMA foreign_keys = OFF")
+    conn.execute(create)
+    shared = ", ".join(c for c in columns if c in {"id", "entry_id", "filename", "s3_key",
+                                                   "content_type", "size_bytes", "uploaded_by",
+                                                   "created_at", "classification"})
+    conn.execute(f"INSERT INTO attachments_new ({shared}) SELECT {shared} FROM attachments")
+    conn.execute("DROP TABLE attachments")
+    conn.execute("ALTER TABLE attachments_new RENAME TO attachments")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_attachments_entry ON attachments(entry_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_attachments_task ON attachments(task_id)")
+    conn.commit()
+    conn.execute("PRAGMA foreign_keys = ON")
 
 
 def _rebuild_research_runs_if_stale(conn: sqlite3.Connection) -> None:

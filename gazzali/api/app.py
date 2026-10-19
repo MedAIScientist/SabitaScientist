@@ -26,6 +26,7 @@ from .routes import (
     bibliography,
     bulk,
     cohort,
+    cohort_analysis,
     compute,
     conferences,
     copilot,
@@ -191,6 +192,9 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     app.include_router(skills.router, prefix="/api/v1/supervision", tags=["supervision"])
     app.include_router(progress_report.router, prefix="/api/v1/supervision", tags=["supervision"])
     app.include_router(cohort.router, prefix="/api/v1/supervision", tags=["supervision"])
+    # Cohort analysis (plan/cohort-analiz-roadmap.md). Distinct from the supervision
+    # `cohort` above: that one is a student cohort, this one is a clinical one.
+    app.include_router(cohort_analysis.router, prefix="/api/v1/projects", tags=["cohort"])
 
     # Serve React SPA — only if the dist folder exists (i.e., frontend has been built)
     if _FRONTEND_DIST.exists():

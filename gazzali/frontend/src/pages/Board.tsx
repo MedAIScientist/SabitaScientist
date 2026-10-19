@@ -10,7 +10,7 @@ import { NewExperimentDialog } from '../components/experiment/NewExperimentDialo
 import { FilterToolbar } from '../components/FilterToolbar'
 
 import { ProjectSettingsPanel } from '../components/ProjectSettingsPanel'
-import { DroppableColumn } from '../components/board/DroppableColumn'
+import { DroppableColumn, type AddTarget } from '../components/board/DroppableColumn'
 import { PhaseSwimLane } from '../components/board/PhaseSwimLane'
 import { BulkActionBar } from '../components/board/BulkActionBar'
 import { ResearchToolsPanel } from '../components/ResearchToolsPanel'
@@ -45,7 +45,9 @@ export function Board() {
   const [selectedTask, setSelectedTask]   = useState<Task | null>(null)
   const [selectedExp,  setSelectedExp]    = useState<Experiment | null>(null)
   const [newTaskTitle, setNewTaskTitle]   = useState('')
-  const [addingToCol,  setAddingToCol]    = useState<Task['status'] | null>(null)
+  // The (phase, status) cell being added to — not just the status, or every phase's
+  // column of that status opens at once.
+  const [addingTo,     setAddingTo]       = useState<AddTarget | null>(null)
   const [activeTaskId, setActiveTaskId]   = useState<string | null>(null)
   const [overColumnId, setOverColumnId]   = useState<string | null>(null)
 
@@ -97,12 +99,14 @@ export function Board() {
 
   // ── Create task mutation ──
   const createTask = useMutation({
-    mutationFn: ({ title, status }: { title: string; status: Task['status'] }) =>
-      api.createTask(projectId!, { title, status }),
+    // phase_id travels with the create, so a task added to a phase's column lands in
+    // that phase instead of appearing under "Unassigned" and needing a drag.
+    mutationFn: ({ title, status, phaseId }: { title: string; status: Task['status']; phaseId: string | null }) =>
+      api.createTask(projectId!, { title, status, phase_id: phaseId }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tasks', projectId] })
       setNewTaskTitle('')
-      setAddingToCol(null)
+      setAddingTo(null)
     },
   })
 
@@ -160,11 +164,14 @@ export function Board() {
     setOverColumnId(null)
   }, [tasks, experiments, patchStatus, patchExpStatus])
 
-  const handleAddSubmit = useCallback((colKey: Task['status']) => (title: string) => {
-    createTask.mutate({ title, status: colKey })
-  }, [createTask])
+  const handleAddSubmit = useCallback(
+    (target: AddTarget) => (title: string) => {
+      createTask.mutate({ title, status: target.status, phaseId: target.phaseId })
+    },
+    [createTask],
+  )
 
-  const handleAddCancel = useCallback(() => setAddingToCol(null), [])
+  const handleAddCancel = useCallback(() => setAddingTo(null), [])
 
   const handleCardClick = useCallback((task: Task) => setSelectedTask(task), [])
   const handleExpClick  = useCallback((exp: Experiment) => setSelectedExp(exp), [])
@@ -207,8 +214,8 @@ export function Board() {
       const target = e.target as HTMLElement
       const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
       if (isInput) return
-      if (e.key === 'n' || e.key === 'N') setAddingToCol('todo')
-      if (e.key === 'Escape') { setSelectedTask(null); setSelectedExp(null); setAddingToCol(null) }
+      if (e.key === 'n' || e.key === 'N') setAddingTo({ phaseId: null, status: 'todo' })
+      if (e.key === 'Escape') { setSelectedTask(null); setSelectedExp(null); setAddingTo(null) }
       if (e.key === 'k' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); /* search — handled by browser */ }
     }
     window.addEventListener('keydown', handleKey)
@@ -288,12 +295,12 @@ export function Board() {
                   colExps={colExps}
                   isDropTarget={overColumnId === col.key}
                   activeTaskId={activeTaskId}
-                  addingToCol={addingToCol}
+                  isAdding={addingTo?.phaseId === null && addingTo.status === col.key}
                   newTaskTitle={newTaskTitle}
                   onNewTaskTitleChange={setNewTaskTitle}
-                  onAddStart={setAddingToCol}
+                  onAddStart={() => setAddingTo({ phaseId: null, status: col.key })}
                   onAddCancel={handleAddCancel}
-                  onAddSubmit={handleAddSubmit(col.key)}
+                  onAddSubmit={handleAddSubmit({ phaseId: null, status: col.key })}
                   onCardClick={handleCardClick}
                   onExpClick={handleExpClick}
                   members={project?.members ?? []}
@@ -344,10 +351,10 @@ export function Board() {
                   experiments={laneExps}
                   overColumnId={overColumnId}
                   activeTaskId={activeTaskId}
-                  addingToCol={addingToCol}
+                  addingTo={addingTo}
                   newTaskTitle={newTaskTitle}
                   onNewTaskTitleChange={setNewTaskTitle}
-                  onAddStart={setAddingToCol}
+                  onAddStart={setAddingTo}
                   onAddCancel={handleAddCancel}
                   onAddSubmit={handleAddSubmit}
                   onCardClick={handleCardClick}
@@ -375,10 +382,10 @@ export function Board() {
                   experiments={unassignedExps}
                   overColumnId={overColumnId}
                   activeTaskId={activeTaskId}
-                  addingToCol={addingToCol}
+                  addingTo={addingTo}
                   newTaskTitle={newTaskTitle}
                   onNewTaskTitleChange={setNewTaskTitle}
-                  onAddStart={setAddingToCol}
+                  onAddStart={setAddingTo}
                   onAddCancel={handleAddCancel}
                   onAddSubmit={handleAddSubmit}
                   onCardClick={handleCardClick}

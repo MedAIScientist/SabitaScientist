@@ -517,9 +517,7 @@ function EntriesTab({
                     <p style={{ fontSize: 15, color: 'var(--text-dim)', margin: '0 0 8px' }}>No content.</p>
                   )}
                   <AttachmentList
-                    projectId={projectId}
-                    expId={expId}
-                    entryId={entry.id}
+                    target={{ kind: 'entry', projectId, expId, entryId: entry.id }}
                     accent={accent}
                   />
                   <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>

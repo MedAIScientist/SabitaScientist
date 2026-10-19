@@ -121,6 +121,18 @@ function ExperimentCard({ exp, idx, onExpClick, isSelected, onToggleSelect }: Ex
   )
 }
 
+/**
+ * Where a task is being added: one cell of the board.
+ *
+ * A phase is part of the identity on purpose — a board with phases renders the same
+ * three columns once per lane, so "adding to the planned column" is ambiguous until
+ * the lane is part of it. ``phaseId: null`` is the unassigned lane.
+ */
+export interface AddTarget {
+  phaseId: string | null
+  status: Task['status']
+}
+
 // ── Props ─────────────────────────────────────────────────────────────────────
 export interface DroppableColumnProps {
   col: ColumnDef
@@ -128,10 +140,12 @@ export interface DroppableColumnProps {
   colExps: Experiment[]
   isDropTarget: boolean
   activeTaskId: string | null
-  addingToCol: Task['status'] | null
+  // Whether the add form is open in *this* column. The board knows which phase and
+  // status was clicked; a status alone would open the form in every phase at once.
+  isAdding: boolean
   newTaskTitle: string
   onNewTaskTitleChange: (v: string) => void
-  onAddStart: (status: Task['status']) => void
+  onAddStart: () => void
   onAddCancel: () => void
   onAddSubmit: (title: string) => void
   onCardClick: (task: Task) => void
@@ -145,7 +159,7 @@ export interface DroppableColumnProps {
 
 export function DroppableColumn({
   col, colTasks, colExps, isDropTarget, activeTaskId,
-  addingToCol, newTaskTitle, onNewTaskTitleChange,
+  isAdding, newTaskTitle, onNewTaskTitleChange,
   onAddStart, onAddCancel, onAddSubmit,
   onCardClick, onExpClick, members,
   selectedIds, onToggleSelect,
@@ -241,7 +255,7 @@ export function DroppableColumn({
 
       {/* Add task footer */}
       <div style={{ padding: '6px 9px 9px', flexShrink: 0 }}>
-        {addingToCol === col.key ? (
+        {isAdding ? (
           <form onSubmit={e => { e.preventDefault(); onAddSubmit(newTaskTitle) }}>
             <input
               autoFocus
@@ -277,7 +291,7 @@ export function DroppableColumn({
           </form>
         ) : (
           <button
-            onClick={() => onAddStart(col.key)}
+            onClick={onAddStart}
             style={{
               width: '100%', background: 'none',
               border: `1px dashed rgba(${col.glow},0.2)`,

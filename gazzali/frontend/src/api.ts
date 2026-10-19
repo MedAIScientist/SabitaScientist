@@ -37,6 +37,24 @@ export async function request<T>(
   return resp.json() as Promise<T>
 }
 
+/** Upload a file as multipart to *path*. Shared by every attachment owner. */
+async function uploadFileTo(path: string, file: File): Promise<Attachment> {
+  const token = getToken()
+  const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {}
+  const form = new FormData()
+  form.append('file', file)
+  const resp = await fetch(`${BASE}${path}`, { method: 'POST', headers, body: form })
+  if (resp.status === 401) {
+    sessionStorage.removeItem('pm_token')
+    window.location.href = '/login'
+  }
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ detail: resp.statusText }))
+    throw new Error(err.detail ?? resp.statusText)
+  }
+  return resp.json() as Promise<Attachment>
+}
+
 export const api = {
   login: (username: string, password: string) =>
     request<{ token: string; user_id: string; username: string; is_admin: boolean; role: string }>(
@@ -210,29 +228,37 @@ export const api = {
   // ── Attachments ───────────────────────────────────────────────────────────
   listAttachments: (projectId: string, expId: string, entryId: string) =>
     request<Attachment[]>('GET', `/projects/${projectId}/experiments/${expId}/entries/${entryId}/attachments`),
-  uploadAttachment: (projectId: string, expId: string, entryId: string, file: File): Promise<Attachment> => {
-    const token = getToken()
-    const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {}
-    const form = new FormData()
-    form.append('file', file)
-    return fetch(`${BASE}/projects/${projectId}/experiments/${expId}/entries/${entryId}/attachments`, {
-      method: 'POST',
-      headers,
-      body: form,
-    }).then(async resp => {
-      if (resp.status === 401) {
-        sessionStorage.removeItem('pm_token')
-        window.location.href = '/login'
-      }
-      if (!resp.ok) {
-        const err = await resp.json().catch(() => ({ detail: resp.statusText }))
-        throw new Error(err.detail ?? resp.statusText)
-      }
-      return resp.json() as Promise<Attachment>
-    })
-  },
+  uploadAttachment: (projectId: string, expId: string, entryId: string, file: File) =>
+    uploadFileTo(`/projects/${projectId}/experiments/${expId}/entries/${entryId}/attachments`, file),
+  /** Every file in the project, with the task or entry each belongs to. */
+  listProjectAttachments: (projectId: string, kind?: 'task' | 'entry') =>
+    request<ProjectAttachment[]>(
+      'GET', `/projects/${projectId}/attachments${kind ? `?kind=${kind}` : ''}`,
+    ),
+  /** Files attached to a project task. */
+  listTaskAttachments: (projectId: string, taskId: string) =>
+    request<Attachment[]>('GET', `/projects/${projectId}/tasks/${taskId}/attachments`),
+  uploadTaskAttachment: (projectId: string, taskId: string, file: File) =>
+    uploadFileTo(`/projects/${projectId}/tasks/${taskId}/attachments`, file),
   deleteAttachment: (attachmentId: string) =>
     request<void>('DELETE', `/attachments/${attachmentId}`),
+  /**
+   * The file's bytes, authenticated.
+   *
+   * A presigned URL would be nicer, but the object store is only reachable inside
+   * the deployment's own network, so the browser has to come through the API.
+   */
+  fetchAttachmentBlob: async (attachmentId: string): Promise<Blob> => {
+    const resp = await fetch(`${BASE}/attachments/${attachmentId}/content`, {
+      headers: authHeaders(),
+    })
+    if (resp.status === 401) {
+      sessionStorage.removeItem('pm_token')
+      window.location.href = '/login'
+    }
+    if (!resp.ok) throw new Error(resp.statusText || 'Could not open the file')
+    return resp.blob()
+  },
 
   // ── Admissions ────────────────────────────────────────────────────────────
   listAdmissions: (status?: string) => {
@@ -918,9 +944,27 @@ export async function assignExperimentPhase(
   }
 }
 
+/** A file in the project-wide view, with its owner. */
+export interface ProjectAttachment {
+  id: string
+  filename: string
+  content_type: string
+  size_bytes: number
+  classification: string
+  created_at: string
+  uploaded_by: string | null
+  uploader_name: string | null
+  owner_kind: 'task' | 'entry'
+  owner_id: string
+  owner_title: string
+  experiment_id: string | null
+}
+
 export interface Attachment {
   id: string
-  entry_id: string
+  // Exactly one owner is set: an experiment entry or a task.
+  entry_id: string | null
+  task_id?: string | null
   filename: string
   content_type: string
   size_bytes: number
@@ -1631,4 +1675,380 @@ export const paperApi = {
     request<{ title: string; manuscript: { version_id: string | null; length: number; section: string | null }; claim_map_size: number; evidence_snapshot_id: string | null; ai_disclosure: { ai_versions: number; human_versions: number }; integrity_passed: boolean; open_review_points: number }>(
       'POST', `/publications/${pubId}/submit-pack`
     ),
+}
+
+// ---------------------------------------------------------------------------
+// Cohort analysis (plan/cohort-analiz-roadmap.md)
+// ---------------------------------------------------------------------------
+
+export interface CohortColumnMeta {
+  name: string
+  dtype: string
+  kind: 'numeric' | 'categorical' | 'datetime' | 'boolean'
+  missing: number
+  levels: number | null
+}
+
+export interface CohortParseReport {
+  filename: string
+  suffix: string
+  encoding: string | null
+  delimiter: string | null
+  sheet: string | null
+  lines: number | null
+  rows: number
+  columns: number
+  skipped_lines: number
+  blanks: number
+  warnings: string[]
+}
+
+export interface CohortVersion {
+  id: string
+  table_id: string
+  version_no: number
+  rows: number
+  columns: number
+  columns_meta: CohortColumnMeta[]
+  content_sha256: string
+  parent_version_id: string | null
+  parse_report: CohortParseReport | null
+  note: string | null
+  created_by: string
+  created_at: string
+}
+
+export interface CohortPopulation {
+  id: string
+  table_id: string
+  version_id: string
+  name: string
+  criteria: { id: string; family: string; kind: string; name: string; definition?: unknown }[]
+  stages: { family: string; kind: string; n_in?: number; excluded?: number; n_out?: number }[]
+  counts: {
+    id: string
+    name: string
+    kind: string
+    marginal_base: number
+    marginal_in_stage: number
+    sequential: number
+  }[]
+  n_base: number
+  n_included: number
+  fingerprint: string
+  superseded_by: string | null
+  created_by: string
+  created_at: string
+}
+
+export interface CohortTable {
+  id: string
+  project_id: string
+  lab_id: string | null
+  name: string
+  description: string | null
+  data_origin: 'public' | 'synthetic' | 'governed'
+  dataset_id: string | null
+  config: { mask_families?: Record<string, unknown> }
+  dictionary: Record<string, { label?: string; unit?: string }>
+  created_by: string
+  created_at: string
+  updated_at: string
+  versions: CohortVersion[]
+  latest_version: CohortVersion | null
+  populations: CohortPopulation[]
+  active_population: CohortPopulation | null
+}
+
+export interface CohortCriterion {
+  id: string
+  family: string
+  kind: 'inclusion' | 'exclusion'
+  name: string
+  description: string
+  columns: string[]
+}
+
+export interface CohortAnalysisValue {
+  name: string
+  label: string | null
+  value: number
+  unit: string | null
+  ci_low: number | null
+  ci_high: number | null
+  p_value: number | null
+  n: number | null
+}
+
+export interface CohortCell {
+  key: string
+  label: string
+}
+
+export interface CohortRow {
+  label: string
+  column?: string
+  kind?: 'numeric' | 'categorical'
+  level?: string
+  header?: boolean
+  cells?: Record<string, string>
+  value?: string
+  missing?: number
+  n?: number
+  mean_sd?: string
+  median_iqr?: string
+  p?: number | null
+  p_adjusted?: number | null
+  effect?: { name: string; estimate: number; ci: number[] | null; magnitude: string } | null
+  test?: string
+  warnings?: string[]
+}
+
+export interface CohortRenderedTable {
+  columns: (string | CohortCell)[]
+  rows: CohortRow[]
+  notes?: string[]
+  adjustment?: string | null
+  group?: string | null
+  summary?: string
+}
+
+export interface CohortAnalysis {
+  id: string
+  population_id: string
+  method: CohortMethod
+  params: Record<string, unknown>
+  result: Record<string, unknown>
+  table: CohortRenderedTable | null
+  n: number
+  engine_version: string
+  population_fingerprint: string
+  status: 'current' | 'stale' | 'failed'
+  stale_reason: string | null
+  error: string | null
+  created_by: string
+  created_at: string
+  values: CohortAnalysisValue[]
+}
+
+export interface CohortFlowBox {
+  id: string
+  label: string
+  n: number
+  kind: string
+  details?: string[]
+  added?: number
+}
+
+export interface CohortFlowExit {
+  id: string
+  after: string
+  label: string
+  n: number
+  reasons: [string, number][]
+  details?: string[]
+}
+
+export interface CohortFlow {
+  main: CohortFlowBox[]
+  exits: CohortFlowExit[]
+  analyses: CohortFlowBox[]
+  notes: string[]
+  inconsistencies: string[]
+}
+
+export interface CohortQuality {
+  version_id: string
+  version_no: number
+  rows: number
+  columns: number
+  score: number
+  band: string
+  dimensions: { key: string; label: string; score: number; weight: number; band: string }[]
+  missing: { column: string; missing: number; share: number }[]
+  duplicates: { rows: number; share: number }
+  inconsistent: { column: string; issues: string[]; rows: number }[]
+  non_uniform: { column: string; rows: number; variants: number; example: string }[]
+  outliers: { column: string; rows: number; share: number; iqr_bounds: number[]; beyond_z: number }[]
+  clinical_rules: { id: string; family: string; name: string; kind: string; rows: number }[]
+  warnings: string[]
+}
+
+export interface CohortStep {
+  id: string
+  seq: number
+  kind: 'import' | 'derive' | 'filter' | 'population'
+  params: Record<string, unknown>
+  data: Record<string, unknown>
+  version_id: string
+  out_version_id: string | null
+  prev_hash: string
+  hash: string
+  created_by: string | null
+  created_at: string
+}
+
+export interface CohortTrace {
+  table_id: string
+  steps: CohortStep[]
+  chain: { verified: boolean; steps: number; problems: string[]; head: string | null }
+}
+
+export interface CohortReplay {
+  table_id: string
+  steps: { seq: number; kind: string; version_no: number | null; status: string; detail: string }[]
+  reconciled: boolean
+  problems: string[]
+}
+
+export type CohortMethod =
+  | 'descriptive'
+  | 'table1'
+  | 'compare'
+  | 'survival'
+  | 'cox'
+  | 'diagnostic'
+  | 'ratio2x2'
+  | 'logistic'
+  | 'mantel_haenszel'
+  | 'agreement'
+  | 'mcar'
+  | 'multiple_imputation'
+
+export interface CohortAnalysisRequest {
+  method: CohortMethod
+  variables?: string[]
+  group?: string | null
+  outcome?: string | null
+  kind?: string
+  summary?: string
+  adjust?: string
+  alpha?: number
+  /** Survival: follow-up time and event indicator (1 = event, 0 = censored). */
+  time?: string | null
+  event?: string | null
+  /** Cox: the model's covariates. */
+  covariates?: string[]
+  /** Diagnostic accuracy: the test column and an optional fixed cut-off. */
+  test?: string | null
+  cutoff?: number | null
+  pos_label?: string | null
+  /** 2x2 association: the exposure column. */
+  exposure?: string | null
+  /** Logistic: the outcome level that counts as the event. */
+  event_level?: string | null
+  /** Mantel-Haenszel: the column whose strata are pooled. */
+  stratum?: string | null
+  /** Agreement: the measurement columns and which measure to compute. */
+  raters?: string[]
+  measure?: string
+  weights?: string | null
+  icc_model?: string
+  /** Multiple imputation: what to pool, how many imputations, and the seed. */
+  target?: 'compare' | 'logistic' | 'cox' | null
+  m?: number
+  maxit?: number
+  seed?: number | null
+}
+
+/** Upload a cohort table file; the version endpoint takes multipart, not JSON. */
+async function uploadCohortFile(path: string, file: File): Promise<CohortVersion> {
+  const token = sessionStorage.getItem('pm_token')
+  const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {}
+  const form = new FormData()
+  form.append('file', file)
+  const resp = await fetch(`${BASE}${path}`, { method: 'POST', headers, body: form })
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ detail: resp.statusText }))
+    throw new Error(err.detail ?? resp.statusText)
+  }
+  return resp.json() as Promise<CohortVersion>
+}
+
+/** Download an endpoint that needs the bearer token (a plain link would not send it). */
+async function downloadWithAuth(path: string, filename: string): Promise<void> {
+  const token = sessionStorage.getItem('pm_token')
+  const resp = await fetch(`${BASE}${path}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ detail: resp.statusText }))
+    throw new Error(err.detail ?? resp.statusText)
+  }
+  const blob = await resp.blob()
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
+export const cohortApi = {
+  listTables: (projectId: string) =>
+    request<CohortTable[]>('GET', `/projects/${projectId}/cohort/tables`),
+  getTable: (projectId: string, tableId: string) =>
+    request<CohortTable>('GET', `/projects/${projectId}/cohort/tables/${tableId}`),
+  createTable: (
+    projectId: string,
+    data: { name: string; description?: string; data_origin: 'public' | 'synthetic' | 'governed'; dataset_id?: string },
+  ) => request<CohortTable>('POST', `/projects/${projectId}/cohort/tables`, data),
+  updateTable: (
+    projectId: string,
+    tableId: string,
+    data: { name?: string; description?: string; config?: unknown; dictionary?: unknown },
+  ) => request<CohortTable>('PATCH', `/projects/${projectId}/cohort/tables/${tableId}`, data),
+  deleteTable: (projectId: string, tableId: string) =>
+    request<void>('DELETE', `/projects/${projectId}/cohort/tables/${tableId}`),
+  listCriteria: (projectId: string, tableId: string) =>
+    request<CohortCriterion[]>('GET', `/projects/${projectId}/cohort/tables/${tableId}/criteria`),
+
+  uploadVersion: (projectId: string, tableId: string, file: File) =>
+    uploadCohortFile(`/projects/${projectId}/cohort/tables/${tableId}/versions`, file),
+  preview: (projectId: string, tableId: string, versionId: string) =>
+    request<{ version_id: string; rows: number; shown: number; columns: string[]; rows_data: Record<string, unknown>[] }>(
+      'GET', `/projects/${projectId}/cohort/tables/${tableId}/versions/${versionId}/preview`,
+    ),
+  derive: (projectId: string, tableId: string, versionId: string, name: string, expression: string) =>
+    request<CohortVersion>(
+      'POST',
+      `/projects/${projectId}/cohort/tables/${tableId}/versions/${versionId}/derive`,
+      { name, expression },
+    ),
+  quality: (projectId: string, tableId: string, versionId: string) =>
+    request<CohortQuality>('GET', `/projects/${projectId}/cohort/tables/${tableId}/versions/${versionId}/quality`),
+
+  createPopulation: (projectId: string, tableId: string, name: string, criteria: string[]) =>
+    request<CohortPopulation>('POST', `/projects/${projectId}/cohort/tables/${tableId}/populations`, { name, criteria }),
+  flow: (projectId: string, tableId: string, populationId: string) =>
+    request<CohortFlow>('GET', `/projects/${projectId}/cohort/tables/${tableId}/populations/${populationId}/flow`),
+
+  runAnalysis: (projectId: string, tableId: string, populationId: string, body: CohortAnalysisRequest) =>
+    request<CohortAnalysis>(
+      'POST',
+      `/projects/${projectId}/cohort/tables/${tableId}/populations/${populationId}/analyses`,
+      body,
+    ),
+  listAnalyses: (projectId: string, tableId: string, populationId: string) =>
+    request<CohortAnalysis[]>(
+      'GET', `/projects/${projectId}/cohort/tables/${tableId}/populations/${populationId}/analyses`,
+    ),
+  getAnalysis: (projectId: string, tableId: string, analysisId: string) =>
+    request<CohortAnalysis>('GET', `/projects/${projectId}/cohort/tables/${tableId}/analyses/${analysisId}`),
+  publish: (projectId: string, tableId: string, analysisId: string, experimentId: string, names: string[]) =>
+    request<{ analysis_id: string; experiment_id: string; published: { name: string; label: string | null; value: number }[] }>(
+      'POST', `/projects/${projectId}/cohort/tables/${tableId}/analyses/${analysisId}/publish`,
+      { experiment_id: experimentId, names },
+    ),
+  exportAnalysis: (projectId: string, tableId: string, analysisId: string, filename: string) =>
+    downloadWithAuth(
+      `/projects/${projectId}/cohort/tables/${tableId}/analyses/${analysisId}/export`, filename,
+    ),
+
+  trace: (projectId: string, tableId: string) =>
+    request<CohortTrace>('GET', `/projects/${projectId}/cohort/tables/${tableId}/trace`),
+  replay: (projectId: string, tableId: string) =>
+    request<CohortReplay>('POST', `/projects/${projectId}/cohort/tables/${tableId}/replay`),
 }

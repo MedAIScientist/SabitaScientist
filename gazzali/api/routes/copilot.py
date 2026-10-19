@@ -20,6 +20,7 @@ awaits approval · ``error`` readable message · ``status`` ``done`` (always las
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import re
@@ -41,14 +42,60 @@ from pydantic import BaseModel, Field
 from gazzali.agent_tools import PM_TOOLS, WRITE_TOOL_NAMES, current_user_id
 from gazzali.models import User
 
-from ... import settings
-from ..._ai import get_pm_chat_model, is_gone
+from ... import _ai, settings
+from ..._ai import get_pm_chat_model, is_gone, is_transient
+from ...crud.ai_usage import UsageContext, extract_usage, record_usage_safely
 from ..deps import get_current_user
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+# Tool schemas are the bulk of every copilot request: all 19 of them cost roughly
+# 3.2k tokens before the user has typed anything. Most are irrelevant to the page the
+# user is on, so each turn sends a small core plus that page's own tools. The full
+# registry is still used to *run* tools, so an action the user approved earlier keeps
+# working even when it is not in the current page's set.
+CORE_TOOLS = ("pm_global_search", "pm_list_projects")
+
+PAGE_TOOLS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "/projects",
+        (
+            "pm_get_project", "pm_list_tasks", "pm_create_task",
+            "pm_list_experiments", "pm_create_experiment",
+            "pm_list_experiment_entries", "pm_add_experiment_entry",
+            "pm_create_publication",
+        ),
+    ),
+    (
+        "/publications",
+        (
+            "pm_list_publications", "pm_get_publication", "pm_create_publication",
+            "pm_list_experiments", "pm_list_experiment_entries", "pm_add_experiment_entry",
+        ),
+    ),
+    ("/labs", ("pm_list_labs", "pm_get_lab", "pm_create_lab", "pm_create_project")),
+    ("/grants", ("pm_list_grants",)),
+    ("/conferences", ("pm_list_conferences",)),
+    ("/irb", ("pm_list_irbs",)),
+    ("/supervision", ()),
+    ("/journey", ()),
+    ("/requirements", ()),
+    ("/weekly-update", ()),
+)
+
+# Anything else (home, admin, people, memory, health…): a browsing set plus the one
+# creation an admin most often wants from the landing page.
+DEFAULT_TOOLS = (
+    "pm_create_project", "pm_list_publications", "pm_list_labs",
+    "pm_list_grants", "pm_list_conferences", "pm_list_irbs",
+)
+
 _MAX_TOOL_ROUNDS = 8
+GENERIC_FAILURE = "The assistant ran into a problem. Please try again."
+BUSY_PROVIDER = "The AI provider is temporarily overloaded. Please try again in a moment."
+CUT_SHORT = "The reply was cut short because the AI provider dropped the connection. Please try again."
+
 _MAX_HISTORY_TURNS = 20
 _TOOLS_BY_NAME = {t.name: t for t in PM_TOOLS}
 
@@ -80,6 +127,24 @@ def _get_model():
     return get_pm_chat_model(temperature=0.3, streaming=True)
 
 
+def tools_for(context: dict | None) -> list:
+    """The tools worth sending for the page the user is on.
+
+    Narrowing the set is a cost decision, so the model is told about it in the system
+    prompt: asked for something outside this page, it should point at the right page
+    rather than invent a tool or claim success it cannot deliver.
+    """
+    page = (context or {}).get("page") or ""
+    names = set(CORE_TOOLS)
+    for prefix, group in PAGE_TOOLS:
+        if page.startswith(prefix):
+            names.update(group)
+            break
+    else:
+        names.update(DEFAULT_TOOLS)
+    return [t for t in PM_TOOLS if t.name in names]
+
+
 def _system_prompt(context: dict | None) -> str:
     ctx = context or {}
     parts = [
@@ -88,6 +153,9 @@ def _system_prompt(context: dict | None) -> str:
         "Tools that create things are shown to the user for confirmation before they run,",
         "so call them directly with complete arguments when the user asks for a change.",
         "Never invent results, numbers or citations. Answer concisely, in the user's language.",
+        "Only the tools that fit the current page are available. If the user asks for",
+        "something you cannot do here, name the page where it is possible instead of",
+        "guessing or claiming it is done.",
     ]
     if ctx.get("project_id"):
         parts.append(f"The user is looking at project {ctx['project_id']}; assume that project unless they name another.")
@@ -130,6 +198,31 @@ def result_link(name: str, args: dict, result: str) -> str | None:
 
 def _event(kind: str, **data: Any) -> str:
     return f"data: {json.dumps({'type': kind, **data})}\n\n"
+
+
+def _record_round(
+    full: Any, model: Any, messages: list[BaseMessage], body: CopilotRequest, user_id: str
+) -> None:
+    """Account for one streamed round: the copilot spends tokens like any other feature.
+
+    Best-effort by design — a bookkeeping failure must never break a conversation —
+    and an estimated row is labelled as an estimate by the accounting layer, so the
+    usage panel never presents a guess as a measurement.
+    """
+    prompt_tokens, completion_tokens, total_tokens = extract_usage(full)
+    record_usage_safely(
+        context=UsageContext(
+            task="copilot",
+            user_id=user_id,
+            project_id=(body.context or {}).get("project_id"),
+        ),
+        model=getattr(model, "model_name", None),
+        prompt_tokens=prompt_tokens,
+        completion_tokens=completion_tokens,
+        total_tokens=total_tokens,
+        prompt_chars=sum(len(str(m.content or "")) for m in messages),
+        output_chars=len(_text_of(getattr(full, "content", ""))),
+    )
 
 
 async def _call_tool(name: str, args: dict) -> str:
@@ -189,8 +282,9 @@ async def _copilot_steps(body: CopilotRequest, user_id: str) -> AsyncGenerator[s
             messages.append(AIMessage(content="", tool_calls=[{"id": call_id, "name": name, "args": args}]))
             messages.append(ToolMessage(result, tool_call_id=call_id))
 
+        selected_tools = tools_for(body.context)
         try:
-            model = _get_model().bind_tools(PM_TOOLS)
+            model = _get_model().bind_tools(selected_tools)
         except NotImplementedError:
             yield _event("error", message="The configured AI model cannot use tools. Choose another model in Settings.")
             return
@@ -198,22 +292,41 @@ async def _copilot_steps(body: CopilotRequest, user_id: str) -> AsyncGenerator[s
         fallbacks = settings.llm_models()[1:]
         for _ in range(_MAX_TOOL_ROUNDS):
             full: Any = None
-            try:
-                async for chunk in model.astream(messages):
-                    full = chunk if full is None else full + chunk
-                    if text := _text_of(chunk.content):
-                        yield _event("token", data=text)
-            except Exception as exc:
-                # The provider retired the model: retry this round on the next one.
-                if not (is_gone(exc) and full is None and fallbacks):
+            retried = False
+            while True:
+                try:
+                    async for chunk in model.astream(messages):
+                        full = chunk if full is None else full + chunk
+                        if text := _text_of(chunk.content):
+                            yield _event("token", data=text)
+                    break
+                except Exception as exc:
+                    # Once text has been shown to the user, replaying the round would
+                    # duplicate it; say the reply was cut short instead.
+                    if full is not None:
+                        logger.warning("Copilot stream broke mid-answer: %s", exc)
+                        yield _event("error", message=CUT_SHORT)
+                        return
+                    # A busy provider usually clears in a moment, so the same model
+                    # gets one silent second chance before the next one is tried.
+                    if is_transient(exc) and not retried:
+                        retried = True
+                        logger.warning("Copilot model %s is busy (%s); retrying once", model.model_name, exc)
+                        await asyncio.sleep(_ai.RETRY_DELAY_S)
+                        continue
+                    if (is_gone(exc) or is_transient(exc)) and fallbacks:
+                        logger.warning("Copilot falling back from %s (%s)", model.model_name, exc)
+                        model = get_pm_chat_model(
+                            temperature=0.3, streaming=True, model=fallbacks.pop(0)
+                        ).bind_tools(selected_tools)
+                        retried = False
+                        continue
                     raise
-                model = get_pm_chat_model(temperature=0.3, streaming=True, model=fallbacks.pop(0)).bind_tools(PM_TOOLS)
-                async for chunk in model.astream(messages):
-                    full = chunk if full is None else full + chunk
-                    if text := _text_of(chunk.content):
-                        yield _event("token", data=text)
             if full is None:
                 return
+            # One row per round, whether it ends in a tool call or an answer: each
+            # round is a separate LLM call and would otherwise be invisible.
+            _record_round(full, model, messages, body, user_id)
             calls = list(getattr(full, "tool_calls", None) or [])
             if not calls:
                 return
@@ -231,9 +344,14 @@ async def _copilot_steps(body: CopilotRequest, user_id: str) -> AsyncGenerator[s
                              ok=not result.startswith("Error"), summary=result[:300], link=None)
                 messages.append(ToolMessage(result, tool_call_id=call["id"]))
         yield _event("error", message="Stopped after several tool steps. Try a more specific request.")
-    except Exception:
+    except Exception as exc:
         logger.exception("Copilot failed")
-        yield _event("error", message="The assistant ran into a problem. Please try again.")
+        # A busy provider is not a bug in the assistant, and saying so lets the user
+        # decide whether to wait; anything else keeps the generic wording.
+        yield _event(
+            "error",
+            message=BUSY_PROVIDER if is_transient(exc) else GENERIC_FAILURE,
+        )
     finally:
         current_user_id.reset(token)
 

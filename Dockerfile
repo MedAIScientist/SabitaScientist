@@ -11,29 +11,16 @@ RUN npm ci --silent
 COPY gazzali/frontend/ ./
 RUN npm run build
 
-# ---------- Python builder ----------
-FROM ${BASE_IMAGE} AS builder
-
-ENV UV_COMPILE_BYTECODE=1 \
-    UV_LINK_MODE=copy \
-    UV_PYTHON_DOWNLOADS=never \
-    UV_PROJECT_ENVIRONMENT=/opt/venv
-
-WORKDIR /src
-
-COPY pyproject.toml uv.lock README.md ./
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-install-project --no-dev
-
-COPY gazzali/ ./gazzali/
-COPY --from=frontend-builder /frontend/dist ./gazzali/frontend/dist
-
-# --reinstall-package: uv otherwise reuses the wheel it cached for the project on
-# a previous build, so newly added modules never reach site-packages.
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-editable --reinstall-package gazzali
-
 # ---------- Runtime ----------
+# The Python environment is installed in ONE stage, deliberately.
+#
+# The earlier layout built the virtualenv in a separate stage and then copied it in
+# whole. Because the project is reinstalled on every build (see --reinstall-package
+# below), that copy's 164 MB / ~8000 files were re-created and re-exported on every
+# source change, which measured as the slowest part of a deploy: 22s to copy, then
+# 67s exporting layers and 33s unpacking, against 4s of actual building when nothing
+# changed. Installing into the runtime image directly leaves the dependency layer
+# cached and only the application code to export.
 FROM ${BASE_IMAGE} AS runtime
 
 RUN apt-get update \
@@ -45,13 +32,35 @@ ARG GID=1000
 RUN groupadd --gid ${GID} gazzali \
     && useradd --uid ${UID} --gid ${GID} --create-home --shell /bin/bash gazzali
 
-COPY --from=builder /opt/venv /opt/venv
-
-ENV PATH="/opt/venv/bin:${PATH}" \
+ENV UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_PROJECT_ENVIRONMENT=/opt/venv \
+    PATH="/opt/venv/bin:${PATH}" \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     GAZZALI_WORKSPACE_DIR=/workspace \
     GAZZALI_DATA_DIR=/home/gazzali/.gazzali
+
+WORKDIR /src
+
+# Dependencies on their own layer: editing application code must not reinstall them.
+COPY pyproject.toml uv.lock README.md ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-install-project --no-dev
+
+# The SPA is served from the installed package, so dist must be in place before the
+# project is installed — the wheel carries it (see package-data in pyproject.toml).
+COPY gazzali/ ./gazzali/
+COPY --from=frontend-builder /frontend/dist ./gazzali/frontend/dist
+
+# --reinstall-package: uv otherwise reuses the wheel it cached for the project on
+# a previous build, so newly added modules never reach site-packages.
+# /src is build input only — the package is installed non-editable, so removing it in
+# this same layer keeps the source tree out of the image.
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-editable --reinstall-package gazzali \
+    && rm -rf /src
 
 RUN mkdir -p /workspace /home/gazzali/.gazzali \
     && chown -R ${UID}:${GID} /workspace /home/gazzali

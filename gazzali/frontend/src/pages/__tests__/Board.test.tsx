@@ -261,3 +261,97 @@ describe('Board', () => {
     expect(screen.queryByText(/1 task selected/i)).toBeNull()
   })
 })
+
+// ── Adding a task belongs to the cell that was clicked ────────────────────────
+//
+// Reported: "+ Add task" opened in every phase at once, and the task then appeared
+// under "Unassigned" instead of the phase whose column was clicked.
+
+describe('Board — adding a task to a specific phase column', () => {
+  const LANE_A: ProjectPhase = {
+    id: 'phase-a', project_id: 'proj-1', name: 'Data Analysis', color: '#8b5cf6',
+    position: 0, target_date: null, created_by: 'u1', created_at: '2026-01-01',
+  }
+  const LANE_B: ProjectPhase = {
+    id: 'phase-b', project_id: 'proj-1', name: 'Writing', color: '#10b981',
+    position: 1, target_date: null, created_by: 'u1', created_at: '2026-01-01',
+  }
+
+  function renderWithPhases() {
+    vi.mocked(useQuery).mockReset()
+    const projectReturn = { data: MOCK_PROJECT } as any
+    const tasksReturn = { data: TASKS } as any
+    const expsReturn = { data: [] } as any
+    const phasesReturn = { data: [LANE_A, LANE_B] } as any
+    for (let cycle = 0; cycle < 4; cycle++) {
+      vi.mocked(useQuery)
+        .mockReturnValueOnce(projectReturn)
+        .mockReturnValueOnce(tasksReturn)
+        .mockReturnValueOnce(expsReturn)
+        .mockReturnValueOnce(phasesReturn)
+    }
+    renderBoard()
+  }
+
+  /** The "+ Add task" button belonging to one phase's PLANNED column. */
+  function addButtonFor(phaseName: string): HTMLElement {
+    const lane = screen.getByText(phaseName).closest('div')!.parentElement!
+    const buttons = Array.from(lane.querySelectorAll('button')).filter(b => /Add task/i.test(b.textContent || ''))
+    expect(buttons.length).toBeGreaterThan(0)
+    return buttons[0]
+  }
+
+  test('opens the form in one column only, not in every phase', () => {
+    renderWithPhases()
+    expect(screen.queryAllByPlaceholderText('Task title…')).toHaveLength(0)
+
+    fireEvent.click(addButtonFor('Data Analysis'))
+
+    // Before the fix this was 3 per phase: the form was keyed on the status alone.
+    expect(screen.getAllByPlaceholderText('Task title…')).toHaveLength(1)
+  })
+
+  test('sends the clicked phase with the new task', () => {
+    renderWithPhases()
+    fireEvent.click(addButtonFor('Writing'))
+
+    const input = screen.getByPlaceholderText('Task title…')
+    fireEvent.change(input, { target: { value: 'Draft the methods' } })
+    fireEvent.submit(input.closest('form')!)
+
+    expect(mockMutate).toHaveBeenCalledWith({
+      title: 'Draft the methods',
+      status: 'todo',
+      phaseId: 'phase-b',
+    })
+  })
+
+  test('the mutation creates the task in that phase', async () => {
+    renderWithPhases()
+    // The first useMutation in Board is the create-task one.
+    const createConfig = vi.mocked(useMutation).mock.calls[0][0] as { mutationFn: (v: unknown) => Promise<unknown> }
+    await createConfig.mutationFn({ title: 'Draft the methods', status: 'todo', phaseId: 'phase-b' })
+
+    const { api } = await import('../../api')
+    expect(vi.mocked(api.createTask)).toHaveBeenCalledWith('proj-1', {
+      title: 'Draft the methods',
+      status: 'todo',
+      phase_id: 'phase-b',
+    })
+  })
+
+  test('the unassigned lane creates a task with no phase', () => {
+    renderWithPhases()
+    fireEvent.click(addButtonFor('Unassigned'))
+
+    const input = screen.getByPlaceholderText('Task title…')
+    fireEvent.change(input, { target: { value: 'Loose end' } })
+    fireEvent.submit(input.closest('form')!)
+
+    expect(mockMutate).toHaveBeenCalledWith({
+      title: 'Loose end',
+      status: 'todo',
+      phaseId: null,
+    })
+  })
+})

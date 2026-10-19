@@ -51,6 +51,21 @@ wait $BUILD_PID && echo "  ✓ Build complete" || {
     echo "  ✗ Build failed"; exit 1
 }
 
+# Keep the build cache bounded. It had grown to 60 GB on a 97 GB disk (81% full) — a
+# disk-space risk rather than a speed one, since builds are just as fast against a small
+# cache. Deleting tens of GB takes minutes and competes for the disk, so it runs detached
+# on the server, and only for a cache that has genuinely ballooned: trimming just below
+# this threshold frees little while slowing the deploy it runs alongside. A failure here
+# must never fail the deploy.
+CACHE_SIZE=$(${SSH} "docker system df --format '{{.Type}}|{{.Size}}' 2>/dev/null | awk -F'|' '/Build Cache/ {print \$2}'" || true)
+CACHE_GB=$(echo "${CACHE_SIZE}" | tr -d 'GB ' | cut -d. -f1)
+if [ -n "${CACHE_GB}" ] && [ "${CACHE_GB}" -gt 40 ] 2>/dev/null; then
+    echo "  ... build cache is ${CACHE_SIZE}; trimming in the background"
+    ${SSH} "nohup sh -c 'docker builder prune -f --keep-storage 20GB >/dev/null 2>&1; docker image prune -f >/dev/null 2>&1' >/dev/null 2>&1 &" \
+        && echo "  ✓ Cache trim started (does not block this deploy)" \
+        || echo "  ⚠ cache trim not started"
+fi
+
 # ── Step 4: Deploy containers + fast frontend ────────────────────────────
 echo "[4/5] Deploying containers + fast frontend..."
 # Sync dist to server temp dir for fast docker cp after restart

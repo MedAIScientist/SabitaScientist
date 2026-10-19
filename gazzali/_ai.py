@@ -97,9 +97,73 @@ def _record_call(
 # The model was retired or renamed by the provider: try the next configured one.
 GONE = (404, 410)
 
+# The provider is momentarily unavailable: overloaded, rate-limited, or a 5xx.
+# These clear on their own, so they deserve a retry instead of an apology.
+TRANSIENT = (408, 409, 425, 429, 500, 502, 503, 504)
+RETRY_DELAY_S = 1.5
+
 
 def is_gone(exc: Exception) -> bool:
     return isinstance(exc, openai.APIStatusError) and exc.status_code in GONE
+
+
+def is_transient(exc: Exception) -> bool:
+    """True when waiting a moment and asking again is likely to work.
+
+    The provider reports overload in more than one shape: a streaming call raises a
+    bare ``APIError`` whose message carries the reason and no status code at all,
+    while an ordinary call raises ``APIStatusError`` with one. To a user these mean
+    the same thing, so both are recognised.
+    """
+    if isinstance(exc, (openai.APIConnectionError, openai.APITimeoutError)):
+        return True
+    if isinstance(exc, openai.APIStatusError) and exc.status_code in TRANSIENT:
+        return True
+    if isinstance(exc, openai.APIError):
+        message = str(exc).lower()
+        return any(
+            phrase in message
+            for phrase in ("overload", "temporarily", "rate limit", "try again")
+        )
+    return False
+
+
+async def _invoke_with_fallbacks(
+    messages: list, *, temperature: float, max_tokens: int | None, models: list[str]
+) -> tuple[object, str, int]:
+    """Answer from the first model that can, returning (result, model, elapsed_ms).
+
+    The two failure kinds are treated differently because they are different: a
+    retired model (404/410) is never coming back, while a busy provider usually
+    clears within a second. So a busy model gets one quick second chance, and only
+    then does the next configured model take over.
+    """
+    last: Exception | None = None
+    for index, name in enumerate(models):
+        for attempt in (1, 2):
+            chat = get_pm_chat_model(
+                temperature=temperature, max_tokens=max_tokens, model=name
+            )
+            started = time.monotonic()
+            try:
+                result = await chat.ainvoke(messages)
+            except Exception as exc:
+                last = exc
+                if is_transient(exc) and attempt == 1:
+                    logger.warning("model %s is busy (%s); retrying once", name, exc)
+                    await asyncio.sleep(RETRY_DELAY_S)
+                    continue
+                if (is_gone(exc) or is_transient(exc)) and index < len(models) - 1:
+                    logger.warning(
+                        "model %s failed (%s); falling back to %s",
+                        name,
+                        exc,
+                        models[index + 1],
+                    )
+                    break
+                raise
+            return result, chat.model_name, int((time.monotonic() - started) * 1000)
+    raise last if last is not None else RuntimeError("no AI model is configured")
 
 
 async def run_llm_direct_async(
@@ -115,26 +179,13 @@ async def run_llm_direct_async(
     if skill_guidance:
         system_prompt = _with_skill_guidance(system_prompt, skill_guidance)
     models = [model] if model else settings.llm_models()
-    for i, name in enumerate(models):
-        chat = get_pm_chat_model(temperature=temperature, max_tokens=max_tokens, model=name)
-        started = time.monotonic()
-        try:
-            result = await chat.ainvoke(
-                [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)]
-            )
-            break
-        except openai.APIStatusError as exc:
-            if not is_gone(exc) or i == len(models) - 1:
-                raise
-            logger.warning("model %s is gone (%s); falling back to %s", name, exc.status_code, models[i + 1])
-    _record_call(
-        context,
-        chat.model_name,
-        system_prompt,
-        user_prompt,
-        result,
-        int((time.monotonic() - started) * 1000),
+    result, model_name, elapsed_ms = await _invoke_with_fallbacks(
+        [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)],
+        temperature=temperature,
+        max_tokens=max_tokens,
+        models=models,
     )
+    _record_call(context, model_name, system_prompt, user_prompt, result, elapsed_ms)
     return str(result.content)
 
 

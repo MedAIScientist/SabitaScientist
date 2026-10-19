@@ -19,6 +19,11 @@ dependencies = [
     "markdown>=3.7",
     "langchain-core>=1.0",
     "langchain-openai>=1.2",
+    "numpy>=2.0",
+    "pandas>=2.2",
+    "scipy>=1.13",
+    "statsmodels>=0.14",
+    "pyarrow>=17",
 ]
 
 [dependency-groups]
@@ -81,6 +86,10 @@ exclude = [
     "node_modules",
     "site-packages",
     "venv",
+    # Vendored from Cohort-Studio (Apache-2.0, see gazzali/cohort/vendor/NOTICE).
+    # Kept byte-identical apart from the import rewrite so it can be re-synced from
+    # upstream; formatting it here would make every future sync a noisy diff.
+    "gazzali/cohort/vendor",
 ]
 
 line-length = 88

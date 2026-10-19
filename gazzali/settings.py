@@ -28,6 +28,10 @@ RUNS_DIR = _env_path("GAZZALI_RUNS_DIR", WORKSPACE_ROOT / "runs")
 DATA_DIR = _env_path("GAZZALI_DATA_DIR", Path.home() / ".gazzali")
 USER_SKILLS_DIR = _env_path("GAZZALI_SKILLS_DIR", WORKSPACE_ROOT / "skills")
 GLOBAL_SKILLS_DIR = DATA_DIR / "skills"
+# Immutable cohort-data versions, one Parquet file per version. Next to `runs/`
+# rather than under DATA_DIR, because DATA_DIR is not a mounted volume in the
+# production container: analysis files must survive a redeploy.
+COHORT_DIR = _env_path("GAZZALI_COHORT_DIR", WORKSPACE_ROOT / "cohort")
 
 # The model behind the PM's direct AI calls, background runs and the copilot (which
 # needs native tool calls), on NVIDIA's free API (~40 requests/minute). Providers retire

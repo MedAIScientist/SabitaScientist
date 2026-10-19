@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api, Attachment } from '../api'
+import { fileIcon, formatBytes, isViewable, openAttachmentFile } from '../attachments'
 
 const MAX_MB = 50
 const ALLOWED_TYPES = [
@@ -12,42 +13,44 @@ function isAllowedType(type: string) {
   return ALLOWED_TYPES.some(t => type.startsWith(t))
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
-function fileIcon(contentType: string): string {
-  if (contentType.startsWith('image/')) return '🖼'
-  if (contentType === 'application/pdf') return '📄'
-  if (contentType.startsWith('text/') || contentType === 'application/json') return '📝'
-  if (['application/zip', 'application/gzip', 'application/x-tar'].includes(contentType)) return '📦'
-  return '📎'
-}
+/**
+ * What the files belong to. An attachment has exactly one owner, so the component
+ * asks for the owner rather than a pile of optional ids.
+ */
+export type AttachmentTarget =
+  | { kind: 'entry'; projectId: string; expId: string; entryId: string }
+  | { kind: 'task'; projectId: string; taskId: string }
 
 interface Props {
-  projectId: string
-  expId: string
-  entryId: string
+  target: AttachmentTarget
   accent: string
 }
 
-export function AttachmentList({ projectId, expId, entryId, accent }: Props) {
+export function AttachmentList({ target, accent }: Props) {
   const qc = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [opening, setOpening] = useState<string | null>(null)
+
+  const ownerId = target.kind === 'entry' ? target.entryId : target.taskId
+  const queryKey = ['attachments', target.kind, ownerId]
 
   const { data: attachments = [] } = useQuery<Attachment[]>({
-    queryKey: ['attachments', entryId],
-    queryFn: () => api.listAttachments(projectId, expId, entryId),
+    queryKey,
+    queryFn: () =>
+      target.kind === 'entry'
+        ? api.listAttachments(target.projectId, target.expId, target.entryId)
+        : api.listTaskAttachments(target.projectId, target.taskId),
   })
 
   const uploadMutation = useMutation({
-    mutationFn: (file: File) => api.uploadAttachment(projectId, expId, entryId, file),
+    mutationFn: (file: File) =>
+      target.kind === 'entry'
+        ? api.uploadAttachment(target.projectId, target.expId, target.entryId, file)
+        : api.uploadTaskAttachment(target.projectId, target.taskId, file),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['attachments', entryId] })
+      qc.invalidateQueries({ queryKey })
       setError(null)
     },
     onError: (err: Error) => setError(err.message),
@@ -55,9 +58,22 @@ export function AttachmentList({ projectId, expId, entryId, accent }: Props) {
 
   const deleteMutation = useMutation({
     mutationFn: (attachmentId: string) => api.deleteAttachment(attachmentId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['attachments', entryId] }),
+    onSuccess: () => qc.invalidateQueries({ queryKey }),
     onError: (err: Error) => setError(err.message),
   })
+
+  /** Open the file the way its type deserves: view it, or save it. */
+  async function openAttachment(a: Attachment) {
+    setError(null)
+    setOpening(a.id)
+    try {
+      await openAttachmentFile(a)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setOpening(null)
+    }
+  }
 
   function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return
@@ -90,18 +106,19 @@ export function AttachmentList({ projectId, expId, entryId, accent }: Props) {
               }}
             >
               <span style={{ fontSize: 16 }}>{fileIcon(a.content_type)}</span>
-              <a
-                href={a.download_url}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                onClick={() => openAttachment(a)}
+                disabled={opening === a.id}
+                title={isViewable(a.content_type) ? 'Open' : 'Save'}
                 style={{
-                  flex: 1, fontSize: 15, color: accent,
-                  textDecoration: 'none', overflow: 'hidden',
+                  flex: 1, fontSize: 15, color: accent, textAlign: 'left',
+                  background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                  textDecoration: 'underline', overflow: 'hidden',
                   textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}
               >
-                {a.filename}
-              </a>
+                {opening === a.id ? 'Opening…' : a.filename}
+              </button>
               <span style={{ fontSize: 14, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
                 {formatBytes(a.size_bytes)}
               </span>

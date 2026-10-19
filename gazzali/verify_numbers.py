@@ -25,22 +25,43 @@ _NOT_A_RESULT_BEFORE = re.compile(
 )
 _HEADING = re.compile(r"^\s{0,3}(#{1,6})\s+(.*)$")
 
+# A metric that came from a cohort analysis stays valid only while that analysis is
+# current. The subquery marks as stale every metric whose analysis sits on a
+# superseded population (or on an analysis already flagged 'stale').
+_LIVE_COHORT_METRIC = """
+    AND (
+        m.source_analysis_id IS NULL
+        OR NOT EXISTS (
+            SELECT 1 FROM cohort_analyses a
+              JOIN cohort_populations pop ON pop.id = a.population_id
+             WHERE a.id = m.source_analysis_id
+               AND (a.status = 'stale' OR pop.superseded_by IS NOT NULL)
+        )
+    )"""
+
 
 def recorded_values(db: Path, publication_id: str) -> list[float]:
-    """Metrics of the experiments linked to the publication, else of its project."""
+    """Metrics of the experiments linked to the publication, else of its project.
+
+    A metric published from a cohort analysis counts only while that analysis is still
+    current: once the study's analysis population is superseded, the number in the
+    draft is no longer the number the data supports, so it must not silently pass
+    verification. ``_LIVE_COHORT_METRIC`` is that filter, kept in SQL so both queries
+    below apply it.
+    """
     with get_db(db) as conn:
         rows = conn.execute(
-            """SELECT m.value FROM experiment_metrics m
+            f"""SELECT m.value FROM experiment_metrics m
                  JOIN publication_experiments pe ON pe.experiment_id = m.experiment_id
-                WHERE pe.publication_id = ?""",
+                WHERE pe.publication_id = ?{_LIVE_COHORT_METRIC}""",
             (publication_id,),
         ).fetchall()
         if not rows:
             rows = conn.execute(
-                """SELECT m.value FROM experiment_metrics m
+                f"""SELECT m.value FROM experiment_metrics m
                      JOIN experiments e ON e.id = m.experiment_id
                      JOIN publications p ON p.project_id = e.project_id
-                    WHERE p.id = ?""",
+                    WHERE p.id = ?{_LIVE_COHORT_METRIC}""",
                 (publication_id,),
             ).fetchall()
     return [float(r[0]) for r in rows]

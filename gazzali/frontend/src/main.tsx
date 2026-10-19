@@ -37,6 +37,8 @@ import { SettingsPage }       from './pages/SettingsPage'
 import { HelpPage }           from './pages/HelpPage'
 import { AppsPage }           from './pages/AppsPage'
 import { ProjectDataPage }    from './pages/ProjectDataPage'
+import { CohortPage }         from './pages/CohortPage'
+import { ProjectFilesPage }  from './pages/ProjectFilesPage'
 import { HomePage }           from './pages/HomePage'
 import { WeeklyUpdatePage }   from './pages/WeeklyUpdatePage'
 import { WeeklyMeetingPage }  from './pages/WeeklyMeetingPage'
@@ -85,6 +87,8 @@ function App() {
         <Route path="/projects/:id" element={<PrivateRoute><Board /></PrivateRoute>} />
         <Route path="/projects/:id/experiments" element={<PrivateRoute><ExperimentsPage /></PrivateRoute>} />
         <Route path="/projects/:id/data" element={<PrivateRoute><ProjectDataPage /></PrivateRoute>} />
+        <Route path="/projects/:id/cohort" element={<PrivateRoute><CohortPage /></PrivateRoute>} />
+        <Route path="/projects/:id/files" element={<PrivateRoute><ProjectFilesPage /></PrivateRoute>} />
         <Route path="/projects/:id/report" element={<PrivateRoute><ProjectReportPage /></PrivateRoute>} />
         <Route path="/reports"             element={<PrivateRoute><GlobalReportPage /></PrivateRoute>} />
         <Route path="/profile" element={<PrivateRoute><ProfilePage /></PrivateRoute>} />

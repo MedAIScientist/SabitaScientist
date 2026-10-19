@@ -90,6 +90,14 @@ def create_new_task(
     current_user: User = Depends(require_project_role("owner", "editor")),
 ):
     """Create a task (owner/editor only)."""
+    if body.phase_id is not None:
+        from ...crud.phases import get_phase
+
+        phase = get_phase(get_db_path(), body.phase_id)
+        # A phase id from another project would park this task where nobody looking
+        # at this board could see or move it.
+        if phase is None or phase.project_id != project_id:
+            raise HTTPException(status_code=400, detail="Unknown phase for this project")
     task = create_task(
         get_db_path(),
         project_id=project_id,
@@ -100,6 +108,7 @@ def create_new_task(
         priority=body.priority,
         deadline=body.deadline,
         session_id=body.session_id,
+        phase_id=body.phase_id,
     )
     return _task_to_response(task)
 
