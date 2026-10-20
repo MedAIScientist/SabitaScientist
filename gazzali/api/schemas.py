@@ -1032,7 +1032,10 @@ class DatasetCreate(BaseModel):
     lab_id: str
     modality: str | None = Field(default=None, max_length=16)
     accession_list: list[str] = []
-    estimated_bytes: int | None = Field(default=None, ge=0)
+    estimated_bytes: int | None = Field(default=None, ge=0, le=1 << 50)
+    # The researcher's saved Curator selection. Medai's server resolves its studies directly from
+    # Curator (curator_bridge) — the way a request is filed; a typed list is a platform-admin API.
+    curator_selection_id: str | None = Field(default=None, pattern=r"^sel_[0-9a-f]{32}$")
     irb_ids: list[str] = []
     # The project this data is requested for (optional; tracked through to delivery).
     project_id: str | None = None
@@ -1049,6 +1052,52 @@ class DatasetTransition(BaseModel):
     content_root_sha256: str | None = Field(default=None, pattern="^[0-9a-f]{64}$")
 
 
+class CuratorSelectionOut(BaseModel):
+    """One of the researcher's saved Curator selections, as the request dialog lists it. Declared
+    field by field so nothing Curator might add — least of all an accession — is passed through."""
+
+    id: str
+    name: str
+    created_at: str
+    expires_at: str
+    studies: int
+    patients: int = 0
+    instances: int = 0
+    instances_unknown: int = 0
+    modalities: list[str] = []
+    date_from: str | None = None
+    date_to: str | None = None
+    modality: str | None = None
+    renders: bool = True
+    status: str = "pending"
+    submitted_at: str | None = None
+    medai_dataset_id: str | None = None
+
+
+class CuratorSelectionsOut(BaseModel):
+    selections: list[CuratorSelectionOut]
+
+
+class DatasetAdminApprove(BaseModel):
+    """The platform admin's final approval: the retention, and the storage to reserve.
+
+    `estimated_bytes` becomes the delivered bucket's quota (platform_push → platform-control).
+    Without one the bucket has NO size limit, and an oversized cohort fills shared storage
+    instead of stopping at its own ceiling — and Curator's delivery preflight has nothing to
+    compare its estimate against."""
+
+    retention_until: str | None = None
+    # Capped at 1 PiB: a larger number is a typo, and past int64 it would not even store.
+    estimated_bytes: int | None = Field(default=None, gt=0, le=1 << 50)
+
+
+class DatasetStorageRaise(BaseModel):
+    """Reserve more storage for an approved dataset. Raise-only: the quota is applied exactly as
+    sent, and one below what the bucket already holds would stop its delivery."""
+
+    estimated_bytes: int = Field(gt=0, le=1 << 50)
+
+
 class DatasetGrantCreate(BaseModel):
     project_id: str
     expires_at: str | None = None
@@ -1063,6 +1112,8 @@ class DatasetGrantResponse(BaseModel):
     id: str
     dataset_id: str
     project_id: str
+    # So a person can tell which project a grant is for — the id alone is unreadable.
+    project_name: str | None = None
     granted_by: str
     admin_approved_by: str | None
     admin_approved_at: str | None
@@ -1082,7 +1133,10 @@ class DatasetResponse(BaseModel):
     lab_id: str
     requested_by: str
     modality: str | None
+    # The study keys themselves go to platform admins only; everyone else gets the count. A
+    # researcher needs to know how many studies, never which accession numbers.
     accession_list: list[str]
+    accession_count: int = 0
     estimated_bytes: int | None
     status: str
     pi_approved_by: str | None

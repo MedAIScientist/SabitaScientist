@@ -30,6 +30,10 @@ def serve(host: str = "127.0.0.1", port: int = 7860, runner_port: int = 8001) ->
 
     start_weekly_backup(get_db_path())
 
+    from .platform_watch import start_platform_watch
+
+    start_platform_watch(get_db_path())  # seals and deliveries reach Medai in seconds, not hourly
+
     if settings.get_arc_worker_config()["token"]:
         from .research_sync import start_background_sync
 

@@ -1,5 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { Login } from '../Login'
 
@@ -22,6 +22,20 @@ describe('Login', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     sessionStorage.clear()
+  })
+
+  const realLocation = window.location
+  afterEach(() => {
+    Object.defineProperty(window, 'location', { configurable: true, value: realLocation })
+  })
+
+  it('an SSO sign-in lands on Home, where the approvals inbox lives', () => {
+    vi.stubGlobal('fetch', vi.fn(() => statusResponse({ configured: true, reachable: true })))
+    const fake = { search: '?token=abc', href: 'http://localhost/login?token=abc' }
+    Object.defineProperty(window, 'location', { configurable: true, value: fake })
+    wrap()
+    expect(sessionStorage.getItem('pm_token')).toBe('abc')
+    expect(fake.href).toBe('/home')
   })
 
   it('offers Microsoft sign-in when the provider answers', async () => {

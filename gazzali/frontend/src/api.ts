@@ -75,7 +75,8 @@ export const api = {
   createAdmin: (username: string, password: string, email?: string) =>
     request<{ id: string; username: string }>('POST', '/users/setup/admin', { username, password, email }),
   listProjects: () => request<Project[]>('GET', '/projects'),
-  createProject: (name: string, description?: string) => request<Project>('POST', '/projects', { name, description }),
+  createProject: (name: string, description?: string, labId?: string) =>
+    request<Project>('POST', '/projects', { name, description, lab_id: labId || undefined }),
   getProject: (id: string) => request<Project>('GET', `/projects/${id}`),
   addMember: (projectId: string, userId: string, role: string) =>
     request('POST', `/projects/${projectId}/members`, { user_id: userId, role }),
@@ -183,16 +184,27 @@ export const api = {
   // ── Imaging-data requests (governance lives in routes/datasets.py) ───────
   requestDataset: (data: {
     name: string; purpose: string; lab_id: string; project_id: string; modality?: string
-    accession_list: string[]; irb_ids: string[]; renders: boolean; estimated_bytes?: number
+    /** The researcher's saved Curator selection; Medai's server fetches its studies from Curator. */
+    curator_selection_id: string; irb_ids: string[]; renders: boolean
   }) => request<DatasetSummary>('POST', '/datasets', data),
+  listCuratorSelections: () => request<{ selections: CuratorSelection[] }>('GET', '/curator/selections'),
   listDatasetRequests: (projectId: string) =>
     request<DatasetRequest[]>('GET', `/projects/${projectId}/dataset-requests`),
   imagingInbox: () => request<ImagingInboxItem[]>('GET', '/imaging/inbox'),
+  listLabDatasets: (labId: string) =>
+    request<LabDataset[]>('GET', `/datasets?lab_id=${encodeURIComponent(labId)}`),
+  revokeDatasetGrant: (datasetId: string, grantId: string) =>
+    request<void>('DELETE', `/datasets/${datasetId}/grants/${grantId}`),
   piApproveDataset: (id: string) => request<DatasetSummary>('POST', `/datasets/${id}/pi-approve`),
-  adminApproveDataset: (id: string, retentionUntil: string) =>
-    request<DatasetSummary>('POST', `/datasets/${id}/admin-approve`, { retention_until: retentionUntil }),
-  proposeDatasetGrant: (id: string, projectId: string) =>
-    request<unknown>('POST', `/datasets/${id}/grants`, { project_id: projectId }),
+  adminApproveDataset: (id: string, retentionUntil: string, estimatedBytes?: number) =>
+    request<DatasetSummary>('POST', `/datasets/${id}/admin-approve`, {
+      retention_until: retentionUntil,
+      ...(estimatedBytes ? { estimated_bytes: estimatedBytes } : {}),
+    }),
+  raiseDatasetStorage: (id: string, estimatedBytes: number) =>
+    request<LabDataset>('POST', `/datasets/${id}/storage`, { estimated_bytes: estimatedBytes }),
+  proposeDatasetGrant: (id: string, projectId: string, opts: { annotate?: boolean; task_size?: number } = {}) =>
+    request<unknown>('POST', `/datasets/${id}/grants`, { project_id: projectId, ...opts }),
   approveDatasetGrant: (id: string, grantId: string) =>
     request<unknown>('POST', `/datasets/${id}/grants/${grantId}/approve`),
   listProjectDeidRuns: (projectId: string) =>
@@ -312,6 +324,8 @@ export const api = {
     request<LabMember_>('POST', `/labs/${labId}/members`, { user_id: userId, role }),
   removeLabMember: (labId: string, userId: string) =>
     request<void>('DELETE', `/labs/${labId}/members/${userId}`),
+  changeLabMemberRole: (labId: string, userId: string, role: string) =>
+    request<LabMember_>('PUT', `/labs/${labId}/members/${userId}`, { role }),
   requestToJoinLab: (labId: string, lab_role: 'phd' | 'ms', message?: string) =>
     request<LabJoinRequest>('POST', `/labs/${labId}/join-requests`, { lab_role, message }),
   myLabJoinRequests: () => request<LabJoinRequest[]>('GET', '/labs/join-requests/mine'),
@@ -681,6 +695,29 @@ export interface ProjectAssetLink {
   asset_type: ExperimentAssetType
   asset_id: string
   role: ExperimentAssetRole
+}
+
+/** One of the signed-in researcher's saved Curator selections — counts and status, never study keys. */
+export interface CuratorSelection {
+  id: string; name: string; created_at: string; expires_at: string
+  studies: number; patients: number; instances: number; instances_unknown: number
+  modalities: string[]; date_from: string | null; date_to: string | null
+  modality: string | null; renders: boolean
+  status: 'pending' | 'submitted' | string; submitted_at: string | null; medai_dataset_id: string | null
+}
+
+/** One project's access to a dataset (GET /datasets → grants[]). */
+export interface DatasetGrant {
+  id: string; project_id: string; project_name?: string | null
+  admin_approved_at: string | null; granted_at: string; expires_at: string | null
+  revoked_at: string | null; active: boolean; cvat_project_id?: number | null
+}
+
+/** A lab's dataset as the lab page lists it — the fields it shows, nothing else. */
+export interface LabDataset {
+  id: string; name: string; modality: string | null; status: string
+  retention_until: string | null; grants: DatasetGrant[]
+  estimated_bytes: number | null
 }
 
 export interface DatasetSummary {
@@ -1132,7 +1169,13 @@ export interface GrantMember {
   role: GrantMemberRole; share_percent: number | null; added_at: string
 }
 export interface Conference_ { id: string; name: string; venue: string | null; deadline: string | null; status: string; presentation_type: string; decision_date: string | null }
-export interface IRB_ { id: string; title: string; institution: string; protocol_number: string; status: string; approval_date: string | null; expiry_date: string | null }
+export interface IRB_ {
+  id: string; title: string; institution: string; protocol_number: string; status: string
+  approval_date: string | null; expiry_date: string | null
+  project_id?: string; renewal_date?: string | null; documents?: string[]; notes?: string | null
+  created_by?: string; created_at?: string; updated_at?: string
+  approved_by?: string | null; approved_at?: string | null
+}
 export interface WikiPage_ { id: string; title: string; slug: string; content?: string; tags?: string[]; updated_at: string }
 export interface SearchResults { projects: { id: string; name: string; type: string }[]; tasks: { id: string; title: string; project_id: string; type: string }[]; experiments: { id: string; name: string; project_id: string; type: string }[]; publications: { id: string; title: string; type: string }[] }
 
@@ -1552,6 +1595,9 @@ export interface ImagingInboxItem {
   lab_name: string | null; project_id: string | null; project_name: string | null
   requested_by: string | null; accession_count: number; retention_until: string | null
   grant_id: string | null; irbs: IrbBrief[]; blockers: string[]
+  renders?: boolean
+  /** Storage reserved so far; null = none, and the bucket would have no size limit. */
+  estimated_bytes?: number | null
 }
 
 

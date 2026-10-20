@@ -160,13 +160,14 @@ describe('ProjectDataPage', () => {
 
   it('always shows the project team bucket, even before any data is granted', async () => {
     renderPage()
-    // Named twice: the project's JupyterHub server and its team bucket.
-    expect((await screen.findAllByText('proj-p1')).length).toBe(2)
+    expect((await screen.findAllByText('proj-p1')).length).toBe(1)
   })
 
-  it('opens the project’s own JupyterHub server', async () => {
+  it('opens the user’s own JupyterHub server — named per-project servers are not enabled', async () => {
+    // hub/user-redirect/<path> goes to /user/<name>/<path>; "proj-<id>/lab" there is no route,
+    // so the old link landed on a 404 after spawning. Access is per person, not per server.
     renderPage()
-    const link = await screen.findByRole('link', { name: /Open project in JupyterHub/ })
-    expect(link).toHaveAttribute('href', '/jupyter/hub/user-redirect/proj-p1/lab')
+    const link = await screen.findByRole('link', { name: /Open JupyterHub/ })
+    expect(link).toHaveAttribute('href', '/jupyter/hub/user-redirect/lab')
   })
 })

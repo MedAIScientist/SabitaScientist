@@ -515,6 +515,11 @@ def test_viewer_can_read_lineage_but_not_change_it(client, tmp_db) -> None:
 # ── Dataset links require an approved grant ───────────────────────────────────
 
 
+# The dataset helpers below file requests the real way — from a saved Curator selection — so the
+# stand-in for Curator's hand-off that they rely on applies to this module too (autouse).
+from tests.pm.test_api_datasets import fake_curator  # noqa: E402,F401
+
+
 def _dataset_fixture(client, tmp_db):
     """A lab/project/IRB scaffold plus an admin-approved imaging dataset."""
     from tests.pm.test_api_datasets import _approved_dataset, _scaffold

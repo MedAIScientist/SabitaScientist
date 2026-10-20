@@ -30,6 +30,7 @@ from .routes import (
     compute,
     conferences,
     copilot,
+    curator_selections,
     cvat,
     cvat_provision,
     dashboard,
@@ -173,6 +174,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
     app.include_router(irb.router, prefix="/api/v1/irb", tags=["irb"])
     app.include_router(datasets.router, prefix="/api/v1/datasets", tags=["datasets"])
     app.include_router(imaging.router, prefix="/api/v1", tags=["imaging"])
+    app.include_router(curator_selections.router, prefix="/api/v1", tags=["curator"])
     app.include_router(wiki.router, prefix="/api/v1", tags=["wiki"])
     app.include_router(search.router, prefix="/api/v1", tags=["search"])
     app.include_router(

@@ -67,12 +67,14 @@ def pm_create_project(name: str, description: str = "", lab_id: str = "", templa
 
     Available template_id values: ml-research (ML/AI Research), life-science (Life Science), medical (Medical Research).
     Omit template_id for a blank project.
-    Only include lab_id if the user explicitly names a lab.
+    The lab cannot be changed later. Omit lab_id unless the user names a lab: the project then goes into
+    the user's only lab, and if they belong to several the tool asks which one instead of guessing.
+    Pass lab_id "none" only when the user explicitly wants the project outside any lab.
 
     Args:
         name: Project name (required)
         description: Optional description
-        lab_id: Only if user mentions a specific lab
+        lab_id: The lab's id or name if the user names one; "none" for explicitly no lab; else omit
         template_id: One of: ml-research, life-science, medical
 
     Returns:
@@ -81,13 +83,31 @@ def pm_create_project(name: str, description: str = "", lab_id: str = "", templa
     if not name or not name.strip():
         return "Error: project name is required."
 
-    pid = lab_id.strip().lower()
-    if pid in ("", "none", "null", "default_lab", "default"):
-        pid = None
-    if pid:
-        from gazzali.crud.labs import get_lab
-        if get_lab(get_db_path(), pid) is None:
-            pid = None
+    # The lab, the way the New-project screen chooses it (pages/Projects.tsx): a user in exactly
+    # one lab gets that lab by default, a user in several must say which, and "no lab" is an
+    # explicit choice. A lab the tool cannot find is an error — it used to become "no lab" in
+    # silence, and since a project's lab can never be changed, that silence was permanent.
+    from gazzali.crud.labs import get_lab, list_labs_for_user
+
+    asked = lab_id.strip()
+    explicit_none = asked.lower() in ("none", "no lab", "no-lab", "null")
+    pid = None
+    if not explicit_none:
+        mine = list_labs_for_user(get_db_path(), _uid())
+        if asked and asked.lower() not in ("default", "default_lab"):
+            lab = get_lab(get_db_path(), asked.lower()) or next(
+                (lab for lab in mine if lab.name.strip().lower() == asked.lower()), None)
+            if lab is None:
+                names = ", ".join(lab.name for lab in mine) or "none"
+                return f"Error: there is no lab called {asked!r}. Your labs: {names}. Nothing was created."
+            pid = lab.id
+        elif len(mine) == 1:
+            pid = mine[0].id
+        elif len(mine) > 1:
+            names = "; ".join(f"{lab.name} (id {lab.id})" for lab in mine)
+            return ("Which lab should this project belong to? It cannot be changed later. "
+                    f"You are a member of: {names}. Say \"no lab\" to create it outside any lab. "
+                    "Nothing was created yet.")
 
     tid = template_id.strip().lower() if template_id else ""
     known = {"ml-research", "life-science", "medical"}
@@ -106,9 +126,24 @@ def pm_create_project(name: str, description: str = "", lab_id: str = "", templa
     uid = _uid()
     db = get_db_path()
 
+    # The same rule the API applies (deps.lab_attach_refusal): only a member of the lab or a
+    # platform admin may create a project in it. This tool runs on the client's word — an
+    # "approve" request names it and its arguments directly — so it must check for itself.
+    if pid:
+        from gazzali.api.deps import lab_attach_refusal
+        from gazzali.crud.users import get_user_by_id
+
+        user = get_user_by_id(db, uid)
+        refusal = lab_attach_refusal(db, pid, user) if user else (403, "unknown user")
+        if refusal:
+            return f"Error: {refusal[1]}."
+
     project = create_project(
         db, name=name.strip(), description=description or None, created_by=uid, lab_id=pid,
     )
+    # Said every time, because the lab is permanent: the person must see where it landed.
+    home = get_lab(db, pid) if pid else None
+    where = f" in lab '{home.name}'" if home else " outside any lab"
 
     if tid:
         from gazzali.templates import get_template
@@ -127,9 +162,10 @@ def pm_create_project(name: str, description: str = "", lab_id: str = "", templa
                 if phase_id and task.id:
                     assign_task_phase(db, task.id, phase_id)
             phase_names = ", ".join(p.name for p in t.phases)
-            return f"Created project '{project.name}' with id={project.id} using '{t.name}' template. Phases: {phase_names}"
+            return (f"Created project '{project.name}'{where} with id={project.id} using '{t.name}' "
+                    f"template. Phases: {phase_names}")
 
-    return f"Created project '{project.name}' with id={project.id}"
+    return f"Created project '{project.name}'{where} with id={project.id}"
 
 
 @tool

@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, IRB_, Project } from '../../api'
+import { Link } from 'react-router-dom'
+import { api, CuratorSelection, IRB_, Project } from '../../api'
 
 const MODALITIES = ['CT', 'MR', 'DX', 'CR', 'US', 'MG', 'PT', 'NM', 'XA', 'OT']
 const SOON_DAYS = 60
@@ -20,10 +21,23 @@ function irbWarning(irb: IRB_): string | null {
   return null
 }
 
+/** "12 studies · DX · 2019-01-01 → 2019-12-31 · saved 2026-10-17" */
+function selectionLine(sel: CuratorSelection): string {
+  const parts = [`${sel.studies} ${sel.studies === 1 ? 'study' : 'studies'}`]
+  if (sel.modalities.length) parts.push(sel.modalities.join('/'))
+  if (sel.date_from && sel.date_to) parts.push(`${sel.date_from} → ${sel.date_to}`)
+  parts.push(`saved ${sel.created_at.slice(0, 10)}`)
+  return parts.join(' · ')
+}
+
 /**
  * Ask for imaging data for this project. Creates a draft dataset owned by a lab;
  * the lab PI and then a platform admin approve it (see the approvals inbox), and
  * the request's progress shows on the project's Data tab.
+ *
+ * The studies come from one of the researcher's saved Curator selections: Medai's server fetches
+ * them from Curator directly, so nobody copies or pastes accession numbers — and the researcher,
+ * who never sees those numbers, files the request themselves.
  */
 export function DatasetRequestDialog({ project, onClose }: { project: Project; onClose: () => void }) {
   const qc = useQueryClient()
@@ -36,21 +50,32 @@ export function DatasetRequestDialog({ project, onClose }: { project: Project; o
   const [purpose, setPurpose] = useState('')
   const [modality, setModality] = useState('')
   const [labId, setLabId] = useState(project.lab_id ?? '')
-  const [accessions, setAccessions] = useState('')
+  const [selectionId, setSelectionId] = useState('')
   const [irbIds, setIrbIds] = useState<string[]>([])
   const [renders, setRenders] = useState(true)
 
-  const accessionList = useMemo(
-    () => [...new Set(accessions.split(/[\s,;]+/).map(a => a.trim()).filter(Boolean))],
-    [accessions],
-  )
+  const curator = useQuery({ queryKey: ['curator-selections'], queryFn: api.listCuratorSelections, retry: false, staleTime: 30_000 })
+  const selections = curator.data?.selections ?? []
+  const chosen = selections.find(s => s.id === selectionId)
+
+  function choose(sel: CuratorSelection) {
+    setSelectionId(sel.id)
+    if (!name.trim()) setName(sel.name)
+    if (!modality && sel.modality && MODALITIES.includes(sel.modality)) setModality(sel.modality)
+    setRenders(sel.renders)
+  }
+
   const effectiveLab = labId || (myLabs.length === 1 ? myLabs[0].id : '')
-  const ready = name.trim() && purpose.trim() && effectiveLab && accessionList.length > 0
+  // An IRB is required up front: the PI step refuses a request without one, and an
+  // IRB cannot be linked after the request is created, so sending without one
+  // makes a draft nobody can ever approve.
+  const ready = name.trim() && purpose.trim() && effectiveLab && !!chosen && chosen.status !== 'submitted'
+    && irbIds.length > 0
 
   const create = useMutation({
     mutationFn: () => api.requestDataset({
       name: name.trim(), purpose: purpose.trim(), lab_id: effectiveLab, project_id: project.id,
-      modality: modality || undefined, accession_list: accessionList, irb_ids: irbIds, renders,
+      modality: modality || undefined, curator_selection_id: selectionId, irb_ids: irbIds, renders,
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['dataset-requests', project.id] })
@@ -69,8 +94,29 @@ export function DatasetRequestDialog({ project, onClose }: { project: Project; o
           <p>For <b>{project.name}</b>. The lab PI and then a platform admin approve it; you can follow each step on the Data tab.</p>
         </header>
 
+        <fieldset className="field" aria-label="Your saved Curator selections">
+          <span>Studies — from your saved Curator selections</span>
+          {curator.isLoading && <p className="hint">Loading your saved selections…</p>}
+          {curator.isError && <div className="msg msg-error" role="alert">{(curator.error as Error).message}</div>}
+          {curator.isSuccess && selections.length === 0 && (
+            <p className="hint">You have no saved selections yet. Search in <a href="/pacs" target="_blank" rel="noopener noreferrer">Curator</a>,
+              press <b>Save this selection</b>, then reopen this dialog.</p>
+          )}
+          {selections.map(sel => {
+            const taken = sel.status === 'submitted'
+            return (
+              <label key={sel.id} className="check">
+                <input type="radio" name="curator-selection" checked={selectionId === sel.id} disabled={taken}
+                  onChange={() => choose(sel)} />
+                <span>{sel.name} <small>{selectionLine(sel)}</small>
+                  {taken && <small className="warn"> — already requested{sel.medai_dataset_id ? ` (dataset ${sel.medai_dataset_id.slice(0, 8)}…)` : ''}</small>}</span>
+              </label>
+            )
+          })}
+        </fieldset>
+
         <label className="field"><span>Dataset name</span>
-          <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Knee MR 2019–2024" autoFocus />
+          <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Knee MR 2019–2024" />
         </label>
         <label className="field"><span>Purpose</span>
           <textarea className="input" rows={2} value={purpose} onChange={e => setPurpose(e.target.value)}
@@ -90,29 +136,25 @@ export function DatasetRequestDialog({ project, onClose }: { project: Project; o
             </select>
           </label>
         </div>
-        <label className="field">
-          <span>Accession numbers <em style={{ fontStyle: 'normal', color: 'var(--text-3)' }}>({accessionList.length})</em></span>
-          <textarea className="input" rows={4} value={accessions} onChange={e => setAccessions(e.target.value)}
-            placeholder="One per line, or separated by commas. Tip: export the list from Curator (PACS)." style={{ fontFamily: 'var(--font-code)' }} />
-        </label>
 
         <fieldset className="field">
           <span>Ethics (IRB) approvals</span>
           {irbs.length === 0 && (
-            <p className="hint">This project has no IRB record yet. Add one on the Ethics (IRB) page — the request cannot be approved without it.</p>
+            <p className="hint">This project has no IRB record yet — the request cannot be sent without one.{' '}
+              <Link to={`/irb?project=${project.id}`}>Add an ethics record for this project</Link>.</p>
           )}
           {irbs.map(irb => {
             const warn = irbWarning(irb)
             return (
               <label key={irb.id} className="check">
-                <input type="checkbox" checked={irbIds.includes(irb.id)}
+                <input type="checkbox" checked={irbIds.includes(irb.id)} disabled={irb.status === 'closed'}
                   onChange={e => setIrbIds(ids => e.target.checked ? [...ids, irb.id] : ids.filter(i => i !== irb.id))} />
                 <span>{irb.title} <small>{irb.protocol_number}</small>
                   {warn && <small className="warn"> — {warn}</small>}</span>
               </label>
             )
           })}
-          {irbs.length > 0 && irbIds.length === 0 && <p className="hint">Select at least one: the PI cannot approve a request without an IRB.</p>}
+          {irbs.length > 0 && irbIds.length === 0 && <p className="hint">Select at least one: the PI cannot approve a request without an IRB, and one cannot be added later.</p>}
         </fieldset>
 
         <label className="check">

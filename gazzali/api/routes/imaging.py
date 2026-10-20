@@ -35,12 +35,16 @@ router = APIRouter()
 
 _LAB_PI_ROLES = {"pi", "admin"}
 _APPROVED = {"approved", "delivering", "sealed"}
+# Delivery comes before project access because that is the order things happen in:
+# admin approval pushes the dataset and Curator delivers it whatever its grants are.
+# The two run independently, so progress() gives each its own state instead of
+# inferring one from the other's position.
 _STEPS = [
     ("requested", "Requested"),
     ("pi", "PI approval"),
     ("admin", "Admin approval"),
-    ("access", "Project access"),
     ("delivery", "Delivery"),
+    ("access", "Project access"),
     ("ready", "Ready"),
 ]
 
@@ -85,6 +89,12 @@ class InboxItem(BaseModel):
     accession_count: int
     retention_until: str | None = None
     grant_id: str | None = None
+    # Whether the dataset makes viewable images. Annotation (CVAT staging) is refused
+    # without them, so the share card can say so before the PI asks for it.
+    renders: bool = True
+    # The storage reserved so far (the bucket's quota once approved) — the admin's approval card
+    # starts from it. None: nothing reserved, and the bucket would have no size limit.
+    estimated_bytes: int | None = None
     irbs: list[IrbBrief]
     blockers: list[str]
 
@@ -112,25 +122,32 @@ def progress(ds: Dataset, grants: list, project_id: str | None) -> tuple[list[St
     if ds.status in ("expired", "revoked"):
         return [Step(key=k, label=lbl, state="done" if k == "requested" else "todo") for k, lbl in _STEPS], None
     grant = next((g for g in grants if g.project_id == project_id and g.revoked_at is None), None)
+    approved = ds.status in _APPROVED
+    sealed = ds.status == "sealed"
+    active = grant is not None and grant.admin_approved_at is not None
+    state = {
+        "requested": "done",
+        "pi": "current" if ds.status == "draft" else "done",
+        "admin": "todo" if ds.status == "draft" else "current" if ds.status == "pi_approved" else "done",
+        "delivery": "done" if sealed else "current" if approved else "todo",
+        "access": "done" if active else "current" if approved else "todo",
+        "ready": "done" if sealed and active else "todo",
+    }
+    waiting: list[str] = []
     if ds.status == "draft":
-        current, waiting = "pi", "Lab PI"
+        waiting.append("Lab PI")
     elif ds.status == "pi_approved":
-        current, waiting = "admin", "Platform admin"
-    elif grant is None:
-        current, waiting = "access", "Lab PI (share with the project)"
-    elif grant.admin_approved_at is None:
-        current, waiting = "access", "Platform admin (activate access)"
-    elif ds.status in ("approved", "delivering"):
-        current, waiting = "delivery", "Delivery from PACS"
-    else:  # sealed and granted
-        current, waiting = None, None
-    keys = [k for k, _ in _STEPS]
-    at = keys.index(current) if current else len(keys)
-    steps = [Step(key=k, label=lbl, state="done" if i < at else "current" if i == at else "todo")
-             for i, (k, lbl) in enumerate(_STEPS)]
-    if current is None:
-        steps[-1] = Step(key="ready", label="Ready", state="done")
-    return steps, waiting
+        waiting.append("Platform admin")
+    else:
+        if not sealed:
+            waiting.append("Delivery in progress (PACS → cohort)" if ds.status == "delivering"
+                           else "Delivery from PACS")
+        if grant is None:
+            waiting.append("Lab PI (share with the project)")
+        elif not active:
+            waiting.append("Platform admin (activate access)")
+    steps = [Step(key=k, label=lbl, state=state[k]) for k, lbl in _STEPS]
+    return steps, " · ".join(waiting) or None
 
 
 @router.get("/projects/{project_id}/dataset-requests", response_model=list[DatasetRequest])
@@ -171,7 +188,7 @@ def _item(db, ds: Dataset, action: str, blockers: list[str], irbs: list[IrbBrief
         action=action, dataset_id=ds.id, dataset_name=ds.name, modality=ds.modality, purpose=ds.purpose,
         lab_name=lab.name if lab else None, project_id=pid, project_name=project.name if project else None,
         requested_by=_username(db, ds.requested_by), accession_count=len(ds.accession_list or []),
-        retention_until=ds.retention_until, grant_id=grant_id, irbs=irbs, blockers=blockers,
+        retention_until=ds.retention_until, grant_id=grant_id, renders=ds.renders, estimated_bytes=ds.estimated_bytes, irbs=irbs, blockers=blockers,
     )
 
 

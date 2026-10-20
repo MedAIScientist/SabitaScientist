@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { api, Lab } from '../api'
+import { api, Lab, LabMember_ } from '../api'
 import { useAuth } from '../auth'
+import { LAB_ROLES, assignableRoles, handoverCandidates, isLabPi, labPi, rosterLocked } from '../components/labs/labRoster'
+import { LabDatasets } from '../components/labs/LabDatasets'
 
 console.log('LabDetail MOUNTED v2')
 export function LabDetail() {
   const { id } = useParams<{ id: string }>()
-  const { token, isAdmin } = useAuth()
+  const { token, isAdmin, username } = useAuth()
   const navigate = useNavigate()
 
   const [lab, setLab] = useState<Lab | null>(null)
@@ -27,6 +29,15 @@ export function LabDetail() {
   const [userResults, setUserResults] = useState<{ id: string; username: string }[]>([])
   const [searching, setSearching] = useState(false)
   const searchRef = useRef<HTMLDivElement>(null)
+
+  // Roster management: role changes, a confirmed removal, and handing the lab to another member.
+  const [rosterError, setRosterError] = useState<string | null>(null)
+  const [busyMember, setBusyMember] = useState<string | null>(null)
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null)
+  const [showHandover, setShowHandover] = useState(false)
+  const [handoverTo, setHandoverTo] = useState('')
+  const [formerPiRole, setFormerPiRole] = useState('pi')
+  const [handingOver, setHandingOver] = useState(false)
 
   useEffect(() => { load() }, [id, token])
 
@@ -98,11 +109,64 @@ export function LabDetail() {
 
   async function handleRemoveMember(userId: string) {
     if (!lab) return
+    setRosterError(null)
+    setBusyMember(userId)
     try {
       await api.removeLabMember(lab.id, userId)
+      setConfirmRemove(null)
       await load()
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to remove member')
+      setRosterError(err instanceof Error ? err.message : 'Failed to remove member')
+    } finally {
+      setBusyMember(null)
+    }
+  }
+
+  async function handleRoleChange(member: LabMember_, role: string) {
+    if (!lab || role === member.role) return
+    setRosterError(null)
+    setBusyMember(member.user_id)
+    try {
+      await api.changeLabMemberRole(lab.id, member.user_id, role)
+      await load()
+    } catch (err: unknown) {
+      setRosterError(err instanceof Error ? err.message : 'Failed to change the role')
+    } finally {
+      setBusyMember(null)
+    }
+  }
+
+  // Hand the lab to another member. The server gives the new PI the 'pi' role with the title; the
+  // former PI keeps theirs unless a different one is chosen here, applied as a second step (once
+  // they are no longer the lab's PI the roster may change it). If that second step fails, the
+  // handover itself has still happened — the lab is never left without a PI.
+  async function handleHandover(e: React.FormEvent) {
+    e.preventDefault()
+    if (!lab || !handoverTo) return
+    const former = labPi(lab)
+    setRosterError(null)
+    setHandingOver(true)
+    let handedOver = false
+    try {
+      await api.updateLab(lab.id, { pi_id: handoverTo })
+      handedOver = true
+      if (former && formerPiRole !== former.role) {
+        await api.changeLabMemberRole(lab.id, former.user_id, formerPiRole)
+      }
+      setShowHandover(false)
+      setHandoverTo('')
+      setFormerPiRole('pi')
+    } catch (err: unknown) {
+      const reason = err instanceof Error ? err.message : 'unknown error'
+      const newPi = lab.members.find(m => m.user_id === handoverTo)?.username ?? 'the new PI'
+      // Step one stands even when step two fails: say so, rather than "the handover failed".
+      setRosterError(handedOver
+        ? `The lab was handed to ${newPi}, but ${former?.username ?? 'the former PI'} keeps the PI role (${reason}). Change it from the list below.`
+        : reason)
+      if (handedOver) setShowHandover(false)
+    } finally {
+      setHandingOver(false)
+      await load()
     }
   }
 
@@ -131,6 +195,8 @@ export function LabDetail() {
   // 'admin' member, or a platform admin). Without it the controls below only
   // produce 403s, so they stay hidden.
   const canManage = lab.can_manage || isAdmin
+  const pi = labPi(lab)
+  const mayHandOver = (isAdmin || isLabPi(lab, username)) && handoverCandidates(lab).length > 0
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
@@ -215,7 +281,7 @@ export function LabDetail() {
                 </div>
               </div>
               <div style={{ display: 'flex', gap: 24, color: 'var(--text-2)', fontSize: 15, fontFamily: 'var(--font-mono)' }}>
-                <span>PI: {lab.pi_id ? lab.members.find(m => m.role === 'pi')?.username ?? lab.pi_id : '—'}</span>
+                <span>PI: {pi?.username ?? (lab.pi_id || (lab.members.some(m => m.role === 'pi') ? 'not recorded (several members hold the PI role)' : '—'))}</span>
                 <span>{lab.member_count} member{lab.member_count !== 1 ? 's' : ''}</span>
               </div>
             </>
@@ -283,11 +349,7 @@ export function LabDetail() {
                 <select value={addRole} onChange={e => setAddRole(e.target.value)} style={{
                   ...inputStyle, padding: '8px 10px', cursor: 'pointer',
                 }}>
-                  <option value="pi">PI</option>
-                  <option value="postdoc">Postdoc</option>
-                  <option value="phd">PhD</option>
-                  <option value="ms">MS</option>
-                  <option value="visitor">Visitor</option>
+                  {assignableRoles(lab, isAdmin).map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                 </select>
               </div>
               <button type="submit" disabled={adding} style={{
@@ -300,6 +362,41 @@ export function LabDetail() {
               }}>{adding ? '…' : 'Add'}</button>
             </div>
           </form>
+        )}
+
+        {rosterError && <div className="msg msg-error" role="alert" style={{ marginBottom: 10 }}>{rosterError}</div>}
+
+        {mayHandOver && (
+          <div style={{ marginBottom: 12 }}>
+            {!showHandover ? (
+              <button type="button" className="btn" onClick={() => setShowHandover(true)}>Hand this lab to another member…</button>
+            ) : (
+              <form onSubmit={handleHandover} className="card" aria-label="Hand over the lab" style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '14px 18px' }}>
+                <div style={{ fontWeight: 600 }}>Hand this lab to another member</div>
+                <p className="hint" style={{ margin: 0 }}>
+                  The new PI approves this lab&rsquo;s dataset requests, shares its datasets, and manages its members and ethics records.
+                  {pi ? <> {pi.username} stops being the lab&rsquo;s PI.</> : null}
+                </p>
+                <label className="field"><span>New PI</span>
+                  <select className="input" aria-label="New PI" value={handoverTo} onChange={e => setHandoverTo(e.target.value)} required>
+                    <option value="">Choose a member…</option>
+                    {handoverCandidates(lab).map(m => <option key={m.user_id} value={m.user_id}>{m.username} ({m.role})</option>)}
+                  </select>
+                </label>
+                {pi && (
+                  <label className="field"><span>{pi.username}&rsquo;s role afterwards</span>
+                    <select className="input" aria-label="Former PI role" value={formerPiRole} onChange={e => setFormerPiRole(e.target.value)}>
+                      {LAB_ROLES.map(r => <option key={r.value} value={r.value}>{r.value === 'pi' ? 'PI (stays a co-PI)' : r.label}</option>)}
+                    </select>
+                  </label>
+                )}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button type="submit" className="btn btn-primary" disabled={!handoverTo || handingOver}>{handingOver ? 'Handing over…' : 'Hand over'}</button>
+                  <button type="button" className="btn" onClick={() => { setShowHandover(false); setHandoverTo('') }}>Cancel</button>
+                </div>
+              </form>
+            )}
+          </div>
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -327,20 +424,39 @@ export function LabDetail() {
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{
-                  fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)',
-                  color: roleColors[m.role] || '#6b7280',
-                  background: `${roleColors[m.role] || '#6b7280'}14`,
-                  border: `1px solid ${roleColors[m.role] || '#6b7280'}30`,
-                  borderRadius: 4, padding: '2px 8px', letterSpacing: '0.04em',
-                }}>{m.role.toUpperCase()}</span>
-                {canManage && (
-                  <button onClick={() => handleRemoveMember(m.user_id)} style={{
-                    cursor: 'pointer', padding: '4px 10px',
-                    background: 'rgba(244,63,94,0.06)',
-                    border: '1px solid rgba(244,63,94,0.15)', borderRadius: 5, color: '#f43f5e',
-                    fontSize: 15, fontFamily: 'var(--font-mono)',
-                  }}>×</button>
+                {pi?.user_id === m.user_id && <span className="chip" title="The lab's PI">Lab PI</span>}
+                {canManage && !rosterLocked(lab, m, isAdmin) && assignableRoles(lab, isAdmin).some(r => r.value === m.role) ? (
+                  <select className="input" aria-label={`Role of ${m.username}`} value={m.role}
+                    disabled={busyMember === m.user_id}
+                    onChange={e => handleRoleChange(m, e.target.value)}
+                    style={{ width: 120, padding: '4px 8px', fontSize: 14 }}>
+                    {assignableRoles(lab, isAdmin).map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                  </select>
+                ) : (
+                  <span title={canManage && rosterLocked(lab, m, isAdmin) ? 'Hand the lab to another member to change the PI' : undefined} style={{
+                    fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)',
+                    color: roleColors[m.role] || '#6b7280',
+                    background: `${roleColors[m.role] || '#6b7280'}14`,
+                    border: `1px solid ${roleColors[m.role] || '#6b7280'}30`,
+                    borderRadius: 4, padding: '2px 8px', letterSpacing: '0.04em',
+                  }}>{m.role.toUpperCase()}</span>
+                )}
+                {canManage && !rosterLocked(lab, m, isAdmin) && (
+                  confirmRemove === m.user_id ? (
+                    <span role="group" aria-label={`Confirm removing ${m.username}`} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 14 }}>
+                      <span className="hint">Remove {m.username}? They lose this lab&rsquo;s CVAT organisation and its datasets.</span>
+                      <button type="button" className="btn" disabled={busyMember === m.user_id} onClick={() => handleRemoveMember(m.user_id)}
+                        style={{ color: 'var(--rose)', borderColor: 'rgba(244,63,94,.35)' }}>Remove</button>
+                      <button type="button" className="btn" onClick={() => setConfirmRemove(null)}>Cancel</button>
+                    </span>
+                  ) : (
+                    <button aria-label={`Remove ${m.username}`} onClick={() => setConfirmRemove(m.user_id)} style={{
+                      cursor: 'pointer', padding: '4px 10px',
+                      background: 'rgba(244,63,94,0.06)',
+                      border: '1px solid rgba(244,63,94,0.15)', borderRadius: 5, color: '#f43f5e',
+                      fontSize: 15, fontFamily: 'var(--font-mono)',
+                    }}>×</button>
+                  )
                 )}
               </div>
             </div>
@@ -351,6 +467,9 @@ export function LabDetail() {
             </div>
           )}
         </div>
+
+        {/* Who can read each of this lab's datasets, and the revoke — for those allowed to revoke. */}
+        {canManage && <LabDatasets labId={lab.id} isAdmin={isAdmin} />}
       </div>
     </div>
   )

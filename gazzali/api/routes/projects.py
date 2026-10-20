@@ -21,7 +21,7 @@ from ...db import get_db, get_db_path
 from ...platform_push import project_member_emails, push_researchers
 from ...models import User
 from ..audit_helper import log_action
-from ..deps import get_current_user, require_project_role
+from ..deps import check_lab_attachable, get_current_user, require_project_role
 from ..schemas import (
     AddMemberRequest,
     MemberResponse,
@@ -85,8 +85,9 @@ def create_new_project(
 ):
     """Create a new project (creator becomes owner)."""
     db = get_db_path()
+    lab_id = check_lab_attachable(db, body.lab_id, current_user)
     project = create_project(
-        db, name=body.name, description=body.description, created_by=current_user.id, lab_id=body.lab_id
+        db, name=body.name, description=body.description, created_by=current_user.id, lab_id=lab_id
     )
     log_action(request, current_user, "create", "project", project.id, f"name={project.name}")
     # (The bucket and the membership push happen inside create_project itself, so

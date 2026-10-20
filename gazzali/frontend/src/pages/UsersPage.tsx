@@ -57,7 +57,8 @@ export function UsersPage() {
     setCreateError(null)
     setCreating(true)
     try {
-      await api.createUser(newUsername, newPassword, newEmail || undefined, newRole)
+      // The 'admin' role badge alone grants nothing: the server checks is_admin.
+      await api.createUser(newUsername, newPassword, newEmail || undefined, newRole, newRole === 'admin')
       setNewUsername(''); setNewPassword(''); setNewEmail(''); setNewRole('student')
       setShowForm(false)
       await load()

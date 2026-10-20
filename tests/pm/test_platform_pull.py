@@ -216,3 +216,195 @@ def test_fetch_catalogue_refuses_to_run_unconfigured(monkeypatch) -> None:
     monkeypatch.delenv("MEDAI_PLATFORM_CONTROL_TOKEN", raising=False)
     with pytest.raises(RuntimeError, match="unset"):
         platform_pull.fetch_catalogue()
+
+
+# ── seal evidence, delivery start, and the event cursor (2026-10-17) ─────────
+#
+# Two cohorts sealed at 14:44-14:45Z were recorded in Medai at 15:17Z by the hourly pull, without
+# their seal time or content root. These pin what the pull now carries, and that it carries it
+# forward only: a value Medai already holds is never overwritten.
+
+ROOT = "5f1c0a3c8e2b4d6f8a0b2c4d6e8f0a1b3c5d7e9f1a2b4c6d8e0f2a4b6c8d0e2f"
+
+
+def _sealed_entry(dataset_id: str, *, at="2026-10-17T14:45:39Z", root=ROOT) -> dict:
+    entry = _entry(dataset_id, "sealed")
+    entry["desired"]["sealed"] = {"at": at, "content_root_sha256": root, "objects": 63,
+                                  "bytes": 334742670}
+    return entry
+
+
+def test_the_policy_records_a_delivery_that_has_started() -> None:
+    assert platform_pull.decide_action("approved", "delivering") == "deliver"
+    assert platform_pull.decide_action("delivering", "approved") == "repush"
+    assert platform_pull.decide_action("delivering", "delivering") is None
+    assert platform_pull.decide_action("draft", "delivering") is None
+
+
+def test_a_seal_arrives_with_its_time_and_content_root(tmp_db, catalogue, pushes) -> None:
+    ds = _dataset(tmp_db, "delivering")
+    catalogue.append(_sealed_entry(ds.id))
+    report = platform_pull.sync_delivery_facts(tmp_db, apply=True)
+    after = get_dataset(tmp_db, ds.id)
+    assert report.sealed == [ds.id]
+    assert after.status == "sealed"
+    assert after.sealed_at == "2026-10-17T14:45:39+00:00"
+    assert after.content_root_sha256 == ROOT
+    assert pushes == [ds.id]
+
+
+def test_a_delivery_starting_is_recorded_and_pushed(tmp_db, catalogue, pushes) -> None:
+    ds = _dataset(tmp_db, "approved")
+    catalogue.append(_entry(ds.id, "delivering"))
+    report = platform_pull.sync_delivery_facts(tmp_db, apply=True)
+    assert report.delivering == [ds.id]
+    assert get_dataset(tmp_db, ds.id).status == "delivering"
+    assert pushes == [ds.id]
+
+
+def test_an_old_seal_gets_its_missing_evidence_and_nothing_else(tmp_db, catalogue, pushes) -> None:
+    ds = _dataset(tmp_db, "sealed")
+    catalogue.append(_sealed_entry(ds.id))
+    report = platform_pull.sync_delivery_facts(tmp_db, apply=True)
+    after = get_dataset(tmp_db, ds.id)
+    assert report.evidence == [ds.id]
+    assert report.sealed == []
+    assert (after.status, after.sealed_at, after.content_root_sha256) == (
+        "sealed", "2026-10-17T14:45:39+00:00", ROOT)
+    # Run again: nothing is missing any more, so nothing happens.
+    pushes.clear()
+    assert platform_pull.sync_delivery_facts(tmp_db, apply=True).changed == 0
+    assert pushes == []
+
+
+def test_evidence_medai_holds_is_never_overwritten(tmp_db, catalogue, pushes) -> None:
+    ds = _dataset(tmp_db, "sealed")
+    update_dataset(tmp_db, ds.id, sealed_at="2026-10-17T14:45:00+00:00")
+    catalogue.append(_sealed_entry(ds.id))
+    platform_pull.sync_delivery_facts(tmp_db, apply=True)
+    after = get_dataset(tmp_db, ds.id)
+    assert after.sealed_at == "2026-10-17T14:45:00+00:00", "a held value moved"
+    assert after.content_root_sha256 == ROOT, "only the missing field is filled"
+
+
+def test_two_records_of_one_cohort_that_disagree_are_reported_not_rewritten(
+        tmp_db, catalogue, pushes) -> None:
+    ds = _dataset(tmp_db, "sealed")
+    update_dataset(tmp_db, ds.id, content_root_sha256="a" * 64)
+    catalogue.append(_sealed_entry(ds.id))
+    report = platform_pull.sync_delivery_facts(tmp_db, apply=True)
+    assert get_dataset(tmp_db, ds.id).content_root_sha256 == "a" * 64
+    assert any("content root" in d for d in report.divergent)
+
+
+@pytest.mark.parametrize(("at", "root"), [("yesterday", ROOT), ("2026-10-17T14:45:39Z", "not-hex"),
+                                          ("", ""), (None, None)])
+def test_malformed_seal_evidence_is_not_recorded(tmp_db, catalogue, pushes, at, root) -> None:
+    ds = _dataset(tmp_db, "approved")
+    catalogue.append(_sealed_entry(ds.id, at=at, root=root))
+    platform_pull.sync_delivery_facts(tmp_db, apply=True)
+    after = get_dataset(tmp_db, ds.id)
+    assert after.status == "sealed", "the seal itself is still a fact"
+    good_at = at == "2026-10-17T14:45:39Z"
+    assert (after.sealed_at is not None) == good_at
+    assert (after.content_root_sha256 is not None) == (root == ROOT)
+
+
+def test_the_event_cursor_is_asked_for_correctly_and_checked(monkeypatch) -> None:
+    asked: list[tuple[str, float]] = []
+
+    def _get(path, *, timeout):
+        asked.append((path, timeout))
+        return {"epoch": "e1", "seq": 7}
+
+    monkeypatch.setattr(platform_pull, "_get_json", _get)
+    assert platform_pull.wait_for_change(None, wait_seconds=25) == {"epoch": "e1", "seq": 7}
+    assert platform_pull.wait_for_change({"epoch": "e1", "seq": 6}, wait_seconds=25)["seq"] == 7
+    assert asked[0] == ("/v1/events?wait=25", 40)
+    assert asked[1][0] == "/v1/events?wait=25&epoch=e1&after=6"
+    for bad in ({}, {"epoch": "", "seq": 1}, {"epoch": "e", "seq": "1"}, {"epoch": "e", "seq": True}):
+        monkeypatch.setattr(platform_pull, "_get_json", lambda path, *, timeout, b=bad: b)
+        with pytest.raises(RuntimeError):
+            platform_pull.wait_for_change(None)
+
+
+# ── review findings (2026-10-17) ─────────────────────────────────────────────
+
+
+def test_a_revoke_landing_mid_sync_is_never_overwritten(tmp_db, catalogue, monkeypatch) -> None:
+    """The sync decides from a read and writes afterwards. A revoke committed in between must win:
+    the write is conditional on the status that was read, so nothing is written or pushed."""
+    ds = _dataset(tmp_db, "approved")
+    catalogue.append(_entry(ds.id, "delivering"))
+    pushed: list[str] = []
+    monkeypatch.setattr("gazzali.platform_push.push_dataset",
+                        lambda db, i: pushed.append(get_dataset(db, i).status) or True)
+    real = platform_pull.decide_action
+
+    def racing(medai, cluster):
+        update_dataset(tmp_db, ds.id, status="revoked")   # the admin's revoke commits here
+        return real(medai, cluster)
+
+    monkeypatch.setattr(platform_pull, "decide_action", racing)
+    report = platform_pull.sync_delivery_facts(tmp_db, apply=True)
+    assert get_dataset(tmp_db, ds.id).status == "revoked"
+    assert pushed == []
+    assert any("changed in Medai during the sync" in d for d in report.divergent)
+
+
+def test_every_write_the_sync_makes_leaves_an_audit_row(tmp_db, catalogue, pushes) -> None:
+    from gazzali.crud.audit import list_logs
+
+    ds = _dataset(tmp_db, "approved")
+    catalogue.append(_sealed_entry(ds.id))
+    platform_pull.sync_delivery_facts(tmp_db, apply=True)
+    rows = list_logs(tmp_db, entity_type="dataset", entity_id=ds.id)
+    sealed = [r for r in rows if r.action == "platform-seal"]
+    assert len(sealed) == 1
+    assert "sealed_at=2026-10-17T14:45:39+00:00" in (sealed[0].details or "")
+    assert sealed[0].user_id is None, "the platform, not a person, made this change"
+
+
+def test_a_failed_push_is_reported_not_swallowed(tmp_db, catalogue, monkeypatch) -> None:
+    ds = _dataset(tmp_db, "approved")
+    catalogue.append(_sealed_entry(ds.id))
+    monkeypatch.setattr("gazzali.platform_push.push_dataset", lambda db, i: False)
+    report = platform_pull.sync_delivery_facts(tmp_db, apply=True)
+    assert get_dataset(tmp_db, ds.id).status == "sealed", "Medai's record is still right"
+    assert report.push_failed == [ds.id]
+    assert report.errors == [], "a push the */5 heartbeat repeats must not stall the live watch"
+
+
+def test_a_repush_bumps_the_generation_only_when_the_mirror_is_not_behind(
+        tmp_db, catalogue, pushes) -> None:
+    """A push the platform keeps refusing must not inflate the generation on every retry."""
+    ds = _dataset(tmp_db, "sealed")
+    behind = _entry(ds.id, "delivering")
+    behind["desired"]["generation"] = ds.generation - 1     # the mirror is already behind Medai
+    catalogue.append(behind)
+    platform_pull.sync_delivery_facts(tmp_db, apply=True)
+    platform_pull.sync_delivery_facts(tmp_db, apply=True)
+    assert get_dataset(tmp_db, ds.id).generation == ds.generation, "bumped although already ahead"
+    assert pushes == [ds.id, ds.id]
+
+    catalogue[0]["desired"]["generation"] = ds.generation   # level: the push needs a higher one
+    platform_pull.sync_delivery_facts(tmp_db, apply=True)
+    assert get_dataset(tmp_db, ds.id).generation == ds.generation + 1
+
+
+def test_a_status_change_never_lands_without_its_audit_row(tmp_db, catalogue, pushes) -> None:
+    """One transaction: when the audit row cannot be written, the change is not written either,
+    and the next sync tries both again."""
+    from gazzali.db import get_db
+
+    ds = _dataset(tmp_db, "approved")
+    catalogue.append(_sealed_entry(ds.id))
+    with get_db(tmp_db) as conn:
+        conn.execute("ALTER TABLE audit_log RENAME TO audit_log_away")
+    report = platform_pull.sync_delivery_facts(tmp_db, apply=True)
+    assert get_dataset(tmp_db, ds.id).status == "approved", "the change landed without its audit row"
+    assert report.errors
+    assert pushes == []
+    with get_db(tmp_db) as conn:
+        conn.execute("ALTER TABLE audit_log_away RENAME TO audit_log")
+    assert platform_pull.sync_delivery_facts(tmp_db, apply=True).sealed == [ds.id]

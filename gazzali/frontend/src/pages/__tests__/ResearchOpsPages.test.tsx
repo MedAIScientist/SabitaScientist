@@ -13,7 +13,9 @@ vi.mock('@tanstack/react-query', () => ({
 }))
 vi.mock('react-router-dom', () => ({
   useNavigate: vi.fn(),
+  useSearchParams: () => [new URLSearchParams()],
 }))
+vi.mock('../../auth', () => ({ useAuth: () => ({ isAdmin: false, username: 'pi1' }) }))
 
 const mockedUseQuery = vi.mocked(useQuery)
 const mockedUseMutation = vi.mocked(useMutation)
@@ -75,10 +77,11 @@ describe('IRBPage', () => {
     expect(screen.getByText('IRB / Ethics Approvals')).toBeInTheDocument()
   })
 
-  test('create form reveals protocol fields on + New approval', () => {
+  test('create form reveals protocol fields on + New ethics record', () => {
     render(<IRBPage />)
-    fireEvent.click(screen.getByRole('button', { name: '+ New approval' }))
-    expect(screen.getByPlaceholderText('Protocol title')).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('Protocol #')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: '+ New ethics record' }))
+    // Projects come back empty from the mocked useQuery, so the form explains
+    // who may create a record instead of offering one that would fail.
+    expect(screen.getByText(/You can add an ethics record to a project you own or edit/)).toBeInTheDocument()
   })
 })

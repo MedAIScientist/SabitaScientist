@@ -5,11 +5,37 @@ from __future__ import annotations
 from fastapi import Depends, Header, HTTPException, status
 
 from ..auth import validate_token
+from ..crud.labs import get_lab
 from ..crud.labs import get_member_role as get_lab_member_role
 from ..crud.projects import get_member_role
 from ..crud.users import get_user_by_id
 from ..db import get_db_path
 from ..models import User
+
+
+def lab_attach_refusal(db, lab_id: str | None, user: User) -> tuple[int, str] | None:
+    """Why `user` may not put a new project in `lab_id`, as (status, reason) — or None when they
+    may. A project may be put in a lab only by a member of that lab (any role) or a platform
+    admin: attaching it moves the project into that lab's CVAT organisation and under its PI's
+    authority, which is not something an outsider may do to someone else's lab. Every path that
+    creates a project with a lab asks this — the API routes and the copilot's tool alike."""
+    if not lab_id:
+        return None
+    if not get_lab(db, lab_id):
+        return 400, "lab does not exist"
+    if not user.is_admin and get_lab_member_role(db, lab_id, user.id) is None:
+        return status.HTTP_403_FORBIDDEN, "only a member of the lab can put a project in it"
+    return None
+
+
+def check_lab_attachable(db, lab_id: str | None, user: User) -> str | None:
+    """`lab_attach_refusal` as an HTTP error. Returns the lab id to store: an empty string means
+    no lab and is stored as NULL, never as ''."""
+    lab_id = (lab_id or "").strip() or None
+    refusal = lab_attach_refusal(db, lab_id, user)
+    if refusal:
+        raise HTTPException(status_code=refusal[0], detail=refusal[1])
+    return lab_id
 
 
 def _extract_token(authorization: str | None = Header(default=None)) -> str:

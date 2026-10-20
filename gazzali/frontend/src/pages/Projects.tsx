@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { api, Project, Task, Experiment, Template } from '../api'
+import { api, Lab, Project, Task, Experiment, Template } from '../api'
 import { useAuth } from '../auth'
 
 const ACCENT_CYCLE = ['#ff8015', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#f43f5e']
@@ -214,6 +214,15 @@ export function Projects() {
   const [newName, setNewName] = useState('')
   const [newDesc, setNewDesc] = useState('')
   const [creating, setCreating] = useState(false)
+  // The lab a project belongs to. It cannot be changed later, and it is what puts the project in
+  // the lab's CVAT organisation and lets the lab's PI write its ethics record — so it is asked for
+  // at creation. Only labs the user is in are offered (the server refuses any other).
+  const { data: labs = [] } = useQuery<Lab[]>({ queryKey: ['labs'], queryFn: () => api.listLabs() })
+  const myLabs = labs.filter(l => l.members.length > 0)
+  // undefined = not chosen yet (falls back to the only lab, if exactly one); '' = chose "No lab".
+  const [newLab, setNewLab] = useState<string | undefined>(undefined)
+  const [templateLab, setTemplateLab] = useState<string | undefined>(undefined)
+  const defaultLab = myLabs.length === 1 ? myLabs[0].id : ''
 
   // Template wizard state
   const [showTemplateWizard, setShowTemplateWizard] = useState(false)
@@ -235,12 +244,13 @@ export function Projects() {
   })
 
   const createMutation = useMutation({
-    mutationFn: ({ name, description }: { name: string; description?: string }) =>
-      api.createProject(name, description),
+    mutationFn: ({ name, description, labId }: { name: string; description?: string; labId?: string }) =>
+      api.createProject(name, description, labId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] })
       setNewName('')
       setNewDesc('')
+      setNewLab(undefined)
       setCreating(false)
     },
   })
@@ -271,11 +281,20 @@ export function Projects() {
 
       {creating && (
         <form
-          onSubmit={e => { e.preventDefault(); createMutation.mutate({ name: newName, description: newDesc || undefined }) }}
+          onSubmit={e => { e.preventDefault(); createMutation.mutate({ name: newName, description: newDesc || undefined, labId: (newLab ?? defaultLab) || undefined }) }}
           className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16, animation: 'fadeInUp 0.18s ease' }}
         >
           <input className="input" autoFocus value={newName} onChange={e => setNewName(e.target.value)} placeholder="Project name" required />
           <textarea className="input" value={newDesc} onChange={e => setNewDesc(e.target.value)} placeholder="Brief description (optional)" rows={2} style={{ resize: 'vertical' }} />
+          {myLabs.length > 0 && (
+            <label className="field"><span>Lab <small className="hint">(cannot be changed later)</small></span>
+              <select className="input" aria-label="Lab" value={newLab ?? defaultLab} onChange={e => setNewLab(e.target.value)}>
+                <option value="">No lab</option>
+                {myLabs.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            </label>
+          )}
+          {createMutation.isError && <div className="msg msg-error" role="alert">{(createMutation.error as Error).message}</div>}
           <div style={{ display: 'flex', gap: 8 }}>
             <button type="submit" className="btn btn-primary" disabled={createMutation.isPending}>Create</button>
             <button type="button" className="btn" onClick={() => setCreating(false)}>Cancel</button>
@@ -373,6 +392,14 @@ export function Projects() {
                       }}
                     />
                   </div>
+                  {myLabs.length > 0 && (
+                    <label className="field"><span>Lab <small className="hint">(cannot be changed later)</small></span>
+                      <select className="input" aria-label="Template lab" value={templateLab ?? defaultLab} onChange={e => setTemplateLab(e.target.value)}>
+                        <option value="">No lab</option>
+                        {myLabs.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                      </select>
+                    </label>
+                  )}
 
                   {/* Preview */}
                   <div style={{ background: 'var(--surface-2)', borderRadius: 8, padding: 14 }}>
@@ -402,6 +429,7 @@ export function Projects() {
                         await api.createProjectFromTemplate({
                           template_id: selectedTemplate.id,
                           name: templateProjectName,
+                          lab_id: (templateLab ?? defaultLab) || undefined,
                         })
                         queryClient.invalidateQueries({ queryKey: ['projects'] })
                         setShowTemplateWizard(false)

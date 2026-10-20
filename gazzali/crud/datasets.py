@@ -86,8 +86,11 @@ def create_dataset(
     estimated_bytes: int | None = None,
     renders: bool = True,
     project_id: str | None = None,
+    dataset_id: str | None = None,
 ) -> Dataset:
-    did = uuid.uuid4().hex
+    # A caller may choose the id up front: the Curator hand-off marks the researcher's selection
+    # as requested under this id BEFORE the row exists, so the two can never disagree.
+    did = dataset_id or uuid.uuid4().hex
     now = datetime.now(UTC).isoformat()
     with get_db(db_path) as conn:
         conn.execute(
@@ -148,6 +151,27 @@ def list_datasets(
     return [_row_to_dataset(r) for r in rows]
 
 
+def raise_estimated_bytes(db_path: Path, dataset_id: str, estimated_bytes: int) -> bool:
+    """Raise a dataset's reserved storage in ONE conditional write; False when it did not move.
+
+    The condition is the whole rule, so two admins raising at once cannot end below the higher
+    value: a reservation only grows, and a FIRST one (the bucket has no limit) is accepted only
+    while nothing is delivering — setting a limit on a bucket that is filling could put it below
+    what the bucket already holds. Bumps generation like every mutation, so the push is accepted.
+    """
+    now = datetime.now(UTC).isoformat()
+    with get_db(db_path) as conn:
+        cur = conn.execute(
+            "UPDATE datasets SET estimated_bytes=?, generation=generation+1, updated_at=? "
+            "WHERE id=? AND ("
+            " (COALESCE(estimated_bytes, 0) = 0 AND status = 'approved')"
+            " OR (estimated_bytes > 0 AND estimated_bytes < ? AND status IN ('approved', 'delivering'))"
+            ")",
+            (estimated_bytes, now, dataset_id, estimated_bytes),
+        )
+    return cur.rowcount == 1
+
+
 def update_dataset(db_path: Path, dataset_id: str, **fields) -> Dataset | None:
     """Set the given columns, bump generation and updated_at in one transaction.
 
@@ -183,6 +207,40 @@ def update_dataset(db_path: Path, dataset_id: str, **fields) -> Dataset | None:
             "WHERE id=?",
             [*updates.values(), now, dataset_id],
         )
+    return get_dataset(db_path, dataset_id)
+
+
+def update_dataset_if_status(db_path: Path, dataset_id: str, expected_status: str, *,
+                             audit: tuple[str, str] | None = None, **fields) -> Dataset | None:
+    """update_dataset, but only while the row is STILL in `expected_status`; None when it moved.
+
+    For writers that decide from a read and write afterwards — the platform sync. Without the
+    condition, an administrator's revoke committed between the read and the write would be
+    overwritten with "sealed" or "delivering" and pushed, quietly re-opening the cohort.
+
+    `audit` = (action, details) is written in the SAME transaction as the change, attributed to
+    no person (user_id NULL): a change to the system of record never lands without its row."""
+    allowed = {"status", "sealed_at", "content_root_sha256"}
+    updates = {k: v for k, v in fields.items() if k in allowed and v is not None}
+    if not updates:
+        row = get_dataset(db_path, dataset_id)
+        return row if row is not None and row.status == expected_status else None
+    now = datetime.now(UTC).isoformat()
+    set_clause = ", ".join(f"{k}=?" for k in updates)
+    with get_db(db_path) as conn:
+        cur = conn.execute(
+            f"UPDATE datasets SET {set_clause}, generation=generation+1, updated_at=? "
+            "WHERE id=? AND status=?",
+            [*updates.values(), now, dataset_id, expected_status],
+        )
+        if cur.rowcount != 1:
+            return None
+        if audit is not None:
+            conn.execute(
+                "INSERT INTO audit_log (id, user_id, action, entity_type, entity_id, details, "
+                "ip_address, created_at) VALUES (?, NULL, ?, 'dataset', ?, ?, NULL, ?)",
+                (uuid.uuid4().hex, audit[0], dataset_id, audit[1], now),
+            )
     return get_dataset(db_path, dataset_id)
 
 

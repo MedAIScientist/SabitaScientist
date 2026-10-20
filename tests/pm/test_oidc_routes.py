@@ -345,3 +345,103 @@ def test_the_login_route_reports_an_unreachable_provider_as_503(client, monkeypa
     assert "password" in resp.json()["detail"]
     # And no state is left behind for a login that cannot complete.
     assert not any(v == "/login" for v in auth_oidc_mod._oidc_states.values())
+
+
+def _token_owner(tmp_db, resp) -> str:
+    token = resp.headers["location"].split("token=", 1)[1]
+    con = sqlite3.connect(tmp_db)
+    try:
+        (user_id,) = con.execute("SELECT user_id FROM auth_tokens WHERE token = ?", (token,)).fetchone()
+    finally:
+        con.close()
+    return user_id
+
+
+def _sso(email, name):
+    return OIDCUser(sub=f"sub-{email}", email=email, name=name, preferred_username=None,
+                    issuer="https://medai.medipol.edu.tr/auth/application/o/medai-pm/")
+
+
+def test_a_display_name_never_signs_anyone_into_an_existing_account(tmp_db, monkeypatch):
+    """Security: a sign-in whose e-mail is unknown but whose display name equals an existing
+    username used to be logged straight into that account — an admin's included."""
+    admin = create_user(tmp_db, username="Ahmet Kaplan", password_hash=hash_password("pw"),
+                        email="ahmet@medipol.edu.tr", is_admin=True)
+    _patch_oidc(monkeypatch, tmp_db, _sso("intruder@example.org", "Ahmet Kaplan"))
+
+    resp = _callback(_make_client(tmp_db), "s-takeover")
+
+    assert resp.status_code == 307
+    owner = _token_owner(tmp_db, resp)
+    assert owner != admin.id, "the session was issued for the existing admin account"
+    newcomer = get_user_by_email(tmp_db, "intruder@example.org")
+    assert newcomer is not None
+    assert newcomer.id == owner
+    assert not newcomer.is_admin
+    assert newcomer.username == "Ahmet Kaplan (intruder@example.org)"
+    assert get_user_by_username(tmp_db, "Ahmet Kaplan").email == "ahmet@medipol.edu.tr"
+
+
+def test_an_account_without_email_is_never_adopted_by_a_sign_in_with_one(tmp_db, monkeypatch):
+    """Local password accounts carry no e-mail (e.g. 'ahmet.kaplan'); a same-named SSO user is a
+    different person until a human says otherwise."""
+    local = create_user(tmp_db, username="ahmet.kaplan", password_hash=hash_password("pw"), email=None)
+    _patch_oidc(monkeypatch, tmp_db, _sso("someone@medipol.edu.tr", "ahmet.kaplan"))
+
+    owner = _token_owner(tmp_db, _callback(_make_client(tmp_db), "s-local"))
+
+    assert owner != local.id
+    assert get_user_by_username(tmp_db, "ahmet.kaplan").email is None, "the local row must stay untouched"
+
+
+def test_the_disambiguated_account_is_reused_on_the_next_sign_in(tmp_db, monkeypatch):
+    create_user(tmp_db, username="Ali Veli", password_hash=hash_password("pw"), email="ali1@medipol.edu.tr")
+    _patch_oidc(monkeypatch, tmp_db, _sso("ali2@medipol.edu.tr", "Ali Veli"))
+    client = _make_client(tmp_db)
+    first = _token_owner(tmp_db, _callback(client, "s-a"))
+    second = _token_owner(tmp_db, _callback(client, "s-b"))
+    assert first == second
+
+
+def _users(tmp_db) -> int:
+    con = sqlite3.connect(tmp_db)
+    try:
+        return con.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    finally:
+        con.close()
+
+
+def _tokens(tmp_db) -> int:
+    con = sqlite3.connect(tmp_db)
+    try:
+        return con.execute("SELECT COUNT(*) FROM auth_tokens").fetchone()[0]
+    finally:
+        con.close()
+
+
+@pytest.mark.parametrize("email", [None, ""])
+def test_a_sign_in_without_email_cannot_take_over_an_admin_by_name(tmp_db, monkeypatch, email):
+    """THE TAKEOVER. The bootstrap admin has no e-mail; a sign-in whose token carries none (an
+    identity-provider account without an address sends an empty claim) and a display name equal
+    to that username used to be signed in AS that admin. Now it is refused, and nothing is made."""
+    create_user(tmp_db, username="ahmet.kaplan", password_hash=hash_password("pw"), email=None,
+                is_admin=True)
+    before = _users(tmp_db)
+    _patch_oidc(monkeypatch, tmp_db, OIDCUser(sub="s", email=email, name="ahmet.kaplan",
+                                              preferred_username=None,
+                                              issuer="https://medai.medipol.edu.tr/auth/application/o/medai-pm/"))
+    resp = _callback(_make_client(tmp_db), f"s-noemail-{email!r}")
+    assert resp.status_code == 403, resp.text
+    assert "no e-mail address" in resp.text
+    assert _tokens(tmp_db) == 0, "no session was issued"
+    assert _users(tmp_db) == before, "and no account was created"
+
+
+def test_the_password_account_still_signs_in_through_the_form(tmp_db):
+    """Refusing e-mail-less single sign-on does not touch the password door the NULL-e-mail
+    accounts actually use."""
+    create_user(tmp_db, username="ahmet.kaplan", password_hash=hash_password("pw"), email=None,
+                is_admin=True)
+    r = _make_client(tmp_db).post("/api/v1/auth/login",
+                                  json={"username": "ahmet.kaplan", "password": "pw"})
+    assert r.status_code == 200, r.text

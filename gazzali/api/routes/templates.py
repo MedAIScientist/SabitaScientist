@@ -8,7 +8,7 @@ from ...crud.tasks import create_task
 from ...db import get_db, get_db_path
 from ...models import User
 from ...templates import get_template, list_templates, template_to_dict
-from ..deps import get_current_user
+from ..deps import check_lab_attachable, get_current_user
 from ..schemas import (
     MemberResponse,
     ProjectFromTemplateRequest,
@@ -45,13 +45,14 @@ def create_project_from_template(
         raise HTTPException(status_code=404, detail=f"Template {body.template_id!r} not found")
 
     db = get_db_path()
+    lab_id = check_lab_attachable(db, body.lab_id, current_user)
 
     project = create_project(
         db,
         name=body.name,
         description=body.description or t.description,
         created_by=current_user.id,
-        lab_id=body.lab_id,
+        lab_id=lab_id,
     )
 
     phase_map: dict[str, str] = {}

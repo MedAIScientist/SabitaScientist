@@ -131,6 +131,15 @@ def update_existing_lab(
         is_current_pi = current_user.id == lab.pi_id or (
             lab.pi_id is None and get_member_role(db, lab_id, current_user.id) == "pi"
         )
+        # With no PI on record and SEVERAL members holding the 'pi' role, any of them could
+        # claim the lab and then remove the others: who leads it is a platform admin's call.
+        if (not current_user.is_admin and lab.pi_id is None
+                and len([m for m in list_members(db, lab_id) if m.role == "pi"]) > 1):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="several members hold the PI role and none is recorded as the lab's PI; "
+                       "a platform admin decides who leads the lab",
+            )
         if not current_user.is_admin and not is_current_pi:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -141,6 +150,11 @@ def update_existing_lab(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="new pi_id must already be a member of this lab",
             )
+        # The new PI gets the lab role that carries the PI's powers. Every PI check (dataset
+        # approval, sharing, revocation, the ethics record) reads the lab_members role, never
+        # labs.pi_id — so a handover that moved only pi_id gave the title without the powers.
+        # The previous PI keeps their role; the new PI can change it afterwards.
+        update_member_role(db, lab_id, user_id=body.pi_id, role="pi")
     lab = update_lab(
         db,
         lab_id,
@@ -178,6 +192,7 @@ def add_lab_member(
     user = get_user_by_id(db, body.user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    _refuse_pi_promotion_without_a_recorded_pi(db, lab_id, body.role, current_user)
     try:
         member = add_member(db, lab_id, user_id=body.user_id, role=body.role)
     except sqlite3.IntegrityError as exc:
@@ -196,6 +211,47 @@ def add_lab_member(
     )
 
 
+def _refuse_pi_promotion_without_a_recorded_pi(db, lab_id: str, role: str, current_user: User) -> None:
+    """In a lab with no PI on record every 'pi'-role member is protected from demotion and removal
+    (see `_refuse_if_lab_pi`), so making someone a PI there is a ratchet a non-admin could never
+    undo — and it hands out PI powers (approval, revocation, the roster, CVAT maintainer). Until
+    the lab's PI is recorded, only a platform admin adds PIs."""
+    if role != "pi" or current_user.is_admin:
+        return
+    lab = get_lab(db, lab_id)
+    if lab and lab.pi_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="this lab has no PI on record, so nobody else can be made a PI here — "
+                   "record the lab's PI first (or ask a platform admin)",
+        )
+
+
+def _refuse_if_lab_pi(db, lab_id: str, user_id: str, current_user: User) -> None:
+    """The lab's PI is not demoted or removed through the roster: the lab would be left with a PI
+    who has no PI powers, or with no PI at all, and only a platform admin could repair it.
+    Handing the lab to another member is the way; a platform admin may still act directly.
+
+    Which member is the PI: labs.pi_id when it is recorded. Labs created before pi_id was set
+    have none — then EVERY 'pi'-role member is protected, because the system cannot tell which of
+    them really leads the lab, and guessing wrong lets one remove the other."""
+    lab = get_lab(db, lab_id)
+    if not lab or current_user.is_admin:
+        return
+    if lab.pi_id:
+        if lab.pi_id == user_id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="this is the lab's PI — hand the lab to another member first",
+            )
+    elif get_member_role(db, lab_id, user_id) == "pi":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="this lab has no PI on record, so its PI-role members cannot be demoted or "
+                   "removed here — record the lab's PI first",
+        )
+
+
 @router.put("/{lab_id}/members/{user_id}", response_model=LabMemberResponse)
 def change_lab_member_role(
     lab_id: str,
@@ -205,6 +261,10 @@ def change_lab_member_role(
 ):
     """Change a member's lab role (lab 'pi'/'admin' member, or a platform admin)."""
     db = get_db_path()
+    if body.role != "pi":
+        _refuse_if_lab_pi(db, lab_id, user_id, current_user)
+    elif get_member_role(db, lab_id, user_id) != "pi":
+        _refuse_pi_promotion_without_a_recorded_pi(db, lab_id, body.role, current_user)
     member = update_member_role(db, lab_id, user_id=user_id, role=body.role)
     if member is None:
         raise HTTPException(status_code=404, detail="Lab member not found")
@@ -227,4 +287,6 @@ def remove_lab_member(
     current_user: User = Depends(require_lab_role("pi", "admin")),
 ):
     """Remove a member from the lab (lab 'pi'/'admin' member, or a platform admin)."""
-    remove_member(get_db_path(), lab_id, user_id)
+    db = get_db_path()
+    _refuse_if_lab_pi(db, lab_id, user_id, current_user)
+    remove_member(db, lab_id, user_id)

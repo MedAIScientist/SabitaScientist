@@ -10,7 +10,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from ...auth import create_token, hash_password
-from ...crud.users import create_user, get_user_by_email, get_user_by_username
+from ...crud.users import create_user, get_user_by_email
 from ...db import get_db, get_db_path
 from ...oidc import (
     ProviderUnavailable,
@@ -51,6 +51,29 @@ def oidc_login(redirect: str = "/login"):
     return RedirectResponse(url=auth_url)
 
 
+def _create_sso_user(db, username: str, email: str):
+    """Create the account for a first SSO sign-in, never adopting someone else's.
+
+    The display name is tried first because it is what people recognise. If another account
+    already holds it, the e-mail disambiguates — e-mails are UNIQUE, so "name (email)" cannot
+    collide with another SSO account. A concurrent first sign-in of the SAME person is
+    recognised by its e-mail, not by its name.
+    """
+    for candidate in (username, f"{username} ({email})", f"{email}-{secrets.token_hex(3)}"):
+        try:
+            return create_user(
+                db,
+                username=candidate,
+                password_hash=hash_password(secrets.token_hex(16)),
+                email=email,
+            )
+        except IntegrityError:
+            same_person = get_user_by_email(db, email)
+            if same_person:
+                return same_person
+    raise HTTPException(500, "Could not create an account for this sign-in")
+
+
 @router.get("/auth/oidc/callback")
 async def oidc_callback(
     request: Request,
@@ -84,25 +107,26 @@ async def oidc_callback(
         or oidc_user.email
         or oidc_user.sub.split("-")[0][:20]
     )
-    user = get_user_by_email(db, oidc_user.email) if oidc_user.email else None
-    if not user:
-        user = get_user_by_username(db, username)
-
-    if not user:
-        try:
-            user = create_user(
-                db,
-                username=username,
-                password_hash=hash_password(secrets.token_hex(16)),
-                email=oidc_user.email,
-            )
-        except IntegrityError:
-            # Concurrent login created the user between lookup and insert
-            user = get_user_by_email(db, oidc_user.email) or get_user_by_username(
-                db, username
-            )
-            if not user:
-                raise
+    if oidc_user.email:
+        # An e-mail is the identity. A display name is NOT: two people share names, and
+        # anyone who can set a display name in the identity provider could otherwise sign
+        # in as the existing account that happens to carry that username — an admin's
+        # included. So with an e-mail, a miss creates a NEW account; it never adopts one.
+        user = get_user_by_email(db, oidc_user.email)
+        if not user:
+            user = _create_sso_user(db, username, oidc_user.email)
+    else:
+        # No e-mail claim: refuse. The only other key on offer is the display name, and matching
+        # it adopted whichever existing account carried that username — an admin's included —
+        # for anyone whose identity-provider account has no address (or who can rename
+        # themselves). Creating a fresh account instead would make a new one at every sign-in.
+        # No live sign-in relies on this path: the teacher's password account signs in through
+        # the form, and his single sign-on identity carries an e-mail.
+        raise HTTPException(
+            403,
+            "This sign-in carries no e-mail address, so it cannot be matched to an account. "
+            "Ask an administrator to add your e-mail in the identity provider, then sign in again.",
+        )
 
     # The address decides student vs professor (new accounts used to default to student).
     from ...roles import sync_role

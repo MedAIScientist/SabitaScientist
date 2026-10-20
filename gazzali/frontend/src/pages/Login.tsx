@@ -27,7 +27,9 @@ export function Login() {
     const token = params.get('token')
     if (token) {
       sessionStorage.setItem('pm_token', token)
-      window.location.href = '/projects'
+      // Home, like the password path below: it holds the approvals inbox and the
+      // "create your lab" prompt, which a /projects landing skipped entirely.
+      window.location.href = '/home'
     }
   }, [])
 

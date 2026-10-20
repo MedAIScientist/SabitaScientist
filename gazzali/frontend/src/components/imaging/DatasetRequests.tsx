@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { api, DatasetRequest } from '../../api'
+import { DatasetId } from './DatasetId'
 
 /** One request's progress: a row of steps and who has to act next. */
 function Tracker({ req }: { req: DatasetRequest }) {
@@ -14,6 +15,7 @@ function Tracker({ req }: { req: DatasetRequest }) {
             {req.requested_by && ` · requested by ${req.requested_by}`}
             {` · ${new Date(req.created_at).toLocaleDateString()}`}
           </div>
+          <DatasetId id={req.id} />
         </div>
         <div className="request-next">
           {stopped ? <span className="warn">{req.status === 'revoked' ? 'Revoked' : 'Expired'}</span>
