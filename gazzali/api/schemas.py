@@ -1035,7 +1035,9 @@ class DatasetCreate(BaseModel):
     estimated_bytes: int | None = Field(default=None, ge=0, le=1 << 50)
     # The researcher's saved Curator selection. Medai's server resolves its studies directly from
     # Curator (curator_bridge) — the way a request is filed; a typed list is a platform-admin API.
-    curator_selection_id: str | None = Field(default=None, pattern=r"^sel_[0-9a-f]{32}$")
+    curator_selection_id: str | None = Field(
+        default=None, pattern=r"^sel_[0-9a-f]{32}$"
+    )
     irb_ids: list[str] = []
     # The project this data is requested for (optional; tracked through to delivery).
     project_id: str | None = None
@@ -1800,6 +1802,7 @@ CohortMethod = Literal[
     "agreement",
     "mcar",
     "multiple_imputation",
+    "power",
 ]
 
 
@@ -1922,6 +1925,9 @@ class CohortAnalysisCreate(BaseModel):
     m: int = Field(default=20, ge=2, le=200)
     maxit: int = Field(default=10, ge=1, le=100)
     seed: int | None = Field(default=None, ge=0)
+    # Power: the difference to plan for, and the power to aim at.
+    effect: float | None = None
+    target_power: float = Field(default=0.8, gt=0, lt=1)
 
 
 class CohortAnalysisValueResponse(BaseModel):

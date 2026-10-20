@@ -944,3 +944,88 @@ def test_multiple_imputation_needs_at_least_two_imputations(missing_frame):
         analyses.multiple_imputation(
             missing_frame, target="compare", outcome="lvef", group="arm", m=1
         )
+
+
+# ---------------------------------------------------------------------------
+# power: what the cohort could detect (phase 5b)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="module")
+def powered_frame() -> pd.DataFrame:
+    rng = np.random.default_rng(17)
+    n = 60
+    return pd.DataFrame(
+        {
+            "arm": ["control"] * n + ["treatment"] * n,
+            "lvef": np.concatenate(
+                [rng.normal(47, 10, n), rng.normal(51, 10, n)]
+            ).round(1),
+        }
+    )
+
+
+def test_power_reports_the_minimum_detectable_difference(powered_frame):
+    outcome = analyses.power(
+        powered_frame, outcome="lvef", group="arm", target_power=0.8
+    )
+    minimum = outcome.result["minimum_detectable_difference"]
+    assert minimum > 0
+    assert outcome.result["pooled_sd"] > 0
+    assert all(
+        value["name"] != "lvef:power" for value in outcome.values
+    )  # no effect named
+    assert any("precision, not a claim" in note for note in outcome.table["notes"])
+
+
+def test_the_minimum_detectable_difference_is_consistent_with_the_sample_size(
+    powered_frame,
+):
+    """Self-check: the n that an 80%-power study needs for the MDE must be the n we have."""
+    outcome = analyses.power(
+        powered_frame, outcome="lvef", group="arm", target_power=0.8
+    )
+    required = outcome.result["required_per_group"]
+    observed = outcome.result["n_per_group"][0]
+    assert abs(required - observed) <= 2, (required, observed)
+
+
+def test_power_names_the_power_it_had_for_a_chosen_difference(powered_frame):
+    outcome = analyses.power(powered_frame, outcome="lvef", group="arm", effect=4.0)
+    achieved = outcome.result["achieved_power"]
+    assert 0.0 < achieved < 1.0
+    assert any(value["name"] == "lvef:power" for value in outcome.values)
+
+
+def test_naming_the_observed_difference_is_called_post_hoc(powered_frame):
+    """The trap: power computed from the sample's own effect restates the p-value."""
+    observed = abs(
+        powered_frame.loc[powered_frame["arm"] == "control", "lvef"].mean()
+        - powered_frame.loc[powered_frame["arm"] == "treatment", "lvef"].mean()
+    )
+    outcome = analyses.power(
+        powered_frame, outcome="lvef", group="arm", effect=round(observed, 1)
+    )
+    assert any("post-hoc" in note for note in outcome.table["notes"])
+
+
+def test_a_planning_difference_is_not_called_post_hoc(powered_frame):
+    outcome = analyses.power(powered_frame, outcome="lvef", group="arm", effect=1.0)
+    assert not any("post-hoc" in note for note in outcome.table["notes"])
+
+
+def test_power_refuses_a_three_group_design():
+    frame = pd.DataFrame(
+        {
+            "arm": ["a", "b", "c"] * 20,
+            "lvef": np.random.default_rng(3).normal(48, 10, 60),
+        }
+    )
+    with pytest.raises(analyses.AnalysisError, match="two groups"):
+        analyses.power(frame, outcome="lvef", group="arm")
+
+
+def test_power_refuses_a_constant_outcome():
+    frame = pd.DataFrame({"arm": ["a", "b"] * 10, "lvef": [50.0] * 20})
+    with pytest.raises(analyses.AnalysisError, match="no variance"):
+        analyses.power(frame, outcome="lvef", group="arm")

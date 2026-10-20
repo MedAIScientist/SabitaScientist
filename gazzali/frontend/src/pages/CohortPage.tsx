@@ -489,6 +489,8 @@ export function CohortPage() {
   const [miSeed, setMiSeed] = useState('')
   /** Which analyses go into the dossier; empty means the server picks the current ones. */
   const [dossierIds, setDossierIds] = useState<string[]>([])
+  const [effect, setEffect] = useState('')
+  const [targetPower, setTargetPower] = useState('0.8')
   const [analysis, setAnalysis] = useState<CohortAnalysis | null>(null)
   const [experimentId, setExperimentId] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -666,6 +668,11 @@ export function CohortPage() {
       body.raters = raters
       body.measure = measure
       body.icc_model = iccModel
+    } else if (method === 'power') {
+      body.outcome = outcome
+      body.group = group
+      body.effect = effect.trim() === '' ? null : Number(effect)
+      body.target_power = Number(targetPower) || 0.8
     } else if (method === 'mcar') {
       body.variables = variables
     } else if (method === 'multiple_imputation') {
@@ -905,6 +912,7 @@ export function CohortPage() {
                         <option value="agreement">Agreement (ICC / Bland-Altman / kappa)</option>
                         <option value="mcar">Missingness (Little's MCAR)</option>
                         <option value="multiple_imputation">Multiple imputation (pooled)</option>
+                        <option value="power">Power / detectable difference</option>
                       </select>
                     </div>
 
@@ -993,6 +1001,32 @@ export function CohortPage() {
                         <div style={{ width: 120 }}>
                           <div style={label}>Seed (optional)</div>
                           <input value={miSeed} onChange={event => setMiSeed(event.target.value)} inputMode="numeric" style={input} />
+                        </div>
+                      </>
+                    )}
+
+                    {method === 'power' && (
+                      <>
+                        <ColumnSelect label="Outcome" value={outcome} onChange={setOutcome} columns={numericColumns} />
+                        <ColumnSelect label="Group (2 levels)" value={group} onChange={setGroup} columns={categoricalColumns} />
+                        <div style={{ width: 170 }}>
+                          <div style={label}>Difference to detect</div>
+                          <input
+                            value={effect}
+                            onChange={event => setEffect(event.target.value)}
+                            placeholder="optional"
+                            inputMode="decimal"
+                            style={input}
+                          />
+                        </div>
+                        <div style={{ width: 140 }}>
+                          <div style={label}>Target power</div>
+                          <input
+                            value={targetPower}
+                            onChange={event => setTargetPower(event.target.value)}
+                            inputMode="decimal"
+                            style={input}
+                          />
                         </div>
                       </>
                     )}
@@ -1104,6 +1138,14 @@ export function CohortPage() {
                       selected={covariates}
                       onToggle={name => setCovariates(current => toggle(current, name))}
                     />
+                  )}
+
+                  {method === 'power' && (
+                    <div style={{ marginBottom: 12, fontSize: 13, color: '#6b7280' }}>
+                      Reports the difference this cohort could detect at the target power, and the
+                      power it had for a difference you name. Naming the difference observed in the
+                      sample gives post-hoc power, which restates the p-value — the table says so.
+                    </div>
                   )}
 
                   {method === 'mcar' && (

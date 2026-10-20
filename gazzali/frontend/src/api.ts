@@ -1960,6 +1960,7 @@ export type CohortMethod =
   | 'agreement'
   | 'mcar'
   | 'multiple_imputation'
+  | 'power'
 
 export interface CohortAnalysisRequest {
   method: CohortMethod
@@ -1995,6 +1996,9 @@ export interface CohortAnalysisRequest {
   m?: number
   maxit?: number
   seed?: number | null
+  /** Power: the difference to plan for, and the power to aim at. */
+  effect?: number | null
+  target_power?: number
 }
 
 /** Upload a cohort table file; the version endpoint takes multipart, not JSON. */

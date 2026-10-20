@@ -51,6 +51,7 @@ _METHODS = (
     "agreement",
     "mcar",
     "multiple_imputation",
+    "power",
 )
 
 
@@ -202,6 +203,16 @@ def run(
                 measure=str(params.get("measure") or "icc"),
                 weights=params.get("weights") or None,
                 icc_model=str(params.get("icc_model") or "ICC(2,1)"),
+                alpha=float(params.get("alpha") or 0.05),
+            )
+        if method == "power":
+            effect = params.get("effect")
+            return analyses.power(
+                frame,
+                outcome=str(params.get("outcome") or ""),
+                group=str(params.get("group") or ""),
+                effect=None if effect is None else float(effect),
+                target_power=float(params.get("target_power") or 0.8),
                 alpha=float(params.get("alpha") or 0.05),
             )
         if method == "mcar":

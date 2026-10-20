@@ -37,6 +37,7 @@ from .vendor.biostats.mi import ImputationSpec, analyze_mi, impute
 from .vendor.biostats.mi.report import missingness_summary
 from .vendor.biostats.multiplicity import adjust, normalize_method
 from .vendor.biostats.normality import normality_check
+from .vendor.biostats.power import anova_power, anova_sample_size
 from .vendor.biostats.rates import mantel_haenszel as mantel_haenszel_vendor
 from .vendor.biostats.references import REFERENCES as METHOD_REFERENCES
 from .vendor.biostats.regression import logistic_regression
@@ -56,6 +57,7 @@ __all__ = [
     "mantel_haenszel",
     "mcar",
     "multiple_imputation",
+    "power",
     "ratio_2x2",
     "survival",
     "table_one",
@@ -2426,5 +2428,195 @@ def multiple_imputation(
             ],
         },
         table={"columns": columns, "rows": rows, "notes": notes},
+        values=values,
+    )
+
+
+def power(
+    frame: pd.DataFrame,
+    *,
+    outcome: str,
+    group: str,
+    effect: float | None = None,
+    target_power: float = 0.8,
+    alpha: float = 0.05,
+) -> AnalysisOutcome:
+    """What this cohort could detect: the minimum detectable difference, and the power it had.
+
+    Two numbers, deliberately kept apart:
+
+    * the **minimum detectable difference** at the target power — a precision statement
+      about the design, which is what a limitations paragraph should carry;
+    * the **achieved power for a difference you name** — a planning question. Naming the
+      difference *observed in this sample* makes the answer a restatement of the p-value,
+      and the table says so, because that is the post-hoc power trap.
+    """
+    if not outcome or not group:
+        raise AnalysisError("a power analysis needs an outcome and a group column")
+    missing = [column for column in (outcome, group) if column not in frame.columns]
+    if missing:
+        raise AnalysisError("not in this version: " + ", ".join(missing))
+    series = _numeric(frame, outcome)
+    levels = _levels(_categorical(frame, group), group)
+    if len(levels) != 2:
+        raise AnalysisError(
+            f"this analysis compares two groups; '{group}' has {len(levels)} levels. "
+            "A multi-group design needs the ANOVA power panel, not a two-sample statement."
+        )
+    groups = [series[frame[group].astype(str) == level].dropna() for level in levels]
+    if min(len(part) for part in groups) < 3:
+        raise AnalysisError("both groups need at least three measured values")
+    n1, n2 = len(groups[0]), len(groups[1])
+    # Balanced-design power against unequal groups: the harmonic mean is the per-group n
+    # that gives the same standard error, and it is what the table reports.
+    n_per_group = 2 * n1 * n2 / (n1 + n2)
+    sd = float(
+        np.sqrt(
+            (
+                (n1 - 1) * np.var(groups[0], ddof=1)
+                + (n2 - 1) * np.var(groups[1], ddof=1)
+            )
+            / (n1 + n2 - 2)
+        )
+    )
+    if not np.isfinite(sd) or sd <= 0:
+        raise AnalysisError(
+            "the outcome has no variance; a power statement is undefined"
+        )
+
+    # Cohen's f for two groups: f = d / 2, with d in pooled-SD units.
+    def f_of(difference: float) -> float:
+        return abs(difference) / (2.0 * sd)
+
+    def detectable_difference(power_target: float) -> float:
+        """Bisect on Cohen's f: the difference the design would find with that power."""
+        low, high = 1e-6, 10.0
+        for _ in range(100):
+            middle = (low + high) / 2
+            achieved = anova_power(middle, n_per_group, 2, alpha).power
+            if achieved < power_target:
+                low = middle
+            else:
+                high = middle
+        return ((low + high) / 2) * 2.0 * sd
+
+    minimum = detectable_difference(target_power)
+    rows = [
+        {
+            "label": "Minimum detectable difference",
+            "kind": "power",
+            "cells": {
+                "measure": f"Difference detectable with {target_power:.0%} power",
+                "value": f"{minimum:.3f}",
+                "detail": f"alpha {alpha}, two-sided, two groups of {n1:,} and {n2:,}",
+            },
+        },
+        {
+            "label": "Groups",
+            "kind": "power",
+            "cells": {
+                "measure": "Measured per group",
+                "value": f"{n1:,} and {n2:,}",
+                "detail": f"harmonic mean {n_per_group:.1f} per group; pooled SD {sd:.3f}",
+            },
+        },
+    ]
+    values = [
+        {
+            "name": f"{outcome}:mde",
+            "label": f"Minimum detectable difference ({outcome} by {group})",
+            "value": float(minimum),
+            "n": int(n1 + n2),
+        }
+    ]
+    notes = [
+        f"At alpha {alpha} (two-sided) and {target_power:.0%} power, a difference of "
+        f"{minimum:.3f} in {outcome} or larger between '{levels[0]}' and '{levels[1]}' "
+        "would have been detected. Smaller true differences may exist and were not "
+        "ruled out.",
+        "This is a statement about precision, not a claim that the effect is absent when "
+        "the test was not significant.",
+    ]
+
+    achieved = None
+    if effect is not None:
+        achieved = anova_power(f_of(effect), n_per_group, 2, alpha).power
+        observed_gap = abs(float(np.mean(groups[0]) - np.mean(groups[1])))
+        rows.append(
+            {
+                "label": "Power for the chosen difference",
+                "kind": "power",
+                "cells": {
+                    "measure": f"Power to detect a difference of {abs(effect):.3f}",
+                    "value": f"{achieved:.1%}",
+                    "detail": f"Cohen's f = {f_of(effect):.4f}",
+                },
+            }
+        )
+        values.append(
+            {
+                "name": f"{outcome}:power",
+                "label": f"Power for a difference of {abs(effect):.3f} ({outcome})",
+                "value": float(achieved),
+                "n": int(n1 + n2),
+            }
+        )
+        notes.append(
+            "Choose the difference for a planning question, not the one this sample "
+            "produced: power computed from the observed effect is a restatement of the "
+            "p-value and tells a reader nothing new."
+        )
+        # A reader types the difference they saw, usually rounded: treat "within 1% of the
+        # observed gap" as post-hoc power, because stopping at an exact match would miss
+        # every real instance of the trap.
+        if observed_gap > 0 and abs(abs(effect) - observed_gap) <= 0.01 * observed_gap:
+            notes.append(
+                "The difference you named is the one this sample produced (within 1%), so "
+                "the power above is post-hoc: it is a restatement of the p-value and says "
+                "nothing about the study's design."
+            )
+
+    planned = anova_sample_size(
+        f_of(effect if effect is not None else minimum), 2, alpha, target_power
+    )
+    notes.append(
+        f"For a future study with the same variability, detecting a difference of "
+        f"{(abs(effect) if effect is not None else minimum):.3f} at {target_power:.0%} "
+        f"power would need about {planned.n_per_group} per group."
+    )
+
+    return AnalysisOutcome(
+        method="power",
+        n=int(n1 + n2),
+        result={
+            "outcome": outcome,
+            "group": group,
+            "groups": levels,
+            "n_per_group": [n1, n2],
+            "n_per_group_harmonic": float(n_per_group),
+            "pooled_sd": float(sd),
+            "alpha": float(alpha),
+            "target_power": float(target_power),
+            "minimum_detectable_difference": float(minimum),
+            "effect": None if effect is None else float(abs(effect)),
+            "achieved_power": None if achieved is None else float(achieved),
+            "required_per_group": int(planned.n_per_group or 0),
+            "references": [
+                METHOD_REFERENCES.get(
+                    "cohen1988",
+                    "Cohen J (1988). Statistical Power Analysis for the Behavioral Sciences, "
+                    "2nd ed. Lawrence Erlbaum.",
+                )
+            ],
+        },
+        table={
+            "columns": [
+                {"key": "measure", "label": "Measure"},
+                {"key": "value", "label": "Estimate"},
+                {"key": "detail", "label": "Basis"},
+            ],
+            "rows": rows,
+            "notes": notes,
+        },
         values=values,
     )

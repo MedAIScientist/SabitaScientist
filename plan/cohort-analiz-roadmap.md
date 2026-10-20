@@ -15,7 +15,7 @@ Durum anahtarı: ✅ tamam · 🔴 bloklayıcı · 🟡 önemli · 🟢 sonra
 
 ## Uygulama durumu
 
-Faz 1–7 **uygulandı** (kod, testler ve arayüz). Yalnızca 5b (smr, güç hesabı) açık.
+Faz 1–7 ve güç analizi **uygulandı**. Yalnızca SMR bilinçli olarak açık (gerekçe: sapma 7).
 
 | Faz | Durum | Nerede |
 |---|---|---|
@@ -24,14 +24,15 @@ Faz 1–7 **uygulandı** (kod, testler ve arayüz). Yalnızca 5b (smr, güç hes
 | 3 — Tanımlayıcı / Tablo 1 / grup karşılaştırma | ✅ | `gazzali/cohort/analyses.py` (`descriptive`, `table1`, `compare`) |
 | 4 — Provenans, bayat işareti, metrik köprüsü | ✅ | `crud.cohort.analysis_is_stale`, `POST …/publish`, `verify_numbers._LIVE_COHORT_METRIC` |
 | 5 — Sağkalım / tanısal doğruluk / epi oranları | ✅ | `analyses.py`: `survival`, `cox`, `logistic`, `diagnostic`, `ratio_2x2`, `mantel_haenszel`, `agreement` |
-| 5b — `smr`, güç/örneklem hesabı | ⬜ | bilinçli olarak ertelendi (gerekçe: sapma 7) |
+| 5b — Güç / tespit edilebilir fark | ✅ | `analyses.py`: `power` — MDE + seçilen fark için güç + planlama için gerekli n |
+| 5c — `smr` | ⬜ | ertelendi: popülasyona bağlı değil, dış referans hızı gerektiriyor (gerekçe: sapma 7) |
 | 6 — MCAR + MI + Rubin | ✅ | `analyses.py`: `mcar`, `multiple_imputation` (target `compare`/`logistic`/`cox`) |
 | 6b — R paritesi | ✅ | `tests/pm/test_cohort_mi_parity.py` + `tests/pm/fixtures/mi/` — R `mice` 3.19 / `mitml` 0.4.5 |
 | 7 — Study dossier | ✅ | `gazzali/cohort/dossier.py` (python-docx) + `GET …/dossier` + Report sekmesi |
 
 Arayüz: `/projects/:id/cohort` (`CohortPage.tsx`) — sekmeler: Data · Population · Analysis · Quality · Provenance · Report.
 
-Testler: `tests/pm/test_cohort_engine.py` (74), `tests/pm/test_cohort_api.py` (52), `tests/pm/test_cohort_dossier.py` (18), `tests/pm/test_cohort_mi_parity.py` (10, R paritesi) — 154 test.
+Testler: `tests/pm/test_cohort_engine.py` (81), `tests/pm/test_cohort_api.py` (53), `tests/pm/test_cohort_dossier.py` (18), `tests/pm/test_cohort_mi_parity.py` (10, R paritesi) — 162 test.
 
 **Plandan bilinçli sapmalar:**
 
@@ -53,10 +54,16 @@ Testler: `tests/pm/test_cohort_engine.py` (74), `tests/pm/test_cohort_api.py` (5
 6. **Sağkalımda PH testi ve konkordans `lifelines` ister.** Kurulu değilse sonuç
    tablosu bunu açıkça yazıyor ("... need the optional 'survival' extra"), sessizce
    atlamıyor. `lifelines` eklendiği gün ikisi de kendiliğinden görünür.
-7. **`smr` ve güç/örneklem hesabı ertelendi.** İkisi de popülasyona bağlı bir
-   analiz değil: SMR bir sürveyans aracı, güç hesabı ise *planlama* hesabı. Güç
-   hesabının doğru yeri hibe modülü (başvuruda gerekli N), SMR'ın yeri ayrı bir
-   sürveyans fazı. `biostats/power.py` ve `rates.py` vendor'da duruyor.
+7. **Güç analizi yapıldı, SMR yapılmadı.** Güç hesabını önce "planlama işi, hibe
+   modülüne ait" diye ertelemiştim; bu yanlıştı. Bir *hassasiyet* ifadesi
+   ("bu kohort 5.4 puanlık farkı yakalayabilirdi") tam olarak popülasyona bağlıdır ve
+   makalenin limitasyon paragrafının istediği cümledir. `power` bunu veriyor.
+   SMR ise gerçekten dışarıda: `observed / expected` oranı, kohortta olmayan bir
+   referans hızı gerektiriyor, yani popülasyona bağlı bir analiz değil.
+   **Post-hoc power tuzağı bilinçle ele alındı:** örneklemde görülen farkı isimlendirmek
+   güç hesabını p-değerinin tekrarı yapar; `power` bunu tespit edip tabloda uyarıyor
+   (%1 toleransla) ve kendi MDE'si için gereken n'nin gözlenen n'ye eşit çıkması
+   testle kilitlendi.
 8. **Her metot `publish` edilebilir sayı üretiyor** (`HR`, `p`, `AUC`, `OR`, `kappa`
    …). Yani sağkalım, lojistik, tanısal, 2x2, MH ve uyum sonuçları da
    `experiment_metrics`'e yazılıp `verify_numbers` tarafından görülebiliyor; bunun

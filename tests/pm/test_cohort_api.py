@@ -1243,3 +1243,26 @@ def test_a_viewer_may_download_the_dossier(
     )
     assert response.status_code == 200
     assert response.content[:2] == b"PK"
+
+
+def test_power_analysis_over_the_api(client, headers, project, analysed):
+    """The analysed cohort has two sexes and a measured LVEF: ask what it could detect."""
+    table, population = analysed["table"], analysed["population"]
+    response = client.post(
+        _url(
+            project.id, f"/tables/{table['id']}/populations/{population['id']}/analyses"
+        ),
+        json={
+            "method": "power",
+            "outcome": "lvef",
+            "group": "sex",
+            "target_power": 0.8,
+        },
+        headers=headers,
+    )
+    assert response.status_code == 201, response.text
+    analysis = response.json()
+    assert analysis["result"]["minimum_detectable_difference"] > 0
+    assert analysis["result"]["n_per_group_harmonic"] > 0
+    assert any(value["name"] == "lvef:mde" for value in analysis["values"])
+    assert any("precision" in note for note in analysis["table"]["notes"])
