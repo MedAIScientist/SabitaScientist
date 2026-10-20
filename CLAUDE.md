@@ -137,7 +137,7 @@ into `experiment_metrics` and lessons into the lab's `research_lessons`.
 
 ### Cohort analysis (clinical statistics)
 
-Plan: `plan/cohort-analiz-roadmap.md` (phases 1–6 implemented). An IRB-aware
+Plan: `plan/cohort-analiz-roadmap.md` (phases 1–7 implemented). An IRB-aware
 replacement for ad-hoc Excel/SPSS work on a clinical cohort: a versioned table, a
 declared analysis population with its STROBE participant flow, a quality scorecard,
 Table 1 and group comparisons, and a provenance trail that makes a stale number
@@ -151,6 +151,7 @@ visible instead of silently current.
 | `gazzali/cohort/analyses.py` | Twelve methods: `descriptive`, `table1`, `compare`, `survival`, `cox`, `logistic`, `diagnostic`, `ratio_2x2`, `mantel_haenszel`, `agreement`, `mcar`, `multiple_imputation`; estimates with CIs first, assumptions as diagnostics, named multiplicity correction |
 | `gazzali/cohort/engine.py` | Version → population → analysis orchestration; no FastAPI, no SQLite |
 | `gazzali/cohort/store.py` | Immutable Parquet versions under `GAZZALI_COHORT_DIR` (default `<workspace>/cohort`), content-hash verified on read |
+| `gazzali/cohort/dossier.py` | The study dossier as a `.docx` (python-docx): provenance, participant flow, handling, missingness, the chosen results, references — and a first paragraph saying it is not a compliance certificate |
 | `gazzali/cohort/vendor/` | Vendored `core/` + `biostats/` from Cohort-Studio, Apache-2.0 — see `vendor/NOTICE` |
 
 Two invariants hold everywhere and are what the tests protect:
@@ -179,9 +180,12 @@ inference. The pooling is checked against R `mice` 3.19 / `mitml` 0.4.5 by
 `tests/pm/test_cohort_mi_parity.py`: **do not change `biostats/mi/` without re-running
 it**, and never relax those tolerances.
 
+The dossier (`GET …/dossier`) defaults to the population's current analyses; a stale one
+enters only when named explicitly, and the document marks it as stale.
+
 ```bash
 uv run pytest tests/pm/test_cohort_api.py tests/pm/test_cohort_engine.py \
-    tests/pm/test_cohort_mi_parity.py -v
+    tests/pm/test_cohort_dossier.py tests/pm/test_cohort_mi_parity.py -v
 ```
 
 ### Frontend Pages (29+)

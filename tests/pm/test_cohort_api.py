@@ -7,6 +7,7 @@ a researcher work through them, so a failure points at the step that broke.
 from __future__ import annotations
 
 import csv
+import io
 import json
 
 import numpy as np
@@ -1119,3 +1120,126 @@ def test_imputation_with_nothing_missing_is_refused(client, headers, project, fo
     )
     assert response.status_code == 422, response.text
     assert "nothing to impute" in response.json()["detail"]
+
+
+# ---------------------------------------------------------------------------
+# phase 7: the study dossier
+# ---------------------------------------------------------------------------
+
+
+def _dossier_text(payload: bytes) -> str:
+    from docx import Document
+
+    read = Document(io.BytesIO(payload))
+    parts = [paragraph.text for paragraph in read.paragraphs]
+    for table in read.tables:
+        for row in table.rows:
+            parts.extend(cell.text for cell in row.cells)
+    return "\n".join(parts)
+
+
+def test_the_dossier_downloads_as_a_word_document(client, headers, project, analysed):
+    table, population = analysed["table"], analysed["population"]
+    client.post(
+        _url(
+            project.id, f"/tables/{table['id']}/populations/{population['id']}/analyses"
+        ),
+        json={"method": "table1", "variables": ["age", "lvef"], "group": "nyha"},
+        headers=headers,
+    )
+    response = client.get(
+        _url(project.id, f"/tables/{table['id']}/dossier"), headers=headers
+    )
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"].startswith(
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+    assert ".docx" in response.headers["content-disposition"]
+    text = _dossier_text(response.content)
+    # The three things a dossier is for: provenance, the flow, the disclaimer.
+    assert population["fingerprint"] in text
+    assert "Participant flow" in text
+    assert "not a compliance certificate" in text
+
+
+def test_the_dossier_carries_a_selected_result(client, headers, project, analysed):
+    table, population = analysed["table"], analysed["population"]
+    analysis = client.post(
+        _url(
+            project.id, f"/tables/{table['id']}/populations/{population['id']}/analyses"
+        ),
+        json={"method": "compare", "outcome": "lvef", "group": "sex"},
+        headers=headers,
+    ).json()
+    response = client.get(
+        _url(project.id, f"/tables/{table['id']}/dossier"),
+        params={"analysis_id": analysis["id"]},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    text = _dossier_text(response.content)
+    assert "5.1 compare" in text
+    assert analysis["population_fingerprint"] in text
+
+
+def test_the_dossier_leaves_a_stale_result_out_unless_it_is_named(
+    client, headers, project, analysed
+):
+    """A superseded population must not silently enter the dossier."""
+    table, population = analysed["table"], analysed["population"]
+    analysis = client.post(
+        _url(
+            project.id, f"/tables/{table['id']}/populations/{population['id']}/analyses"
+        ),
+        json={"method": "descriptive", "variables": ["age"]},
+        headers=headers,
+    ).json()
+    # A newer population supersedes the one this analysis ran on.
+    client.post(
+        _url(project.id, f"/tables/{table['id']}/populations"),
+        json={"name": "Narrower cohort", "criteria": ["anomalies::lvef_range"]},
+        headers=headers,
+    )
+
+    default = client.get(
+        _url(project.id, f"/tables/{table['id']}/dossier"), headers=headers
+    )
+    assert default.status_code == 200
+    assert "5.1 descriptive" not in _dossier_text(default.content)
+
+    named = client.get(
+        _url(project.id, f"/tables/{table['id']}/dossier"),
+        params={"analysis_id": analysis["id"]},
+        headers=headers,
+    )
+    assert named.status_code == 200
+    text = _dossier_text(named.content)
+    assert "5.1 descriptive" in text
+    assert "Stale result" in text
+
+
+def test_the_dossier_refuses_an_unknown_analysis(client, headers, project, analysed):
+    table = analysed["table"]
+    response = client.get(
+        _url(project.id, f"/tables/{table['id']}/dossier"),
+        params={"analysis_id": "nope"},
+        headers=headers,
+    )
+    assert response.status_code == 404
+
+
+def test_a_viewer_may_download_the_dossier(
+    client, headers, project, analysed, tmp_db, viewer
+):
+    from gazzali.crud.projects import add_member
+
+    add_member(tmp_db, project.id, viewer.id, "viewer")
+    token = client.post(
+        "/api/v1/auth/login", json={"username": "reader", "password": "readpass1"}
+    ).json()["token"]
+    response = client.get(
+        _url(project.id, f"/tables/{analysed['table']['id']}/dossier"),
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 200
+    assert response.content[:2] == b"PK"

@@ -2093,6 +2093,15 @@ export const cohortApi = {
       `/projects/${projectId}/cohort/tables/${tableId}/analyses/${analysisId}/export`, filename,
     ),
 
+  /** The study dossier: provenance, participant flow, handling, missingness, results. */
+  dossier: (projectId: string, tableId: string, analysisIds: string[], filename: string) => {
+    const query = analysisIds.map(id => `analysis_id=${encodeURIComponent(id)}`).join('&')
+    return downloadWithAuth(
+      `/projects/${projectId}/cohort/tables/${tableId}/dossier${query ? `?${query}` : ''}`,
+      filename,
+    )
+  },
+
   trace: (projectId: string, tableId: string) =>
     request<CohortTrace>('GET', `/projects/${projectId}/cohort/tables/${tableId}/trace`),
   replay: (projectId: string, tableId: string) =>

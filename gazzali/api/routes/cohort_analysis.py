@@ -28,7 +28,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
 
-from ...cohort import engine, ingest, quality, transform
+from ...cohort import dossier, engine, ingest, quality, transform
 from ...cohort.analyses import ENGINE_VERSION
 from ...crud import cohort as crud
 from ...crud.audit import log_action as audit_log
@@ -965,16 +965,12 @@ def list_cohort_populations(
     ]
 
 
-@router.get("/{project_id}/cohort/tables/{table_id}/populations/{population_id}/flow")
-def cohort_participant_flow(
-    project_id: str,
-    table_id: str,
-    population_id: str,
-    current_user: User = Depends(require_project_role("owner", "editor", "viewer")),
-):
-    """The STROBE participant flow (item 13), with its own consistency check."""
-    table = _load_table(project_id, table_id)
-    population = _load_population(table, population_id)
+def _build_flow(table: CohortTable, population) -> dict:
+    """The participant flow of a population, from the trace the table recorded.
+
+    Shared by the flow endpoint and the dossier so the document cannot disagree with the
+    screen about how many rows were excluded.
+    """
     db = get_db_path()
     version = crud.get_version(db, population.version_id)
     if version is None:
@@ -1024,6 +1020,19 @@ def cohort_participant_flow(
         steps=steps,
         analyses_=analyses,
     )
+
+
+@router.get("/{project_id}/cohort/tables/{table_id}/populations/{population_id}/flow")
+def cohort_participant_flow(
+    project_id: str,
+    table_id: str,
+    population_id: str,
+    current_user: User = Depends(require_project_role("owner", "editor", "viewer")),
+):
+    """The STROBE participant flow (item 13), with its own consistency check."""
+    table = _load_table(project_id, table_id)
+    population = _load_population(table, population_id)
+    return _build_flow(table, population)
 
 
 # ---------------------------------------------------------------------------
@@ -1244,4 +1253,98 @@ def publish_cohort_analysis(
             }
             for value in values
         ],
+    )
+
+
+@router.get("/{project_id}/cohort/tables/{table_id}/dossier")
+def cohort_dossier(
+    project_id: str,
+    table_id: str,
+    analysis_id: list[str] = Query(default=[]),
+    population_id: str | None = Query(default=None),
+    current_user: User = Depends(require_project_role("owner", "editor", "viewer")),
+):
+    """The study dossier: provenance, participant flow, data handling, missingness, results.
+
+    By default it carries every CURRENT analysis of the study's population. Results
+    computed on a superseded population are left out — unless one is named explicitly,
+    in which case it is included and marked stale in the document.
+    """
+    table = _load_table(project_id, table_id)
+    db = get_db_path()
+    populations = crud.list_populations(db, table.id)
+    if population_id:
+        population = _load_population(table, population_id)
+    else:
+        population = next(
+            (item for item in populations if not item.superseded_by), None
+        )
+    if population is None:
+        raise _conflict("this table has no analysis population yet")
+
+    version = crud.get_version(db, population.version_id)
+    if version is None:
+        raise _not_found("Version not found")
+    try:
+        frame = engine.load_frame(version)
+    except engine.EngineError as exc:
+        raise _conflict(str(exc)) from exc
+
+    chosen = {item for item in analysis_id if item}
+    # A named result may live on an older population: the researcher asked for it by
+    # name, so it is looked up across the table's populations and marked stale, rather
+    # than reported as missing.
+    by_population = {item.id: item for item in populations}
+    if chosen:
+        candidates = [
+            (analysis, by_population[analysis.population_id])
+            for item in populations
+            for analysis in crud.list_analyses(db, item.id)
+        ]
+    else:
+        candidates = [
+            (analysis, population) for analysis in crud.list_analyses(db, population.id)
+        ]
+
+    analyses: list[dict] = []
+    for analysis, owner in candidates:
+        if chosen and analysis.id not in chosen:
+            continue
+        if not chosen and crud.analysis_is_stale(analysis, owner):
+            continue
+        analyses.append(_analysis_response(analysis, owner).model_dump())
+    missing = chosen - {analysis["id"] for analysis in analyses}
+    if missing:
+        raise _not_found("Analysis not found: " + ", ".join(sorted(missing)))
+
+    quality_report = quality.audit(frame, _config(table))
+    steps = [
+        {
+            "seq": step.seq,
+            "kind": step.kind,
+            "params": json.loads(step.params_json or "{}"),
+            "data": json.loads(step.data_json or "{}"),
+        }
+        for step in crud.list_steps(db, table.id)
+    ]
+    project = get_project(db, project_id)
+    document = dossier.build_dossier(
+        table=_table_response(table).model_dump(),
+        project={"id": project_id, "name": project.name if project else project_id},
+        versions=[
+            _version_response(item).model_dump()
+            for item in reversed(crud.list_versions(db, table.id))
+        ],
+        population=_population_response(population).model_dump(),
+        flow=_build_flow(table, population),
+        quality=quality_report.to_dict(),
+        steps=steps,
+        analyses=analyses,
+        generated_at=datetime.now(UTC).isoformat(timespec="seconds"),
+    )
+    filename = f"study-dossier-{table.name}.docx".replace(" ", "_")
+    return Response(
+        content=document,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

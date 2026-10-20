@@ -15,7 +15,7 @@ Durum anahtarı: ✅ tamam · 🔴 bloklayıcı · 🟡 önemli · 🟢 sonra
 
 ## Uygulama durumu
 
-Faz 1–6 **uygulandı** (kod, testler ve arayüz). Faz 7 açık.
+Faz 1–7 **uygulandı** (kod, testler ve arayüz). Yalnızca 5b (smr, güç hesabı) açık.
 
 | Faz | Durum | Nerede |
 |---|---|---|
@@ -27,11 +27,11 @@ Faz 1–6 **uygulandı** (kod, testler ve arayüz). Faz 7 açık.
 | 5b — `smr`, güç/örneklem hesabı | ⬜ | bilinçli olarak ertelendi (gerekçe: sapma 7) |
 | 6 — MCAR + MI + Rubin | ✅ | `analyses.py`: `mcar`, `multiple_imputation` (target `compare`/`logistic`/`cox`) |
 | 6b — R paritesi | ✅ | `tests/pm/test_cohort_mi_parity.py` + `tests/pm/fixtures/mi/` — R `mice` 3.19 / `mitml` 0.4.5 |
-| 7 — Study dossier | ⬜ | açık |
+| 7 — Study dossier | ✅ | `gazzali/cohort/dossier.py` (python-docx) + `GET …/dossier` + Report sekmesi |
 
-Arayüz: `/projects/:id/cohort` (`CohortPage.tsx`) — sekmeler: Data · Population · Analysis · Quality · Provenance.
+Arayüz: `/projects/:id/cohort` (`CohortPage.tsx`) — sekmeler: Data · Population · Analysis · Quality · Provenance · Report.
 
-Testler: `tests/pm/test_cohort_engine.py` (74), `tests/pm/test_cohort_api.py` (47), `tests/pm/test_cohort_mi_parity.py` (10, R paritesi) — 131 test.
+Testler: `tests/pm/test_cohort_engine.py` (74), `tests/pm/test_cohort_api.py` (52), `tests/pm/test_cohort_dossier.py` (18), `tests/pm/test_cohort_mi_parity.py` (10, R paritesi) — 154 test.
 
 **Plandan bilinçli sapmalar:**
 
@@ -70,6 +70,19 @@ Testler: `tests/pm/test_cohort_engine.py` (74), `tests/pm/test_cohort_api.py` (4
    asıl bilgi ikisinin farkında. Başarısız/ayrışmış bir pooling sessizce geçmiyor —
    R-hat > 1.05 ise not düşülüyor, hedef tek bir tahmin değilse (3 gruplu ANOVA)
    net bir hatayla reddediliyor.
+11. **Dossier bir `.docx`, HTML→`.doc` değil.** `python-docx` eklendi: gerçek başlıklar
+   ve tablolar, Word'ün "bu dosyayı açamıyorum" uyarısı olmadan. Participant flow bir
+   **tablo** olarak basılıyor (adım, n, elenenler, gerekçe) — matplotlib ile çizilmiş bir
+   figür değil. Bu bilinçli: tablo, figürün iddia ettiği her sayıyı zaten taşıyor ve yeni
+   bir ağır bağımlılık gerektirmiyor. Figür istenirse sonraki artırım.
+12. **Dossier varsayılan olarak yalnızca güncel sonuçları alır.** Superseded popülasyondaki
+   bir sonuç, ancak adıyla istenirse girer — o zaman belgede **"Stale result"** olarak
+   işaretlenir ve "güncel olarak raporlanmamalıdır" cümlesiyle birlikte. Adıyla istenen
+   sonuç, tablonun *tüm* popülasyonlarında aranır (ilk sürümde yalnız aktif popülasyona
+   bakıyordu ve 404 veriyordu; test bunu yakaladı).
+13. **Belgenin ilk paragrafı bir uyarıdır.** "Bu bir uyumluluk sertifikası değildir ve
+   elektronik imzalı bir kayıt değildir; STROBE/CONSORT/PRISMA uyumunu belgelemez."
+   Metnin hiçbir yeri bunun aksini ima etmiyor; test bunu kilitliyor.
 11. **Upstream'de bir hata bulundu ve düzeltildi.** `biostats/mi/analyze.py:67`
    upstream'de Python 2 sözdizimi (`except TypeError, ValueError:`) içeriyor; bu,
    `biostats.mi` paketini o revizyonda import edilemez yapıyor. Düzeltme

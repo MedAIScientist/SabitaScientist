@@ -18,7 +18,7 @@ import {
 const ACCENT = '#ff8015'
 const ACCENT_RGB = '255,128,21'
 
-type Tab = 'data' | 'population' | 'analysis' | 'quality' | 'provenance'
+type Tab = 'data' | 'population' | 'analysis' | 'quality' | 'provenance' | 'report'
 
 const TABS: { key: Tab; label: string }[] = [
   { key: 'data', label: 'Data' },
@@ -26,6 +26,7 @@ const TABS: { key: Tab; label: string }[] = [
   { key: 'analysis', label: 'Analysis' },
   { key: 'quality', label: 'Quality' },
   { key: 'provenance', label: 'Provenance' },
+  { key: 'report', label: 'Report' },
 ]
 
 const card: React.CSSProperties = {
@@ -486,6 +487,8 @@ export function CohortPage() {
   const [miCount, setMiCount] = useState('20')
   const [miIterations, setMiIterations] = useState('10')
   const [miSeed, setMiSeed] = useState('')
+  /** Which analyses go into the dossier; empty means the server picks the current ones. */
+  const [dossierIds, setDossierIds] = useState<string[]>([])
   const [analysis, setAnalysis] = useState<CohortAnalysis | null>(null)
   const [experimentId, setExperimentId] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -1210,6 +1213,78 @@ export function CohortPage() {
                   )}
                 </>
               )}
+            </div>
+          )}
+
+          {tab === 'report' && (
+            <div style={card}>
+              <div style={{ ...label, marginBottom: 6 }}>Study dossier</div>
+              <div style={{ ...muted, marginBottom: 12 }}>
+                One Word document with the provenance (data version, content hash, analysis
+                population and its fingerprint), the participant flow, the data handling, the
+                missing-data treatment and the results you choose — each result stamped with the
+                population it was computed on.
+              </div>
+              <Notice tone="info">
+                The dossier is not a compliance certificate and not a signed record: it does not
+                certify conformance with STROBE or any other guideline. It records what was
+                computed, on which rows.
+              </Notice>
+              {analyses.length === 0 ? (
+                <div style={{ ...muted, marginBottom: 12 }}>
+                  No analysis in this population yet. Run one, then include it here.
+                </div>
+              ) : (
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ ...label, marginBottom: 6 }}>Results to include</div>
+                  {analyses.map(item => {
+                    const checked = dossierIds.length === 0 ? item.status === 'current' : dossierIds.includes(item.id)
+                    return (
+                      <label
+                        key={item.id}
+                        style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13, padding: '4px 0' }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {
+                            const base = dossierIds.length === 0
+                              ? analyses.filter(a => a.status === 'current').map(a => a.id)
+                              : dossierIds
+                            setDossierIds(base.includes(item.id)
+                              ? base.filter(id => id !== item.id)
+                              : [...base, item.id])
+                          }}
+                        />
+                        <span>{item.method}</span>
+                        <span style={muted}>n = {item.n.toLocaleString()}</span>
+                        {item.status !== 'current' && <Pill tone="#d97706">{item.status}</Pill>}
+                      </label>
+                    )
+                  })}
+                  <div style={{ ...muted, marginTop: 6 }}>
+                    A stale result is left out unless you tick it; when you do, the document marks it
+                    as stale.
+                  </div>
+                </div>
+              )}
+              <button
+                style={button(true)}
+                onClick={() => {
+                  setNotice(null)
+                  const chosen = dossierIds.length > 0
+                    ? dossierIds
+                    : analyses.filter(item => item.status === 'current').map(item => item.id)
+                  cohortApi
+                    .dossier(projectId!, tableId!, chosen, `study-dossier-${table.name}.docx`)
+                    .then(() => setNotice('The dossier was downloaded.'))
+                    .catch((caught: unknown) =>
+                      setError(caught instanceof Error ? caught.message : String(caught)),
+                    )
+                }}
+              >
+                Download the study dossier (.docx)
+              </button>
             </div>
           )}
 
